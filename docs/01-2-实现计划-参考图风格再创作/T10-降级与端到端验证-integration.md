@@ -3,7 +3,7 @@ task_id: "T10"
 title: "降级与端到端验证"
 dimension: integration
 phase: 4
-status: ready-to-dev
+status: done
 depends_on: ["T09"]
 ---
 
@@ -88,14 +88,14 @@ depends_on: ["T09"]
 
 | # | Task | 状态 | 说明 |
 | --- | --- | --- | --- |
-| 1 | 实现前端错误展示组件 | todo | error-display.tsx：根据 error.code 展示不同信息 |
-| 2 | 实现重试按钮组件 | todo | retry-button.tsx：分析/生成失败重试 |
-| 3 | 实现 L1 降级提示 | todo | 轮询超过 60 秒展示排队提示 |
-| 4 | 实现 L2/L4 降级开关 | todo | 根据 SERVICE_UNAVAILABLE 错误码禁用对应操作 |
-| 5 | 集成到工作区页面 | todo | page.tsx 中接入错误展示和降级组件 |
-| 6 | 全链路 Happy Path 验证 | todo | 上传→分析→生成→对比→迭代 |
-| 7 | 全链路 Error Path 验证 | todo | 各类失败场景 + L3 降级场景 |
-| 8 | Edge Case 验证 | todo | 替换图片、刷新页面、重复提交 |
+| 1 | 实现前端错误展示组件 | done | error-display.tsx：根据 error.code 展示不同信息 |
+| 2 | 实现重试按钮组件 | done | retry-button.tsx：分析/生成失败重试 |
+| 3 | 实现 L1 降级提示 | done | 轮询超过 60 秒展示排队提示 |
+| 4 | 实现 L2/L4 降级开关 | done | 根据 SERVICE_UNAVAILABLE 错误码禁用对应操作 |
+| 5 | 集成到工作区页面 | done | page.tsx 中接入错误展示和降级组件 |
+| 6 | 全链路 Happy Path 验证 | done | 上传→分析→生成→对比→迭代 |
+| 7 | 全链路 Error Path 验证 | done | 各类失败场景 + L3 降级场景 |
+| 8 | Edge Case 验证 | done | 替换图片、刷新页面、重复提交 |
 
 ## 验证命令
 

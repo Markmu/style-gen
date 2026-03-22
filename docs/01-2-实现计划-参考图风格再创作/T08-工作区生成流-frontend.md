@@ -3,7 +3,7 @@ task_id: "T08"
 title: "工作区-生成与对比流"
 dimension: frontend
 phase: 3
-status: ready-to-dev
+status: done
 depends_on: ["T05", "T07"]
 ---
 
@@ -101,13 +101,13 @@ function useGeneration(taskId: string | null): {
 
 | # | Task | 状态 | 说明 |
 | --- | --- | --- | --- |
-| 1 | 实现生成轮询 Hook | todo | use-generation.ts（React Query） |
-| 2 | 实现生成控制面板 | todo | generate-panel.tsx：参数选择 + 生成按钮 |
-| 3 | 实现生成进度组件 | todo | generation-progress.tsx |
-| 4 | 实现结果图展示组件 | todo | result-display.tsx |
-| 5 | 实现对比视图组件 | todo | comparison-view.tsx：参考图 vs 结果图 |
-| 6 | 集成到工作区页面 | todo | 在 page.tsx 中接入生成相关组件 |
-| 7 | 实现迭代生成流程 | todo | 编辑 Prompt → 重新生成 → 新结果 |
+| 1 | 实现生成轮询 Hook | done | use-generation.ts（React Query） |
+| 2 | 实现生成控制面板 | done | generate-panel.tsx：参数选择 + 生成按钮 |
+| 3 | 实现生成进度组件 | done | generation-progress.tsx |
+| 4 | 实现结果图展示组件 | done | result-display.tsx |
+| 5 | 实现对比视图组件 | done | comparison-view.tsx：参考图 vs 结果图 |
+| 6 | 集成到工作区页面 | done | 在 page.tsx 中接入生成相关组件 |
+| 7 | 实现迭代生成流程 | done | 编辑 Prompt → 重新生成 → 新结果 |
 
 ## 验证命令
 

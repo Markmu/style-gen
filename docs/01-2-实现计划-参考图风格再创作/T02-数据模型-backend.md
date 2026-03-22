@@ -3,7 +3,7 @@ task_id: "T02"
 title: "数据模型与访问层"
 dimension: backend
 phase: 1
-status: ready-to-dev
+status: done
 depends_on: ["T01"]
 ---
 
@@ -127,14 +127,14 @@ API / JSON 命名使用 camelCase。
 
 | # | Task | 状态 | 说明 |
 | --- | --- | --- | --- |
-| 1 | 创建 db.ts 连接池 | todo | PostgreSQL Pool 配置 |
-| 2 | 编写 schema.sql | todo | 三张表的 DDL |
-| 3 | 定义 TypeScript 接口 | todo | models.ts，对齐架构 7.2 节 |
-| 4 | 实现 ULID 工具 | todo | ulid.ts |
-| 5 | 实现 AssetRepository | todo | create + findById |
-| 6 | 实现 AnalysisTaskRepository | todo | create + findById + update |
-| 7 | 实现 GenerationTaskRepository | todo | create + findById + update |
-| 8 | 验证 DDL 可执行 | todo | 手动或脚本执行 schema.sql |
+| 1 | 创建 db.ts 连接池 | done | PostgreSQL Pool 配置 |
+| 2 | 编写 schema.sql | done | 三张表的 DDL |
+| 3 | 定义 TypeScript 接口 | done | models.ts，对齐架构 7.2 节 |
+| 4 | 实现 ULID 工具 | done | ulid.ts |
+| 5 | 实现 AssetRepository | done | create + findById |
+| 6 | 实现 AnalysisTaskRepository | done | create + findById + update |
+| 7 | 实现 GenerationTaskRepository | done | create + findById + update |
+| 8 | 验证 DDL 可执行 | done | 手动或脚本执行 schema.sql |
 
 ## 验证命令
 

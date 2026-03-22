@@ -3,7 +3,7 @@ task_id: "T09"
 title: "限流与错误规范"
 dimension: integration
 phase: 4
-status: ready-to-dev
+status: done
 depends_on: ["T04", "T05", "T07", "T08"]
 ---
 
@@ -98,11 +98,11 @@ console.log(JSON.stringify({
 
 | # | Task | 状态 | 说明 |
 | --- | --- | --- | --- |
-| 1 | 实现按 IP 限流工具 | todo | rate-limit.ts |
-| 2 | 实现 Next.js Middleware | todo | middleware.ts：API 限流 |
-| 3 | 统一后端错误响应格式 | todo | 审查并修改 T03/T04/T05 的 API 错误返回 |
-| 4 | 补齐超时处理 | todo | 分析 60s、生成 120s 超时 |
-| 5 | 添加结构化日志 | todo | 各 API 端点关键节点日志 |
+| 1 | 实现按 IP 限流工具 | done | rate-limit.ts |
+| 2 | 实现 Next.js Middleware | done | middleware.ts：API 限流 |
+| 3 | 统一后端错误响应格式 | done | 审查并修改 T03/T04/T05 的 API 错误返回 |
+| 4 | 补齐超时处理 | done | 分析 60s、生成 120s 超时 |
+| 5 | 添加结构化日志 | done | 各 API 端点关键节点日志 |
 
 ## 验证命令
 

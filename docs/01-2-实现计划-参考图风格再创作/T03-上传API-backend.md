@@ -3,7 +3,7 @@ task_id: "T03"
 title: "上传 API"
 dimension: backend
 phase: 2
-status: ready-to-dev
+status: done
 depends_on: ["T02"]
 ---
 
@@ -74,10 +74,10 @@ depends_on: ["T02"]
 
 | # | Task | 状态 | 说明 |
 | --- | --- | --- | --- |
-| 1 | 安装 @aws-sdk/client-s3 和 @aws-sdk/s3-request-presigner | todo | 添加依赖 |
-| 2 | 实现 R2 客户端 | todo | r2.ts：S3 client + presign + publicUrl |
-| 3 | 实现 POST /api/upload/presign | todo | 校验、签名、返回 URL |
-| 4 | 手动测试预签名上传 | todo | 用 curl 获取 presigned URL，再 PUT 上传文件验证 |
+| 1 | 安装 @aws-sdk/client-s3 和 @aws-sdk/s3-request-presigner | done | 添加依赖 |
+| 2 | 实现 R2 客户端 | done | r2.ts：S3 client + presign + publicUrl |
+| 3 | 实现 POST /api/upload/presign | done | 校验、签名、返回 URL |
+| 4 | 手动测试预签名上传 | done | 用 curl 获取 presigned URL，再 PUT 上传文件验证 |
 
 ## 验证命令
 

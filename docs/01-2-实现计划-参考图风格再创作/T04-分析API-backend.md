@@ -3,7 +3,7 @@ task_id: "T04"
 title: "分析 API"
 dimension: backend
 phase: 2
-status: ready-to-dev
+status: done
 depends_on: ["T02"]
 ---
 
@@ -109,14 +109,14 @@ depends_on: ["T02"]
 
 | # | Task | 状态 | 说明 |
 | --- | --- | --- | --- |
-| 1 | 安装 @google/genai SDK | todo | Gemini API 客户端 |
-| 2 | 编写 System Prompt 模板 | todo | prompts.ts：视觉理解 + 结构化整理两套 prompt |
-| 3 | 实现视觉理解模型调用 | todo | vision.ts：analyzeImage 函数 |
-| 4 | 实现 LLM 结构化整理调用 | todo | structurer.ts：structureAnalysis 函数，JSON mode |
-| 5 | 实现 POST /api/analysis | todo | 创建 Asset + Task，串行两阶段调用，保存结果 |
-| 5b | 实现 L3 降级分支 | todo | LLM 失败时降级返回原始视觉分析，status 仍为 completed |
-| 6 | 实现 GET /api/analysis/:id | todo | 状态查询端点 |
-| 7 | 手动测试完整分析链路 | todo | 上传一张图片后调用分析 API，验证返回结构 |
+| 1 | 安装 @google/genai SDK | done | Gemini API 客户端 |
+| 2 | 编写 System Prompt 模板 | done | prompts.ts：视觉理解 + 结构化整理两套 prompt |
+| 3 | 实现视觉理解模型调用 | done | vision.ts：analyzeImage 函数 |
+| 4 | 实现 LLM 结构化整理调用 | done | structurer.ts：structureAnalysis 函数，JSON mode |
+| 5 | 实现 POST /api/analysis | done | 创建 Asset + Task，串行两阶段调用，保存结果 |
+| 5b | 实现 L3 降级分支 | done | LLM 失败时降级返回原始视觉分析，status 仍为 completed |
+| 6 | 实现 GET /api/analysis/:id | done | 状态查询端点 |
+| 7 | 手动测试完整分析链路 | done | 上传一张图片后调用分析 API，验证返回结构 |
 
 ## 验证命令
 

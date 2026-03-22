@@ -3,7 +3,7 @@ task_id: "T05"
 title: "生成 API"
 dimension: backend
 phase: 2
-status: ready-to-dev
+status: done
 depends_on: ["T02", "T03"]
 ---
 
@@ -133,11 +133,11 @@ void executeGeneration(taskId, params).catch(err => {
 
 | # | Task | 状态 | 说明 |
 | --- | --- | --- | --- |
-| 1 | 安装 @fal-ai/client | todo | 添加 fal.ai SDK 依赖 |
-| 2 | 实现生图模型客户端 | todo | image-gen.ts：generateImage 函数 |
-| 3 | 实现 POST /api/generation | todo | 创建任务 + 异步生成 + 结果转存 R2 |
-| 4 | 实现 GET /api/generation/:id | todo | 状态查询，含 resultFileUrl |
-| 5 | 手动测试生成链路 | todo | 创建生成任务，轮询状态直到完成 |
+| 1 | 安装 @fal-ai/client | done | 添加 fal.ai SDK 依赖 |
+| 2 | 实现生图模型客户端 | done | image-gen.ts：generateImage 函数 |
+| 3 | 实现 POST /api/generation | done | 创建任务 + 异步生成 + 结果转存 R2 |
+| 4 | 实现 GET /api/generation/:id | done | 状态查询，含 resultFileUrl |
+| 5 | 手动测试生成链路 | done | 创建生成任务，轮询状态直到完成 |
 
 ## 验证命令
 

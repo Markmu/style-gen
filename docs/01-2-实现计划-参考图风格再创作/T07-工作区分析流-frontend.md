@@ -3,7 +3,7 @@ task_id: "T07"
 title: "工作区-上传与分析流"
 dimension: frontend
 phase: 3
-status: ready-to-dev
+status: done
 depends_on: ["T03", "T04"]
 ---
 
@@ -145,15 +145,15 @@ function useAnalysis(taskId: string | null): {
 
 | # | Task | 状态 | 说明 |
 | --- | --- | --- | --- |
-| 1 | 实现工作区状态机 | todo | use-workspace-state.ts |
-| 2 | 实现预签名上传 Hook | todo | use-upload.ts |
-| 3 | 实现分析轮询 Hook | todo | use-analysis.ts（React Query） |
-| 4 | 实现上传区域组件 | todo | upload-zone.tsx：拖拽/点击 + 进度 + 预览 |
-| 5 | 实现分析进度组件 | todo | analysis-progress.tsx |
-| 6 | 实现配方展示卡片 | todo | recipe-card.tsx：VisualRecipe 各字段展示 |
-| 7 | 实现 Prompt 编辑器 | todo | prompt-editor.tsx：双文本域 |
-| 8 | 组装工作区页面 | todo | page.tsx：左右分栏布局 + 状态驱动渲染 |
-| 9 | 联调上传→分析自动触发 | todo | 上传完成后自动调用分析 API |
+| 1 | 实现工作区状态机 | done | use-workspace-state.ts |
+| 2 | 实现预签名上传 Hook | done | use-upload.ts |
+| 3 | 实现分析轮询 Hook | done | use-analysis.ts（React Query） |
+| 4 | 实现上传区域组件 | done | upload-zone.tsx：拖拽/点击 + 进度 + 预览 |
+| 5 | 实现分析进度组件 | done | analysis-progress.tsx |
+| 6 | 实现配方展示卡片 | done | recipe-card.tsx：VisualRecipe 各字段展示 |
+| 7 | 实现 Prompt 编辑器 | done | prompt-editor.tsx：双文本域 |
+| 8 | 组装工作区页面 | done | page.tsx：左右分栏布局 + 状态驱动渲染 |
+| 9 | 联调上传→分析自动触发 | done | 上传完成后自动调用分析 API |
 
 ## 验证命令
 

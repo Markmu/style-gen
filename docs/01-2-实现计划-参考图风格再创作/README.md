@@ -142,16 +142,16 @@ graph TD
 
 | 任务 | 阶段 | 拆分文件（含状态） | 依赖 |
 | --- | --- | --- | --- |
-| T01: 项目脚手架 | Phase 1 | backend(ready-to-dev) | 无 |
-| T02: 数据模型与访问层 | Phase 1 | backend(ready-to-dev) | T01 |
-| T03: 上传 API | Phase 2 | backend(ready-to-dev) | T02 |
-| T04: 分析 API | Phase 2 | backend(ready-to-dev) | T02 |
-| T05: 生成 API | Phase 2 | backend(ready-to-dev) | T02, T03 |
-| T06: 首页 | Phase 3 | frontend(ready-to-dev) | T01 |
-| T07: 工作区-上传与分析流 | Phase 3 | frontend(ready-to-dev) | T03, T04 |
-| T08: 工作区-生成与对比流 | Phase 3 | frontend(ready-to-dev) | T05, T07 |
-| T09: 限流与错误规范 | Phase 4 | integration(ready-to-dev) | T04, T05, T07, T08 |
-| T10: 降级与端到端验证 | Phase 4 | integration(ready-to-dev) | T09 |
+| T01: 项目脚手架 | Phase 1 | backend(done) | 无 |
+| T02: 数据模型与访问层 | Phase 1 | backend(done) | T01 |
+| T03: 上传 API | Phase 2 | backend(done) | T02 |
+| T04: 分析 API | Phase 2 | backend(done) | T02 |
+| T05: 生成 API | Phase 2 | backend(done) | T02, T03 |
+| T06: 首页 | Phase 3 | frontend(done) | T01 |
+| T07: 工作区-上传与分析流 | Phase 3 | frontend(done) | T03, T04 |
+| T08: 工作区-生成与对比流 | Phase 3 | frontend(done) | T05, T07 |
+| T09: 限流与错误规范 | Phase 4 | integration(done) | T04, T05, T07, T08 |
+| T10: 降级与端到端验证 | Phase 4 | integration(done) | T09 |
 
 ## 7. 未决策项
 

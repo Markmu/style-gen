@@ -3,7 +3,7 @@ task_id: "T01"
 title: "项目脚手架"
 dimension: backend
 phase: 1
-status: review
+status: done
 depends_on: []
 ---
 
