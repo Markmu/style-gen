@@ -1,0 +1,14 @@
+{
+  "id": "mock-generation-task-id",
+  "analysisTaskId": "mock-analysis-task-id",
+  "status": "completed",
+  "promptSnapshot": "A breathtaking sunset over the calm ocean",
+  "negativePromptSnapshot": "blurry, low quality",
+  "params": { "aspectRatio": "1:1", "quality": "standard" },
+  "modelName": "flux.2",
+  "resultAssetId": "mock-result-asset-id",
+  "resultFileUrl": "https://cdn.example.com/generated/mock-gen-id/result.webp",
+  "errorMessage": null,
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:05.000Z"
+}

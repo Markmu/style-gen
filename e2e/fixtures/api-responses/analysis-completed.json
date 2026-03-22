@@ -1,0 +1,27 @@
+{
+  "id": "mock-analysis-task-id",
+  "sourceAssetId": "mock-asset-id",
+  "status": "completed",
+  "recipe": {
+    "imageSummary": "A vibrant sunset over the ocean",
+    "subject": "Ocean sunset",
+    "scene": "Coastal beach at dusk",
+    "composition": "Rule of thirds with horizon on lower third",
+    "cameraLanguage": "Wide angle, eye level",
+    "lighting": "Golden hour, warm backlight",
+    "color": "Warm orange and purple gradient",
+    "texture": "Smooth water, soft clouds",
+    "styleTags": ["landscape", "nature", "golden hour"],
+    "mood": "Serene and contemplative",
+    "visualKeywords": ["sunset", "ocean", "golden light"],
+    "mustKeep": ["warm color temperature", "horizon composition"],
+    "replaceable": ["specific cloud formations"]
+  },
+  "promptText": "A breathtaking sunset over the calm ocean, golden hour lighting casting warm orange and purple hues across the sky, rule of thirds composition with horizon on the lower third, wide angle perspective, serene and contemplative mood, smooth water reflections, soft cloud formations",
+  "negativePromptText": "blurry, low quality, distorted, watermark, text",
+  "rawResponse": "raw analysis text",
+  "errorMessage": null,
+  "errorStage": null,
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:01.000Z"
+}

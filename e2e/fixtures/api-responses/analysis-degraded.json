@@ -1,0 +1,13 @@
+{
+  "id": "mock-analysis-task-id",
+  "sourceAssetId": "mock-asset-id",
+  "status": "completed",
+  "recipe": null,
+  "promptText": "Raw visual analysis: The image shows a sunset over the ocean with warm golden tones and a serene atmosphere.",
+  "negativePromptText": "",
+  "rawResponse": "Raw visual analysis: The image shows a sunset over the ocean with warm golden tones and a serene atmosphere.",
+  "errorMessage": "Structure analysis failed: Invalid JSON",
+  "errorStage": "llm",
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:01.000Z"
+}
