@@ -24,6 +24,24 @@ import { ComparisonView } from "@/components/workspace/comparison-view";
 /** L1 降级阈值：轮询超过 60 秒展示排队提示 */
 const QUEUEING_THRESHOLD_MS = 60_000;
 
+/** 获取图片的真实尺寸 */
+function getImageDimensions(
+  file: File | string,
+): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      resolve({ width: img.naturalWidth, height: img.naturalHeight });
+      URL.revokeObjectURL(img.src);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      reject(new Error("无法加载图片"));
+    };
+    img.src = typeof file === "string" ? file : URL.createObjectURL(file);
+  });
+}
+
 export default function WorkspacePage() {
   const fileStore = useFileStore();
   const ws = useWorkspaceState();
@@ -162,7 +180,10 @@ export default function WorkspacePage() {
     async (file: File) => {
       ws.startUpload(file.type);
       try {
-        const { assetId, fileUrl } = await upload(file);
+        const [{ assetId, fileUrl }, dimensions] = await Promise.all([
+          upload(file),
+          getImageDimensions(file),
+        ]);
         ws.completeUpload(assetId, fileUrl);
 
         // Auto-trigger analysis
@@ -172,8 +193,8 @@ export default function WorkspacePage() {
           body: JSON.stringify({
             assetId,
             fileUrl,
-            width: 0,
-            height: 0,
+            width: dimensions.width,
+            height: dimensions.height,
             mimeType: file.type,
           }),
         });
@@ -211,14 +232,15 @@ export default function WorkspacePage() {
         ws.startUpload();
         ws.completeUpload(ws.assetId!, ws.referenceImageUrl!);
 
+        const dimensions = await getImageDimensions(ws.referenceImageUrl!);
         const analysisRes = await fetch("/api/analysis", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             assetId: ws.assetId,
             fileUrl: ws.referenceImageUrl,
-            width: 0,
-            height: 0,
+            width: dimensions.width,
+            height: dimensions.height,
             mimeType: ws.mimeType ?? "image/jpeg",
           }),
         });

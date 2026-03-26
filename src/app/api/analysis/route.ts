@@ -59,6 +59,11 @@ async function createAssetWithId(
   const result = await query<AssetRow>(
     `INSERT INTO assets (id, type, file_url, width, height, mime_type)
      VALUES ($1, 'reference', $2, $3, $4, $5)
+     ON CONFLICT (id) DO UPDATE SET
+       file_url = EXCLUDED.file_url,
+       width = EXCLUDED.width,
+       height = EXCLUDED.height,
+       mime_type = EXCLUDED.mime_type
      RETURNING *`,
     [id, data.fileUrl, data.width, data.height, data.mimeType]
   );
