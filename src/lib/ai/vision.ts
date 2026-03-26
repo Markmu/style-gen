@@ -1,8 +1,8 @@
 import { GoogleGenAI } from "@google/genai";
 import { VISION_SYSTEM_PROMPT } from "./prompts";
 
-const GEMINI_MODEL = "gemini-2.5-flash";
-const TIMEOUT_MS = 30_000;
+const GEMINI_MODEL = "gemini-3-flash-preview";
+const TIMEOUT_MS = 60_000;
 
 /** 视觉理解阶段失败 */
 export class VisionError extends Error {
@@ -49,7 +49,7 @@ export async function analyzeImage(imageUrl: string, mimeType: string = "image/j
       }),
       new Promise<never>((_, reject) =>
         setTimeout(
-          () => reject(new VisionError("Vision analysis timed out after 30s")),
+          () => reject(new VisionError("Vision analysis timed out after 60s")),
           TIMEOUT_MS
         )
       ),

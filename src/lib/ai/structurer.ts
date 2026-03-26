@@ -2,7 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import type { VisualRecipe } from "@/types/models";
 import { STRUCTURER_SYSTEM_PROMPT } from "./prompts";
 
-const GEMINI_MODEL = "gemini-2.0-flash";
+const GEMINI_MODEL = "gemini-3-flash-preview";
 const TIMEOUT_MS = 30_000;
 
 /** LLM 结构化整理阶段失败 */

@@ -96,7 +96,7 @@ describe("vision", () => {
       );
     });
 
-    it("使用正确模型 gemini-2.0-flash", async () => {
+    it("使用正确模型 gemini-3-flash-preview", async () => {
       mockGenerateContent.mockResolvedValue({
         text: "Analysis result",
       });
@@ -105,7 +105,7 @@ describe("vision", () => {
 
       expect(mockGenerateContent).toHaveBeenCalledWith(
         expect.objectContaining({
-          model: "gemini-2.0-flash",
+          model: "gemini-3-flash-preview",
         })
       );
     });
