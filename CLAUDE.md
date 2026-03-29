@@ -21,6 +21,9 @@ pnpm test:watch       # Vitest in watch mode
 pnpm e2e              # Playwright E2E tests (auto-starts dev server)
 pnpm db:up            # Start local PostgreSQL via Docker
 pnpm db:reset         # Reset DB (down -v + up)
+pnpm db:generate      # Generate Drizzle migrations
+pnpm db:push          # Push schema to DB (drizzle-kit push)
+pnpm db:studio        # Open Drizzle Studio
 ```
 
 Run a single test file: `pnpm vitest --run src/lib/__tests__/r2.test.ts`
@@ -29,7 +32,7 @@ Run a single test file: `pnpm vitest --run src/lib/__tests__/r2.test.ts`
 
 - **Next.js 15** (App Router) + React 19 + TypeScript
 - **Tailwind CSS 4** for styling
-- **PostgreSQL** (pg driver, no ORM) with JSONB for recipes; Docker Compose for local DB (port 5433)
+- **PostgreSQL** with **Drizzle ORM** (node-postgres driver) + JSONB for recipes; Docker Compose for local DB (port 5433)
 - **Cloudflare R2** (S3-compatible) for image storage with pre-signed upload URLs
 - **Gemini** (`gemini-3-flash-preview`) for both vision analysis and structural organization
 - **fal.ai / FLUX** for image generation
@@ -56,10 +59,10 @@ Two-stage chain (ADR-2):
 
 ### Data Layer (`src/lib/`)
 
-- `db.ts` — PostgreSQL connection pool (lazy-init singleton via Proxy)
+- `db/index.ts` — Drizzle ORM 实例 + PostgreSQL 连接池（懒初始化 Proxy）
+- `db/schema.ts` — Drizzle 表定义（assets, analysis_tasks, generation_tasks）
 - `r2.ts` — Cloudflare R2 client for pre-signed URLs
 - `repositories/` — Repository pattern for `assets`, `analysis_tasks`, `generation_tasks`
-- `schema.sql` — DDL for all three tables
 
 ### Frontend
 

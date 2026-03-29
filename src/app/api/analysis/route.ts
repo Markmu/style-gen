@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { query } from "@/lib/db";
 import {
   createAnalysisTask,
   updateAnalysisTask,
 } from "@/lib/repositories/analysis-task-repository";
+import { upsertAsset } from "@/lib/repositories/asset-repository";
 import { analyzeImage, VisionError } from "@/lib/ai/vision";
 import { structureAnalysis, StructurerError } from "@/lib/ai/structurer";
-import type { Asset } from "@/types/models";
 
 /** 整体超时 60 秒 */
 const OVERALL_TIMEOUT_MS = 60_000;
@@ -40,47 +39,6 @@ function validateBody(body: unknown): AnalysisRequestBody | null {
   };
 }
 
-/** 创建 Asset 记录（使用前端预分配的 ULID） */
-async function createAssetWithId(
-  id: string,
-  data: { fileUrl: string; width: number; height: number; mimeType: string }
-): Promise<Asset> {
-  interface AssetRow {
-    id: string;
-    type: string;
-    file_url: string;
-    thumbnail_url: string | null;
-    width: number;
-    height: number;
-    mime_type: string;
-    created_at: Date;
-  }
-
-  const result = await query<AssetRow>(
-    `INSERT INTO assets (id, type, file_url, width, height, mime_type)
-     VALUES ($1, 'reference', $2, $3, $4, $5)
-     ON CONFLICT (id) DO UPDATE SET
-       file_url = EXCLUDED.file_url,
-       width = EXCLUDED.width,
-       height = EXCLUDED.height,
-       mime_type = EXCLUDED.mime_type
-     RETURNING *`,
-    [id, data.fileUrl, data.width, data.height, data.mimeType]
-  );
-
-  const row = result.rows[0];
-  return {
-    id: row.id,
-    type: "reference",
-    fileUrl: row.file_url,
-    thumbnailUrl: row.thumbnail_url,
-    width: row.width,
-    height: row.height,
-    mimeType: row.mime_type,
-    createdAt: row.created_at,
-  };
-}
-
 /** 结构化日志输出 */
 function log(event: string, data: Record<string, unknown>) {
   console.log(JSON.stringify({ event, timestamp: new Date().toISOString(), ...data }));
@@ -103,7 +61,7 @@ export async function POST(request: NextRequest) {
     log("analysis_request_received", { assetId: validated.assetId });
 
     // 1. 创建 Asset 记录（type: 'reference'）
-    const asset = await createAssetWithId(validated.assetId, {
+    const asset = await upsertAsset(validated.assetId, {
       fileUrl: validated.fileUrl,
       width: validated.width,
       height: validated.height,

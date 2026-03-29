@@ -1,40 +1,29 @@
-import { query } from "@/lib/db";
+import { eq, sql } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { analysisTasks } from "@/lib/db/schema";
 import { generateId } from "@/lib/ulid";
 import type {
   AnalysisTask,
   AnalysisTaskErrorStage,
   AnalysisTaskStatus,
-  VisualRecipe,
 } from "@/types/models";
 
-interface AnalysisTaskRow {
-  id: string;
-  source_asset_id: string;
-  status: AnalysisTaskStatus;
-  recipe: VisualRecipe | null;
-  prompt_text: string | null;
-  negative_prompt_text: string | null;
-  raw_response: string | null;
-  error_message: string | null;
-  error_stage: AnalysisTaskErrorStage | null;
-  created_at: Date;
-  updated_at: Date;
-}
+type AnalysisTaskRow = typeof analysisTasks.$inferSelect;
 
 /** 数据库行 → AnalysisTask 领域对象 */
 function rowToAnalysisTask(row: AnalysisTaskRow): AnalysisTask {
   return {
     id: row.id,
-    sourceAssetId: row.source_asset_id,
-    status: row.status,
-    recipe: row.recipe,
-    promptText: row.prompt_text,
-    negativePromptText: row.negative_prompt_text,
-    rawResponse: row.raw_response,
-    errorMessage: row.error_message,
-    errorStage: row.error_stage,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    sourceAssetId: row.sourceAssetId,
+    status: row.status as AnalysisTaskStatus,
+    recipe: row.recipe ?? null,
+    promptText: row.promptText,
+    negativePromptText: row.negativePromptText,
+    rawResponse: row.rawResponse,
+    errorMessage: row.errorMessage,
+    errorStage: row.errorStage as AnalysisTaskErrorStage | null,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
   };
 }
 
@@ -43,25 +32,26 @@ export async function createAnalysisTask(data: {
   sourceAssetId: string;
 }): Promise<AnalysisTask> {
   const id = generateId();
-  const result = await query<AnalysisTaskRow>(
-    `INSERT INTO analysis_tasks (id, source_asset_id)
-     VALUES ($1, $2)
-     RETURNING *`,
-    [id, data.sourceAssetId]
-  );
-  return rowToAnalysisTask(result.rows[0]);
+  const [row] = await db
+    .insert(analysisTasks)
+    .values({
+      id,
+      sourceAssetId: data.sourceAssetId,
+    })
+    .returning();
+  return rowToAnalysisTask(row);
 }
 
-/** 按 ID 查询 AnalysisTask（recipe JSONB 自动解析） */
+/** 按 ID 查询 AnalysisTask */
 export async function findAnalysisTaskById(
   id: string
 ): Promise<AnalysisTask | null> {
-  const result = await query<AnalysisTaskRow>(
-    "SELECT * FROM analysis_tasks WHERE id = $1",
-    [id]
-  );
-  if (result.rows.length === 0) return null;
-  return rowToAnalysisTask(result.rows[0]);
+  const rows = await db
+    .select()
+    .from(analysisTasks)
+    .where(eq(analysisTasks.id, id));
+  if (rows.length === 0) return null;
+  return rowToAnalysisTask(rows[0]);
 }
 
 /** 可更新的字段子集 */
@@ -78,51 +68,35 @@ type AnalysisTaskUpdatable = Partial<
   >
 >;
 
-/** camelCase 字段名 → snake_case 列名映射 */
-const columnMap: Record<string, string> = {
-  status: "status",
-  recipe: "recipe",
-  promptText: "prompt_text",
-  negativePromptText: "negative_prompt_text",
-  rawResponse: "raw_response",
-  errorMessage: "error_message",
-  errorStage: "error_stage",
-};
-
 /** 更新 AnalysisTask */
 export async function updateAnalysisTask(
   id: string,
   updates: AnalysisTaskUpdatable
 ): Promise<AnalysisTask> {
-  const setClauses: string[] = [];
-  const values: unknown[] = [];
-  let paramIndex = 1;
+  const setObj: Record<string, unknown> = {
+    updatedAt: sql`NOW()`,
+  };
 
-  for (const [key, value] of Object.entries(updates)) {
-    const column = columnMap[key];
-    if (!column) continue;
+  if (updates.status !== undefined) setObj.status = updates.status;
+  if ("recipe" in updates) setObj.recipe = updates.recipe;
+  if (updates.promptText !== undefined) setObj.promptText = updates.promptText;
+  if (updates.negativePromptText !== undefined)
+    setObj.negativePromptText = updates.negativePromptText;
+  if (updates.rawResponse !== undefined)
+    setObj.rawResponse = updates.rawResponse;
+  if (updates.errorMessage !== undefined)
+    setObj.errorMessage = updates.errorMessage;
+  if (updates.errorStage !== undefined) setObj.errorStage = updates.errorStage;
 
-    if (key === "recipe") {
-      setClauses.push(`${column} = $${paramIndex}::jsonb`);
-      values.push(value === null ? null : JSON.stringify(value));
-    } else {
-      setClauses.push(`${column} = $${paramIndex}`);
-      values.push(value);
-    }
-    paramIndex++;
-  }
+  const rows = await db
+    .update(analysisTasks)
+    .set(setObj)
+    .where(eq(analysisTasks.id, id))
+    .returning();
 
-  setClauses.push(`updated_at = NOW()`);
-  values.push(id);
-
-  const result = await query<AnalysisTaskRow>(
-    `UPDATE analysis_tasks SET ${setClauses.join(", ")} WHERE id = $${paramIndex} RETURNING *`,
-    values
-  );
-
-  if (result.rows.length === 0) {
+  if (rows.length === 0) {
     throw new Error(`AnalysisTask not found: ${id}`);
   }
 
-  return rowToAnalysisTask(result.rows[0]);
+  return rowToAnalysisTask(rows[0]);
 }

@@ -1,4 +1,6 @@
-import { query } from "@/lib/db";
+import { eq, sql } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { generationTasks } from "@/lib/db/schema";
 import { generateId } from "@/lib/ulid";
 import type {
   GenerationParams,
@@ -6,34 +8,22 @@ import type {
   GenerationTaskStatus,
 } from "@/types/models";
 
-interface GenerationTaskRow {
-  id: string;
-  analysis_task_id: string;
-  status: GenerationTaskStatus;
-  prompt_snapshot: string;
-  negative_prompt_snapshot: string;
-  params: GenerationParams;
-  model_name: string;
-  result_asset_id: string | null;
-  error_message: string | null;
-  created_at: Date;
-  updated_at: Date;
-}
+type GenerationTaskRow = typeof generationTasks.$inferSelect;
 
 /** 数据库行 → GenerationTask 领域对象 */
 function rowToGenerationTask(row: GenerationTaskRow): GenerationTask {
   return {
     id: row.id,
-    analysisTaskId: row.analysis_task_id,
-    status: row.status,
-    promptSnapshot: row.prompt_snapshot,
-    negativePromptSnapshot: row.negative_prompt_snapshot,
+    analysisTaskId: row.analysisTaskId,
+    status: row.status as GenerationTaskStatus,
+    promptSnapshot: row.promptSnapshot,
+    negativePromptSnapshot: row.negativePromptSnapshot,
     params: row.params,
-    modelName: row.model_name,
-    resultAssetId: row.result_asset_id,
-    errorMessage: row.error_message,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    modelName: row.modelName,
+    resultAssetId: row.resultAssetId,
+    errorMessage: row.errorMessage,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
   };
 }
 
@@ -46,32 +36,30 @@ export async function createGenerationTask(data: {
   modelName: string;
 }): Promise<GenerationTask> {
   const id = generateId();
-  const result = await query<GenerationTaskRow>(
-    `INSERT INTO generation_tasks (id, analysis_task_id, prompt_snapshot, negative_prompt_snapshot, params, model_name)
-     VALUES ($1, $2, $3, $4, $5::jsonb, $6)
-     RETURNING *`,
-    [
+  const [row] = await db
+    .insert(generationTasks)
+    .values({
       id,
-      data.analysisTaskId,
-      data.promptSnapshot,
-      data.negativePromptSnapshot,
-      JSON.stringify(data.params),
-      data.modelName,
-    ]
-  );
-  return rowToGenerationTask(result.rows[0]);
+      analysisTaskId: data.analysisTaskId,
+      promptSnapshot: data.promptSnapshot,
+      negativePromptSnapshot: data.negativePromptSnapshot,
+      params: data.params,
+      modelName: data.modelName,
+    })
+    .returning();
+  return rowToGenerationTask(row);
 }
 
 /** 按 ID 查询 GenerationTask */
 export async function findGenerationTaskById(
   id: string
 ): Promise<GenerationTask | null> {
-  const result = await query<GenerationTaskRow>(
-    "SELECT * FROM generation_tasks WHERE id = $1",
-    [id]
-  );
-  if (result.rows.length === 0) return null;
-  return rowToGenerationTask(result.rows[0]);
+  const rows = await db
+    .select()
+    .from(generationTasks)
+    .where(eq(generationTasks.id, id));
+  if (rows.length === 0) return null;
+  return rowToGenerationTask(rows[0]);
 }
 
 /** 可更新的字段子集 */
@@ -79,41 +67,30 @@ type GenerationTaskUpdatable = Partial<
   Pick<GenerationTask, "status" | "resultAssetId" | "errorMessage">
 >;
 
-/** camelCase 字段名 → snake_case 列名映射 */
-const columnMap: Record<string, string> = {
-  status: "status",
-  resultAssetId: "result_asset_id",
-  errorMessage: "error_message",
-};
-
 /** 更新 GenerationTask */
 export async function updateGenerationTask(
   id: string,
   updates: GenerationTaskUpdatable
 ): Promise<GenerationTask> {
-  const setClauses: string[] = [];
-  const values: unknown[] = [];
-  let paramIndex = 1;
+  const setObj: Record<string, unknown> = {
+    updatedAt: sql`NOW()`,
+  };
 
-  for (const [key, value] of Object.entries(updates)) {
-    const column = columnMap[key];
-    if (!column) continue;
-    setClauses.push(`${column} = $${paramIndex}`);
-    values.push(value);
-    paramIndex++;
-  }
+  if (updates.status !== undefined) setObj.status = updates.status;
+  if (updates.resultAssetId !== undefined)
+    setObj.resultAssetId = updates.resultAssetId;
+  if (updates.errorMessage !== undefined)
+    setObj.errorMessage = updates.errorMessage;
 
-  setClauses.push(`updated_at = NOW()`);
-  values.push(id);
+  const rows = await db
+    .update(generationTasks)
+    .set(setObj)
+    .where(eq(generationTasks.id, id))
+    .returning();
 
-  const result = await query<GenerationTaskRow>(
-    `UPDATE generation_tasks SET ${setClauses.join(", ")} WHERE id = $${paramIndex} RETURNING *`,
-    values
-  );
-
-  if (result.rows.length === 0) {
+  if (rows.length === 0) {
     throw new Error(`GenerationTask not found: ${id}`);
   }
 
-  return rowToGenerationTask(result.rows[0]);
+  return rowToGenerationTask(rows[0]);
 }

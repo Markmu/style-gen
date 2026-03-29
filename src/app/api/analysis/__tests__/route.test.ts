@@ -1,14 +1,14 @@
 import { POST } from "../route";
 import { NextRequest } from "next/server";
-import type { AnalysisTask } from "@/types/models";
+import type { AnalysisTask, Asset } from "@/types/models";
 import { VisionError } from "@/lib/ai/vision";
 import { StructurerError } from "@/lib/ai/structurer";
 
 // ---- Mocks ----
 
-const mockQuery = vi.fn();
-vi.mock("@/lib/db", () => ({
-  query: (...args: unknown[]) => mockQuery(...args),
+const mockUpsertAsset = vi.fn();
+vi.mock("@/lib/repositories/asset-repository", () => ({
+  upsertAsset: (...args: unknown[]) => mockUpsertAsset(...args),
 }));
 
 const mockCreateAnalysisTask = vi.fn();
@@ -54,15 +54,15 @@ const VALID_BODY = {
   mimeType: "image/jpeg",
 };
 
-const ASSET_ROW = {
+const ASSET: Asset = {
   id: "asset-1",
   type: "reference",
-  file_url: "https://example.com/image.jpg",
-  thumbnail_url: null,
+  fileUrl: "https://example.com/image.jpg",
+  thumbnailUrl: null,
   width: 800,
   height: 600,
-  mime_type: "image/jpeg",
-  created_at: new Date("2025-01-01"),
+  mimeType: "image/jpeg",
+  createdAt: new Date("2025-01-01"),
 };
 
 function makePendingTask(overrides: Partial<AnalysisTask> = {}): AnalysisTask {
@@ -100,8 +100,8 @@ const VALID_RECIPE = {
 
 /** 设置默认的成功 mock 行为 */
 function setupSuccessMocks() {
-  // query: 创建 Asset
-  mockQuery.mockResolvedValue({ rows: [ASSET_ROW] });
+  // upsertAsset
+  mockUpsertAsset.mockResolvedValue(ASSET);
 
   // 创建任务 (pending)
   mockCreateAnalysisTask.mockResolvedValue(makePendingTask());
@@ -187,10 +187,12 @@ describe("POST /api/analysis", () => {
   it("创建 Asset 记录", async () => {
     await POST(makeRequest(VALID_BODY));
 
-    expect(mockQuery).toHaveBeenCalledWith(
-      expect.stringContaining("INSERT INTO assets"),
-      expect.arrayContaining(["asset-1", "https://example.com/image.jpg", 800, 600, "image/jpeg"])
-    );
+    expect(mockUpsertAsset).toHaveBeenCalledWith("asset-1", {
+      fileUrl: "https://example.com/image.jpg",
+      width: 800,
+      height: 600,
+      mimeType: "image/jpeg",
+    });
   });
 
   it("创建 AnalysisTask 记录", async () => {

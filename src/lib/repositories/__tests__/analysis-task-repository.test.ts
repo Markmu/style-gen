@@ -1,21 +1,39 @@
 import type {
   AnalysisTaskStatus,
-  AnalysisTaskErrorStage,
   VisualRecipe,
 } from "@/types/models";
 
-const { mockQuery, mockGenerateId } = vi.hoisted(() => ({
-  mockQuery: vi.fn(),
+const { mockGenerateId } = vi.hoisted(() => ({
   mockGenerateId: vi.fn(),
-}));
-
-vi.mock("@/lib/db", () => ({
-  query: mockQuery,
 }));
 
 vi.mock("@/lib/ulid", () => ({
   generateId: mockGenerateId,
 }));
+
+// Mock Drizzle db with chainable API
+const mockReturning = vi.fn();
+const mockValues = vi.fn(() => ({ returning: mockReturning }));
+const mockInsert = vi.fn(() => ({ values: mockValues }));
+const mockWhere = vi.fn();
+const mockFrom = vi.fn(() => ({ where: mockWhere }));
+const mockSelect = vi.fn(() => ({ from: mockFrom }));
+const mockUpdateSet = vi.fn(() => ({
+  where: vi.fn(() => ({ returning: mockReturning })),
+}));
+const mockUpdate = vi.fn(() => ({ set: mockUpdateSet }));
+
+vi.mock("@/lib/db", () => ({
+  db: {
+    insert: (...args: unknown[]) => mockInsert(...args),
+    select: (...args: unknown[]) => mockSelect(...args),
+    update: (...args: unknown[]) => mockUpdate(...args),
+  },
+}));
+
+vi.mock("@/lib/db/schema", async (importOriginal) => {
+  return await importOriginal();
+});
 
 import {
   createAnalysisTask,
@@ -25,19 +43,19 @@ import {
 
 const NOW = new Date("2025-01-01T00:00:00Z");
 
-function makeAnalysisTaskRow(overrides: Partial<Record<string, unknown>> = {}) {
+function makeCamelCaseRow(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     id: "TASK_001",
-    source_asset_id: "ASSET_001",
+    sourceAssetId: "ASSET_001",
     status: "pending" as AnalysisTaskStatus,
     recipe: null,
-    prompt_text: null,
-    negative_prompt_text: null,
-    raw_response: null,
-    error_message: null,
-    error_stage: null,
-    created_at: NOW,
-    updated_at: NOW,
+    promptText: null,
+    negativePromptText: null,
+    rawResponse: null,
+    errorMessage: null,
+    errorStage: null,
+    createdAt: NOW,
+    updatedAt: NOW,
     ...overrides,
   };
 }
@@ -60,15 +78,22 @@ const sampleRecipe: VisualRecipe = {
 
 describe("analysis-task-repository", () => {
   beforeEach(() => {
-    mockQuery.mockReset();
+    mockInsert.mockClear();
+    mockValues.mockClear();
+    mockReturning.mockClear();
+    mockSelect.mockClear();
+    mockFrom.mockClear();
+    mockWhere.mockClear();
+    mockUpdate.mockClear();
+    mockUpdateSet.mockClear();
     mockGenerateId.mockReset();
     mockGenerateId.mockReturnValue("TASK_001");
   });
 
   describe("createAnalysisTask", () => {
     it("正常创建", async () => {
-      const row = makeAnalysisTaskRow();
-      mockQuery.mockResolvedValueOnce({ rows: [row], rowCount: 1 });
+      const row = makeCamelCaseRow();
+      mockReturning.mockResolvedValueOnce([row]);
 
       const task = await createAnalysisTask({ sourceAssetId: "ASSET_001" });
 
@@ -87,32 +112,23 @@ describe("analysis-task-repository", () => {
       });
     });
 
-    it("snake_case 映射", async () => {
-      const row = makeAnalysisTaskRow({
-        source_asset_id: "ASSET_XYZ",
-        prompt_text: "a prompt",
-        negative_prompt_text: "no blur",
-        raw_response: "raw data",
-        error_message: "something failed",
-        error_stage: "vision" as AnalysisTaskErrorStage,
+    it("传入正确的 values", async () => {
+      const row = makeCamelCaseRow();
+      mockReturning.mockResolvedValueOnce([row]);
+
+      await createAnalysisTask({ sourceAssetId: "ASSET_001" });
+
+      expect(mockValues).toHaveBeenCalledWith({
+        id: "TASK_001",
+        sourceAssetId: "ASSET_001",
       });
-      mockQuery.mockResolvedValueOnce({ rows: [row], rowCount: 1 });
-
-      const task = await createAnalysisTask({ sourceAssetId: "ASSET_XYZ" });
-
-      expect(task.sourceAssetId).toBe("ASSET_XYZ");
-      expect(task.promptText).toBe("a prompt");
-      expect(task.negativePromptText).toBe("no blur");
-      expect(task.rawResponse).toBe("raw data");
-      expect(task.errorMessage).toBe("something failed");
-      expect(task.errorStage).toBe("vision");
     });
   });
 
   describe("findAnalysisTaskById", () => {
     it("找到记录", async () => {
-      const row = makeAnalysisTaskRow();
-      mockQuery.mockResolvedValueOnce({ rows: [row], rowCount: 1 });
+      const row = makeCamelCaseRow();
+      mockWhere.mockResolvedValueOnce([row]);
 
       const task = await findAnalysisTaskById("TASK_001");
 
@@ -122,7 +138,7 @@ describe("analysis-task-repository", () => {
     });
 
     it("未找到返回 null", async () => {
-      mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      mockWhere.mockResolvedValueOnce([]);
 
       const task = await findAnalysisTaskById("NON_EXISTENT");
 
@@ -130,9 +146,8 @@ describe("analysis-task-repository", () => {
     });
 
     it("recipe JSONB 自动解析", async () => {
-      // pg driver auto-parses JSONB columns into JS objects
-      const row = makeAnalysisTaskRow({ recipe: sampleRecipe });
-      mockQuery.mockResolvedValueOnce({ rows: [row], rowCount: 1 });
+      const row = makeCamelCaseRow({ recipe: sampleRecipe });
+      mockWhere.mockResolvedValueOnce([row]);
 
       const task = await findAnalysisTaskById("TASK_001");
 
@@ -143,27 +158,28 @@ describe("analysis-task-repository", () => {
 
   describe("updateAnalysisTask", () => {
     it("更新单个字段", async () => {
-      const row = makeAnalysisTaskRow({ status: "processing" });
-      mockQuery.mockResolvedValueOnce({ rows: [row], rowCount: 1 });
+      const row = makeCamelCaseRow({ status: "processing" });
+      mockReturning.mockResolvedValueOnce([row]);
 
-      const task = await updateAnalysisTask("TASK_001", { status: "processing" });
+      const task = await updateAnalysisTask("TASK_001", {
+        status: "processing",
+      });
 
       expect(task.status).toBe("processing");
-      const [sql, params] = mockQuery.mock.calls[0];
-      expect(sql).toContain("UPDATE analysis_tasks SET");
-      expect(sql).toContain("status = $1");
-      expect(sql).toContain("updated_at = NOW()");
-      expect(sql).toContain("WHERE id = $2");
-      expect(params).toEqual(["processing", "TASK_001"]);
+      expect(mockUpdate).toHaveBeenCalledTimes(1);
+      // Verify set was called with status and updatedAt
+      const setArg = mockUpdateSet.mock.calls[0][0];
+      expect(setArg.status).toBe("processing");
+      expect(setArg.updatedAt).toBeDefined();
     });
 
     it("更新多个字段", async () => {
-      const row = makeAnalysisTaskRow({
+      const row = makeCamelCaseRow({
         status: "completed",
-        prompt_text: "generated prompt",
-        negative_prompt_text: "no artifacts",
+        promptText: "generated prompt",
+        negativePromptText: "no artifacts",
       });
-      mockQuery.mockResolvedValueOnce({ rows: [row], rowCount: 1 });
+      mockReturning.mockResolvedValueOnce([row]);
 
       const task = await updateAnalysisTask("TASK_001", {
         status: "completed",
@@ -175,50 +191,47 @@ describe("analysis-task-repository", () => {
       expect(task.promptText).toBe("generated prompt");
       expect(task.negativePromptText).toBe("no artifacts");
 
-      const [sql, params] = mockQuery.mock.calls[0];
-      // Should have 3 field params + 1 id param
-      expect(params).toHaveLength(4);
-      expect(params[params.length - 1]).toBe("TASK_001");
+      const setArg = mockUpdateSet.mock.calls[0][0];
+      expect(setArg.status).toBe("completed");
+      expect(setArg.promptText).toBe("generated prompt");
+      expect(setArg.negativePromptText).toBe("no artifacts");
     });
 
-    it("recipe 序列化 (JSON.stringify + ::jsonb)", async () => {
-      const row = makeAnalysisTaskRow({ recipe: sampleRecipe });
-      mockQuery.mockResolvedValueOnce({ rows: [row], rowCount: 1 });
+    it("recipe 字段正常传递", async () => {
+      const row = makeCamelCaseRow({ recipe: sampleRecipe });
+      mockReturning.mockResolvedValueOnce([row]);
 
       await updateAnalysisTask("TASK_001", { recipe: sampleRecipe });
 
-      const [sql, params] = mockQuery.mock.calls[0];
-      expect(sql).toContain("::jsonb");
-      expect(params[0]).toBe(JSON.stringify(sampleRecipe));
+      const setArg = mockUpdateSet.mock.calls[0][0];
+      expect(setArg.recipe).toEqual(sampleRecipe);
     });
 
     it("recipe 为 null", async () => {
-      const row = makeAnalysisTaskRow({ recipe: null });
-      mockQuery.mockResolvedValueOnce({ rows: [row], rowCount: 1 });
+      const row = makeCamelCaseRow({ recipe: null });
+      mockReturning.mockResolvedValueOnce([row]);
 
       await updateAnalysisTask("TASK_001", { recipe: null });
 
-      const [sql, params] = mockQuery.mock.calls[0];
-      expect(sql).toContain("::jsonb");
-      // null should be passed as null, not stringified
-      expect(params[0]).toBeNull();
+      const setArg = mockUpdateSet.mock.calls[0][0];
+      expect(setArg.recipe).toBeNull();
     });
 
     it("未找到记录抛出异常", async () => {
-      mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      mockReturning.mockResolvedValueOnce([]);
 
       await expect(
         updateAnalysisTask("NON_EXISTENT", { status: "failed" })
       ).rejects.toThrow("AnalysisTask not found: NON_EXISTENT");
     });
 
-    it("columnMap 映射正确", async () => {
-      const row = makeAnalysisTaskRow({
+    it("errorMessage 和 errorStage 正确传递", async () => {
+      const row = makeCamelCaseRow({
         status: "failed",
-        error_message: "timeout",
-        error_stage: "llm",
+        errorMessage: "timeout",
+        errorStage: "llm",
       });
-      mockQuery.mockResolvedValueOnce({ rows: [row], rowCount: 1 });
+      mockReturning.mockResolvedValueOnce([row]);
 
       await updateAnalysisTask("TASK_001", {
         status: "failed",
@@ -226,51 +239,10 @@ describe("analysis-task-repository", () => {
         errorStage: "llm",
       });
 
-      const [sql] = mockQuery.mock.calls[0];
-      expect(sql).toContain("status = $1");
-      expect(sql).toContain("error_message = $");
-      expect(sql).toContain("error_stage = $");
-    });
-
-    it("忽略无效字段", async () => {
-      const row = makeAnalysisTaskRow({ status: "processing" });
-      mockQuery.mockResolvedValueOnce({ rows: [row], rowCount: 1 });
-
-      // Pass an invalid field alongside a valid one
-      await updateAnalysisTask("TASK_001", {
-        status: "processing",
-        invalidField: "should be ignored",
-      } as any);
-
-      const [sql, params] = mockQuery.mock.calls[0];
-      expect(sql).not.toContain("invalidField");
-      expect(sql).not.toContain("invalid_field");
-      // Only valid field + id
-      expect(params).toEqual(["processing", "TASK_001"]);
-    });
-
-    it("参数索引正确", async () => {
-      const row = makeAnalysisTaskRow({
-        status: "completed",
-        prompt_text: "prompt",
-        raw_response: "raw",
-      });
-      mockQuery.mockResolvedValueOnce({ rows: [row], rowCount: 1 });
-
-      await updateAnalysisTask("TASK_001", {
-        status: "completed",
-        promptText: "prompt",
-        rawResponse: "raw",
-      });
-
-      const [sql, params] = mockQuery.mock.calls[0];
-      // Verify sequential parameter indexing $1, $2, $3 for fields, $4 for id
-      expect(sql).toContain("$1");
-      expect(sql).toContain("$2");
-      expect(sql).toContain("$3");
-      expect(sql).toContain("WHERE id = $4");
-      expect(params).toHaveLength(4);
-      expect(params[3]).toBe("TASK_001");
+      const setArg = mockUpdateSet.mock.calls[0][0];
+      expect(setArg.status).toBe("failed");
+      expect(setArg.errorMessage).toBe("timeout");
+      expect(setArg.errorStage).toBe("llm");
     });
   });
 });
