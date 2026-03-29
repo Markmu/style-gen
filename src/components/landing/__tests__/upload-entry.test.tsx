@@ -6,6 +6,11 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush }),
 }));
 
+vi.mock("next-auth/react", () => ({
+  useSession: () => ({ data: { user: { id: "test-user" } }, status: "authenticated" }),
+  signIn: vi.fn(),
+}));
+
 const mockSetFile = vi.fn();
 vi.mock("@/components/landing/use-file-store", () => ({
   useFileStore: () => ({

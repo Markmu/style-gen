@@ -2,6 +2,11 @@ import { NextRequest } from "next/server";
 
 // ---- Mocks ----
 
+const mockAuth = vi.fn();
+vi.mock("@/auth", () => ({
+  auth: (...args: unknown[]) => mockAuth(...args),
+}));
+
 const mockFindAnalysisTaskById = vi.fn();
 vi.mock("@/lib/repositories/analysis-task-repository", () => ({
   findAnalysisTaskById: (...args: unknown[]) => mockFindAnalysisTaskById(...args),
@@ -72,6 +77,7 @@ const completedAnalysisTask = {
   rawResponse: null,
   errorMessage: null,
   errorStage: null,
+  userId: "user-1",
   createdAt: new Date("2025-01-01"),
   updatedAt: new Date("2025-01-01"),
 };
@@ -86,6 +92,7 @@ const createdTask = {
   modelName: "flux.2",
   resultAssetId: null,
   errorMessage: null,
+  userId: "user-1",
   createdAt: new Date("2025-01-01"),
   updatedAt: new Date("2025-01-01"),
 };
@@ -97,6 +104,8 @@ describe("POST /api/generation", () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
+    mockAuth.mockReset();
+    mockAuth.mockResolvedValue({ user: { id: "user-1" } });
     mockFindAnalysisTaskById.mockReset();
     mockCreateGenerationTask.mockReset();
     mockUpdateGenerationTask.mockReset();
@@ -248,6 +257,7 @@ describe("POST /api/generation", () => {
     await POST(createRequest(validBody));
 
     expect(mockCreateGenerationTask).toHaveBeenCalledWith(
+      "user-1",
       expect.objectContaining({
         modelName: "flux.2",
       })
@@ -448,7 +458,7 @@ describe("POST /api/generation", () => {
     await POST(createRequest(validBody));
 
     await vi.waitFor(() => {
-      expect(mockCreateAsset).toHaveBeenCalledWith({
+      expect(mockCreateAsset).toHaveBeenCalledWith("user-1", {
         type: "generated",
         fileUrl: "https://r2.example.com/generated/gen-task-1/result.webp",
         thumbnailUrl: null,

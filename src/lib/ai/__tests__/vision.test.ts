@@ -140,28 +140,30 @@ describe("vision", () => {
       ).rejects.toThrow("Vision model returned empty response");
     });
 
-    it("超时 30 秒后抛出 VisionError", async () => {
+    it("超时 60 秒后抛出 VisionError", async () => {
       vi.useFakeTimers();
 
-      mockGenerateContent.mockReturnValue(
-        new Promise(() => {
-          // never resolves
-        })
-      );
+      try {
+        mockGenerateContent.mockReturnValue(
+          new Promise(() => {
+            // never resolves
+          })
+        );
 
-      const promise = analyzeImage("https://example.com/image.jpg");
+        const promise = analyzeImage("https://example.com/image.jpg");
 
-      vi.advanceTimersByTime(30_000);
+        // 添加空 catch 防止 unhandled rejection
+        promise.catch(() => {});
 
-      await expect(promise).rejects.toThrow(VisionError);
-      await expect(
-        (async () => {
-          mockGenerateContent.mockReturnValue(new Promise(() => {}));
-          const p = analyzeImage("https://example.com/image.jpg");
-          vi.advanceTimersByTime(30_000);
-          return p;
-        })()
-      ).rejects.toThrow("Vision analysis timed out after 30s");
+        await vi.advanceTimersByTimeAsync(60_000);
+
+        await expect(promise).rejects.toThrow(VisionError);
+        await expect(promise).rejects.toThrow(
+          "Vision analysis timed out after 60s"
+        );
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it("API 调用异常时抛出 VisionError 并包含原始消息", async () => {

@@ -6,6 +6,7 @@ import {
 import { upsertAsset } from "@/lib/repositories/asset-repository";
 import { analyzeImage, VisionError } from "@/lib/ai/vision";
 import { structureAnalysis, StructurerError } from "@/lib/ai/structurer";
+import { auth } from "@/auth";
 
 /** 整体超时 60 秒 */
 const OVERALL_TIMEOUT_MS = 60_000;
@@ -48,6 +49,16 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now();
 
   try {
+    // 认证：从 session 获取 userId
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: "Unauthorized", code: "UNAUTHORIZED", retryable: false },
+        { status: 401 }
+      );
+    }
+    const userId = session.user.id;
+
     const body: unknown = await request.json();
     const validated = validateBody(body);
 
@@ -61,7 +72,7 @@ export async function POST(request: NextRequest) {
     log("analysis_request_received", { assetId: validated.assetId });
 
     // 1. 创建 Asset 记录（type: 'reference'）
-    const asset = await upsertAsset(validated.assetId, {
+    const asset = await upsertAsset(userId, validated.assetId, {
       fileUrl: validated.fileUrl,
       width: validated.width,
       height: validated.height,
@@ -69,7 +80,7 @@ export async function POST(request: NextRequest) {
     });
 
     // 2. 创建 AnalysisTask 记录（status: 'pending'）
-    let task = await createAnalysisTask({
+    let task = await createAnalysisTask(userId, {
       sourceAssetId: asset.id,
     });
 

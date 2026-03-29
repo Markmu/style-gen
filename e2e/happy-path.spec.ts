@@ -6,6 +6,7 @@ import {
   mockAnalysisPolling,
   mockGenerationCreate,
   mockGenerationPolling,
+  mockAuthSession,
   loadFixture,
 } from './helpers/mock-api'
 
@@ -13,12 +14,18 @@ const TEST_IMAGE_PATH = resolve(__dirname, 'fixtures/test-image.png')
 
 test.describe('Happy Path', () => {
   test('首页上传参考图跳转工作区', async ({ page }) => {
+    // Mock session so UploadEntry recognizes the user as logged in
+    await mockAuthSession(page)
+
     // Mock upload APIs
     await mockUploadPresign(page)
 
     // Go to home page
     await page.goto('/')
     await expect(page.locator('h1')).toContainText('参考图风格再创作')
+
+    // Wait for session to load (AuthHeader shows UserMenu instead of LoginButton)
+    await expect(page.getByRole('button', { name: '用户菜单' })).toBeVisible({ timeout: 10000 })
 
     // Upload via file input (first UploadEntry)
     const fileInput = page.locator('input[type="file"]').first()

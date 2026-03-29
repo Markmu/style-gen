@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Providers } from "@/components/providers";
+import { AuthHeader } from "@/components/auth/auth-header";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,7 +17,12 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body>
-        <Providers>{children}</Providers>
+        <Providers>
+          <Suspense>
+            <AuthHeader />
+          </Suspense>
+          {children}
+        </Providers>
       </body>
     </html>
   );

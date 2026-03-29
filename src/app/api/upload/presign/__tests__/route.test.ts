@@ -8,6 +8,12 @@ import { NextRequest } from "next/server";
 import { POST } from "../route";
 
 // ---------- mocks ----------
+
+const mockAuth = vi.fn();
+vi.mock("@/auth", () => ({
+  auth: (...args: unknown[]) => mockAuth(...args),
+}));
+
 vi.mock("@/lib/r2", () => ({
   generatePresignedUploadUrl: vi.fn().mockResolvedValue("https://presigned.example.com/upload"),
   getPublicUrl: vi.fn((key: string) => `https://cdn.example.com/${key}`),
@@ -47,6 +53,7 @@ function makeRequest(body?: unknown): NextRequest {
 describe("POST /api/upload/presign", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockAuth.mockResolvedValue({ user: { id: "user-1" } });
     vi.mocked(generatePresignedUploadUrl).mockResolvedValue("https://presigned.example.com/upload");
     vi.mocked(getPublicUrl).mockImplementation((key: string) => `https://cdn.example.com/${key}`);
     vi.mocked(generateId).mockReturnValue("01TESTULID0000000000000000");

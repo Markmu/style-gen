@@ -7,6 +7,30 @@ function loadFixture(name: string): object {
   return JSON.parse(readFileSync(filePath, 'utf-8'))
 }
 
+/** Mock next-auth session API — makes useSession() return an authenticated user */
+export async function mockAuthSession(
+  page: Page,
+  user?: { name?: string; email?: string; id?: string; image?: string }
+) {
+  const mockUser = {
+    name: user?.name ?? 'Test User',
+    email: user?.email ?? 'test@example.com',
+    id: user?.id ?? 'mock-user-id',
+    image: user?.image ?? null,
+  }
+
+  await page.route('**/api/auth/session', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        user: mockUser,
+        expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      }),
+    })
+  })
+}
+
 /** Mock presign API — returns a fixed presigned URL and file URL */
 export async function mockUploadPresign(page: Page, assetId = 'mock-asset-id') {
   await page.route('**/api/upload/presign', async (route) => {

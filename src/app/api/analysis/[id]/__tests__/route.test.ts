@@ -4,6 +4,11 @@ import type { AnalysisTask } from "@/types/models";
 
 // ---- Mocks ----
 
+const mockAuth = vi.fn();
+vi.mock("@/auth", () => ({
+  auth: (...args: unknown[]) => mockAuth(...args),
+}));
+
 const mockFindAnalysisTaskById = vi.fn();
 vi.mock("@/lib/repositories/analysis-task-repository", () => ({
   findAnalysisTaskById: (...args: unknown[]) =>
@@ -45,6 +50,7 @@ function makeCompletedTask(
     rawResponse: "Raw visual analysis text",
     errorMessage: null,
     errorStage: null,
+    userId: "user-1",
     createdAt: new Date("2025-01-01"),
     updatedAt: new Date("2025-01-01"),
     ...overrides,
@@ -54,6 +60,7 @@ function makeCompletedTask(
 describe("GET /api/analysis/[id]", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mockAuth.mockResolvedValue({ user: { id: "user-1" } });
   });
 
   it("正常查询 completed 任务", async () => {
@@ -69,7 +76,7 @@ describe("GET /api/analysis/[id]", () => {
     expect(data.id).toBe("task-1");
     expect(data.status).toBe("completed");
     expect(data.promptText).toBe("A serene mountain landscape...");
-    expect(mockFindAnalysisTaskById).toHaveBeenCalledWith("task-1");
+    expect(mockFindAnalysisTaskById).toHaveBeenCalledWith("task-1", "user-1");
   });
 
   it("查询 pending 任务", async () => {

@@ -53,6 +53,24 @@ test.describe('Error Path', () => {
     // Mock upload
     await mockUploadPresign(page)
 
+    // Mock the CDN image URL so getImageDimensions can load it during retry
+    await page.route('https://cdn.example.com/**', async (route) => {
+      if (route.request().resourceType() === 'image' || route.request().url().match(/\.(png|jpg|webp)$/)) {
+        // Return a 1x1 transparent PNG
+        const pixel = Buffer.from(
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+          'base64'
+        )
+        await route.fulfill({
+          status: 200,
+          contentType: 'image/png',
+          body: pixel,
+        })
+      } else {
+        await route.continue()
+      }
+    })
+
     // First analysis call fails
     let analysisCallCount = 0
     await page.route('**/api/analysis', async (route) => {

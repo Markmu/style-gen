@@ -16,13 +16,15 @@ function rowToAsset(row: AssetRow): Asset {
     width: row.width,
     height: row.height,
     mimeType: row.mimeType,
+    userId: row.userId,
     createdAt: row.createdAt,
   };
 }
 
 /** 创建一条 Asset 记录 */
 export async function createAsset(
-  data: Omit<Asset, "id" | "createdAt">
+  userId: string,
+  data: Omit<Asset, "id" | "createdAt" | "userId">
 ): Promise<Asset> {
   const id = generateId();
   const [row] = await db
@@ -35,6 +37,7 @@ export async function createAsset(
       width: data.width,
       height: data.height,
       mimeType: data.mimeType,
+      userId,
     })
     .returning();
   return rowToAsset(row);
@@ -49,6 +52,7 @@ export async function findAssetById(id: string): Promise<Asset | null> {
 
 /** Upsert Asset（使用前端预分配的 ULID） */
 export async function upsertAsset(
+  userId: string,
   id: string,
   data: { fileUrl: string; width: number; height: number; mimeType: string }
 ): Promise<Asset> {
@@ -61,6 +65,7 @@ export async function upsertAsset(
       width: data.width,
       height: data.height,
       mimeType: data.mimeType,
+      userId,
     })
     .onConflictDoUpdate({
       target: assets.id,
@@ -69,6 +74,7 @@ export async function upsertAsset(
         width: data.width,
         height: data.height,
         mimeType: data.mimeType,
+        userId,
       },
     })
     .returning();

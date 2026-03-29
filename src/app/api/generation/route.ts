@@ -7,6 +7,7 @@ import {
 import { createAsset } from "@/lib/repositories/asset-repository";
 import { generateImage, ImageGenError } from "@/lib/ai/image-gen";
 import { uploadBuffer, getPublicUrl } from "@/lib/r2";
+import { auth } from "@/auth";
 
 /** 生成超时 120 秒 */
 const GENERATION_TIMEOUT_MS = 120_000;
@@ -55,6 +56,7 @@ function log(event: string, data: Record<string, unknown>) {
 /** 后台异步执行生成任务（含 120s 超时） */
 async function executeGeneration(
   taskId: string,
+  userId: string,
   params: {
     prompt: string;
     negativePrompt: string;
@@ -69,7 +71,7 @@ async function executeGeneration(
 
   // 使用 Promise.race 实现超时
   await Promise.race([
-    executeGenerationCore(taskId, params, () => aborted),
+    executeGenerationCore(taskId, userId, params, () => aborted),
     new Promise<never>((_, reject) => {
       const timer = setTimeout(() => {
         aborted = true;
@@ -86,6 +88,7 @@ async function executeGeneration(
 /** 生成核心逻辑 */
 async function executeGenerationCore(
   taskId: string,
+  userId: string,
   params: {
     prompt: string;
     negativePrompt: string;
@@ -124,7 +127,7 @@ async function executeGenerationCore(
   if (isAborted()) return;
 
   // d. 创建 Asset 记录
-  const asset = await createAsset({
+  const asset = await createAsset(userId, {
     type: "generated",
     fileUrl: getPublicUrl(r2Key),
     thumbnailUrl: null,
@@ -147,6 +150,16 @@ async function executeGenerationCore(
 
 export async function POST(request: NextRequest) {
   try {
+    // 认证：从 session 获取 userId
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: "Unauthorized", code: "UNAUTHORIZED", retryable: false },
+        { status: 401 }
+      );
+    }
+    const userId = session.user.id;
+
     const body: unknown = await request.json();
     const validated = validateBody(body);
 
@@ -163,7 +176,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 1. 校验 analysisTaskId 对应的任务存在且 status 为 completed
-    const analysisTask = await findAnalysisTaskById(validated.analysisTaskId);
+    const analysisTask = await findAnalysisTaskById(validated.analysisTaskId, userId);
     if (!analysisTask) {
       return NextResponse.json(
         { error: "Analysis task not found", code: "NOT_FOUND", retryable: false },
@@ -178,7 +191,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. 创建 GenerationTask 记录（status: 'pending'）
-    const task = await createGenerationTask({
+    const task = await createGenerationTask(userId, {
       analysisTaskId: validated.analysisTaskId,
       promptSnapshot: validated.promptText,
       negativePromptSnapshot: validated.negativePromptText,
@@ -196,7 +209,7 @@ export async function POST(request: NextRequest) {
     );
 
     // 4. 后台异步执行（fire-and-forget）
-    void executeGeneration(task.id, {
+    void executeGeneration(task.id, userId, {
       prompt: validated.promptText,
       negativePrompt: validated.negativePromptText,
       aspectRatio: validated.params.aspectRatio,

@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { analysisTasks } from "@/lib/db/schema";
 import { generateId } from "@/lib/ulid";
@@ -22,34 +22,40 @@ function rowToAnalysisTask(row: AnalysisTaskRow): AnalysisTask {
     rawResponse: row.rawResponse,
     errorMessage: row.errorMessage,
     errorStage: row.errorStage as AnalysisTaskErrorStage | null,
+    userId: row.userId,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
 }
 
 /** 创建一条 pending 状态的 AnalysisTask */
-export async function createAnalysisTask(data: {
-  sourceAssetId: string;
-}): Promise<AnalysisTask> {
+export async function createAnalysisTask(
+  userId: string,
+  data: {
+    sourceAssetId: string;
+  }
+): Promise<AnalysisTask> {
   const id = generateId();
   const [row] = await db
     .insert(analysisTasks)
     .values({
       id,
       sourceAssetId: data.sourceAssetId,
+      userId,
     })
     .returning();
   return rowToAnalysisTask(row);
 }
 
-/** 按 ID 查询 AnalysisTask */
+/** 按 ID 查询 AnalysisTask（需验证 userId 归属） */
 export async function findAnalysisTaskById(
-  id: string
+  id: string,
+  userId: string
 ): Promise<AnalysisTask | null> {
   const rows = await db
     .select()
     .from(analysisTasks)
-    .where(eq(analysisTasks.id, id));
+    .where(and(eq(analysisTasks.id, id), eq(analysisTasks.userId, userId)));
   if (rows.length === 0) return null;
   return rowToAnalysisTask(rows[0]);
 }

@@ -54,6 +54,7 @@ function makeCamelCaseRow(overrides: Partial<Record<string, unknown>> = {}) {
     rawResponse: null,
     errorMessage: null,
     errorStage: null,
+    userId: "USER_001",
     createdAt: NOW,
     updatedAt: NOW,
     ...overrides,
@@ -95,7 +96,7 @@ describe("analysis-task-repository", () => {
       const row = makeCamelCaseRow();
       mockReturning.mockResolvedValueOnce([row]);
 
-      const task = await createAnalysisTask({ sourceAssetId: "ASSET_001" });
+      const task = await createAnalysisTask("USER_001", { sourceAssetId: "ASSET_001" });
 
       expect(task).toEqual({
         id: "TASK_001",
@@ -107,6 +108,7 @@ describe("analysis-task-repository", () => {
         rawResponse: null,
         errorMessage: null,
         errorStage: null,
+        userId: "USER_001",
         createdAt: NOW,
         updatedAt: NOW,
       });
@@ -116,11 +118,12 @@ describe("analysis-task-repository", () => {
       const row = makeCamelCaseRow();
       mockReturning.mockResolvedValueOnce([row]);
 
-      await createAnalysisTask({ sourceAssetId: "ASSET_001" });
+      await createAnalysisTask("USER_001", { sourceAssetId: "ASSET_001" });
 
       expect(mockValues).toHaveBeenCalledWith({
         id: "TASK_001",
         sourceAssetId: "ASSET_001",
+        userId: "USER_001",
       });
     });
   });
@@ -130,7 +133,7 @@ describe("analysis-task-repository", () => {
       const row = makeCamelCaseRow();
       mockWhere.mockResolvedValueOnce([row]);
 
-      const task = await findAnalysisTaskById("TASK_001");
+      const task = await findAnalysisTaskById("TASK_001", "USER_001");
 
       expect(task).not.toBeNull();
       expect(task!.id).toBe("TASK_001");
@@ -140,7 +143,7 @@ describe("analysis-task-repository", () => {
     it("未找到返回 null", async () => {
       mockWhere.mockResolvedValueOnce([]);
 
-      const task = await findAnalysisTaskById("NON_EXISTENT");
+      const task = await findAnalysisTaskById("NON_EXISTENT", "USER_001");
 
       expect(task).toBeNull();
     });
@@ -149,7 +152,7 @@ describe("analysis-task-repository", () => {
       const row = makeCamelCaseRow({ recipe: sampleRecipe });
       mockWhere.mockResolvedValueOnce([row]);
 
-      const task = await findAnalysisTaskById("TASK_001");
+      const task = await findAnalysisTaskById("TASK_001", "USER_001");
 
       expect(task!.recipe).toEqual(sampleRecipe);
       expect(task!.recipe!.styleTags).toEqual(["landscape", "nature"]);

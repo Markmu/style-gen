@@ -10,7 +10,19 @@ export interface Asset {
   width: number;
   height: number;
   mimeType: string;
+  userId: string | null;
   createdAt: Date;
+}
+
+/** 用户记录 */
+export interface User {
+  id: string;
+  googleId: string;
+  email: string;
+  name: string;
+  avatarUrl: string | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 /** 视觉配方 — AI 两阶段链路提取的结构化风格描述 */
@@ -47,6 +59,7 @@ export interface AnalysisTask {
   rawResponse: string | null;
   errorMessage: string | null;
   errorStage: AnalysisTaskErrorStage | null;
+  userId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -71,6 +84,7 @@ export interface GenerationTask {
   modelName: string;
   resultAssetId: string | null;
   errorMessage: string | null;
+  userId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

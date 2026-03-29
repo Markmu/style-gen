@@ -4,6 +4,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { useGeneration } from "@/hooks/use-generation";
 
+const mockSignIn = vi.fn();
+
+vi.mock("next-auth/react", () => ({
+  signIn: (...args: unknown[]) => mockSignIn(...args),
+}));
+
 function createWrapper() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -20,6 +26,7 @@ function createWrapper() {
 afterEach(() => {
   vi.restoreAllMocks();
   vi.useRealTimers();
+  mockSignIn.mockReset();
 });
 
 describe("useGeneration", () => {
@@ -118,5 +125,32 @@ describe("useGeneration", () => {
 
     expect(result.current.data?.errorMessage).toBe("generation failed");
     expect(result.current.error).toBeNull();
+  });
+
+  // 401 响应时调用 signIn 并停止轮询
+  it("401 响应时调用 signIn 引导重新登录", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      return new Response(
+        JSON.stringify({
+          error: "Authentication required",
+          code: "UNAUTHORIZED",
+          retryable: false,
+        }),
+        { status: 401, headers: { "Content-Type": "application/json" } },
+      );
+    });
+
+    const { result } = renderHook(() => useGeneration("task-401"), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(result.current.error).not.toBeNull();
+    });
+
+    expect(mockSignIn).toHaveBeenCalledWith("google", {
+      callbackUrl: expect.any(String),
+    });
+    expect(result.current.error?.message).toBe("会话已过期，请重新登录");
   });
 });

@@ -56,6 +56,7 @@ function makeCamelCaseRow(overrides: Partial<Record<string, unknown>> = {}) {
     modelName: "dall-e-3",
     resultAssetId: null,
     errorMessage: null,
+    userId: "USER_001",
     createdAt: NOW,
     updatedAt: NOW,
     ...overrides,
@@ -89,7 +90,7 @@ describe("generation-task-repository", () => {
       const row = makeCamelCaseRow();
       mockReturning.mockResolvedValueOnce([row]);
 
-      const task = await createGenerationTask(createInput);
+      const task = await createGenerationTask("USER_001", createInput);
 
       expect(task).toEqual({
         id: "GEN_001",
@@ -101,6 +102,7 @@ describe("generation-task-repository", () => {
         modelName: "dall-e-3",
         resultAssetId: null,
         errorMessage: null,
+        userId: "USER_001",
         createdAt: NOW,
         updatedAt: NOW,
       });
@@ -110,7 +112,7 @@ describe("generation-task-repository", () => {
       const row = makeCamelCaseRow();
       mockReturning.mockResolvedValueOnce([row]);
 
-      await createGenerationTask(createInput);
+      await createGenerationTask("USER_001", createInput);
 
       expect(mockValues).toHaveBeenCalledWith({
         id: "GEN_001",
@@ -119,6 +121,7 @@ describe("generation-task-repository", () => {
         negativePromptSnapshot: "no blur, no artifacts",
         params: sampleParams,
         modelName: "dall-e-3",
+        userId: "USER_001",
       });
     });
 
@@ -131,7 +134,7 @@ describe("generation-task-repository", () => {
       });
       mockReturning.mockResolvedValueOnce([row]);
 
-      const task = await createGenerationTask({
+      const task = await createGenerationTask("USER_001", {
         ...createInput,
         analysisTaskId: "TASK_XYZ",
         promptSnapshot: "prompt text",
@@ -151,7 +154,7 @@ describe("generation-task-repository", () => {
       const row = makeCamelCaseRow();
       mockWhere.mockResolvedValueOnce([row]);
 
-      const task = await findGenerationTaskById("GEN_001");
+      const task = await findGenerationTaskById("GEN_001", "USER_001");
 
       expect(task).not.toBeNull();
       expect(task!.id).toBe("GEN_001");
@@ -162,7 +165,7 @@ describe("generation-task-repository", () => {
     it("未找到返回 null", async () => {
       mockWhere.mockResolvedValueOnce([]);
 
-      const task = await findGenerationTaskById("NON_EXISTENT");
+      const task = await findGenerationTaskById("NON_EXISTENT", "USER_001");
 
       expect(task).toBeNull();
     });

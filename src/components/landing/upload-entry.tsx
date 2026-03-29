@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState, type DragEvent, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
+import { useSession, signIn } from "next-auth/react";
 import { useFileStore } from "@/components/landing/use-file-store";
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -19,6 +20,7 @@ function validateFile(file: File): string | null {
 
 export function UploadEntry() {
   const router = useRouter();
+  const { data: session } = useSession();
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,15 +34,26 @@ export function UploadEntry() {
         return;
       }
       setError(null);
-      setFile(file);
-      router.push("/workspace");
+
+      if (session) {
+        setFile(file);
+        router.push("/workspace");
+      } else {
+        // 未登录：触发 Google OAuth，登录成功后跳转工作区
+        signIn("google", { callbackUrl: "/workspace" });
+      }
     },
-    [router, setFile],
+    [router, session, setFile],
   );
 
   const handleClick = useCallback(() => {
-    inputRef.current?.click();
-  }, []);
+    if (session) {
+      inputRef.current?.click();
+    } else {
+      // 未登录：触发 Google OAuth，登录成功后跳转工作区
+      signIn("google", { callbackUrl: "/workspace" });
+    }
+  }, [session]);
 
   const handleChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {

@@ -46,6 +46,7 @@ function makeCamelCaseRow(overrides: Partial<Record<string, unknown>> = {}) {
     width: 1920,
     height: 1080,
     mimeType: "image/png",
+    userId: "USER_001",
     createdAt: new Date("2025-01-01T00:00:00Z"),
     ...overrides,
   };
@@ -78,7 +79,7 @@ describe("asset-repository", () => {
       const row = makeCamelCaseRow();
       mockReturning.mockResolvedValueOnce([row]);
 
-      const asset = await createAsset(inputData);
+      const asset = await createAsset("USER_001", inputData);
 
       expect(asset).toEqual({
         id: "ASSET_ID_001",
@@ -88,6 +89,7 @@ describe("asset-repository", () => {
         width: 1920,
         height: 1080,
         mimeType: "image/png",
+        userId: "USER_001",
         createdAt: new Date("2025-01-01T00:00:00Z"),
       });
     });
@@ -96,7 +98,7 @@ describe("asset-repository", () => {
       const row = makeCamelCaseRow();
       mockReturning.mockResolvedValueOnce([row]);
 
-      await createAsset(inputData);
+      await createAsset("USER_001", inputData);
 
       expect(mockInsert).toHaveBeenCalledTimes(1);
       expect(mockValues).toHaveBeenCalledWith({
@@ -107,6 +109,7 @@ describe("asset-repository", () => {
         width: 1920,
         height: 1080,
         mimeType: "image/png",
+        userId: "USER_001",
       });
     });
 
@@ -114,7 +117,7 @@ describe("asset-repository", () => {
       const row = makeCamelCaseRow({ thumbnailUrl: null });
       mockReturning.mockResolvedValueOnce([row]);
 
-      const asset = await createAsset({
+      const asset = await createAsset("USER_001", {
         ...inputData,
         thumbnailUrl: null,
       });
@@ -150,7 +153,7 @@ describe("asset-repository", () => {
       const row = makeCamelCaseRow();
       mockReturning.mockResolvedValueOnce([row]);
 
-      const asset = await upsertAsset("ASSET_ID_001", {
+      const asset = await upsertAsset("USER_001", "ASSET_ID_001", {
         fileUrl: "https://cdn.example.com/image.png",
         width: 1920,
         height: 1080,

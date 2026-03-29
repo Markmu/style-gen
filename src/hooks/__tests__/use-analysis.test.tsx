@@ -4,6 +4,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useAnalysis } from "@/hooks/use-analysis";
 import type { ReactNode } from "react";
 
+const mockSignIn = vi.fn();
+
+vi.mock("next-auth/react", () => ({
+  signIn: (...args: unknown[]) => mockSignIn(...args),
+}));
+
 function createWrapper() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -22,6 +28,7 @@ function createWrapper() {
 describe("useAnalysis", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    mockSignIn.mockReset();
   });
 
   // 1. taskId 为 null 时不发起请求 - P0
@@ -70,6 +77,7 @@ describe("useAnalysis", () => {
 
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
+      status: 200,
       json: () => Promise.resolve(completedTask),
     });
 
@@ -103,6 +111,7 @@ describe("useAnalysis", () => {
 
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
+      status: 200,
       json: () => Promise.resolve(failedTask),
     });
 
@@ -116,5 +125,32 @@ describe("useAnalysis", () => {
 
     expect(result.current.data?.status).toBe("failed");
     expect(result.current.data?.errorMessage).toBe("LLM error");
+  });
+
+  // 4. 401 响应时调用 signIn 并停止轮询
+  it("401 响应时调用 signIn 引导重新登录", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: () =>
+        Promise.resolve({
+          error: "Authentication required",
+          code: "UNAUTHORIZED",
+          retryable: false,
+        }),
+    });
+
+    const { result } = renderHook(() => useAnalysis("task-401"), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(result.current.error).not.toBeNull();
+    });
+
+    expect(mockSignIn).toHaveBeenCalledWith("google", {
+      callbackUrl: expect.any(String),
+    });
+    expect(result.current.error?.message).toBe("会话已过期，请重新登录");
   });
 });

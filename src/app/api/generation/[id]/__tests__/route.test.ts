@@ -2,6 +2,11 @@ import { NextRequest } from "next/server";
 
 // ---- Mocks ----
 
+const mockAuth = vi.fn();
+vi.mock("@/auth", () => ({
+  auth: (...args: unknown[]) => mockAuth(...args),
+}));
+
 const mockFindGenerationTaskById = vi.fn();
 vi.mock("@/lib/repositories/generation-task-repository", () => ({
   findGenerationTaskById: (...args: unknown[]) =>
@@ -58,6 +63,8 @@ const generatedAsset = {
 describe("GET /api/generation/[id]", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    mockAuth.mockReset();
+    mockAuth.mockResolvedValue({ user: { id: "user-1" } });
     mockFindGenerationTaskById.mockReset();
     mockFindAssetById.mockReset();
   });

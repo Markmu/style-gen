@@ -6,6 +6,11 @@ import { StructurerError } from "@/lib/ai/structurer";
 
 // ---- Mocks ----
 
+const mockAuth = vi.fn();
+vi.mock("@/auth", () => ({
+  auth: (...args: unknown[]) => mockAuth(...args),
+}));
+
 const mockUpsertAsset = vi.fn();
 vi.mock("@/lib/repositories/asset-repository", () => ({
   upsertAsset: (...args: unknown[]) => mockUpsertAsset(...args),
@@ -62,6 +67,7 @@ const ASSET: Asset = {
   width: 800,
   height: 600,
   mimeType: "image/jpeg",
+  userId: "user-1",
   createdAt: new Date("2025-01-01"),
 };
 
@@ -76,6 +82,7 @@ function makePendingTask(overrides: Partial<AnalysisTask> = {}): AnalysisTask {
     rawResponse: null,
     errorMessage: null,
     errorStage: null,
+    userId: "user-1",
     createdAt: new Date("2025-01-01"),
     updatedAt: new Date("2025-01-01"),
     ...overrides,
@@ -100,6 +107,9 @@ const VALID_RECIPE = {
 
 /** 设置默认的成功 mock 行为 */
 function setupSuccessMocks() {
+  // auth
+  mockAuth.mockResolvedValue({ user: { id: "user-1" } });
+
   // upsertAsset
   mockUpsertAsset.mockResolvedValue(ASSET);
 
@@ -187,7 +197,7 @@ describe("POST /api/analysis", () => {
   it("创建 Asset 记录", async () => {
     await POST(makeRequest(VALID_BODY));
 
-    expect(mockUpsertAsset).toHaveBeenCalledWith("asset-1", {
+    expect(mockUpsertAsset).toHaveBeenCalledWith("user-1", "asset-1", {
       fileUrl: "https://example.com/image.jpg",
       width: 800,
       height: 600,
@@ -198,7 +208,7 @@ describe("POST /api/analysis", () => {
   it("创建 AnalysisTask 记录", async () => {
     await POST(makeRequest(VALID_BODY));
 
-    expect(mockCreateAnalysisTask).toHaveBeenCalledWith({
+    expect(mockCreateAnalysisTask).toHaveBeenCalledWith("user-1", {
       sourceAssetId: "asset-1",
     });
   });

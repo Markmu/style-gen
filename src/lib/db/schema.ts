@@ -7,9 +7,29 @@ import {
   jsonb,
   index,
   check,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import type { VisualRecipe, GenerationParams } from "@/types/models";
+
+/** users 表 */
+export const users = pgTable(
+  "users",
+  {
+    id: varchar("id", { length: 26 }).primaryKey(),
+    googleId: varchar("google_id", { length: 255 }).notNull(),
+    email: varchar("email", { length: 255 }).notNull(),
+    name: varchar("name", { length: 255 }).notNull(),
+    avatarUrl: text("avatar_url"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [uniqueIndex("users_google_id_unique").on(table.googleId)]
+);
 
 /** assets 表 */
 export const assets = pgTable(
@@ -22,6 +42,7 @@ export const assets = pgTable(
     width: integer("width").notNull(),
     height: integer("height").notNull(),
     mimeType: varchar("mime_type", { length: 50 }).notNull(),
+    userId: varchar("user_id", { length: 26 }).references(() => users.id),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -53,6 +74,7 @@ export const analysisTasks = pgTable(
     rawResponse: text("raw_response"),
     errorMessage: text("error_message"),
     errorStage: varchar("error_stage", { length: 10 }),
+    userId: varchar("user_id", { length: 26 }).references(() => users.id),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -93,6 +115,7 @@ export const generationTasks = pgTable(
       () => assets.id
     ),
     errorMessage: text("error_message"),
+    userId: varchar("user_id", { length: 26 }).references(() => users.id),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

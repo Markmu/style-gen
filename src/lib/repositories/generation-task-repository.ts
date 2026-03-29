@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { generationTasks } from "@/lib/db/schema";
 import { generateId } from "@/lib/ulid";
@@ -22,19 +22,23 @@ function rowToGenerationTask(row: GenerationTaskRow): GenerationTask {
     modelName: row.modelName,
     resultAssetId: row.resultAssetId,
     errorMessage: row.errorMessage,
+    userId: row.userId,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
 }
 
 /** 创建一条 pending 状态的 GenerationTask */
-export async function createGenerationTask(data: {
-  analysisTaskId: string;
-  promptSnapshot: string;
-  negativePromptSnapshot: string;
-  params: GenerationParams;
-  modelName: string;
-}): Promise<GenerationTask> {
+export async function createGenerationTask(
+  userId: string,
+  data: {
+    analysisTaskId: string;
+    promptSnapshot: string;
+    negativePromptSnapshot: string;
+    params: GenerationParams;
+    modelName: string;
+  }
+): Promise<GenerationTask> {
   const id = generateId();
   const [row] = await db
     .insert(generationTasks)
@@ -45,19 +49,23 @@ export async function createGenerationTask(data: {
       negativePromptSnapshot: data.negativePromptSnapshot,
       params: data.params,
       modelName: data.modelName,
+      userId,
     })
     .returning();
   return rowToGenerationTask(row);
 }
 
-/** 按 ID 查询 GenerationTask */
+/** 按 ID 查询 GenerationTask（需验证 userId 归属） */
 export async function findGenerationTaskById(
-  id: string
+  id: string,
+  userId: string
 ): Promise<GenerationTask | null> {
   const rows = await db
     .select()
     .from(generationTasks)
-    .where(eq(generationTasks.id, id));
+    .where(
+      and(eq(generationTasks.id, id), eq(generationTasks.userId, userId))
+    );
   if (rows.length === 0) return null;
   return rowToGenerationTask(rows[0]);
 }

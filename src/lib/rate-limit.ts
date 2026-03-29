@@ -1,6 +1,7 @@
 /**
- * 按 IP 限流工具（基于内存，首版单实例可接受）
+ * 按标识符限流工具（基于内存，首版单实例可接受）
  *
+ * 标识符（identifier）可以是 userId（已登录用户）或 IP（未登录用户）。
  * 注意：内存限流在多实例部署时不共享，进程重启后重置。
  */
 
@@ -14,7 +15,7 @@ interface RateLimitEntry {
   resetAt: number;
 }
 
-/** action -> ip -> entry */
+/** action -> identifier -> entry */
 const store = new Map<string, Map<string, RateLimitEntry>>();
 
 /** 每 10 分钟清理过期条目，防止内存泄漏 */
@@ -23,9 +24,9 @@ const CLEANUP_INTERVAL_MS = 10 * 60 * 1000;
 function cleanupExpiredEntries(): void {
   const now = Date.now();
   for (const [action, actionMap] of store) {
-    for (const [ip, entry] of actionMap) {
+    for (const [identifier, entry] of actionMap) {
       if (now >= entry.resetAt) {
-        actionMap.delete(ip);
+        actionMap.delete(identifier);
       }
     }
     if (actionMap.size === 0) {
@@ -47,14 +48,14 @@ export interface RateLimitResult {
 }
 
 /**
- * 检查给定 IP 在指定 action 下是否超限。
+ * 检查给定标识符在指定 action 下是否超限。
  *
- * @param ip      客户端 IP
- * @param action  动作标识，如 "upload" | "analysis" | "generation"
- * @param config  时间窗口 + 最大请求数
+ * @param identifier  限流标识符：已登录用户为 userId，未登录用户为客户端 IP
+ * @param action      动作标识，如 "upload" | "analysis" | "generation"
+ * @param config      时间窗口 + 最大请求数
  */
 export function checkRateLimit(
-  ip: string,
+  identifier: string,
   action: string,
   config: RateLimitConfig
 ): RateLimitResult {
@@ -66,7 +67,7 @@ export function checkRateLimit(
     store.set(action, actionMap);
   }
 
-  let entry = actionMap.get(ip);
+  let entry = actionMap.get(identifier);
 
   // 窗口过期或首次访问：重置
   if (!entry || now >= entry.resetAt) {
@@ -74,7 +75,7 @@ export function checkRateLimit(
       count: 0,
       resetAt: now + config.windowMs,
     };
-    actionMap.set(ip, entry);
+    actionMap.set(identifier, entry);
   }
 
   entry.count += 1;

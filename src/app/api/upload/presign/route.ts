@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generatePresignedUploadUrl, getPublicUrl } from "@/lib/r2";
 import { generateId } from "@/lib/ulid";
+import { auth } from "@/auth";
 
 const ALLOWED_MIME_TYPES = new Set([
   "image/jpeg",
@@ -34,6 +35,15 @@ export async function POST(
   request: NextRequest
 ): Promise<NextResponse<PresignResponseBody | ApiErrorResponse>> {
   try {
+  // 认证：从 session 获取 userId（presign 本身不写 DB，预留 userId）
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json(
+      { error: "Unauthorized", code: "UNAUTHORIZED", retryable: false },
+      { status: 401 }
+    );
+  }
+
   const body = (await request.json()) as Partial<PresignRequestBody>;
 
   if (!body.fileName || !body.mimeType) {
@@ -54,7 +64,7 @@ export async function POST(
   const ext = body.fileName.split(".").pop()?.replace(/[^a-zA-Z0-9]/g, "") || "bin";
   const key = `references/${assetId}/original.${ext}`;
 
-  log("upload_presign_request_received", { assetId, fileName: body.fileName, mimeType: body.mimeType });
+  log("upload_presign_request_received", { assetId, userId: session.user.id, fileName: body.fileName, mimeType: body.mimeType });
 
   try {
     const presignedUrl = await generatePresignedUploadUrl(key, body.mimeType);
