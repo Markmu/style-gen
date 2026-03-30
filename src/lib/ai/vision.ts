@@ -1,7 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { VISION_SYSTEM_PROMPT } from "./prompts";
 
-const GEMINI_MODEL = "gemini-3-flash-preview";
+const GEMINI_MODEL = "gemini-2.5-flash";
 const TIMEOUT_MS = 60_000;
 
 /** 视觉理解阶段失败 */
