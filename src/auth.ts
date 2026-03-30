@@ -1,5 +1,5 @@
 import NextAuth from "next-auth";
-import Google from "next-auth/providers/google";
+import authConfig from "@/auth.config";
 
 /**
  * 动态导入 findOrCreateUser 以避免在 Edge Runtime（middleware）中
@@ -14,8 +14,7 @@ async function getFindOrCreateUser() {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  providers: [Google],
-  session: { strategy: "jwt", maxAge: 7 * 24 * 60 * 60 }, // 7 天
+  ...authConfig,
   callbacks: {
     async signIn({ account, profile }) {
       // 仅允许 Google 登录
@@ -72,9 +71,5 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return session;
     },
-  },
-  pages: {
-    signIn: "/", // 登录页指向首页
-    error: "/", // 错误页指向首页
   },
 });

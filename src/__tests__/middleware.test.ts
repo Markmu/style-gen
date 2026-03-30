@@ -8,9 +8,11 @@
  * Auth 相关行为由 E2E 测试 (e2e/auth.spec.ts) 覆盖。
  */
 
-// Mock @/auth before any imports
-vi.mock("@/auth", () => ({
-  auth: (handler: (...args: unknown[]) => unknown) => handler,
+// Mock next-auth before any imports
+vi.mock("next-auth", () => ({
+  default: () => ({
+    auth: (handler: (...args: unknown[]) => unknown) => handler,
+  }),
 }));
 
 const mockCheckRateLimit = vi.fn();

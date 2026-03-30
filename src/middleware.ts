@@ -1,9 +1,12 @@
-import { auth } from "@/auth";
+import NextAuth from "next-auth";
+import authConfig from "@/auth.config";
 import { NextResponse } from "next/server";
 import {
   checkRateLimit,
   RATE_LIMIT_CONFIGS,
 } from "@/lib/rate-limit";
+
+const { auth } = NextAuth(authConfig);
 
 // 需要认证的页面路由
 const PROTECTED_PAGES = ["/workspace"];
