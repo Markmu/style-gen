@@ -123,7 +123,7 @@ export function UploadZone({
     );
   }
 
-  // Show drop zone
+  // Show drop zone with onboarding guidance
   return (
     <div className="flex flex-col items-center">
       <div
@@ -151,6 +151,13 @@ export function UploadZone({
         <p className="mt-2 text-sm text-gray-500">
           支持 JPG / PNG / WebP，不超过 10MB
         </p>
+        <div className="mt-6 flex items-center justify-center gap-6 text-xs text-gray-400">
+          <span>上传参考图</span>
+          <span aria-hidden="true">→</span>
+          <span>AI 分析风格</span>
+          <span aria-hidden="true">→</span>
+          <span>生成同风格新图</span>
+        </div>
       </div>
       {error && (
         <p className="mt-3 text-sm text-red-600" role="alert">

@@ -9,6 +9,7 @@ interface ResultDisplayProps {
   promptSnapshot: string;
   negativePromptSnapshot: string;
   params: GenerationParams;
+  onReset?: () => void;
 }
 
 export function ResultDisplay({
@@ -16,6 +17,7 @@ export function ResultDisplay({
   promptSnapshot,
   negativePromptSnapshot,
   params,
+  onReset,
 }: ResultDisplayProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -63,6 +65,26 @@ export function ResultDisplay({
             )}
           </div>
         </details>
+      </div>
+
+      {/* Action buttons */}
+      <div className="flex gap-2 pt-1">
+        <a
+          href={resultImageUrl}
+          download
+          className="flex-1 rounded-lg bg-indigo-600 px-4 py-2 text-center text-sm font-medium text-white transition-colors hover:bg-indigo-700"
+        >
+          下载图片
+        </a>
+        {onReset && (
+          <button
+            type="button"
+            onClick={onReset}
+            className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+          >
+            上传新图
+          </button>
+        )}
       </div>
 
       {/* Fullscreen overlay */}

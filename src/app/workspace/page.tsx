@@ -20,6 +20,7 @@ import { ResultDisplay } from "@/components/workspace/result-display";
 import { ErrorDisplay, type ApiErrorCode } from "@/components/workspace/error-display";
 import { RetryButton } from "@/components/workspace/retry-button";
 import { ComparisonView } from "@/components/workspace/comparison-view";
+import { EmptyAnalysis } from "@/components/workspace/empty-analysis";
 
 /** L1 降级阈值：轮询超过 60 秒展示排队提示 */
 const QUEUEING_THRESHOLD_MS = 60_000;
@@ -365,7 +366,14 @@ export default function WorkspacePage() {
 
           {/* Right column: Analysis results + Generation */}
           <div className="space-y-6">
-            <h2 className="mb-4 text-lg font-semibold text-gray-800">分析结果</h2>
+            <h2 className="mb-4 text-lg font-semibold text-gray-800">
+              {ws.state === "idle" && !ws.error ? "风格分析" : "分析结果"}
+            </h2>
+
+            {/* Empty state for new users */}
+            {ws.state === "idle" && !ws.error && (
+              <EmptyAnalysis />
+            )}
 
             {/* L4 降级提示：分析服务不可用 */}
             {ws.degradation.analysisUnavailable && (
@@ -523,6 +531,7 @@ export default function WorkspacePage() {
                 promptSnapshot={generationData.promptSnapshot}
                 negativePromptSnapshot={generationData.negativePromptSnapshot}
                 params={generationData.params}
+                onReset={handleReplace}
               />
             )}
           </div>
