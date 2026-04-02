@@ -119,13 +119,13 @@ export function ErrorDisplay({
   const canRetry = retryable && display.showRetry;
 
   return (
-    <div className="rounded-xl border border-red-200 bg-red-50 p-6">
-      <p className="font-medium text-red-700">{display.title}</p>
-      <p className="mt-2 text-sm text-red-600">{display.description}</p>
+    <div className="rounded-xl border border-[var(--color-error)]/30 bg-[var(--color-error)]/10 p-6">
+      <p className="font-medium text-[var(--color-error)]">{display.title}</p>
+      <p className="mt-2 text-sm text-[var(--color-error)]/80">{display.description}</p>
 
       {/* 限流：显示剩余等待时间 */}
       {code === "RATE_LIMITED" && retryAfterSeconds != null && retryAfterSeconds > 0 && (
-        <p className="mt-2 text-sm font-medium text-orange-600">
+        <p className="mt-2 text-sm font-medium text-amber-400">
           请等待 {retryAfterSeconds} 秒后重试
         </p>
       )}
@@ -136,7 +136,7 @@ export function ErrorDisplay({
           <button
             type="button"
             onClick={onRetry}
-            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
+            className="rounded-lg bg-[var(--color-error)] px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90"
           >
             重试
           </button>
@@ -147,7 +147,7 @@ export function ErrorDisplay({
           <button
             type="button"
             onClick={onReplace}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            className="rounded-lg px-4 py-2 text-sm font-medium text-[var(--text-secondary)] ring-1 ring-[var(--border)] transition-colors hover:bg-[var(--surface-bright)]"
           >
             更换参考图
           </button>

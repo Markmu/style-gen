@@ -12,7 +12,7 @@ describe("Hero", () => {
   it("渲染副标题", () => {
     render(<Hero />);
     expect(
-      screen.getByText("上传参考图，AI 提取视觉配方，一键生成同风格新图"),
+      screen.getByText(/上传参考图，AI 自动提取视觉配方/),
     ).toBeInTheDocument();
   });
 });

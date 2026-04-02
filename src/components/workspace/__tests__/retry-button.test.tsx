@@ -87,6 +87,6 @@ describe("RetryButton", () => {
 
     const btn = screen.getByRole("button", { name: "重新分析" });
     expect(btn.className).toContain("cursor-not-allowed");
-    expect(btn.className).toContain("bg-gray-300");
+    expect(btn.className).toContain("bg-[var(--surface-bright)]");
   });
 });

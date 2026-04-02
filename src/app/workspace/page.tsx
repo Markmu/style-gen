@@ -339,14 +339,14 @@ export default function WorkspacePage() {
     ws.state === "idle" && ws.error && ws.error.stage !== "generation";
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-6xl px-4 py-8">
-        <h1 className="mb-8 text-2xl font-bold text-gray-900">工作区</h1>
+    <main className="min-h-screen bg-[var(--surface-base)]">
+      <div className="mx-auto max-w-7xl px-4 py-8">
+        <h1 className="mb-8 text-2xl font-bold text-[var(--text-primary)]">工作区</h1>
 
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
           {/* Left column: Reference image + Comparison view */}
           <div className="space-y-6">
-            <h2 className="mb-4 text-lg font-semibold text-gray-800">参考图</h2>
+            <h2 className="mb-4 text-lg font-semibold text-[var(--text-primary)]">参考图</h2>
             <UploadZone
               referenceImageUrl={ws.referenceImageUrl}
               isUploading={isUploading || ws.state === "uploading"}
@@ -364,9 +364,9 @@ export default function WorkspacePage() {
             )}
           </div>
 
-          {/* Right column: Analysis results + Generation */}
+          {/* Middle column: Analysis results + Recipe + Prompt */}
           <div className="space-y-6">
-            <h2 className="mb-4 text-lg font-semibold text-gray-800">
+            <h2 className="mb-4 text-lg font-semibold text-[var(--text-primary)]">
               {ws.state === "idle" && !ws.error ? "风格分析" : "分析结果"}
             </h2>
 
@@ -377,11 +377,11 @@ export default function WorkspacePage() {
 
             {/* L4 降级提示：分析服务不可用 */}
             {ws.degradation.analysisUnavailable && (
-              <div className="rounded-lg border border-orange-200 bg-orange-50 p-4">
-                <p className="text-sm font-medium text-orange-800">
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
+                <p className="text-sm font-medium text-amber-400">
                   分析服务暂时不可用，请稍后重试
                 </p>
-                <p className="mt-1 text-xs text-orange-600">
+                <p className="mt-1 text-xs text-amber-400/70">
                   已有分析结果仍可查看和编辑
                 </p>
               </div>
@@ -398,14 +398,14 @@ export default function WorkspacePage() {
 
             {/* L1 降级：分析排队提示 */}
             {isAnalyzing && ws.degradation.analysisQueueing && (
-              <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+              <div className="rounded-lg border border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/5 p-4">
                 <div className="flex items-center gap-3">
-                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-yellow-500 border-t-transparent" />
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--accent-primary)] border-t-transparent" />
                   <div>
-                    <p className="text-sm font-medium text-yellow-800">
+                    <p className="text-sm font-medium text-[var(--accent-primary)]">
                       分析排队中，请耐心等待
                     </p>
-                    <p className="text-xs text-yellow-600">
+                    <p className="text-xs text-[var(--accent-primary)]/70">
                       当前请求较多，处理可能需要更长时间
                     </p>
                   </div>
@@ -436,11 +436,11 @@ export default function WorkspacePage() {
 
             {/* L3 降级提示：LLM 失败，展示原始视觉分析 + 手动编写 Prompt 提示 */}
             {isL3Degraded && (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-                <p className="text-sm font-medium text-amber-800">
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
+                <p className="text-sm font-medium text-amber-400">
                   AI 结构化处理失败，已降级为原始分析结果
                 </p>
-                <p className="mt-1 text-xs text-amber-600">
+                <p className="mt-1 text-xs text-amber-400/70">
                   您可以基于以下原始分析结果手动编写或调整 Prompt
                 </p>
               </div>
@@ -458,14 +458,21 @@ export default function WorkspacePage() {
                 onNegativePromptChange={ws.setNegativePromptText}
               />
             )}
+          </div>
+
+          {/* Right column: Generation */}
+          <div className="space-y-6">
+            <h2 className="mb-4 text-lg font-semibold text-[var(--text-primary)]">
+              图片生成
+            </h2>
 
             {/* L2 降级提示：生成服务不可用 */}
             {ws.degradation.generationUnavailable && (
-              <div className="rounded-lg border border-orange-200 bg-orange-50 p-4">
-                <p className="text-sm font-medium text-orange-800">
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
+                <p className="text-sm font-medium text-amber-400">
                   图片生成服务暂时不可用
                 </p>
-                <p className="mt-1 text-xs text-orange-600">
+                <p className="mt-1 text-xs text-amber-400/70">
                   分析结果和 Prompt 编辑功能仍可使用
                 </p>
               </div>
@@ -487,14 +494,14 @@ export default function WorkspacePage() {
 
             {/* L1 降级：生成排队提示 */}
             {isGenerating && ws.degradation.generationQueueing && (
-              <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+              <div className="rounded-lg border border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/5 p-4">
                 <div className="flex items-center gap-3">
-                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-yellow-500 border-t-transparent" />
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--accent-primary)] border-t-transparent" />
                   <div>
-                    <p className="text-sm font-medium text-yellow-800">
+                    <p className="text-sm font-medium text-[var(--accent-primary)]">
                       生成排队中，请耐心等待
                     </p>
-                    <p className="text-xs text-yellow-600">
+                    <p className="text-xs text-[var(--accent-primary)]/70">
                       当前请求较多，生成可能需要更长时间
                     </p>
                   </div>
@@ -513,9 +520,9 @@ export default function WorkspacePage() {
                     onRetry={handleGenerateRetry}
                   />
                 ) : (
-                  <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-                    <p className="text-sm font-medium text-red-800">生成失败</p>
-                    <p className="mt-1 text-xs text-red-600">{ws.error.message}</p>
+                  <div className="rounded-lg border border-[var(--color-error)]/30 bg-[var(--color-error)]/10 p-4">
+                    <p className="text-sm font-medium text-[var(--color-error)]">生成失败</p>
+                    <p className="mt-1 text-xs text-[var(--color-error)]/80">{ws.error.message}</p>
                     <div className="mt-3">
                       <RetryButton type="generation" onRetry={handleGenerateRetry} />
                     </div>

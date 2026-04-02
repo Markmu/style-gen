@@ -1,1 +1,57 @@
 @import "tailwindcss";
+
+/* ── The Luminescent Darkroom – Design Tokens ── */
+:root {
+  --surface-base: #060e20;
+  --surface-low: #091328;
+  --surface-mid: #0f1930;
+  --surface-bright: #1f2b49;
+  --text-primary: #dee5ff;
+  --text-secondary: #a3aac4;
+  --accent-primary: #ba9eff;
+  --accent-primary-dim: #8455ef;
+  --accent-secondary: #53ddfc;
+  --border: #40485d;
+  --color-error: #ff6e84;
+  --gradient-primary: rgba(186, 158, 255, 0.15); /* brand purple, rgba format for radial-gradient */
+}
+
+/* ── Base Styles ── */
+body {
+  background-color: var(--surface-base);
+  color: var(--text-primary);
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Manrope", system-ui, sans-serif;
+}
+
+/* ── Material Symbols ── */
+.icon {
+  font-family: "Material Symbols Outlined";
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+  font-size: 24px;
+  line-height: 1;
+  user-select: none;
+}
+
+/* ── Technical Label ── */
+.label-tech {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.2em; /* tracking-widest */
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* ── Gradient CTA Glow ── */
+.btn-glow {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary-dim));
+  box-shadow: 0 0 24px -4px color-mix(in srgb, var(--accent-primary) 40%, transparent);
+  transition: box-shadow 0.2s, opacity 0.2s;
+}
+
+.btn-glow:hover {
+  box-shadow: 0 0 32px -2px color-mix(in srgb, var(--accent-primary) 55%, transparent);
+}

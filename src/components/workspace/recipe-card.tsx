@@ -14,7 +14,7 @@ interface RecipeSectionProps {
 function RecipeSection({ title, children }: RecipeSectionProps) {
   return (
     <div className="space-y-2">
-      <h4 className="text-sm font-semibold text-gray-700">{title}</h4>
+      <h4 className="label-tech text-[var(--text-secondary)]">{title}</h4>
       {children}
     </div>
   );
@@ -23,8 +23,8 @@ function RecipeSection({ title, children }: RecipeSectionProps) {
 function FieldValue({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex gap-2">
-      <span className="shrink-0 text-sm text-gray-500">{label}:</span>
-      <span className="text-sm text-gray-800">{value}</span>
+      <span className="shrink-0 label-tech text-[var(--text-secondary)]">{label}</span>
+      <span className="text-sm text-[var(--text-primary)]">{value}</span>
     </div>
   );
 }
@@ -36,7 +36,7 @@ function TagList({ tags }: { tags: string[] }) {
       {tags.map((tag) => (
         <span
           key={tag}
-          className="inline-block rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-700"
+          className="inline-block rounded-full bg-[var(--surface-bright)] px-2.5 py-0.5 text-xs text-[var(--text-secondary)]"
         >
           {tag}
         </span>
@@ -47,8 +47,8 @@ function TagList({ tags }: { tags: string[] }) {
 
 export function RecipeCard({ recipe }: RecipeCardProps) {
   return (
-    <div className="space-y-5 rounded-xl border border-gray-200 bg-white p-5">
-      <h3 className="text-base font-bold text-gray-900">视觉配方</h3>
+    <div className="space-y-5 rounded-xl bg-[var(--surface-mid)] p-5 ring-1 ring-[var(--border)]">
+      <h3 className="text-base font-bold text-[var(--text-primary)]">视觉配方</h3>
 
       <RecipeSection title="主体与场景">
         <FieldValue label="主体" value={recipe.subject} />
@@ -70,7 +70,7 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
         <FieldValue label="质感" value={recipe.texture} />
         <FieldValue label="情绪" value={recipe.mood} />
         <div>
-          <span className="text-sm text-gray-500">风格标签:</span>
+          <span className="label-tech text-[var(--text-secondary)]">风格标签:</span>
           <div className="mt-1">
             <TagList tags={recipe.styleTags} />
           </div>
@@ -83,13 +83,13 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
 
       <RecipeSection title="保留 / 可替换">
         <div>
-          <span className="text-xs font-medium text-green-600">保留:</span>
+          <span className="label-tech text-emerald-400">保留:</span>
           <div className="mt-1">
             <TagList tags={recipe.mustKeep} />
           </div>
         </div>
         <div>
-          <span className="text-xs font-medium text-orange-600">可替换:</span>
+          <span className="label-tech text-amber-400">可替换:</span>
           <div className="mt-1">
             <TagList tags={recipe.replaceable} />
           </div>

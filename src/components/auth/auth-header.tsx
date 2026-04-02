@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
@@ -52,11 +53,36 @@ export function AuthHeader() {
 
   return (
     <>
-      <header className="fixed top-0 right-0 z-50 p-4">
-        {session ? <UserMenu /> : <LoginButton />}
+      <header className="sticky top-0 z-50 border-b border-[var(--border)] bg-[var(--surface-base)]/80 backdrop-blur-md">
+        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
+          <Link href="/" className="flex items-center gap-2.5">
+            <span className="icon text-[var(--accent-primary)]">auto_awesome</span>
+            <span className="text-base font-bold text-[var(--text-primary)]">StyleGen</span>
+          </Link>
+
+          {/* 功能链接 */}
+          <nav className="hidden items-center gap-6 md:flex">
+            <Link
+              href="/#features"
+              className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+            >
+              <span className="icon text-base">explore</span>
+              功能
+            </Link>
+            <Link
+              href="/workspace"
+              className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+            >
+              <span className="icon text-base">hub</span>
+              工作台
+            </Link>
+          </nav>
+
+          <div>{session ? <UserMenu /> : <LoginButton />}</div>
+        </div>
       </header>
       {errorMessage && (
-        <div className="fixed top-16 right-4 z-50 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-md">
+        <div className="fixed top-16 right-4 z-50 rounded-lg border border-[var(--color-error)]/30 bg-[var(--color-error)]/10 px-4 py-3 text-sm text-[var(--color-error)] shadow-md backdrop-blur-sm">
           {errorMessage}
         </div>
       )}

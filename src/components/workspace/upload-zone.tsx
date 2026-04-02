@@ -89,7 +89,7 @@ export function UploadZone({
   if (referenceImageUrl && !isUploading) {
     return (
       <div className="flex flex-col items-center gap-4">
-        <div className="relative w-full overflow-hidden rounded-xl border border-gray-200">
+        <div className="relative w-full overflow-hidden rounded-xl ring-1 ring-[var(--border)]/15">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={referenceImageUrl}
@@ -100,7 +100,7 @@ export function UploadZone({
         <button
           type="button"
           onClick={onReplace}
-          className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-50"
+          className="rounded-lg px-4 py-2 text-sm text-[var(--text-secondary)] ring-1 ring-[var(--border)]/15 transition-colors hover:bg-[var(--surface-bright)]"
         >
           替换参考图
         </button>
@@ -111,14 +111,14 @@ export function UploadZone({
   // Show upload progress
   if (isUploading) {
     return (
-      <div className="flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed border-blue-300 bg-blue-50/50 p-10">
-        <div className="h-2 w-full max-w-xs overflow-hidden rounded-full bg-gray-200">
+      <div className="flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/5 p-10">
+        <div className="h-2 w-full max-w-xs overflow-hidden rounded-full bg-[var(--surface-bright)]">
           <div
-            className="h-full rounded-full bg-blue-500 transition-all duration-300"
+            className="h-full rounded-full bg-[var(--accent-primary)] transition-all duration-300"
             style={{ width: `${uploadProgress}%` }}
           />
         </div>
-        <p className="text-sm text-gray-600">正在上传... {uploadProgress}%</p>
+        <p className="text-sm text-[var(--text-secondary)]">正在上传... {uploadProgress}%</p>
       </div>
     );
   }
@@ -136,22 +136,22 @@ export function UploadZone({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`w-full cursor-pointer rounded-2xl border-2 border-dashed p-10 text-center transition-colors ${
+        className={`w-full cursor-pointer rounded-2xl border-2 border-dashed p-8 text-center transition-colors md:p-12 ${
           isDragOver
-            ? "border-blue-500 bg-blue-50"
-            : "border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-blue-50/50"
+            ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/10"
+            : "border-[var(--border)]/15 bg-[var(--surface-low)] hover:border-[var(--accent-primary)]/30 hover:bg-[var(--surface-mid)]"
         }`}
       >
-        <div className="mb-3 text-4xl" aria-hidden="true">
-          +
+        <div className="mb-3 flex items-center justify-center" aria-hidden="true">
+          <span className="icon text-[var(--accent-primary)]">add_photo_alternate</span>
         </div>
-        <p className="text-base font-medium text-gray-700">
+        <p className="text-base font-medium text-[var(--text-primary)]">
           点击或拖拽上传参考图
         </p>
-        <p className="mt-2 text-sm text-gray-500">
+        <p className="mt-2 text-sm text-[var(--text-secondary)]">
           支持 JPG / PNG / WebP，不超过 10MB
         </p>
-        <div className="mt-6 flex items-center justify-center gap-6 text-xs text-gray-400">
+        <div className="mt-6 flex items-center justify-center gap-6 text-xs text-[var(--text-secondary)]">
           <span>上传参考图</span>
           <span aria-hidden="true">→</span>
           <span>AI 分析风格</span>
@@ -160,7 +160,7 @@ export function UploadZone({
         </div>
       </div>
       {error && (
-        <p className="mt-3 text-sm text-red-600" role="alert">
+        <p className="mt-3 text-sm text-[var(--color-error)]" role="alert">
           {error}
         </p>
       )}

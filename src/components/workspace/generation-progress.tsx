@@ -26,15 +26,15 @@ export function GenerationProgress({ isGenerating }: GenerationProgressProps) {
   if (!isGenerating) return null;
 
   return (
-    <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-4">
+    <div className="rounded-lg border border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/5 p-4">
       <div className="flex items-center gap-3">
         {/* Spinner */}
-        <div className="h-5 w-5 animate-spin rounded-full border-2 border-indigo-300 border-t-indigo-600" />
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--accent-primary)]/40 border-t-[var(--accent-primary)]" />
         <div>
-          <p className="text-sm font-medium text-indigo-800">
+          <p className="text-sm font-medium text-[var(--accent-primary)]">
             正在生成图片...
           </p>
-          <p className="text-xs text-indigo-600">
+          <p className="text-xs text-[var(--accent-primary)]/70">
             已等待 {elapsed} 秒 · 预计需要 10-60 秒
           </p>
         </div>

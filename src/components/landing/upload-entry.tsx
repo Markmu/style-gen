@@ -101,20 +101,22 @@ export function UploadEntry() {
         onDrop={handleDrop}
         className={`w-full max-w-lg cursor-pointer rounded-2xl border-2 border-dashed p-10 text-center transition-colors ${
           isDragOver
-            ? "border-blue-500 bg-blue-50"
-            : "border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-blue-50/50"
+            ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/10"
+            : "border-[var(--border)] bg-[var(--surface-low)] hover:border-[var(--accent-primary)]/50 hover:bg-[var(--surface-mid)]"
         }`}
       >
-        <div className="mb-3 text-4xl">📤</div>
-        <p className="text-base font-medium text-gray-700">
+        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--accent-primary)]/10">
+          <span className="icon text-[var(--accent-primary)]">cloud_upload</span>
+        </div>
+        <p className="text-base font-medium text-[var(--text-primary)]">
           点击或拖拽上传参考图
         </p>
-        <p className="mt-2 text-sm text-gray-500">
+        <p className="mt-2 text-sm text-[var(--text-secondary)]">
           支持 JPG / PNG / WebP，不超过 10MB
         </p>
       </div>
       {error && (
-        <p className="mt-3 text-sm text-red-600" role="alert">
+        <p className="mt-3 text-sm text-[var(--color-error)]" role="alert">
           {error}
         </p>
       )}

@@ -1,43 +1,41 @@
-const steps = [
+const features = [
   {
-    icon: "🖼️",
-    title: "上传参考图",
-    description: "选择一张你喜欢的风格参考图片",
+    icon: "visibility",
+    title: "视觉分析",
+    description: "AI 深度解析参考图的色彩、构图、光照、质感等视觉特征",
   },
   {
-    icon: "🔍",
-    title: "AI 提取视觉配方",
-    description: "AI 自动分析图片的色彩、构图、风格等视觉特征",
+    icon: "deployed_code",
+    title: "结构化配方",
+    description: "将视觉特征转化为可编辑的结构化 Prompt 模板",
   },
   {
-    icon: "🎨",
-    title: "一键生成同风格新图",
-    description: "基于提取的视觉配方，一键生成全新的同风格作品",
+    icon: "sync",
+    title: "一键生成",
+    description: "基于提取的视觉配方，快速生成同风格的新图片",
   },
 ] as const;
 
 export function ValueSection() {
   return (
-    <section className="px-4 py-16 md:py-24">
-      <h2 className="mb-12 text-center text-2xl font-bold text-gray-900 md:text-3xl">
-        三步完成风格再创作
-      </h2>
-      <div className="mx-auto grid max-w-4xl grid-cols-1 gap-8 md:grid-cols-3">
-        {steps.map((step, index) => (
+    <section id="features" className="px-4 py-16 md:py-24">
+      <div className="mx-auto grid max-w-4xl grid-cols-1 gap-6 md:grid-cols-3">
+        {features.map((feature) => (
           <div
-            key={index}
-            className="flex flex-col items-center rounded-xl bg-white p-6 text-center shadow-sm ring-1 ring-gray-100"
+            key={feature.icon}
+            className="flex flex-col items-center rounded-xl bg-[var(--surface-mid)] px-6 py-8 text-center ring-1 ring-[var(--border)] transition-all duration-300 hover:border-[var(--accent-primary)]/30 hover:bg-[var(--surface-bright)]"
           >
-            <div className="mb-4 text-4xl">{step.icon}</div>
-            <div className="mb-1 text-sm font-semibold text-blue-600">
-              Step {index + 1}
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--accent-primary)]/10">
+              <span className="icon text-[var(--accent-primary)]">{feature.icon}</span>
             </div>
-            <h3 className="mb-2 text-lg font-bold text-gray-900">
-              {step.title}
+            <h3 className="mb-2 text-base font-bold text-[var(--text-primary)]">
+              {feature.title}
             </h3>
-            <p className="text-sm leading-relaxed text-gray-600">
-              {step.description}
+            <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
+              {feature.description}
             </p>
+            {/* 底部装饰条 */}
+            <div className="mt-4 h-px w-full bg-gradient-to-r from-transparent via-[var(--border)]/30 to-transparent" />
           </div>
         ))}
       </div>

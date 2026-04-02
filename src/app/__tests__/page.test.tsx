@@ -28,6 +28,6 @@ describe("Home Page", () => {
     expect(
       screen.getAllByText("点击或拖拽上传参考图").length,
     ).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText("三步完成风格再创作")).toBeInTheDocument();
+    expect(screen.getByText("视觉分析")).toBeInTheDocument();
   });
 });

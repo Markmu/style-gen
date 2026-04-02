@@ -52,12 +52,12 @@ export function GeneratePanel({
       : "生成图片";
 
   return (
-    <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-4">
-      <h3 className="text-sm font-semibold text-gray-700">生成参数</h3>
+    <div className="space-y-4 rounded-lg bg-[var(--surface-mid)] p-4 ring-1 ring-[var(--border)]/15">
+      <h3 className="text-sm font-semibold text-[var(--text-secondary)]">生成参数</h3>
 
       {/* Aspect ratio selector */}
       <div>
-        <label className="mb-2 block text-xs font-medium text-gray-600">
+        <label className="mb-2 block text-xs font-medium text-[var(--text-secondary)]">
           宽高比
         </label>
         <div className="flex flex-wrap gap-2">
@@ -69,8 +69,8 @@ export function GeneratePanel({
               disabled={isGenerating}
               className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                 aspectRatio === option.value
-                  ? "bg-indigo-600 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  ? "bg-[var(--accent-primary)] text-white"
+                  : "bg-[var(--surface-bright)] text-[var(--text-secondary)] hover:bg-[var(--border)]"
               } ${isGenerating ? "cursor-not-allowed opacity-50" : ""}`}
             >
               {option.label}
@@ -81,7 +81,7 @@ export function GeneratePanel({
 
       {/* Quality selector */}
       <div>
-        <label className="mb-2 block text-xs font-medium text-gray-600">
+        <label className="mb-2 block text-xs font-medium text-[var(--text-secondary)]">
           画质
         </label>
         <div className="flex gap-2">
@@ -93,8 +93,8 @@ export function GeneratePanel({
               disabled={isGenerating}
               className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                 quality === option.value
-                  ? "bg-indigo-600 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  ? "bg-[var(--accent-primary)] text-white"
+                  : "bg-[var(--surface-bright)] text-[var(--text-secondary)] hover:bg-[var(--border)]"
               } ${isGenerating ? "cursor-not-allowed opacity-50" : ""}`}
             >
               {option.label}
@@ -110,8 +110,8 @@ export function GeneratePanel({
         disabled={!canGenerate || isGenerating}
         className={`w-full rounded-lg px-6 py-3 text-sm font-medium transition-colors ${
           canGenerate && !isGenerating
-            ? "bg-indigo-600 text-white hover:bg-indigo-700"
-            : "cursor-not-allowed bg-gray-300 text-gray-500"
+            ? "btn-glow text-white"
+            : "cursor-not-allowed bg-[var(--surface-bright)] text-[var(--text-secondary)]"
         }`}
       >
         {buttonLabel}

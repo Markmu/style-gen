@@ -22,15 +22,15 @@ export function ResultDisplay({
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-4">
-      <h3 className="text-sm font-semibold text-gray-700">生成结果</h3>
+    <div className="space-y-3 rounded-lg bg-[var(--surface-mid)] p-4 ring-1 ring-[var(--border)]">
+      <h3 className="text-sm font-semibold text-[var(--text-secondary)]">生成结果</h3>
 
       {/* Result image */}
       <div className="relative">
         <button
           type="button"
           onClick={() => setIsExpanded(true)}
-          className="w-full overflow-hidden rounded-lg border border-gray-100"
+          className="w-full overflow-hidden rounded-lg ring-1 ring-[var(--border)]"
         >
           <Image
             src={resultImageUrl}
@@ -44,16 +44,16 @@ export function ResultDisplay({
       </div>
 
       {/* Generation params info */}
-      <div className="space-y-2 text-xs text-gray-500">
+      <div className="space-y-2 text-xs text-[var(--text-secondary)]">
         <div className="flex gap-3">
           <span>宽高比: {params.aspectRatio}</span>
           <span>画质: {params.quality === "hd" ? "高清" : "标准"}</span>
         </div>
         <details className="cursor-pointer">
-          <summary className="text-xs font-medium text-gray-600">
+          <summary className="text-xs font-medium text-[var(--text-secondary)]">
             查看使用的 Prompt
           </summary>
-          <div className="mt-2 space-y-1 rounded bg-gray-50 p-2 text-xs text-gray-600">
+          <div className="mt-2 space-y-1 rounded bg-[var(--surface-low)] p-2 text-xs text-[var(--text-secondary)]">
             <p>
               <span className="font-medium">正向:</span> {promptSnapshot}
             </p>
@@ -72,7 +72,7 @@ export function ResultDisplay({
         <a
           href={resultImageUrl}
           download
-          className="flex-1 rounded-lg bg-indigo-600 px-4 py-2 text-center text-sm font-medium text-white transition-colors hover:bg-indigo-700"
+          className="btn-glow flex-1 rounded-lg px-4 py-2 text-center text-sm font-medium text-white"
         >
           下载图片
         </a>
@@ -80,7 +80,7 @@ export function ResultDisplay({
           <button
             type="button"
             onClick={onReset}
-            className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            className="flex-1 rounded-lg px-4 py-2 text-sm font-medium text-[var(--text-secondary)] ring-1 ring-[var(--border)] transition-colors hover:bg-[var(--surface-bright)]"
           >
             上传新图
           </button>
@@ -119,13 +119,13 @@ interface ResultErrorProps {
 
 export function ResultError({ errorMessage, onRetry }: ResultErrorProps) {
   return (
-    <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-      <p className="text-sm font-medium text-red-800">生成失败</p>
-      <p className="mt-1 text-xs text-red-600">{errorMessage}</p>
+    <div className="rounded-lg border border-[var(--color-error)]/30 bg-[var(--color-error)]/10 p-4">
+      <p className="text-sm font-medium text-[var(--color-error)]">生成失败</p>
+      <p className="mt-1 text-xs text-[var(--color-error)]/80">{errorMessage}</p>
       <button
         type="button"
         onClick={onRetry}
-        className="mt-3 rounded-md bg-red-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-red-700 transition-colors"
+        className="mt-3 rounded-md bg-[var(--color-error)] px-4 py-1.5 text-xs font-medium text-white transition-colors hover:opacity-90"
       >
         重试
       </button>

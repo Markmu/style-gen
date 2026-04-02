@@ -29,14 +29,14 @@ export function RetryButton({
         disabled={disabled}
         className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
           disabled
-            ? "cursor-not-allowed bg-gray-300 text-gray-500"
-            : "bg-red-600 text-white hover:bg-red-700"
+            ? "cursor-not-allowed bg-[var(--surface-bright)] text-[var(--text-secondary)]"
+            : "bg-[var(--accent-primary)] text-white hover:opacity-90"
         }`}
       >
         {label}
       </button>
       {disabled && disabledReason && (
-        <p className="text-xs text-gray-500">{disabledReason}</p>
+        <p className="text-xs text-[var(--text-secondary)]">{disabledReason}</p>
       )}
     </div>
   );

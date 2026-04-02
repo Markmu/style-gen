@@ -45,7 +45,7 @@ export function UserMenu() {
     <div ref={menuRef} className="relative">
       <button
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-gray-200 bg-gray-100 transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface-bright)] transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:ring-offset-2 focus:ring-offset-[var(--surface-base)]"
         aria-label="用户菜单"
         aria-expanded={isOpen}
       >
@@ -66,20 +66,20 @@ export function UserMenu() {
             }}
           />
         ) : (
-          <span className="text-sm font-medium text-gray-600">{initials}</span>
+          <span className="text-sm font-medium text-[var(--text-secondary)]">{initials}</span>
         )}
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-64 rounded-lg border border-gray-200 bg-white py-2 shadow-lg">
+        <div className="absolute right-0 mt-2 w-64 rounded-lg border border-[var(--border)] bg-[var(--surface-bright)] py-2 shadow-lg backdrop-blur-sm">
           <div className="px-4 py-2">
-            <p className="text-sm font-medium text-gray-900">{userName}</p>
-            <p className="text-xs text-gray-500">{userEmail}</p>
+            <p className="text-sm font-medium text-[var(--text-primary)]">{userName}</p>
+            <p className="text-xs text-[var(--text-secondary)]">{userEmail}</p>
           </div>
-          <hr className="my-1 border-gray-200" />
+          <hr className="my-1 border-[var(--border)]" />
           <button
             onClick={handleSignOut}
-            className="w-full px-4 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-50"
+            className="w-full px-4 py-2 text-left text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-mid)]"
           >
             退出登录
           </button>
