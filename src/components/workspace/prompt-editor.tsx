@@ -24,7 +24,10 @@ export function PromptEditor({
           htmlFor="prompt-text"
           className="block text-sm font-medium text-[var(--text-secondary)]"
         >
-          Prompt
+          Prompt{" "}
+          <span className="text-[var(--text-secondary)]/60 text-xs font-normal">
+            （AI 生成指令）
+          </span>
         </label>
         <textarea
           id="prompt-text"
@@ -42,7 +45,10 @@ export function PromptEditor({
           htmlFor="negative-prompt-text"
           className="block text-sm font-medium text-[var(--text-secondary)]"
         >
-          Negative Prompt
+          Negative Prompt{" "}
+          <span className="text-[var(--text-secondary)]/60 text-xs font-normal">
+            （排除的元素）
+          </span>
         </label>
         <textarea
           id="negative-prompt-text"

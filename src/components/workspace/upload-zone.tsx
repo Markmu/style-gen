@@ -39,18 +39,28 @@ export function UploadZone({
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showReplaceConfirm, setShowReplaceConfirm] = useState(false);
 
   const handleFile = useCallback(
     (file: File) => {
+      // 如果已有参考图，显示确认对话框
+      if (referenceImageUrl && !showReplaceConfirm) {
+        setShowReplaceConfirm(true);
+        // 暂存文件，等待用户确认
+        return;
+      }
+
       const validationError = validateFile(file);
       if (validationError) {
         setError(validationError);
+        setShowReplaceConfirm(false);
         return;
       }
       setError(null);
+      setShowReplaceConfirm(false);
       onFileSelected(file);
     },
-    [onFileSelected],
+    [onFileSelected, referenceImageUrl, showReplaceConfirm],
   );
 
   const handleClick = useCallback(() => {
@@ -85,25 +95,64 @@ export function UploadZone({
     [handleFile],
   );
 
+  const handleConfirmReplace = useCallback(() => {
+    setShowReplaceConfirm(false);
+    onReplace();
+  }, [onReplace]);
+
+  const handleCancelReplace = useCallback(() => {
+    setShowReplaceConfirm(false);
+  }, []);
+
   // Show reference image preview after upload
   if (referenceImageUrl && !isUploading) {
     return (
       <div className="flex flex-col items-center gap-4">
-        <div className="relative w-full overflow-hidden rounded-xl ring-1 ring-[var(--border)]/15">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={referenceImageUrl}
-            alt="参考图预览"
-            className="h-auto w-full object-contain"
-          />
-        </div>
-        <button
-          type="button"
-          onClick={onReplace}
-          className="rounded-lg px-4 py-2 text-sm text-[var(--text-secondary)] ring-1 ring-[var(--border)]/15 transition-colors hover:bg-[var(--surface-bright)]"
-        >
-          替换参考图
-        </button>
+        {/* 内联替换确认 */}
+        {showReplaceConfirm ? (
+          <div className="w-full rounded-xl border-2 border-amber-500/30 bg-amber-500/10 p-6">
+            <p className="text-center text-sm font-medium text-amber-400">
+              替换当前参考图？
+            </p>
+            <p className="mt-2 text-center text-xs text-amber-400/70">
+              这将清除当前的分析结果和生成内容
+            </p>
+            <div className="mt-4 flex items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={handleCancelReplace}
+                className="rounded-lg px-4 py-2 text-sm text-[var(--text-secondary)] ring-1 ring-[var(--border)]/15 transition-colors hover:bg-[var(--surface-bright)]"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmReplace}
+                className="rounded-lg px-4 py-2 text-sm text-white bg-[var(--accent-primary)] transition-colors hover:bg-[var(--accent-primary)]/80"
+              >
+                确认替换
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="relative w-full overflow-hidden rounded-xl ring-1 ring-[var(--border)]/15">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={referenceImageUrl}
+                alt="参考图预览"
+                className="h-auto w-full object-contain"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowReplaceConfirm(true)}
+              className="rounded-lg px-4 py-2 text-sm text-[var(--text-secondary)] ring-1 ring-[var(--border)]/15 transition-colors hover:bg-[var(--surface-bright)]"
+            >
+              替换参考图
+            </button>
+          </>
+        )}
       </div>
     );
   }
@@ -152,11 +201,11 @@ export function UploadZone({
           支持 JPG / PNG / WebP，不超过 10MB
         </p>
         <div className="mt-6 flex items-center justify-center gap-6 text-xs text-[var(--text-secondary)]">
-          <span>上传参考图</span>
+          <span>1. 上传参考图</span>
           <span aria-hidden="true">→</span>
-          <span>AI 分析风格</span>
+          <span>2. AI 分析风格</span>
           <span aria-hidden="true">→</span>
-          <span>生成同风格新图</span>
+          <span>3. 生成同风格新图</span>
         </div>
       </div>
       {error && (

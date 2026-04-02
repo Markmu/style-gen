@@ -1,19 +1,33 @@
 @import "tailwindcss";
 
-/* ── The Luminescent Darkroom – Design Tokens ── */
+/* ── Professional Dark UI – Design Tokens ── */
 :root {
-  --surface-base: #060e20;
-  --surface-low: #091328;
-  --surface-mid: #0f1930;
-  --surface-bright: #1f2b49;
-  --text-primary: #dee5ff;
-  --text-secondary: #a3aac4;
-  --accent-primary: #ba9eff;
-  --accent-primary-dim: #8455ef;
-  --accent-secondary: #53ddfc;
-  --border: #40485d;
+  /* Neutral-cool surfaces (slate-based, minimal saturation) */
+  --surface-base: #0a0f1a;
+  --surface-low: #111827;
+  --surface-mid: #1a2234;
+  --surface-bright: #252f46;
+
+  /* High-contrast text */
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+
+  /* Refined accent: cool gray-blue with muted saturation */
+  --accent-primary: #64748b;
+  --accent-primary-dim: #475569;
+
+  /* Functional accent: desaturated indigo for states */
+  --accent-secondary: #818cf8;
+
+  /* Neutral borders */
+  --border: #334155;
+
+  /* Error color (unchanged) */
   --color-error: #ff6e84;
-  --gradient-primary: rgba(186, 158, 255, 0.15); /* brand purple, rgba format for radial-gradient */
+
+  /* Border opacity standards */
+  --border-interactive: rgba(51, 65, 85, 0.3); /* 30% for inputs, buttons */
+  --border-static: rgba(51, 65, 85, 0.15); /* 15% for cards, dividers */
 }
 
 /* ── Base Styles ── */
@@ -45,13 +59,21 @@ h1, h2, h3, h4, h5, h6 {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
-/* ── Gradient CTA Glow ── */
-.btn-glow {
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary-dim));
-  box-shadow: 0 0 24px -4px color-mix(in srgb, var(--accent-primary) 40%, transparent);
-  transition: box-shadow 0.2s, opacity 0.2s;
+/* ── Primary Button (solid fill, subtle hover) ── */
+.btn-primary {
+  background-color: var(--accent-primary);
+  color: white;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
 }
 
-.btn-glow:hover {
-  box-shadow: 0 0 32px -2px color-mix(in srgb, var(--accent-primary) 55%, transparent);
+.btn-primary:hover {
+  background-color: var(--accent-primary-dim);
+  opacity: 0.95;
+}
+
+.btn-primary:disabled {
+  background-color: var(--surface-bright);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+  opacity: 0.6;
 }

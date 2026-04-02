@@ -1,7 +1,24 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { VisualRecipe } from "@/types/models";
+
+/** sessionStorage key */
+const STORAGE_KEY = "style-gen-workspace-state";
+
+/** 当前持久化数据版本号 */
+const STORAGE_VERSION = 1;
+
+/** 持久化状态结构（仅包含需要跨页面恢复的关键数据） */
+export interface WorkspacePersistedState {
+  version: number;
+  assetId: string | null;
+  referenceImageUrl: string | null;
+  recipe: VisualRecipe | null;
+  promptText: string;
+  negativePromptText: string;
+  generationTaskId: string | null;
+}
 
 export type WorkspaceState =
   | "idle"
@@ -69,6 +86,96 @@ const initialContext: WorkspaceContext = {
   degradation: initialDegradation,
 };
 
+/** 从 sessionStorage 读取持久化状态 */
+function loadPersistedState(): Partial<WorkspacePersistedState> | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+
+    const data = JSON.parse(raw) as WorkspacePersistedState;
+
+    // 版本检查：未来可在此处处理数据迁移
+    if (data.version !== STORAGE_VERSION) {
+      console.warn(`[workspace] 版本不匹配，清除旧数据: ${data.version} !== ${STORAGE_VERSION}`);
+      sessionStorage.removeItem(STORAGE_KEY);
+      return null;
+    }
+
+    return data;
+  } catch (err) {
+    console.error("[workspace] 读取 sessionStorage 失败:", err);
+    // 静默清理损坏的数据
+    try {
+      sessionStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // 忽略清除失败
+    }
+    return null;
+  }
+}
+
+/** 写入 sessionStorage（debounce 避免频繁写入） */
+function createPersistWriter() {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  return (state: WorkspacePersistedState) => {
+    if (typeof window === "undefined") return;
+
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
+    }
+
+    // 300ms debounce，避免频繁写入
+    timeoutId = setTimeout(() => {
+      try {
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (err) {
+        console.error("[workspace] 写入 sessionStorage 失败:", err);
+      }
+      timeoutId = null;
+    }, 300);
+  };
+}
+
+const persistState = createPersistWriter();
+
+/** 清除 sessionStorage */
+function clearPersistedState(): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.removeItem(STORAGE_KEY);
+  } catch (err) {
+    console.error("[workspace] 清除 sessionStorage 失败:", err);
+  }
+}
+
+/** 从持久化状态恢复到 WorkspaceContext */
+function restoreFromPersistedState(
+  persisted: Partial<WorkspacePersistedState>,
+): WorkspaceContext | null {
+  // 数据校验：至少需要有 assetId 和 referenceImageUrl 才算有效状态
+  if (!persisted.assetId || !persisted.referenceImageUrl) {
+    return null;
+  }
+
+  return {
+    state: "analysis_ready", // 恢复后直接进入分析完成状态
+    assetId: persisted.assetId,
+    referenceImageUrl: persisted.referenceImageUrl,
+    recipe: persisted.recipe ?? null,
+    promptText: persisted.promptText ?? "",
+    negativePromptText: persisted.negativePromptText ?? "",
+    generationTaskId: persisted.generationTaskId ?? null,
+    analysisTaskId: null, // 不恢复 analysisTaskId，因为任务可能已过期
+    resultImageUrl: null, // 不恢复 resultImageUrl，因为 URL 可能已失效
+    mimeType: null,
+    error: null,
+    degradation: initialDegradation,
+  };
+}
+
 export interface WorkspaceActions {
   startUpload: (mimeType?: string) => void;
   completeUpload: (assetId: string, fileUrl: string) => void;
@@ -90,7 +197,23 @@ export interface WorkspaceActions {
 }
 
 export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
-  const [ctx, setCtx] = useState<WorkspaceContext>(initialContext);
+  // 尝试从 sessionStorage 恢复状态
+  const getInitialState = (): WorkspaceContext => {
+    if (typeof window !== "undefined") {
+      const persisted = loadPersistedState();
+      if (persisted) {
+        const restored = restoreFromPersistedState(persisted);
+        if (restored) {
+          console.log("[workspace] 从 sessionStorage 恢复状态");
+          return restored;
+        }
+      }
+    }
+    return initialContext;
+  };
+
+  const [ctx, setCtx] = useState<WorkspaceContext>(getInitialState);
+  const isRestoredRef = useRef(ctx !== initialContext);
 
   const startUpload = useCallback((mimeType?: string) => {
     setCtx((prev) => ({
@@ -210,6 +333,7 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
   }, []);
 
   const reset = useCallback(() => {
+    clearPersistedState();
     setCtx(initialContext);
   }, []);
 
@@ -240,6 +364,31 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
       degradation: { ...prev.degradation, analysisUnavailable: unavailable },
     }));
   }, []);
+
+  // 持久化关键状态到 sessionStorage
+  useEffect(() => {
+    // 仅在客户端执行，且跳过初始恢复时的写入
+    if (typeof window === "undefined" || !isRestoredRef.current) return;
+
+    const persistedState: WorkspacePersistedState = {
+      version: STORAGE_VERSION,
+      assetId: ctx.assetId,
+      referenceImageUrl: ctx.referenceImageUrl,
+      recipe: ctx.recipe,
+      promptText: ctx.promptText,
+      negativePromptText: ctx.negativePromptText,
+      generationTaskId: ctx.generationTaskId,
+    };
+
+    persistState(persistedState);
+  }, [
+    ctx.assetId,
+    ctx.referenceImageUrl,
+    ctx.recipe,
+    ctx.promptText,
+    ctx.negativePromptText,
+    ctx.generationTaskId,
+  ]);
 
   return {
     ...ctx,

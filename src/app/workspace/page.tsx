@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useFileStore } from "@/components/landing/use-file-store";
 import { useWorkspaceState } from "@/hooks/use-workspace-state";
 import { useUpload } from "@/hooks/use-upload";
@@ -52,6 +52,7 @@ export default function WorkspacePage() {
   const hasConsumedFile = useRef(false);
   const analysisStartTime = useRef<number | null>(null);
   const generationStartTime = useRef<number | null>(null);
+  const [showEditGuidance, setShowEditGuidance] = useState(true);
 
   // Handle file from landing page (T06 global state)
   useEffect(() => {
@@ -448,6 +449,33 @@ export default function WorkspacePage() {
 
             {/* Recipe card */}
             {showRecipe && ws.recipe && <RecipeCard recipe={ws.recipe} />}
+
+            {/* Edit guidance: shown after first analysis */}
+            {showRecipe && showEditGuidance && (
+              <div className="rounded-lg border border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/5 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <span className="icon text-[var(--accent-primary)] mt-0.5">lightbulb</span>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-[var(--accent-primary)]">
+                        开始创作你的作品
+                      </p>
+                      <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                        你可以编辑上方的配方内容和下方的 Prompt，来控制生成结果
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowEditGuidance(false)}
+                    className="text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+                    aria-label="关闭提示"
+                  >
+                    <span className="icon">close</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Prompt editor */}
             {showPromptEditor && (
