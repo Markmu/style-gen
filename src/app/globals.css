@@ -7,14 +7,15 @@
   --surface-low: #111827;
   --surface-mid: #1a2234;
   --surface-bright: #252f46;
+  --surface-hover: #2d3a50;
 
   /* High-contrast text */
   --text-primary: #e2e8f0;
   --text-secondary: #94a3b8;
 
-  /* Refined accent: cool gray-blue with muted saturation */
-  --accent-primary: #64748b;
-  --accent-primary-dim: #475569;
+  /* Brand accent: steel blue-teal — clearly interactive, distinctly ours */
+  --accent-primary: #5b9ead;
+  --accent-primary-dim: #4a8a9a;
 
   /* Functional accent: desaturated indigo for states */
   --accent-secondary: #818cf8;
@@ -22,8 +23,10 @@
   /* Neutral borders */
   --border: #334155;
 
-  /* Error color (unchanged) */
+  /* Semantic colors */
   --color-error: #ff6e84;
+  --color-warning: #e5a220;
+  --color-success: #3ec98c;
 
   /* Border opacity standards */
   --border-interactive: rgba(51, 65, 85, 0.3); /* 30% for inputs, buttons */
@@ -34,11 +37,11 @@
 body {
   background-color: var(--surface-base);
   color: var(--text-primary);
-  font-family: "Inter", system-ui, sans-serif;
+  font-family: "Geist", system-ui, sans-serif;
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-family: "Manrope", system-ui, sans-serif;
+  font-family: "Sora", system-ui, sans-serif;
 }
 
 /* ── Material Symbols ── */
@@ -68,7 +71,6 @@ h1, h2, h3, h4, h5, h6 {
 
 .btn-primary:hover {
   background-color: var(--accent-primary-dim);
-  opacity: 0.95;
 }
 
 .btn-primary:disabled {

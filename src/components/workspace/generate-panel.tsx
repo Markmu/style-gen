@@ -9,20 +9,13 @@ export type Quality = "standard" | "hd";
 // localStorage key for persisting generation parameters
 const GEN_PARAMS_STORAGE_KEY = "style-gen-gen-params";
 
-// 分组后的宽高比选项，减少同时展示的选项数量
-const ASPECT_RATIO_GROUPS = {
-  横版: [
-    { label: "16:9", value: "16:9" as AspectRatio },
-    { label: "4:3", value: "4:3" as AspectRatio },
-  ],
-  竖版: [
-    { label: "9:16", value: "9:16" as AspectRatio },
-    { label: "3:4", value: "3:4" as AspectRatio },
-  ],
-  方形: [
-    { label: "1:1", value: "1:1" as AspectRatio },
-  ],
-};
+const ASPECT_RATIOS: { label: string; value: AspectRatio }[] = [
+  { label: "1:1", value: "1:1" },
+  { label: "4:3", value: "4:3" },
+  { label: "16:9", value: "16:9" },
+  { label: "3:4", value: "3:4" },
+  { label: "9:16", value: "9:16" },
+];
 
 const QUALITY_OPTIONS: { label: string; value: Quality }[] = [
   { label: "标准", value: "standard" },
@@ -134,38 +127,28 @@ export function GeneratePanel({
       : "生成图片";
 
   return (
-    <div className="space-y-4 rounded-lg bg-[var(--surface-mid)] p-4 ring-1 ring-[var(--border)]/15">
-      <h3 className="text-sm font-semibold text-[var(--text-secondary)]">生成参数</h3>
+    <div className="space-y-4 rounded-lg bg-[var(--surface-mid)] p-4 ring-1 ring-[var(--border)]">
 
-      {/* Aspect ratio selector - 分组展示 */}
+      {/* Aspect ratio selector */}
       <div>
         <label className="mb-2 block text-xs font-medium text-[var(--text-secondary)]">
           宽高比
         </label>
-        <div className="space-y-2">
-          {Object.entries(ASPECT_RATIO_GROUPS).map(([groupName, options]) => (
-            <div key={groupName}>
-              <span className="mb-1.5 block text-[11px] text-[var(--text-tertiary)]">
-                {groupName}
-              </span>
-              <div className="flex flex-wrap gap-2">
-                {options.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => handleAspectRatioChange(option.value)}
-                    disabled={isGenerating}
-                    className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                      aspectRatio === option.value
-                        ? "bg-[var(--accent-primary)] text-white"
-                        : "bg-[var(--surface-bright)] text-[var(--text-secondary)] hover:bg-[var(--border)]"
-                    } ${isGenerating ? "cursor-not-allowed opacity-50" : ""}`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+        <div className="flex flex-wrap gap-2">
+          {ASPECT_RATIOS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => handleAspectRatioChange(option.value)}
+              disabled={isGenerating}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                aspectRatio === option.value
+                  ? "bg-[var(--accent-primary)] text-white"
+                  : "bg-[var(--surface-bright)] text-[var(--text-secondary)] hover:bg-[var(--border)]"
+              } ${isGenerating ? "cursor-not-allowed opacity-50" : ""}`}
+            >
+              {option.label}
+            </button>
           ))}
         </div>
       </div>

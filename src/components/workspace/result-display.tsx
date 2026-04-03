@@ -153,7 +153,7 @@ export function ResultError({ errorMessage, onRetry }: ResultErrorProps) {
       <button
         type="button"
         onClick={onRetry}
-        className="mt-3 rounded-md bg-[var(--color-error)] px-4 py-1.5 text-xs font-medium text-white transition-colors hover:opacity-90"
+        className="mt-3 rounded-md bg-[var(--color-error)] px-4 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[var(--color-error)]/80"
       >
         重试
       </button>

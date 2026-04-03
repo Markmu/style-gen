@@ -88,11 +88,12 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
 
       {/* 展开详细区（带动画） */}
       <div
-        className={`overflow-hidden transition-all duration-300 ease-in-out ${
-          isExpanded ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+        className={`grid overflow-hidden transition-all duration-300 ease-out ${
+          isExpanded ? "grid-rows-\[1fr\]" : "grid-rows-\[0fr\]"
         }`}
       >
-        <div className="space-y-4 pt-4">
+        <div className="min-h-0">
+          <div className="space-y-4 pt-4">
           <RecipeSection title="构图与镜头">
             <FieldValue label="场景" value={recipe.scene} />
             <FieldValue label="构图" value={recipe.composition} />
@@ -130,6 +131,7 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
               </div>
             </div>
           </RecipeSection>
+          </div>
         </div>
       </div>
     </div>

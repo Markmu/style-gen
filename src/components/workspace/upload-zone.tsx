@@ -121,7 +121,7 @@ export function UploadZone({
               <button
                 type="button"
                 onClick={handleCancelReplace}
-                className="rounded-lg px-4 py-2 text-sm text-[var(--text-secondary)] ring-1 ring-[var(--border)]/15 transition-colors hover:bg-[var(--surface-bright)]"
+                className="rounded-lg px-4 py-2 text-sm text-[var(--text-secondary)] ring-1 ring-[var(--border)] transition-colors hover:bg-[var(--surface-bright)]"
               >
                 取消
               </button>
@@ -136,7 +136,7 @@ export function UploadZone({
           </div>
         ) : (
           <>
-            <div className="relative w-full overflow-hidden rounded-xl ring-1 ring-[var(--border)]/15">
+            <div className="relative w-full overflow-hidden rounded-xl ring-1 ring-[var(--border)]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={referenceImageUrl}

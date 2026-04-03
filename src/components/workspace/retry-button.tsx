@@ -30,7 +30,7 @@ export function RetryButton({
         className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
           disabled
             ? "cursor-not-allowed bg-[var(--surface-bright)] text-[var(--text-secondary)]"
-            : "bg-[var(--accent-primary)] text-white hover:opacity-90"
+            : "bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-primary-dim)]"
         }`}
       >
         {label}

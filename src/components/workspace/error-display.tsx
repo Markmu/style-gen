@@ -136,7 +136,7 @@ export function ErrorDisplay({
           <button
             type="button"
             onClick={onRetry}
-            className="rounded-lg bg-[var(--color-error)] px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90"
+            className="rounded-lg bg-[var(--color-error)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--color-error)]/80"
           >
             重试
           </button>

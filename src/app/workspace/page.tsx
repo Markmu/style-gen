@@ -52,7 +52,7 @@ export default function WorkspacePage() {
   const hasConsumedFile = useRef(false);
   const analysisStartTime = useRef<number | null>(null);
   const generationStartTime = useRef<number | null>(null);
-  const [showEditGuidance, setShowEditGuidance] = useState(true);
+
 
   // Handle file from landing page (T06 global state)
   useEffect(() => {
@@ -342,12 +342,12 @@ export default function WorkspacePage() {
   return (
     <main className="min-h-screen bg-[var(--surface-base)]">
       <div className="mx-auto max-w-7xl px-4 py-8">
-        <h1 className="mb-8 text-2xl font-bold text-[var(--text-primary)]">工作区</h1>
+        <h1 className="sr-only">工作区</h1>
 
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[5fr_5fr_3fr]">
           {/* Left column: Reference image + Comparison view */}
           <div className="space-y-6">
-            <h2 className="mb-4 text-lg font-semibold text-[var(--text-primary)]">参考图</h2>
+
             <UploadZone
               referenceImageUrl={ws.referenceImageUrl}
               isUploading={isUploading || ws.state === "uploading"}
@@ -367,11 +367,7 @@ export default function WorkspacePage() {
 
           {/* Middle column: Analysis results + Recipe + Prompt */}
           <div className="space-y-6">
-            <h2 className="mb-4 text-lg font-semibold text-[var(--text-primary)]">
-              {ws.state === "idle" && !ws.error ? "风格分析" : "分析结果"}
-            </h2>
 
-            {/* Empty state for new users */}
             {ws.state === "idle" && !ws.error && (
               <EmptyAnalysis />
             )}
@@ -450,33 +446,6 @@ export default function WorkspacePage() {
             {/* Recipe card */}
             {showRecipe && ws.recipe && <RecipeCard recipe={ws.recipe} />}
 
-            {/* Edit guidance: shown after first analysis */}
-            {showRecipe && showEditGuidance && (
-              <div className="rounded-lg border border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/5 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-3">
-                    <span className="icon text-[var(--accent-primary)] mt-0.5">lightbulb</span>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-[var(--accent-primary)]">
-                        开始创作你的作品
-                      </p>
-                      <p className="mt-1 text-xs text-[var(--text-secondary)]">
-                        你可以编辑上方的配方内容和下方的 Prompt，来控制生成结果
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowEditGuidance(false)}
-                    className="text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-                    aria-label="关闭提示"
-                  >
-                    <span className="icon">close</span>
-                  </button>
-                </div>
-              </div>
-            )}
-
             {/* Prompt editor */}
             {showPromptEditor && (
               <PromptEditor
@@ -490,10 +459,6 @@ export default function WorkspacePage() {
 
           {/* Right column: Generation */}
           <div className="space-y-6">
-            <h2 className="mb-4 text-lg font-semibold text-[var(--text-primary)]">
-              图片生成
-            </h2>
-
             {/* L2 降级提示：生成服务不可用 */}
             {ws.degradation.generationUnavailable && (
               <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">

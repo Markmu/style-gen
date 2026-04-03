@@ -9,9 +9,8 @@ export function BottomCta() {
         </h2>
         <Link
           href="/workspace"
-          className="mt-8 inline-flex items-center gap-2 rounded-xl bg-[var(--accent-primary)] px-8 py-4 text-base font-semibold text-white transition-opacity hover:opacity-90"
+          className="btn-primary mt-8 rounded-xl px-8 py-3 text-base font-semibold text-white"
         >
-          <span className="icon text-xl">rocket_launch</span>
           开始创作
         </Link>
       </div>
