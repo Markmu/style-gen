@@ -3,7 +3,7 @@ task_id: "T01"
 title: "Auth.js 基础配置与用户模型"
 dimension: backend
 phase: 1
-status: review
+status: in-progress
 depends_on: []
 ---
 
@@ -268,7 +268,7 @@ export async function findOrCreateUser(googleUser: {
 - **工具链**: pnpm, Next.js App Router, Auth.js v5
 - **执行顺序**: Task 列表按序执行，除非说明中标注"可并行"
 - **阻塞处理**: 遇到依赖未就绪、路径不存在、验证环境缺失等情况时，暂停并报告阻塞原因，不要自行猜测或绕过
-- **完成信号**: 所有验证命令通过 + 所有 Task 标记为 done → 将 status 改为 `review`
+- **完成信号**: 所有验证命令通过 + 所有 Task 标记为 done 或 waived → 将 status 改为 `review`
 
 ## 失败处理
 

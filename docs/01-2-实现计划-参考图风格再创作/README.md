@@ -1,6 +1,6 @@
 ---
 workflow_type: create-dev-plan
-status: review_ready
+status: accepted
 source_architecture: "docs/01-1-架构文档-参考图风格再创作.md"
 project_type: "greenfield"
 generated_at: "2026-03-20"
@@ -201,3 +201,4 @@ pnpm type-check
 | 2026-03-21 | 质检修复 | T08 | 文件清单补充 page.tsx 和 use-workspace-state.ts 的 modify 项 |
 | 2026-03-21 | 任务拆分 | T09, T10 | 原 T09 拆为 T09（限流+错误规范+日志）和 T10（降级+前端错误展示+全链路验证） |
 | 2026-03-21 | 新增 | T10 | 新增降级开关机制（L1/L2/L4 前端降级），补充 L3 降级场景验证 |
+| 2026-04-04 | 状态校正 | README | 所有任务已为 done，frontmatter 状态从 review_ready 校正为 accepted |

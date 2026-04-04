@@ -3,7 +3,7 @@ task_id: T01
 title: 设计令牌基础建设
 dimension: frontend
 phase: 1
-status: review
+status: in-progress
 depends_on: []
 ---
 
@@ -111,7 +111,7 @@ pnpm build 2>&1 | grep -E "(Route|Page)"   # 记录各页面 gzipped size 基线
 - **工具链**: CSS 变量编辑器 + 浏览器 DevTools
 - **执行顺序**: Task 列表按序执行
 - **阻塞处理**: `--text-secondary` 值分歧时，在 TASK 1 中记录决策理由后选定值
-- **完成信号**: 所有验证命令通过 + 所有 Task 标记为 done → 将 status 改为 `review`
+- **完成信号**: 所有验证命令通过 + 所有 Task 标记为 done 或 waived → 将 status 改为 `review`
 
 ## 失败处理
 

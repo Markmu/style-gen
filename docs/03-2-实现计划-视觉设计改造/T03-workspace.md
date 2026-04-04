@@ -3,7 +3,7 @@ task_id: T03
 title: Workspace 组件视觉改造
 dimension: frontend
 phase: 3
-status: review
+status: in-progress
 depends_on: [T01]
 ---
 
@@ -168,7 +168,7 @@ className="... ring-1 ring-[var(--border)]/15 transition-colors hover:bg-[var(--
 | 2 | 改造 `recipe-card.tsx`：Section 标题应用 `.label-tech` | done | 标题同样使用工具类 |
 | 3 | 改造 `recipe-card.tsx`：保留/可替换标签应用 `.label-tech` | done | 颜色保持不变 |
 | 4 | 改造 `generate-panel.tsx`：面板边框统一 `/15` | done | ADR-2 Ghost Border 统一 |
-| 5 | 改造 `generate-panel.tsx`：Aspect Ratio 可视化预览框 | skip | P1 待确认 |
+| 5 | 改造 `generate-panel.tsx`：Aspect Ratio 可视化预览框 | waived | P1 待确认 |
 | 6 | 改造 `upload-zone.tsx`：默认 border 透明度 `/15` | done | ADR-2 |
 | 7 | 改造 `upload-zone.tsx`：预览区 border 透明度 `/15` | done | ADR-2 |
 | 8 | 改造 `upload-zone.tsx`：替换按钮 border 透明度 `/15` | done | ADR-2 |
@@ -201,8 +201,8 @@ pnpm test --run src/components/workspace/__tests__/
 - **工具链**: Next.js + Tailwind CSS 4
 - **执行顺序**: Task 1-3（recipe-card）优先完成；Task 4-8（Ghost Border 改造）可与 recipe-card 并行处理
 - **提交规范**: 每个改造组件**单独提交**（`git add src/components/workspace/xxx.tsx`），便于针对性回滚；`globals.css` 改动已在 T01 提交
-- **阻塞处理**: Aspect Ratio 可视化如 P1 不确认，跳过 Task 5 继续后续任务
-- **完成信号**: 所有验证命令通过 + 所有 Task 标记为 done → 将 status 改为 `review`
+- **阻塞处理**: Aspect Ratio 可视化如 P1 不确认，将 Task 5 标记为 `waived` 并写明原因，继续后续任务
+- **完成信号**: 所有验证命令通过 + 所有 Task 标记为 done 或 waived → 将 status 改为 `review`
 
 ## 失败处理
 

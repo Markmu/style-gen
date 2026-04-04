@@ -3,7 +3,7 @@ task_id: "T04"
 title: "前端认证 UI"
 dimension: frontend
 phase: 2
-status: review
+status: in-progress
 depends_on: ["T01"]
 ---
 
