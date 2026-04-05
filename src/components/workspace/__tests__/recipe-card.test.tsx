@@ -21,31 +21,20 @@ const mockRecipe: VisualRecipe = {
 };
 
 describe("RecipeCard", () => {
-  // 1. 渲染所有配方区域 - P0
-  it("渲染所有配方区域", () => {
+  // 1. 渲染核心摘要区域 - P0
+  it("渲染核心摘要区域", () => {
     render(<RecipeCard recipe={mockRecipe} />);
 
-    expect(screen.getByText("主体与场景")).toBeInTheDocument();
-    expect(screen.getByText("构图与镜头")).toBeInTheDocument();
-    expect(screen.getByText("光照与色彩")).toBeInTheDocument();
-    expect(screen.getByText("质感与风格")).toBeInTheDocument();
-    expect(screen.getByText("关键词")).toBeInTheDocument();
-    expect(screen.getByText("保留 / 可替换")).toBeInTheDocument();
+    expect(screen.getByText("核心摘要")).toBeInTheDocument();
+    expect(screen.getByText("视觉配方")).toBeInTheDocument();
   });
 
   // 2. 渲染字段值 - P0
-  it("渲染字段值 - subject, scene 等值可见", () => {
+  it("渲染字段值 - subject, imageSummary 等值可见", () => {
     render(<RecipeCard recipe={mockRecipe} />);
 
     expect(screen.getByText("Mountain range")).toBeInTheDocument();
-    expect(screen.getByText("Alpine meadow")).toBeInTheDocument();
     expect(screen.getByText("A serene landscape")).toBeInTheDocument();
-    expect(screen.getByText("Rule of thirds")).toBeInTheDocument();
-    expect(screen.getByText("Wide angle")).toBeInTheDocument();
-    expect(screen.getByText("Golden hour")).toBeInTheDocument();
-    expect(screen.getByText("Warm palette")).toBeInTheDocument();
-    expect(screen.getByText("Soft")).toBeInTheDocument();
-    expect(screen.getByText("Peaceful")).toBeInTheDocument();
   });
 
   // 3. 渲染标签列表 - P1
@@ -54,10 +43,6 @@ describe("RecipeCard", () => {
 
     expect(screen.getByText("landscape")).toBeInTheDocument();
     expect(screen.getByText("nature")).toBeInTheDocument();
-    expect(screen.getByText("mountain")).toBeInTheDocument();
-    expect(screen.getByText("meadow")).toBeInTheDocument();
-    expect(screen.getByText("golden light")).toBeInTheDocument();
-    expect(screen.getByText("specific flowers")).toBeInTheDocument();
   });
 
   // 4. 空标签列表不渲染 - P2
@@ -74,8 +59,8 @@ describe("RecipeCard", () => {
       render(<RecipeCard recipe={recipeWithEmptyTags} />);
     }).not.toThrow();
 
-    // Sections still render
-    expect(screen.getByText("主体与场景")).toBeInTheDocument();
-    expect(screen.getByText("质感与风格")).toBeInTheDocument();
+    // Core sections still render
+    expect(screen.getByText("核心摘要")).toBeInTheDocument();
+    expect(screen.getByText("视觉配方")).toBeInTheDocument();
   });
 });

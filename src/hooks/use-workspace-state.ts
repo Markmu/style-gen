@@ -62,6 +62,7 @@ export interface WorkspaceContext {
   mimeType: string | null;
   error: WorkspaceError | null;
   degradation: DegradationState;
+  isRecipeExpanded: boolean;
 }
 
 const initialDegradation: DegradationState = {
@@ -84,6 +85,7 @@ const initialContext: WorkspaceContext = {
   mimeType: null,
   error: null,
   degradation: initialDegradation,
+  isRecipeExpanded: false,
 };
 
 /** 从 sessionStorage 读取持久化状态 */
@@ -173,6 +175,7 @@ function restoreFromPersistedState(
     mimeType: null,
     error: null,
     degradation: initialDegradation,
+    isRecipeExpanded: false,
   };
 }
 
@@ -194,6 +197,7 @@ export interface WorkspaceActions {
   setGenerationQueueing: (queueing: boolean) => void;
   setGenerationUnavailable: (unavailable: boolean) => void;
   setAnalysisUnavailable: (unavailable: boolean) => void;
+  toggleRecipeExpanded: () => void;
 }
 
 export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
@@ -287,6 +291,7 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
       state: "generation_ready",
       resultImageUrl,
       error: null,
+      isRecipeExpanded: false,
     }));
   }, []);
 
@@ -365,6 +370,13 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
     }));
   }, []);
 
+  const toggleRecipeExpanded = useCallback(() => {
+    setCtx((prev) => ({
+      ...prev,
+      isRecipeExpanded: !prev.isRecipeExpanded,
+    }));
+  }, []);
+
   // 持久化关键状态到 sessionStorage
   useEffect(() => {
     // 仅在客户端执行，且跳过初始恢复时的写入
@@ -409,5 +421,6 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
     setGenerationQueueing,
     setGenerationUnavailable,
     setAnalysisUnavailable,
+    toggleRecipeExpanded,
   };
 }

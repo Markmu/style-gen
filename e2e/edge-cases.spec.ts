@@ -29,12 +29,12 @@ test.describe('Edge Cases', () => {
     await page.goto('/workspace')
     const fileInput = page.locator('input[type="file"]')
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
-    await expect(page.getByText('视觉配方')).toBeVisible({ timeout: 15000 })
-    await page.getByRole('button', { name: '生成图片' }).click()
+    await expect(page.getByText('Step 1')).toBeVisible({ timeout: 15000 })
+    await page.getByRole('button', { name: '生成首版' }).click()
     await expect(page.locator('h3').filter({ hasText: /^生成结果$/ })).toBeVisible({ timeout: 15000 })
 
-    // Click "替换参考图"
-    const replaceBtn = page.getByRole('button', { name: '替换参考图' })
+    // Click "更换参考图"
+    const replaceBtn = page.getByRole('button', { name: '更换参考图' })
     await expect(replaceBtn).toBeVisible()
     await replaceBtn.click()
 
@@ -42,7 +42,7 @@ test.describe('Edge Cases', () => {
     await expect(page.getByText('点击或拖拽上传参考图')).toBeVisible({ timeout: 5000 })
 
     // Recipe and generation result should be gone
-    await expect(page.getByText('视觉配方')).not.toBeVisible()
+    await expect(page.getByText('Step 1')).not.toBeVisible()
     await expect(page.locator('h3').filter({ hasText: /^生成结果$/ })).not.toBeVisible()
   })
 
@@ -119,14 +119,14 @@ test.describe('Edge Cases', () => {
     await page.goto('/workspace')
     const fileInput = page.locator('input[type="file"]')
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
-    await expect(page.getByText('视觉配方')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText('Step 1')).toBeVisible({ timeout: 15000 })
 
     // Click generate button rapidly
-    const generateBtn = page.getByRole('button', { name: '生成图片' })
+    const generateBtn = page.getByRole('button', { name: '生成首版' })
     await generateBtn.click()
-    // After first click, button changes to "生成中..." and is disabled
+    // After first click, button changes to "正在生成..." and is disabled
     // So subsequent clicks should not go through
-    await expect(page.getByRole('button', { name: '生成中...' })).toBeDisabled()
+    await expect(page.getByRole('button', { name: '正在生成...' })).toBeDisabled()
 
     // Only 1 POST request should have been made
     expect(generationPostCount).toBe(1)

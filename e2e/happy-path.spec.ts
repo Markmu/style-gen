@@ -50,11 +50,11 @@ test.describe('Happy Path', () => {
     const fileInput = page.locator('input[type="file"]')
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
 
-    // Wait for analysis to complete and show recipe card
-    await expect(page.getByText('视觉配方')).toBeVisible({ timeout: 15000 })
+    // Wait for analysis to complete and show recipe step
+    await expect(page.getByText('Step 1')).toBeVisible({ timeout: 15000 })
 
     // Verify prompt editor is shown
-    await expect(page.getByText('Prompt 编辑')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Prompt 编辑' })).toBeVisible()
   })
 
   test('确认 Prompt 后生成图片', async ({ page }) => {
@@ -74,10 +74,10 @@ test.describe('Happy Path', () => {
     await page.goto('/workspace')
     const fileInput = page.locator('input[type="file"]')
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
-    await expect(page.getByText('视觉配方')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText('Step 1')).toBeVisible({ timeout: 15000 })
 
     // Click generate
-    const generateBtn = page.getByRole('button', { name: '生成图片' })
+    const generateBtn = page.getByRole('button', { name: '生成首版' })
     await expect(generateBtn).toBeEnabled()
     await generateBtn.click()
 
@@ -102,8 +102,8 @@ test.describe('Happy Path', () => {
     await page.goto('/workspace')
     const fileInput = page.locator('input[type="file"]')
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
-    await expect(page.getByText('视觉配方')).toBeVisible({ timeout: 15000 })
-    await page.getByRole('button', { name: '生成图片' }).click()
+    await expect(page.getByText('Step 1')).toBeVisible({ timeout: 15000 })
+    await page.getByRole('button', { name: '生成首版' }).click()
     await expect(page.locator('h3').filter({ hasText: /^生成结果$/ })).toBeVisible({ timeout: 15000 })
 
     // Verify comparison view
@@ -141,8 +141,8 @@ test.describe('Happy Path', () => {
     await page.goto('/workspace')
     const fileInput = page.locator('input[type="file"]')
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
-    await expect(page.getByText('视觉配方')).toBeVisible({ timeout: 15000 })
-    await page.getByRole('button', { name: '生成图片' }).click()
+    await expect(page.getByText('Step 1')).toBeVisible({ timeout: 15000 })
+    await page.getByRole('button', { name: '生成首版' }).click()
 
     // Wait for generation result - use text matcher since there are multiple elements
     await expect(page.locator('h3').filter({ hasText: /^生成结果$/ })).toBeVisible({ timeout: 15000 })

@@ -19,8 +19,8 @@ describe("PromptEditor", () => {
   it("渲染双文本域", () => {
     render(<PromptEditor {...defaultProps} />);
 
-    expect(screen.getByLabelText("Prompt")).toBeInTheDocument();
-    expect(screen.getByLabelText("Negative Prompt")).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Prompt/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Negative Prompt/)).toBeInTheDocument();
   });
 
   // 2. 编辑 Prompt - P0
@@ -30,7 +30,7 @@ describe("PromptEditor", () => {
       <PromptEditor {...defaultProps} onPromptChange={onPromptChange} />,
     );
 
-    const promptTextarea = screen.getByLabelText("Prompt");
+    const promptTextarea = screen.getByLabelText(/^Prompt/);
     fireEvent.change(promptTextarea, { target: { value: "a cat on a roof" } });
 
     expect(onPromptChange).toHaveBeenCalledWith("a cat on a roof");
@@ -46,7 +46,7 @@ describe("PromptEditor", () => {
       />,
     );
 
-    const negTextarea = screen.getByLabelText("Negative Prompt");
+    const negTextarea = screen.getByLabelText(/^Negative Prompt/);
     fireEvent.change(negTextarea, { target: { value: "blurry, low quality" } });
 
     expect(onNegativePromptChange).toHaveBeenCalledWith("blurry, low quality");
@@ -58,7 +58,7 @@ describe("PromptEditor", () => {
       <PromptEditor {...defaultProps} disabled={true} />,
     );
 
-    expect(screen.getByLabelText("Prompt")).toBeDisabled();
-    expect(screen.getByLabelText("Negative Prompt")).toBeDisabled();
+    expect(screen.getByLabelText(/^Prompt/)).toBeDisabled();
+    expect(screen.getByLabelText(/^Negative Prompt/)).toBeDisabled();
   });
 });

@@ -53,8 +53,9 @@ describe("UploadZone", () => {
   });
 
   // 4. 点击替换按钮 - P0
-  it("点击替换按钮 - onReplace called", () => {
+  it("点击替换按钮 - 显示确认对话框，确认后 onReplace called", async () => {
     const onReplace = vi.fn();
+    const user = (await import("@testing-library/user-event")).default.setup();
     render(
       <UploadZone
         {...defaultProps}
@@ -63,7 +64,12 @@ describe("UploadZone", () => {
       />,
     );
 
-    fireEvent.click(screen.getByText("替换参考图"));
+    // First click shows confirmation
+    await user.click(screen.getByText("替换参考图"));
+    expect(screen.getByText("替换当前参考图？")).toBeInTheDocument();
+
+    // Confirm the replace
+    await user.click(screen.getByText("确认替换"));
     expect(onReplace).toHaveBeenCalledOnce();
   });
 

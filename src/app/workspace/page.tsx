@@ -1,31 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useFileStore } from "@/components/landing/use-file-store";
 import { useWorkspaceState } from "@/hooks/use-workspace-state";
 import { useUpload } from "@/hooks/use-upload";
 import { useAnalysis } from "@/hooks/use-analysis";
 import { useGeneration } from "@/hooks/use-generation";
-import { UploadZone } from "@/components/workspace/upload-zone";
-import { AnalysisProgress } from "@/components/workspace/analysis-progress";
-import { RecipeCard } from "@/components/workspace/recipe-card";
-import { PromptEditor } from "@/components/workspace/prompt-editor";
-import {
-  GeneratePanel,
-  type AspectRatio,
-  type Quality,
-} from "@/components/workspace/generate-panel";
-import { GenerationProgress } from "@/components/workspace/generation-progress";
-import { ResultDisplay } from "@/components/workspace/result-display";
-import { ErrorDisplay, type ApiErrorCode } from "@/components/workspace/error-display";
-import { RetryButton } from "@/components/workspace/retry-button";
-import { ComparisonView } from "@/components/workspace/comparison-view";
-import { EmptyAnalysis } from "@/components/workspace/empty-analysis";
+import { StatusBar } from "@/components/workspace/status-bar";
+import { WorkspaceCanvas } from "@/components/workspace/workspace-canvas";
+import { DecisionPanel } from "@/components/workspace/decision-panel";
+import type { AspectRatio, Quality } from "@/components/workspace/output-settings";
 
-/** L1 降级阈值：轮询超过 60 秒展示排队提示 */
+/** L1 degradation threshold: show queueing hint after 60s */
 const QUEUEING_THRESHOLD_MS = 60_000;
 
-/** 获取图片的真实尺寸 */
+/** Get real image dimensions */
 function getImageDimensions(
   file: File | string,
 ): Promise<{ width: number; height: number }> {
@@ -65,7 +54,7 @@ export default function WorkspacePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // L1 降级：分析轮询超过 60 秒展示排队提示
+  // L1 degradation: analysis polling > 60s
   useEffect(() => {
     if (ws.state !== "analyzing") {
       analysisStartTime.current = null;
@@ -93,7 +82,7 @@ export default function WorkspacePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ws.state]);
 
-  // L1 降级：生成轮询超过 60 秒展示排队提示
+  // L1 degradation: generation polling > 60s
   useEffect(() => {
     if (ws.state !== "generating") {
       generationStartTime.current = null;
@@ -158,7 +147,7 @@ export default function WorkspacePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [generationData?.status, generationData?.id]);
 
-  /** 解析 API 错误响应，提取 code 和 retryable */
+  /** Parse API error response */
   const parseApiError = async (
     res: Response,
   ): Promise<{ error: string; code?: string; retryable?: boolean }> => {
@@ -227,7 +216,7 @@ export default function WorkspacePage() {
   const handleRetry = useCallback(() => {
     if (!ws.assetId || !ws.referenceImageUrl) return;
     ws.clearError();
-    // 清除降级状态（刷新后重置）
+    // Clear degradation state
     ws.setAnalysisUnavailable(false);
     void (async () => {
       try {
@@ -268,7 +257,7 @@ export default function WorkspacePage() {
     async (params: { aspectRatio: AspectRatio; quality: Quality }) => {
       if (!ws.analysisTaskId) return;
 
-      // L2: 生成服务不可用时阻止
+      // L2: block when generation service unavailable
       if (ws.degradation.generationUnavailable) return;
 
       try {
@@ -306,234 +295,60 @@ export default function WorkspacePage() {
 
   const handleGenerateRetry = useCallback(() => {
     ws.clearError();
-    // 清除降级状态
+    // Clear degradation state
     ws.setGenerationUnavailable(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const isAnalyzing = ws.state === "analyzing";
-  const isGenerating = ws.state === "generating";
-  const showRecipe =
-    (ws.state === "analysis_ready" ||
-      ws.state === "generating" ||
-      ws.state === "generation_ready") &&
-    ws.recipe;
-  const showPromptEditor =
-    ws.state === "analysis_ready" ||
-    ws.state === "generating" ||
-    ws.state === "generation_ready";
-  const showGeneratePanel =
-    ws.state === "analysis_ready" ||
-    ws.state === "generating" ||
-    ws.state === "generation_ready";
-  const showGenerationResult =
-    ws.state === "generation_ready" && ws.resultImageUrl && !ws.error;
-  const showGenerationError =
-    ws.state === "generation_ready" && ws.error?.stage === "generation";
-
-  // L3 降级检测：分析完成但无 recipe 且有 errorStage === "llm"
-  const isL3Degraded =
-    ws.state === "analysis_ready" && !ws.recipe && !!ws.promptText;
-
-  // 分析错误（非分析中状态）使用结构化 ErrorDisplay
-  const showAnalysisError =
-    ws.state === "idle" && ws.error && ws.error.stage !== "generation";
 
   return (
     <main className="min-h-screen bg-[var(--surface-base)]">
       <div className="mx-auto max-w-7xl px-4 py-8">
         <h1 className="sr-only">工作区</h1>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[5fr_5fr_3fr]">
-          {/* Left column: Reference image + Comparison view */}
-          <div className="space-y-6">
+        {/* StatusBar */}
+        <StatusBar
+          state={ws.state}
+          error={ws.error}
+          resultImageUrl={ws.resultImageUrl}
+          onReplace={handleReplace}
+        />
 
-            <UploadZone
+        {/* Two-column grid layout (T01) */}
+        <div className="mt-6 grid grid-cols-[1fr_380px] gap-6">
+          {/* Left column: Canvas */}
+          <div className="min-w-[55%]">
+            <WorkspaceCanvas
+              state={ws.state}
               referenceImageUrl={ws.referenceImageUrl}
+              resultImageUrl={ws.resultImageUrl}
+              recipe={ws.recipe}
               isUploading={isUploading || ws.state === "uploading"}
               uploadProgress={progress}
               onFileSelected={handleFileSelected}
               onReplace={handleReplace}
             />
-
-            {/* Comparison view: shown when generation is ready */}
-            {showGenerationResult && ws.referenceImageUrl && ws.resultImageUrl && (
-              <ComparisonView
-                referenceImageUrl={ws.referenceImageUrl}
-                resultImageUrl={ws.resultImageUrl}
-              />
-            )}
           </div>
 
-          {/* Middle column: Analysis results + Recipe + Prompt */}
-          <div className="space-y-6">
+          {/* Right column: Decision Panel */}
+          <div className="min-w-[360px] max-w-[420px] space-y-6">
 
-            {ws.state === "idle" && !ws.error && (
-              <EmptyAnalysis />
-            )}
-
-            {/* L4 降级提示：分析服务不可用 */}
-            {ws.degradation.analysisUnavailable && (
-              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
-                <p className="text-sm font-medium text-amber-400">
-                  分析服务暂时不可用，请稍后重试
-                </p>
-                <p className="mt-1 text-xs text-amber-400/70">
-                  已有分析结果仍可查看和编辑
-                </p>
-              </div>
-            )}
-
-            {/* Analysis progress with L1 queueing hint */}
-            {isAnalyzing && !ws.degradation.analysisQueueing && (
-              <AnalysisProgress
-                isAnalyzing={isAnalyzing}
-                error={null}
-                onRetry={handleRetry}
-              />
-            )}
-
-            {/* L1 降级：分析排队提示 */}
-            {isAnalyzing && ws.degradation.analysisQueueing && (
-              <div className="rounded-lg border border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/5 p-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--accent-primary)] border-t-transparent" />
-                  <div>
-                    <p className="text-sm font-medium text-[var(--accent-primary)]">
-                      分析排队中，请耐心等待
-                    </p>
-                    <p className="text-xs text-[var(--accent-primary)]/70">
-                      当前请求较多，处理可能需要更长时间
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Analysis error with structured ErrorDisplay */}
-            {showAnalysisError && ws.error && (
-              <div className="space-y-3">
-                {ws.error.code ? (
-                  <ErrorDisplay
-                    code={ws.error.code as ApiErrorCode}
-                    message={ws.error.message}
-                    retryable={ws.error.retryable ?? true}
-                    onRetry={handleRetry}
-                    onReplace={handleReplace}
-                  />
-                ) : (
-                  <AnalysisProgress
-                    isAnalyzing={false}
-                    error={ws.error}
-                    onRetry={handleRetry}
-                  />
-                )}
-              </div>
-            )}
-
-            {/* L3 降级提示：LLM 失败，展示原始视觉分析 + 手动编写 Prompt 提示 */}
-            {isL3Degraded && (
-              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
-                <p className="text-sm font-medium text-amber-400">
-                  AI 结构化处理失败，已降级为原始分析结果
-                </p>
-                <p className="mt-1 text-xs text-amber-400/70">
-                  您可以基于以下原始分析结果手动编写或调整 Prompt
-                </p>
-              </div>
-            )}
-
-            {/* Recipe card */}
-            {showRecipe && ws.recipe && <RecipeCard recipe={ws.recipe} />}
-
-            {/* Prompt editor */}
-            {showPromptEditor && (
-              <PromptEditor
-                promptText={ws.promptText}
-                negativePromptText={ws.negativePromptText}
-                onPromptChange={ws.setPromptText}
-                onNegativePromptChange={ws.setNegativePromptText}
-              />
-            )}
-          </div>
-
-          {/* Right column: Generation */}
-          <div className="space-y-6">
-            {/* L2 降级提示：生成服务不可用 */}
-            {ws.degradation.generationUnavailable && (
-              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
-                <p className="text-sm font-medium text-amber-400">
-                  图片生成服务暂时不可用
-                </p>
-                <p className="mt-1 text-xs text-amber-400/70">
-                  分析结果和 Prompt 编辑功能仍可使用
-                </p>
-              </div>
-            )}
-
-            {/* Generate panel */}
-            {showGeneratePanel && (
-              <GeneratePanel
-                workspaceState={ws.state}
-                onGenerate={handleGenerate}
-                disabled={ws.degradation.generationUnavailable}
-              />
-            )}
-
-            {/* Generation progress with L1 queueing hint */}
-            {isGenerating && !ws.degradation.generationQueueing && (
-              <GenerationProgress isGenerating={isGenerating} />
-            )}
-
-            {/* L1 降级：生成排队提示 */}
-            {isGenerating && ws.degradation.generationQueueing && (
-              <div className="rounded-lg border border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/5 p-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--accent-primary)] border-t-transparent" />
-                  <div>
-                    <p className="text-sm font-medium text-[var(--accent-primary)]">
-                      生成排队中，请耐心等待
-                    </p>
-                    <p className="text-xs text-[var(--accent-primary)]/70">
-                      当前请求较多，生成可能需要更长时间
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Generation error with structured ErrorDisplay + retry */}
-            {showGenerationError && ws.error && (
-              <div className="space-y-3">
-                {ws.error.code ? (
-                  <ErrorDisplay
-                    code={ws.error.code as ApiErrorCode}
-                    message={ws.error.message}
-                    retryable={ws.error.retryable ?? true}
-                    onRetry={handleGenerateRetry}
-                  />
-                ) : (
-                  <div className="rounded-lg border border-[var(--color-error)]/30 bg-[var(--color-error)]/10 p-4">
-                    <p className="text-sm font-medium text-[var(--color-error)]">生成失败</p>
-                    <p className="mt-1 text-xs text-[var(--color-error)]/80">{ws.error.message}</p>
-                    <div className="mt-3">
-                      <RetryButton type="generation" onRetry={handleGenerateRetry} />
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Result display */}
-            {showGenerationResult && ws.resultImageUrl && generationData && (
-              <ResultDisplay
-                resultImageUrl={ws.resultImageUrl}
-                promptSnapshot={generationData.promptSnapshot}
-                negativePromptSnapshot={generationData.negativePromptSnapshot}
-                params={generationData.params}
-                onReset={handleReplace}
-              />
-            )}
+            <DecisionPanel
+              state={ws.state}
+              recipe={ws.recipe}
+              promptText={ws.promptText}
+              negativePromptText={ws.negativePromptText}
+              isRecipeExpanded={ws.isRecipeExpanded}
+              degradation={ws.degradation}
+              error={ws.error}
+              resultImageUrl={ws.resultImageUrl}
+              onPromptChange={ws.setPromptText}
+              onNegativePromptChange={ws.setNegativePromptText}
+              onToggleRecipeExpanded={ws.toggleRecipeExpanded}
+              onGenerate={handleGenerate}
+              onRetry={handleRetry}
+              onReplace={handleReplace}
+              onGenerateRetry={handleGenerateRetry}
+            />
           </div>
         </div>
       </div>

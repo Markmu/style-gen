@@ -76,13 +76,13 @@ test.describe('Degradation', () => {
 
     const fileInput = page.locator('input[type="file"]')
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
-    await expect(page.getByText('视觉配方')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText('Step 1')).toBeVisible({ timeout: 15000 })
 
     // Install clock before generate
     await page.clock.install()
 
     // Click generate
-    await page.getByRole('button', { name: '生成图片' }).click()
+    await page.getByRole('button', { name: '生成首版' }).click()
 
     // Wait for generation progress
     await expect(page.getByText('正在生成图片...')).toBeVisible({ timeout: 15000 })
@@ -112,13 +112,13 @@ test.describe('Degradation', () => {
     await page.goto('/workspace')
     const fileInput = page.locator('input[type="file"]')
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
-    await expect(page.getByText('视觉配方')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText('Step 1')).toBeVisible({ timeout: 15000 })
 
     // Click generate
-    await page.getByRole('button', { name: '生成图片' }).click()
+    await page.getByRole('button', { name: '生成首版' }).click()
 
     // Should show L2 degradation message
-    await expect(page.getByText('图片生成服务暂时不可用')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText('服务暂时不可用').first()).toBeVisible({ timeout: 15000 })
   })
 
   test('L2 降级后保留分析和编辑', async ({ page }) => {
@@ -137,12 +137,12 @@ test.describe('Degradation', () => {
     await page.goto('/workspace')
     const fileInput = page.locator('input[type="file"]')
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
-    await expect(page.getByText('视觉配方')).toBeVisible({ timeout: 15000 })
-    await page.getByRole('button', { name: '生成图片' }).click()
-    await expect(page.getByText('图片生成服务暂时不可用')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText('Step 1')).toBeVisible({ timeout: 15000 })
+    await page.getByRole('button', { name: '生成首版' }).click()
+    await expect(page.getByText('服务暂时不可用').first()).toBeVisible({ timeout: 15000 })
 
-    // Recipe should still be visible
-    await expect(page.getByText('视觉配方')).toBeVisible()
+    // Recipe step should still be visible
+    await expect(page.getByText('Step 1')).toBeVisible()
 
     // Prompt editor should still be usable — use heading selector to avoid matching degradation message
     await expect(page.getByRole('heading', { name: 'Prompt 编辑' })).toBeVisible()
@@ -171,8 +171,9 @@ test.describe('Degradation', () => {
     const promptTextarea = page.locator('#prompt-text')
     await expect(promptTextarea).toHaveValue(/Raw visual analysis/)
 
-    // Recipe card should NOT be shown (recipe is null)
-    await expect(page.getByText('视觉配方')).not.toBeVisible()
+    // Recipe summary should NOT be shown (recipe is null), but Step 1 heading is still visible
+    // In the new layout, RecipeStep shows the degradation hint but no recipe summary fields
+    await expect(page.getByText('主体')).not.toBeVisible()
   })
 
   test('L3 降级后仍可编辑和生成', async ({ page }) => {
@@ -201,7 +202,7 @@ test.describe('Degradation', () => {
     await promptTextarea.fill('Manually edited prompt for generation')
 
     // Click generate
-    await page.getByRole('button', { name: '生成图片' }).click()
+    await page.getByRole('button', { name: '生成首版' }).click()
 
     // Should successfully generate
     await expect(page.locator('h3').filter({ hasText: /^生成结果$/ })).toBeVisible({ timeout: 15000 })
@@ -221,14 +222,9 @@ test.describe('Degradation', () => {
     const fileInput = page.locator('input[type="file"]')
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
 
-    // Should show L4 degradation message
+    // Should show error display (SERVICE_UNAVAILABLE triggers ErrorDisplay with title "服务暂时不可用")
     await expect(
-      page.getByText('分析服务暂时不可用，请稍后重试'),
+      page.getByText('服务暂时不可用').first(),
     ).toBeVisible({ timeout: 15000 })
-
-    // Should show hint about existing results
-    await expect(
-      page.getByText('已有分析结果仍可查看和编辑'),
-    ).toBeVisible()
   })
 })
