@@ -8,8 +8,14 @@ import { useAnalysis } from "@/hooks/use-analysis";
 import { useGeneration } from "@/hooks/use-generation";
 import { StatusBar } from "@/components/workspace/status-bar";
 import { WorkspaceCanvas } from "@/components/workspace/workspace-canvas";
-import { DecisionPanel } from "@/components/workspace/decision-panel";
-import type { AspectRatio, Quality } from "@/components/workspace/output-settings";
+import { RecipeStep } from "@/components/workspace/recipe-step";
+import { PromptEditor } from "@/components/workspace/prompt-editor";
+import {
+  OutputSettings,
+  type AspectRatio,
+  type Quality,
+} from "@/components/workspace/output-settings";
+import { AnalysisProgress } from "@/components/workspace/analysis-progress";
 
 /** L1 degradation threshold: show queueing hint after 60s */
 const QUEUEING_THRESHOLD_MS = 60_000;
@@ -300,58 +306,185 @@ export default function WorkspacePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // --- Layout logic (lifted from DecisionPanel) ---
+  const isAnalyzing = ws.state === "analyzing";
+  const isGenerationReady = ws.state === "generation_ready";
+
+  const hasAnalysisError =
+    ws.state === "idle" && ws.error && ws.error.stage !== "generation";
+
+  const showRecipeStep =
+    ws.state === "analyzing" ||
+    ws.state === "analysis_ready" ||
+    ws.state === "generating" ||
+    ws.state === "generation_ready" ||
+    hasAnalysisError;
+
+  const showPromptEditor =
+    ws.state === "analysis_ready" ||
+    ws.state === "generating" ||
+    ws.state === "generation_ready";
+
+  const showOutputSettings =
+    ws.state === "analysis_ready" ||
+    ws.state === "generating" ||
+    ws.state === "generation_ready";
+
+  // Three-column grid when prompt editor is visible
+  const useThreeColumns = showPromptEditor;
+
+  const step2Title = isGenerationReady
+    ? "Step 2 \u00B7 继续调整指令"
+    : "Step 2 \u00B7 生成指令";
+
   return (
-    <main className="min-h-screen bg-[var(--surface-base)]">
-      <div className="mx-auto max-w-7xl px-4 py-8">
-        <h1 className="sr-only">工作区</h1>
+    <main className="flex h-[calc(100dvh-3.5rem)] flex-col overflow-hidden bg-[var(--surface-base)]">
+      <h1 className="sr-only">工作区</h1>
 
-        {/* StatusBar */}
-        <StatusBar
-          state={ws.state}
-          error={ws.error}
-          resultImageUrl={ws.resultImageUrl}
-          onReplace={handleReplace}
-        />
+      {/* Compact StatusBar */}
+      <StatusBar
+        state={ws.state}
+        error={ws.error}
+        resultImageUrl={ws.resultImageUrl}
+        onReplace={handleReplace}
+      />
 
-        {/* Two-column grid layout (T01) */}
-        <div className="mt-6 grid grid-cols-[1fr_380px] gap-6">
-          {/* Left column: Canvas */}
-          <div className="min-w-[55%]">
-            <WorkspaceCanvas
-              state={ws.state}
-              referenceImageUrl={ws.referenceImageUrl}
-              resultImageUrl={ws.resultImageUrl}
-              recipe={ws.recipe}
-              isUploading={isUploading || ws.state === "uploading"}
-              uploadProgress={progress}
-              onFileSelected={handleFileSelected}
-              onReplace={handleReplace}
-            />
+      {/* Workspace grid: 2-col (idle/analyzing) or 3-col (analysis_ready+) */}
+      <div
+        className={`grid flex-1 gap-4 px-6 pb-4 pt-4 ${
+          useThreeColumns
+            ? "grid-cols-[1fr_360px_320px]"
+            : "grid-cols-[1fr_320px]"
+        }`}
+        style={{ minHeight: 0 }}
+      >
+        {/* Left column: Canvas */}
+        <div className="min-h-0 overflow-y-auto rounded-xl">
+          <WorkspaceCanvas
+            state={ws.state}
+            referenceImageUrl={ws.referenceImageUrl}
+            resultImageUrl={ws.resultImageUrl}
+            recipe={ws.recipe}
+            isUploading={isUploading || ws.state === "uploading"}
+            uploadProgress={progress}
+            onFileSelected={handleFileSelected}
+            onReplace={handleReplace}
+          />
+        </div>
+
+        {/* Middle column: Recipe / Analysis (three-column mode only) */}
+        {useThreeColumns && (
+          <div className="min-h-0 overflow-y-auto">
+            {showRecipeStep && (
+              <>
+                {isAnalyzing && !ws.degradation.analysisQueueing ? (
+                  <AnalysisProgress
+                    isAnalyzing={isAnalyzing}
+                    error={null}
+                    onRetry={handleRetry}
+                  />
+                ) : (
+                  <RecipeStep
+                    recipe={ws.recipe}
+                    isExpanded={ws.isRecipeExpanded}
+                    state={ws.state}
+                    onToggleExpanded={ws.toggleRecipeExpanded}
+                    degradation={ws.degradation}
+                    promptText={ws.promptText}
+                    error={ws.error}
+                    onRetry={handleRetry}
+                    onReplace={handleReplace}
+                  />
+                )}
+              </>
+            )}
           </div>
+        )}
 
-          {/* Right column: Decision Panel */}
-          <div className="min-w-[360px] max-w-[420px] space-y-6">
+        {/* Right column: Prompt Editor + Output Settings (or guide) */}
+        <div className="min-h-0 space-y-4 overflow-y-auto">
+          {/* Idle / uploading empty state guide */}
+          {(ws.state === "idle" || ws.state === "uploading") &&
+            !ws.error && <EmptyStateGuide />}
 
-            <DecisionPanel
-              state={ws.state}
-              recipe={ws.recipe}
+          {/* Two-column fallback: show recipe here when not in three-column mode */}
+          {!useThreeColumns && showRecipeStep && (
+            <>
+              {isAnalyzing && !ws.degradation.analysisQueueing ? (
+                <AnalysisProgress
+                  isAnalyzing={isAnalyzing}
+                  error={null}
+                  onRetry={handleRetry}
+                />
+              ) : (
+                <RecipeStep
+                  recipe={ws.recipe}
+                  isExpanded={ws.isRecipeExpanded}
+                  state={ws.state}
+                  onToggleExpanded={ws.toggleRecipeExpanded}
+                  degradation={ws.degradation}
+                  promptText={ws.promptText}
+                  error={ws.error}
+                  onRetry={handleRetry}
+                  onReplace={handleReplace}
+                />
+              )}
+            </>
+          )}
+
+          {/* Prompt Editor */}
+          {showPromptEditor && (
+            <PromptEditor
               promptText={ws.promptText}
               negativePromptText={ws.negativePromptText}
-              isRecipeExpanded={ws.isRecipeExpanded}
-              degradation={ws.degradation}
-              error={ws.error}
-              resultImageUrl={ws.resultImageUrl}
               onPromptChange={ws.setPromptText}
               onNegativePromptChange={ws.setNegativePromptText}
-              onToggleRecipeExpanded={ws.toggleRecipeExpanded}
-              onGenerate={handleGenerate}
-              onRetry={handleRetry}
-              onReplace={handleReplace}
-              onGenerateRetry={handleGenerateRetry}
+              title={step2Title}
             />
-          </div>
+          )}
+
+          {/* Output Settings */}
+          {showOutputSettings && (
+            <OutputSettings
+              state={ws.state}
+              generationUnavailable={ws.degradation.generationUnavailable}
+              onGenerate={handleGenerate}
+              generationQueueing={ws.degradation.generationQueueing}
+              error={ws.error}
+              onRetry={handleGenerateRetry}
+            />
+          )}
         </div>
       </div>
     </main>
+  );
+}
+
+/** Idle state guide: shows three-step workflow */
+function EmptyStateGuide() {
+  const steps = [
+    { number: "1", label: "AI 分析风格" },
+    { number: "2", label: "编辑生成指令" },
+    { number: "3", label: "设置参数生成" },
+  ];
+
+  return (
+    <div className="rounded-xl bg-[var(--surface-mid)] p-6 ring-1 ring-[var(--border)]">
+      <h3 className="text-base font-bold text-[var(--text-primary)]">
+        创作流程
+      </h3>
+      <div className="mt-4 space-y-3">
+        {steps.map((step) => (
+          <div key={step.number} className="flex items-center gap-3">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--surface-bright)] text-xs font-medium text-[var(--text-secondary)]">
+              {step.number}
+            </span>
+            <span className="text-sm text-[var(--text-secondary)]">
+              {step.label}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

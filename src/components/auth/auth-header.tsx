@@ -54,7 +54,7 @@ export function AuthHeader() {
   return (
     <>
       <header className="sticky top-0 z-50 border-b border-[var(--border)] bg-[var(--surface-base)]/80 backdrop-blur-md">
-        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
+        <div className="flex h-14 items-center justify-between px-6">
           <Link href="/" className="flex items-center gap-2.5">
             <span className="icon text-[var(--accent-primary)]">auto_awesome</span>
             <span className="text-base font-bold text-[var(--text-primary)]">StyleGen</span>

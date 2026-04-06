@@ -52,15 +52,15 @@ export function StatusBar({ state, onReplace }: StatusBarProps) {
   const config = STATUS_BAR_CONFIG[state];
 
   return (
-    <div className="flex items-center justify-between rounded-xl bg-[var(--surface-mid)] px-6 py-4 ring-1 ring-[var(--border)]">
+    <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-2">
       {/* Left: title + description */}
-      <div className="min-w-0 flex-1">
-        <h2 className="text-lg font-bold text-[var(--text-primary)]">
+      <div className="flex min-w-0 items-center gap-3">
+        <h2 className="shrink-0 text-sm font-bold text-[var(--text-primary)]">
           基于参考图创作
         </h2>
-        <p className="mt-0.5 text-sm text-[var(--text-secondary)]">
+        <span className="truncate text-xs text-[var(--text-secondary)]">
           {config.description}
-        </p>
+        </span>
       </div>
 
       {/* Right: status badge + replace button */}
@@ -70,7 +70,7 @@ export function StatusBar({ state, onReplace }: StatusBarProps) {
           <button
             type="button"
             onClick={onReplace}
-            className="rounded-lg px-3 py-1.5 text-sm text-[var(--text-secondary)] ring-1 ring-[var(--border)] transition-colors hover:bg-[var(--surface-bright)]"
+            className="rounded-md px-2.5 py-1 text-xs text-[var(--text-secondary)] ring-1 ring-[var(--border)] transition-colors hover:bg-[var(--surface-bright)]"
           >
             更换参考图
           </button>

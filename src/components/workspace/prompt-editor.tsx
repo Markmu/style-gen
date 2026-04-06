@@ -6,6 +6,7 @@ interface PromptEditorProps {
   onPromptChange: (text: string) => void;
   onNegativePromptChange: (text: string) => void;
   disabled?: boolean;
+  title?: string;
 }
 
 export function PromptEditor({
@@ -14,10 +15,11 @@ export function PromptEditor({
   onPromptChange,
   onNegativePromptChange,
   disabled = false,
+  title = "Prompt 编辑",
 }: PromptEditorProps) {
   return (
     <div className="space-y-4 rounded-xl bg-[var(--surface-mid)] p-5 ring-1 ring-[var(--border)]">
-      <h3 className="text-base font-bold text-[var(--text-primary)]">Prompt 编辑</h3>
+      <h3 className="text-base font-bold text-[var(--text-primary)]">{title}</h3>
 
       <div className="space-y-2">
         <label
