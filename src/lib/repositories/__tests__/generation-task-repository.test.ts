@@ -54,6 +54,8 @@ function makeCamelCaseRow(overrides: Partial<Record<string, unknown>> = {}) {
     negativePromptSnapshot: "no blur, no artifacts",
     params: sampleParams,
     modelName: "dall-e-3",
+    provider: "fal" as const,
+    externalId: null,
     resultAssetId: null,
     errorMessage: null,
     userId: "USER_001",
@@ -100,6 +102,8 @@ describe("generation-task-repository", () => {
         negativePromptSnapshot: "no blur, no artifacts",
         params: sampleParams,
         modelName: "dall-e-3",
+        provider: "fal",
+        externalId: null,
         resultAssetId: null,
         errorMessage: null,
         userId: "USER_001",
@@ -121,6 +125,7 @@ describe("generation-task-repository", () => {
         negativePromptSnapshot: "no blur, no artifacts",
         params: sampleParams,
         modelName: "dall-e-3",
+        provider: "fal",
         userId: "USER_001",
       });
     });

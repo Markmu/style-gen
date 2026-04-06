@@ -6,6 +6,7 @@ import type {
   AnalysisTask,
   AnalysisTaskErrorStage,
   AnalysisTaskStatus,
+  VisionProviderName,
 } from "@/types/models";
 
 type AnalysisTaskRow = typeof analysisTasks.$inferSelect;
@@ -22,6 +23,9 @@ function rowToAnalysisTask(row: AnalysisTaskRow): AnalysisTask {
     rawResponse: row.rawResponse,
     errorMessage: row.errorMessage,
     errorStage: row.errorStage as AnalysisTaskErrorStage | null,
+    provider: row.provider as VisionProviderName,
+    externalId: row.externalId,
+    modelName: row.modelName,
     userId: row.userId,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -33,6 +37,8 @@ export async function createAnalysisTask(
   userId: string,
   data: {
     sourceAssetId: string;
+    provider?: VisionProviderName;
+    modelName?: string;
   }
 ): Promise<AnalysisTask> {
   const id = generateId();
@@ -41,6 +47,8 @@ export async function createAnalysisTask(
     .values({
       id,
       sourceAssetId: data.sourceAssetId,
+      provider: data.provider ?? "gemini",
+      modelName: data.modelName,
       userId,
     })
     .returning();
@@ -60,6 +68,18 @@ export async function findAnalysisTaskById(
   return rowToAnalysisTask(rows[0]);
 }
 
+/** 按 ID 查询 AnalysisTask（不校验 userId，仅 Webhook 内部使用） */
+export async function findAnalysisTaskByIdInternal(
+  id: string
+): Promise<AnalysisTask | null> {
+  const rows = await db
+    .select()
+    .from(analysisTasks)
+    .where(eq(analysisTasks.id, id));
+  if (rows.length === 0) return null;
+  return rowToAnalysisTask(rows[0]);
+}
+
 /** 可更新的字段子集 */
 type AnalysisTaskUpdatable = Partial<
   Pick<
@@ -71,6 +91,7 @@ type AnalysisTaskUpdatable = Partial<
     | "rawResponse"
     | "errorMessage"
     | "errorStage"
+    | "externalId"
   >
 >;
 
@@ -93,6 +114,7 @@ export async function updateAnalysisTask(
   if (updates.errorMessage !== undefined)
     setObj.errorMessage = updates.errorMessage;
   if (updates.errorStage !== undefined) setObj.errorStage = updates.errorStage;
+  if (updates.externalId !== undefined) setObj.externalId = updates.externalId;
 
   const rows = await db
     .update(analysisTasks)

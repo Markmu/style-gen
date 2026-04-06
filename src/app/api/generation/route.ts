@@ -5,12 +5,13 @@ import {
   updateGenerationTask,
 } from "@/lib/repositories/generation-task-repository";
 import { createAsset } from "@/lib/repositories/asset-repository";
-import { generateImage, ImageGenError } from "@/lib/ai/image-gen";
 import { uploadBuffer, getPublicUrl } from "@/lib/r2";
 import { auth } from "@/auth";
+import { getImageGenProvider } from "@/lib/ai/providers";
+import { buildWebhookUrl, startTimeoutTimer } from "@/lib/ai/webhook-utils";
 
-/** 生成超时 120 秒 */
-const GENERATION_TIMEOUT_MS = 120_000;
+/** fal.ai 同步模式超时 120 秒 */
+const SYNC_GENERATION_TIMEOUT_MS = 120_000;
 
 interface GenerationRequestBody {
   analysisTaskId: string;
@@ -53,30 +54,22 @@ function log(event: string, data: Record<string, unknown>) {
   console.log(JSON.stringify({ event, timestamp: new Date().toISOString(), ...data }));
 }
 
-/** 后台异步执行生成任务（含 120s 超时） */
-async function executeGeneration(
+/** fal.ai 同步模式：后台异步执行生成任务（含 120s 超时） */
+async function executeSyncGeneration(
   taskId: string,
   userId: string,
-  params: {
-    prompt: string;
-    negativePrompt: string;
-    aspectRatio: string;
-    quality: string;
-  }
+  providerResult: { imageUrl: string; width: number; height: number }
 ): Promise<void> {
-  // a. 更新任务状态为 processing
-  await updateGenerationTask(taskId, { status: "processing" });
-
   let aborted = false;
 
   // 使用 Promise.race 实现超时
   await Promise.race([
-    executeGenerationCore(taskId, userId, params, () => aborted),
+    executeSyncGenerationCore(taskId, userId, providerResult, () => aborted),
     new Promise<never>((_, reject) => {
       const timer = setTimeout(() => {
         aborted = true;
         reject(new Error("Generation timed out after 120s"));
-      }, GENERATION_TIMEOUT_MS);
+      }, SYNC_GENERATION_TIMEOUT_MS);
       // 允许进程正常退出
       if (timer.unref) {
         timer.unref();
@@ -85,61 +78,39 @@ async function executeGeneration(
   ]);
 }
 
-/** 生成核心逻辑 */
-async function executeGenerationCore(
+/** fal.ai 同步模式核心逻辑 */
+async function executeSyncGenerationCore(
   taskId: string,
   userId: string,
-  params: {
-    prompt: string;
-    negativePrompt: string;
-    aspectRatio: string;
-    quality: string;
-  },
+  providerResult: { imageUrl: string; width: number; height: number },
   isAborted: () => boolean
 ): Promise<void> {
-
-  // b. 调用生图模型
-  log("image_gen_call_started", { taskId });
-  const genStartTime = Date.now();
-  const result = await generateImage({
-    prompt: params.prompt,
-    negativePrompt: params.negativePrompt,
-    aspectRatio: params.aspectRatio,
-    quality: params.quality,
-  });
-  log("image_gen_call_completed", { taskId, duration: Date.now() - genStartTime });
-
-  // 超时后不再继续更新状态
-  if (isAborted()) return;
-
-  // c. 下载临时图片，上传到 R2
+  // 下载临时图片，上传到 R2
   const r2Key = `generated/${taskId}/result.webp`;
-  const imageResponse = await fetch(result.imageUrl);
+  const imageResponse = await fetch(providerResult.imageUrl);
   if (!imageResponse.ok) {
-    throw new ImageGenError(
-      `Failed to download generated image: ${imageResponse.status}`
-    );
+    throw new Error(`Failed to download generated image: ${imageResponse.status}`);
   }
   const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
   await uploadBuffer(r2Key, imageBuffer, "image/webp");
 
-  // 再次检查 aborted 状态
+  // 超时后不再继续更新状态
   if (isAborted()) return;
 
-  // d. 创建 Asset 记录
+  // 创建 Asset 记录
   const asset = await createAsset(userId, {
     type: "generated",
     fileUrl: getPublicUrl(r2Key),
     thumbnailUrl: null,
-    width: result.width,
-    height: result.height,
+    width: providerResult.width,
+    height: providerResult.height,
     mimeType: "image/webp",
   });
 
   // 最终检查 aborted 状态，避免覆盖 failed 状态
   if (isAborted()) return;
 
-  // e. 更新 GenerationTask 为 completed
+  // 更新 GenerationTask 为 completed
   await updateGenerationTask(taskId, {
     status: "completed",
     resultAssetId: asset.id,
@@ -190,47 +161,90 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. 创建 GenerationTask 记录（status: 'pending'）
+    // 2. 获取 Provider
+    const imageGenProvider = getImageGenProvider();
+
+    log("generation_request_received", {
+      taskId: "pending",
+      analysisTaskId: validated.analysisTaskId,
+      provider: imageGenProvider.name,
+    });
+
+    // 3. 创建 GenerationTask 记录（status: 'pending'）
     const task = await createGenerationTask(userId, {
       analysisTaskId: validated.analysisTaskId,
       promptSnapshot: validated.promptText,
       negativePromptSnapshot: validated.negativePromptText,
       params: validated.params,
-      modelName: "flux.2",
+      modelName: imageGenProvider.name === 'replicate' ? 'black-forest-labs/flux-2-dev' : 'flux.2',
+      provider: imageGenProvider.name,
     });
 
-    log("generation_request_received", { taskId: task.id, analysisTaskId: validated.analysisTaskId });
-    log("generation_task_created", { taskId: task.id });
+    log("generation_task_created", {
+      taskId: task.id,
+      provider: imageGenProvider.name,
+      modelName: imageGenProvider.name === 'replicate' ? 'black-forest-labs/flux-2-dev' : 'flux.2',
+    });
 
-    // 3. 立即返回 taskId 和 status
-    const response = NextResponse.json(
-      { id: task.id, status: task.status },
-      { status: 201 }
-    );
+    // 4. 更新状态为 processing
+    await updateGenerationTask(task.id, { status: "processing" });
 
-    // 4. 后台异步执行（fire-and-forget）
-    void executeGeneration(task.id, userId, {
+    // 5. 调用 Provider
+    const webhookUrl = buildWebhookUrl('generation', task.id);
+
+    log("provider_generate_started", {
+      taskId: task.id,
+      provider: imageGenProvider.name,
+      model: task.modelName,
+      mode: 'async',
+    });
+
+    const providerResult = await imageGenProvider.generate({
       prompt: validated.promptText,
       negativePrompt: validated.negativePromptText,
       aspectRatio: validated.params.aspectRatio,
       quality: validated.params.quality,
-    }).catch(async (err: unknown) => {
-      // 失败时更新任务状态
-      const errorMessage =
-        err instanceof Error ? err.message : "Unknown generation error";
-
-      log("generation_failed", { taskId: task.id, reason: errorMessage });
-
-      await updateGenerationTask(task.id, {
-        status: "failed",
-        errorMessage,
-      });
+      webhookUrl,
     });
 
-    return response;
+    log("provider_generate_completed", {
+      taskId: task.id,
+      provider: imageGenProvider.name,
+      mode: providerResult.mode,
+    });
+
+    // 6. 根据 Provider 返回模式分支处理
+    if (providerResult.mode === 'sync') {
+      // fal.ai 同步模式：保留原有 fire-and-forget 逻辑
+      void executeSyncGeneration(task.id, userId, providerResult).catch(async (err) => {
+        const errorMessage = err instanceof Error ? err.message : "Unknown generation error";
+        log("generation_failed", { taskId: task.id, reason: errorMessage });
+        await updateGenerationTask(task.id, {
+          status: "failed",
+          errorMessage,
+        });
+      });
+    } else {
+      // Replicate 异步模式：保存 externalId + 启动超时定时器
+      await updateGenerationTask(task.id, { externalId: providerResult.externalId });
+      startTimeoutTimer(task.id, 'generation', 5 * 60 * 1000);
+      log("generation_async_submitted", {
+        taskId: task.id,
+        externalId: providerResult.externalId,
+      });
+    }
+
+    // 7. 立即返回 taskId 和 status
+    return NextResponse.json(
+      { id: task.id, status: "processing" },
+      { status: 201 }
+    );
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Internal server error";
-    return NextResponse.json({ error: message, code: "SERVICE_UNAVAILABLE", retryable: true }, { status: 500 });
+    return NextResponse.json(
+      { error: message, code: "SERVICE_UNAVAILABLE", retryable: true },
+      { status: 500 }
+    );
   }
 }

@@ -54,6 +54,9 @@ function makeCamelCaseRow(overrides: Partial<Record<string, unknown>> = {}) {
     rawResponse: null,
     errorMessage: null,
     errorStage: null,
+    provider: "gemini" as const,
+    externalId: null,
+    modelName: null,
     userId: "USER_001",
     createdAt: NOW,
     updatedAt: NOW,
@@ -108,6 +111,9 @@ describe("analysis-task-repository", () => {
         rawResponse: null,
         errorMessage: null,
         errorStage: null,
+        provider: "gemini",
+        externalId: null,
+        modelName: null,
         userId: "USER_001",
         createdAt: NOW,
         updatedAt: NOW,
@@ -123,6 +129,8 @@ describe("analysis-task-repository", () => {
       expect(mockValues).toHaveBeenCalledWith({
         id: "TASK_001",
         sourceAssetId: "ASSET_001",
+        provider: "gemini",
+        modelName: undefined,
         userId: "USER_001",
       });
     });

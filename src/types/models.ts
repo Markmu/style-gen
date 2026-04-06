@@ -42,6 +42,12 @@ export interface VisualRecipe {
   replaceable: string[];
 }
 
+/** 视觉分析 Provider */
+export type VisionProviderName = 'replicate' | 'gemini';
+
+/** 图像生成 Provider */
+export type ImageGenProviderName = 'replicate' | 'fal';
+
 /** 分析任务状态 */
 export type AnalysisTaskStatus = "pending" | "processing" | "completed" | "failed";
 
@@ -59,6 +65,9 @@ export interface AnalysisTask {
   rawResponse: string | null;
   errorMessage: string | null;
   errorStage: AnalysisTaskErrorStage | null;
+  provider: VisionProviderName;
+  externalId: string | null;
+  modelName: string | null;
   userId: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -82,6 +91,8 @@ export interface GenerationTask {
   negativePromptSnapshot: string;
   params: GenerationParams;
   modelName: string;
+  provider: ImageGenProviderName;
+  externalId: string | null;
   resultAssetId: string | null;
   errorMessage: string | null;
   userId: string | null;

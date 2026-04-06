@@ -2,14 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   createAnalysisTask,
   updateAnalysisTask,
+  findAnalysisTaskByIdInternal,
 } from "@/lib/repositories/analysis-task-repository";
 import { upsertAsset } from "@/lib/repositories/asset-repository";
-import { analyzeImage, VisionError } from "@/lib/ai/vision";
 import { structureAnalysis, StructurerError } from "@/lib/ai/structurer";
+import { getVisionProvider } from "@/lib/ai/providers";
 import { auth } from "@/auth";
 
-/** 整体超时 60 秒 */
-const OVERALL_TIMEOUT_MS = 60_000;
+/** Replicate 异步模式超时 5 分钟 */
+const REPLICATE_TIMEOUT_MS = 5 * 60 * 1000;
 
 interface AnalysisRequestBody {
   assetId: string;
@@ -43,6 +44,46 @@ function validateBody(body: unknown): AnalysisRequestBody | null {
 /** 结构化日志输出 */
 function log(event: string, data: Record<string, unknown>) {
   console.log(JSON.stringify({ event, timestamp: new Date().toISOString(), ...data }));
+}
+
+/**
+ * 构建 Webhook URL
+ * 允许通过 WEBHOOK_BASE_URL 环境变量覆盖 baseUrl（用于开发环境 ngrok）
+ */
+function buildWebhookUrl(taskType: 'analysis' | 'generation', taskId: string): string {
+  const baseUrl = process.env.WEBHOOK_BASE_URL ||
+                  process.env.NEXT_PUBLIC_BASE_URL ||
+                  process.env.VERCEL_URL ||
+                  'http://localhost:3000';
+  return `${baseUrl}/api/webhooks/replicate?taskType=${taskType}&taskId=${taskId}`;
+}
+
+/**
+ * 启动超时定时器
+ * 用于 Replicate 异步模式：5 分钟后检查任务状态，仍未 processing 则标记 failed
+ */
+function startTimeoutTimer(taskId: string, timeoutMs: number): void {
+  const timer = setTimeout(async () => {
+    try {
+      const task = await findAnalysisTaskByIdInternal(taskId);
+      if (task && task.status === 'processing') {
+        await updateAnalysisTask(taskId, {
+          status: 'failed',
+          errorMessage: `Webhook callback not received within ${timeoutMs / 1000}s`,
+          errorStage: 'vision',
+        });
+        log('analysis_timeout', { taskId, timeoutMs });
+      }
+    } catch (error) {
+      log('analysis_timeout_check_failed', {
+        taskId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }, timeoutMs);
+
+  // 允许 Node.js 进程正常退出
+  if (timer.unref) timer.unref();
 }
 
 export async function POST(request: NextRequest) {
@@ -79,48 +120,98 @@ export async function POST(request: NextRequest) {
       mimeType: validated.mimeType,
     });
 
-    // 2. 创建 AnalysisTask 记录（status: 'pending'）
-    let task = await createAnalysisTask(userId, {
-      sourceAssetId: asset.id,
+    // 2. 获取 VisionProvider
+    const visionProvider = getVisionProvider();
+    log("vision_provider_selected", {
+      provider: visionProvider.name,
+      userId,
+      assetId: validated.assetId,
     });
 
-    log("analysis_task_created", { taskId: task.id, assetId: asset.id });
+    // 3. 创建 AnalysisTask 记录（status: 'pending'）
+    let task = await createAnalysisTask(userId, {
+      sourceAssetId: asset.id,
+      provider: visionProvider.name,
+      modelName: visionProvider.name === 'replicate' ? 'google/gemini-2.5-flash' : 'gemini-2.5-flash',
+    });
 
-    // 3. 更新任务状态为 'processing'
+    log("analysis_task_created", { taskId: task.id, assetId: asset.id, provider: visionProvider.name });
+
+    // 4. 更新任务状态为 'processing'
     task = await updateAnalysisTask(task.id, { status: "processing" });
 
-    // 4. 带整体超时的两阶段 AI 分析
+    // 5. 调用 Provider 分析
+    const webhookUrl = buildWebhookUrl('analysis', task.id);
+    const providerStartTime = Date.now();
+
+    log("vision_provider_call_started", {
+      taskId: task.id,
+      provider: visionProvider.name,
+      model: task.modelName,
+    });
+
     try {
-      const result = await Promise.race([
-        executeAnalysisPipeline(validated.fileUrl, task.id, validated.mimeType),
-        new Promise<never>((_, reject) =>
-          setTimeout(
-            () => reject(new Error("Overall analysis timed out after 60s")),
-            OVERALL_TIMEOUT_MS
-          )
-        ),
-      ]);
+      const result = await visionProvider.analyze({
+        imageUrl: validated.fileUrl,
+        mimeType: validated.mimeType,
+        webhookUrl,
+      });
 
-      log("analysis_completed", { taskId: task.id, duration: Date.now() - startTime, status: "completed" });
+      const providerDuration = Date.now() - providerStartTime;
+      log("vision_provider_call_completed", {
+        taskId: task.id,
+        provider: visionProvider.name,
+        mode: result.mode,
+        duration: providerDuration,
+      });
 
-      return NextResponse.json(result);
-    } catch (error) {
-      // 超时或未预期错误
-      if (error instanceof Error && error.message.includes("timed out after 60s")) {
-        const failedTask = await updateAnalysisTask(task.id, {
-          status: "failed",
-          errorMessage: "Analysis timed out after 60s",
-          errorStage: "vision",
+      // 6. 根据模式分支处理
+      if (result.mode === 'sync') {
+        // Gemini 同步模式：保留原有两阶段管线逻辑
+        const syncResult = await executeSyncPipeline(task.id, result.result);
+        log("analysis_completed", {
+          taskId: task.id,
+          duration: Date.now() - startTime,
+          status: "completed",
+          mode: 'sync',
         });
-
-        log("analysis_failed", { taskId: task.id, duration: Date.now() - startTime, reason: "timeout" });
-
-        return NextResponse.json(
-          { ...failedTask, error: "Analysis timed out after 60s", code: "ANALYSIS_TIMEOUT", retryable: true },
-          { status: 500 }
-        );
+        return NextResponse.json(syncResult);
       }
-      throw error;
+
+      // Replicate 异步模式：保存 externalId + 启动超时定时器 + 立即返回
+      await updateAnalysisTask(task.id, { externalId: result.externalId });
+      startTimeoutTimer(task.id, REPLICATE_TIMEOUT_MS);
+
+      log("analysis_task_submitted", {
+        taskId: task.id,
+        externalId: result.externalId,
+        duration: Date.now() - startTime,
+        mode: 'async',
+      });
+
+      return NextResponse.json(
+        { id: task.id, status: 'processing' },
+        { status: 201 }
+      );
+    } catch (error) {
+      // Provider 调用失败
+      const errorMessage = error instanceof Error ? error.message : "Vision provider call failed";
+      log("vision_provider_call_failed", {
+        taskId: task.id,
+        provider: visionProvider.name,
+        error: errorMessage,
+      });
+
+      const failedTask = await updateAnalysisTask(task.id, {
+        status: "failed",
+        errorMessage,
+        errorStage: "vision",
+      });
+
+      return NextResponse.json(
+        { ...failedTask, error: errorMessage, code: "VISION_PROVIDER_ERROR", retryable: true },
+        { status: 500 }
+      );
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal server error";
@@ -131,30 +222,11 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/** 执行两阶段分析管线 */
-async function executeAnalysisPipeline(fileUrl: string, taskId: string, mimeType: string) {
-  // 阶段 1：视觉理解
-  let rawAnalysis: string;
-  try {
-    log("vision_call_started", { taskId });
-    const visionStartTime = Date.now();
-    rawAnalysis = await analyzeImage(fileUrl, mimeType);
-    log("vision_call_completed", { taskId, duration: Date.now() - visionStartTime });
-  } catch (error) {
-    // 视觉模型失败：任务标记 failed，errorStage: 'vision'
-    const errorMessage =
-      error instanceof VisionError ? error.message : "Vision analysis failed";
-
-    log("vision_call_failed", { taskId, error: errorMessage });
-
-    const failedTask = await updateAnalysisTask(taskId, {
-      status: "failed",
-      errorMessage,
-      errorStage: "vision",
-    });
-    return failedTask;
-  }
-
+/**
+ * 执行同步模式的两阶段分析管线
+ * 直接接收视觉分析结果文本（Gemini 模式）
+ */
+async function executeSyncPipeline(taskId: string, rawAnalysis: string) {
   // 阶段 2：LLM 结构化整理
   try {
     log("structurer_call_started", { taskId });

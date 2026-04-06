@@ -74,6 +74,9 @@ export const analysisTasks = pgTable(
     rawResponse: text("raw_response"),
     errorMessage: text("error_message"),
     errorStage: varchar("error_stage", { length: 10 }),
+    provider: varchar("provider", { length: 20 }).notNull().default("gemini"),
+    externalId: varchar("external_id", { length: 255 }),
+    modelName: varchar("model_name", { length: 100 }),
     userId: varchar("user_id", { length: 26 }).references(() => users.id),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -90,6 +93,10 @@ export const analysisTasks = pgTable(
     check(
       "analysis_tasks_error_stage_check",
       sql`${table.errorStage} IN ('vision', 'llm')`
+    ),
+    check(
+      "analysis_tasks_provider_check",
+      sql`${table.provider} IN ('replicate', 'gemini')`
     ),
     index("idx_analysis_tasks_source_asset").on(table.sourceAssetId),
     index("idx_analysis_tasks_status")
@@ -111,6 +118,8 @@ export const generationTasks = pgTable(
     negativePromptSnapshot: text("negative_prompt_snapshot").notNull(),
     params: jsonb("params").notNull().$type<GenerationParams>(),
     modelName: varchar("model_name", { length: 100 }).notNull(),
+    provider: varchar("provider", { length: 20 }).notNull().default("fal"),
+    externalId: varchar("external_id", { length: 255 }),
     resultAssetId: varchar("result_asset_id", { length: 26 }).references(
       () => assets.id
     ),
@@ -127,6 +136,10 @@ export const generationTasks = pgTable(
     check(
       "generation_tasks_status_check",
       sql`${table.status} IN ('pending', 'processing', 'completed', 'failed')`
+    ),
+    check(
+      "generation_tasks_provider_check",
+      sql`${table.provider} IN ('replicate', 'fal')`
     ),
     index("idx_generation_tasks_analysis_task").on(table.analysisTaskId),
     index("idx_generation_tasks_status")

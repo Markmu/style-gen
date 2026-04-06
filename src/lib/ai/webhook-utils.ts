@@ -1,0 +1,83 @@
+import { findAnalysisTaskByIdInternal, updateAnalysisTask } from '@/lib/repositories/analysis-task-repository';
+import { findGenerationTaskByIdInternal, updateGenerationTask } from '@/lib/repositories/generation-task-repository';
+
+/**
+ * 构建 Replicate Webhook URL
+ * @param taskType 任务类型：'analysis' | 'generation'
+ * @param taskId 任务 ID
+ * @returns 完整的 Webhook URL
+ */
+export function buildWebhookUrl(taskType: 'analysis' | 'generation', taskId: string): string {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : 'http://localhost:3000';
+
+  return `${baseUrl}/api/webhooks/replicate?taskType=${taskType}&taskId=${taskId}`;
+}
+
+/**
+ * 启动超时定时器
+ * 在指定时间后检查任务状态，如果仍在 processing 则标记为 failed
+ * @param taskId 任务 ID
+ * @param taskType 任务类型：'analysis' | 'generation'
+ * @param timeoutMs 超时时间（毫秒）
+ */
+export function startTimeoutTimer(
+  taskId: string,
+  taskType: 'analysis' | 'generation',
+  timeoutMs: number = 5 * 60 * 1000 // 默认 5 分钟
+): void {
+  const timer = setTimeout(async () => {
+    try {
+      if (taskType === 'analysis') {
+        const task = await findAnalysisTaskByIdInternal(taskId);
+        if (task && task.status === 'processing') {
+          await updateAnalysisTask(taskId, {
+            status: 'failed',
+            errorMessage: 'Task timed out after 5 minutes',
+            errorStage: task.errorStage || 'vision',
+          });
+          console.error(JSON.stringify({
+            event: 'task_timeout',
+            timestamp: new Date().toISOString(),
+            taskId,
+            taskType: 'analysis',
+            provider: task.provider,
+            submittedAt: task.createdAt,
+            timeoutMs,
+          }));
+        }
+      } else {
+        const task = await findGenerationTaskByIdInternal(taskId);
+        if (task && task.status === 'processing') {
+          await updateGenerationTask(taskId, {
+            status: 'failed',
+            errorMessage: 'Task timed out after 5 minutes',
+          });
+          console.error(JSON.stringify({
+            event: 'task_timeout',
+            timestamp: new Date().toISOString(),
+            taskId,
+            taskType: 'generation',
+            provider: task.provider,
+            submittedAt: task.createdAt,
+            timeoutMs,
+          }));
+        }
+      }
+    } catch (error) {
+      console.error(JSON.stringify({
+        event: 'timeout_timer_error',
+        timestamp: new Date().toISOString(),
+        taskId,
+        taskType,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }));
+    }
+  }, timeoutMs);
+
+  // 允许进程正常退出
+  if (timer.unref) {
+    timer.unref();
+  }
+}

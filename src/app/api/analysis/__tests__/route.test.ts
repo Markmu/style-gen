@@ -1,7 +1,6 @@
 import { POST } from "../route";
 import { NextRequest } from "next/server";
 import type { AnalysisTask, Asset } from "@/types/models";
-import { VisionError } from "@/lib/ai/vision";
 import { StructurerError } from "@/lib/ai/structurer";
 
 // ---- Mocks ----
@@ -18,19 +17,12 @@ vi.mock("@/lib/repositories/asset-repository", () => ({
 
 const mockCreateAnalysisTask = vi.fn();
 const mockUpdateAnalysisTask = vi.fn();
+const mockFindAnalysisTaskByIdInternal = vi.fn();
 vi.mock("@/lib/repositories/analysis-task-repository", () => ({
   createAnalysisTask: (...args: unknown[]) => mockCreateAnalysisTask(...args),
   updateAnalysisTask: (...args: unknown[]) => mockUpdateAnalysisTask(...args),
+  findAnalysisTaskByIdInternal: (...args: unknown[]) => mockFindAnalysisTaskByIdInternal(...args),
 }));
-
-const mockAnalyzeImage = vi.fn();
-vi.mock("@/lib/ai/vision", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/ai/vision")>();
-  return {
-    ...actual,
-    analyzeImage: (...args: unknown[]) => mockAnalyzeImage(...args),
-  };
-});
 
 const mockStructureAnalysis = vi.fn();
 vi.mock("@/lib/ai/structurer", async (importOriginal) => {
@@ -40,6 +32,16 @@ vi.mock("@/lib/ai/structurer", async (importOriginal) => {
     structureAnalysis: (...args: unknown[]) => mockStructureAnalysis(...args),
   };
 });
+
+// Mock VisionProvider
+const mockVisionProvider = {
+  name: 'gemini' as const,
+  analyze: vi.fn(),
+};
+
+vi.mock("@/lib/ai/providers", () => ({
+  getVisionProvider: () => mockVisionProvider,
+}));
 
 // ---- Helpers ----
 
@@ -122,8 +124,11 @@ function setupSuccessMocks() {
       Promise.resolve(makePendingTask({ id, ...updates }))
   );
 
-  // 视觉分析
-  mockAnalyzeImage.mockResolvedValue("Raw visual analysis text");
+  // Vision Provider - 同步模式（Gemini）
+  mockVisionProvider.analyze.mockResolvedValue({
+    mode: 'sync',
+    result: "Raw visual analysis text",
+  });
 
   // 结构化分析
   mockStructureAnalysis.mockResolvedValue({
@@ -210,6 +215,8 @@ describe("POST /api/analysis", () => {
 
     expect(mockCreateAnalysisTask).toHaveBeenCalledWith("user-1", {
       sourceAssetId: "asset-1",
+      provider: 'gemini',
+      modelName: 'gemini-2.5-flash',
     });
   });
 
@@ -224,16 +231,15 @@ describe("POST /api/analysis", () => {
   // --- 失败路径 ---
 
   it("视觉理解失败时标记 failed 且 errorStage 为 vision", async () => {
-    mockAnalyzeImage.mockRejectedValue(
-      new VisionError("Vision model failed")
+    mockVisionProvider.analyze.mockRejectedValue(
+      new Error("Vision provider failed")
     );
 
     const response = await POST(makeRequest(VALID_BODY));
     const data = await response.json();
 
-    expect(response.status).toBe(200);
-    expect(data.status).toBe("failed");
-    expect(data.errorStage).toBe("vision");
+    expect(response.status).toBe(500);
+    expect(data.error).toContain("Vision provider failed");
 
     expect(mockUpdateAnalysisTask).toHaveBeenCalledWith(
       "task-1",
@@ -293,6 +299,91 @@ describe("POST /api/analysis", () => {
       expect.objectContaining({
         status: "completed",
         rawResponse: "Raw visual analysis text",
+      })
+    );
+  });
+
+  // --- Replicate 异步模式 ---
+
+  it("async 模式：返回 {id, status:'processing'}，HTTP 201", async () => {
+    mockVisionProvider.analyze.mockResolvedValue({
+      mode: 'async',
+      externalId: 'replicate-pred-123',
+    });
+
+    const response = await POST(makeRequest(VALID_BODY));
+    const data = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(data.id).toBe('task-1');
+    expect(data.status).toBe('processing');
+  });
+
+  it("async 模式：保存 externalId 到任务", async () => {
+    mockVisionProvider.analyze.mockResolvedValue({
+      mode: 'async',
+      externalId: 'replicate-pred-456',
+    });
+
+    await POST(makeRequest(VALID_BODY));
+
+    // 应该调用 updateAnalysisTask 保存 externalId
+    const externalIdCall = mockUpdateAnalysisTask.mock.calls.find(
+      (call: unknown[]) => call[1]?.externalId !== undefined
+    );
+    expect(externalIdCall).toBeDefined();
+    expect(externalIdCall![1]).toEqual(
+      expect.objectContaining({ externalId: 'replicate-pred-456' })
+    );
+  });
+
+  it("async 模式：传递 webhookUrl 给 Provider", async () => {
+    mockVisionProvider.analyze.mockResolvedValue({
+      mode: 'async',
+      externalId: 'replicate-pred-789',
+    });
+
+    await POST(makeRequest(VALID_BODY));
+
+    expect(mockVisionProvider.analyze).toHaveBeenCalledWith({
+      imageUrl: VALID_BODY.fileUrl,
+      mimeType: VALID_BODY.mimeType,
+      webhookUrl: expect.stringContaining('api/webhooks/replicate?taskType=analysis&taskId=task-1'),
+    });
+  });
+
+  it("async 模式：创建任务时 provider 为 replicate，modelName 为 gemini 模型", async () => {
+    mockVisionProvider.name = 'replicate' as const;
+    mockVisionProvider.analyze.mockResolvedValue({
+      mode: 'async',
+      externalId: 'replicate-pred-abc',
+    });
+
+    await POST(makeRequest(VALID_BODY));
+
+    expect(mockCreateAnalysisTask).toHaveBeenCalledWith('user-1', {
+      sourceAssetId: 'asset-1',
+      provider: 'replicate',
+      modelName: 'google/gemini-2.5-flash',
+    });
+  });
+
+  it("async 模式：Provider 调用失败时标记任务 failed", async () => {
+    mockVisionProvider.analyze.mockRejectedValue(
+      new Error('Replicate API error')
+    );
+
+    const response = await POST(makeRequest(VALID_BODY));
+    const data = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(data.error).toContain('Replicate API error');
+
+    expect(mockUpdateAnalysisTask).toHaveBeenCalledWith(
+      'task-1',
+      expect.objectContaining({
+        status: 'failed',
+        errorStage: 'vision',
       })
     );
   });

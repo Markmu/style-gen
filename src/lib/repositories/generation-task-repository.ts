@@ -6,6 +6,7 @@ import type {
   GenerationParams,
   GenerationTask,
   GenerationTaskStatus,
+  ImageGenProviderName,
 } from "@/types/models";
 
 type GenerationTaskRow = typeof generationTasks.$inferSelect;
@@ -20,6 +21,8 @@ function rowToGenerationTask(row: GenerationTaskRow): GenerationTask {
     negativePromptSnapshot: row.negativePromptSnapshot,
     params: row.params,
     modelName: row.modelName,
+    provider: row.provider as ImageGenProviderName,
+    externalId: row.externalId,
     resultAssetId: row.resultAssetId,
     errorMessage: row.errorMessage,
     userId: row.userId,
@@ -37,6 +40,7 @@ export async function createGenerationTask(
     negativePromptSnapshot: string;
     params: GenerationParams;
     modelName: string;
+    provider?: ImageGenProviderName;
   }
 ): Promise<GenerationTask> {
   const id = generateId();
@@ -49,6 +53,7 @@ export async function createGenerationTask(
       negativePromptSnapshot: data.negativePromptSnapshot,
       params: data.params,
       modelName: data.modelName,
+      provider: data.provider ?? "fal",
       userId,
     })
     .returning();
@@ -70,9 +75,24 @@ export async function findGenerationTaskById(
   return rowToGenerationTask(rows[0]);
 }
 
+/** 按 ID 查询 GenerationTask（不校验 userId，仅 Webhook 内部使用） */
+export async function findGenerationTaskByIdInternal(
+  id: string
+): Promise<GenerationTask | null> {
+  const rows = await db
+    .select()
+    .from(generationTasks)
+    .where(eq(generationTasks.id, id));
+  if (rows.length === 0) return null;
+  return rowToGenerationTask(rows[0]);
+}
+
 /** 可更新的字段子集 */
 type GenerationTaskUpdatable = Partial<
-  Pick<GenerationTask, "status" | "resultAssetId" | "errorMessage">
+  Pick<
+    GenerationTask,
+    "status" | "resultAssetId" | "errorMessage" | "externalId"
+  >
 >;
 
 /** 更新 GenerationTask */
@@ -89,6 +109,7 @@ export async function updateGenerationTask(
     setObj.resultAssetId = updates.resultAssetId;
   if (updates.errorMessage !== undefined)
     setObj.errorMessage = updates.errorMessage;
+  if (updates.externalId !== undefined) setObj.externalId = updates.externalId;
 
   const rows = await db
     .update(generationTasks)
