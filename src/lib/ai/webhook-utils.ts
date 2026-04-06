@@ -8,9 +8,16 @@ import { findGenerationTaskByIdInternal, updateGenerationTask } from '@/lib/repo
  * @returns 完整的 Webhook URL
  */
 export function buildWebhookUrl(taskType: 'analysis' | 'generation', taskId: string): string {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
+  const vercelUrl = process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL}`
-    : 'http://localhost:3000';
+    : undefined;
+  const baseUrl = (
+    process.env.WEBHOOK_BASE_URL ??
+    process.env.NEXT_PUBLIC_BASE_URL ??
+    process.env.NEXT_PUBLIC_APP_URL ??
+    vercelUrl ??
+    'http://localhost:3000'
+  ).replace(/\/$/, '');
 
   return `${baseUrl}/api/webhooks/replicate?taskType=${taskType}&taskId=${taskId}`;
 }

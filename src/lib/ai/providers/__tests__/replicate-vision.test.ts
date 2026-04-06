@@ -42,7 +42,7 @@ describe('ReplicateVisionProvider', () => {
     });
 
     expect(mockCreate).toHaveBeenCalledWith({
-      model: 'google/gemini-2.0-flash-exp:free-preview',
+      model: 'google/gemini-2.5-flash',
       input: {
         image: 'https://example.com/image.jpg',
         prompt: VISION_SYSTEM_PROMPT,

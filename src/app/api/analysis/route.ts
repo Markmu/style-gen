@@ -7,6 +7,7 @@ import {
 import { upsertAsset } from "@/lib/repositories/asset-repository";
 import { structureAnalysis, StructurerError } from "@/lib/ai/structurer";
 import { getVisionProvider } from "@/lib/ai/providers";
+import { buildWebhookUrl } from "@/lib/ai/webhook-utils";
 import { auth } from "@/auth";
 
 /** Replicate 异步模式超时 5 分钟 */
@@ -44,18 +45,6 @@ function validateBody(body: unknown): AnalysisRequestBody | null {
 /** 结构化日志输出 */
 function log(event: string, data: Record<string, unknown>) {
   console.log(JSON.stringify({ event, timestamp: new Date().toISOString(), ...data }));
-}
-
-/**
- * 构建 Webhook URL
- * 允许通过 WEBHOOK_BASE_URL 环境变量覆盖 baseUrl（用于开发环境 ngrok）
- */
-function buildWebhookUrl(taskType: 'analysis' | 'generation', taskId: string): string {
-  const baseUrl = process.env.WEBHOOK_BASE_URL ||
-                  process.env.NEXT_PUBLIC_BASE_URL ||
-                  process.env.VERCEL_URL ||
-                  'http://localhost:3000';
-  return `${baseUrl}/api/webhooks/replicate?taskType=${taskType}&taskId=${taskId}`;
 }
 
 /**
