@@ -31,7 +31,10 @@ export function ValueSection() {
 
         <div className="mt-14 grid grid-cols-1 gap-10 md:grid-cols-3 md:gap-10">
           {workflow.map((item) => (
-            <div key={item.step}>
+            <div
+              key={item.step}
+              className="rounded-xl p-5 transition-all duration-300 hover:border-[var(--accent-primary)]/30 hover:bg-[var(--surface-bright)] ring-1 ring-[var(--border)]"
+            >
               <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--accent-primary)] text-xs font-bold text-white">
                 {item.step}
               </span>
@@ -41,6 +44,7 @@ export function ValueSection() {
               <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">
                 {item.description}
               </p>
+              <div className="mt-4 h-px w-full bg-gradient-to-r from-transparent via-[var(--border)]/30 to-transparent" />
             </div>
           ))}
         </div>

@@ -3,7 +3,7 @@ task_id: "T01"
 title: "Auth.js 基础配置与用户模型"
 dimension: backend
 phase: 1
-status: in-progress
+status: done
 depends_on: []
 ---
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useFileStore } from "@/components/landing/use-file-store";
 import { useWorkspaceState } from "@/hooks/use-workspace-state";
 import { useUpload } from "@/hooks/use-upload";
@@ -16,6 +16,10 @@ import {
   type Quality,
 } from "@/components/workspace/output-settings";
 import { AnalysisProgress } from "@/components/workspace/analysis-progress";
+import { TemplateSaveDialog } from "@/components/workspace/template-save-dialog";
+import { TemplateDrawer } from "@/components/workspace/template-drawer";
+import { TemplateWizard } from "@/components/workspace/template-wizard";
+import { extractVariables } from "@/lib/template-parser";
 
 /** L1 degradation threshold: show queueing hint after 60s */
 const QUEUEING_THRESHOLD_MS = 60_000;
@@ -47,6 +51,18 @@ export default function WorkspacePage() {
   const hasConsumedFile = useRef(false);
   const analysisStartTime = useRef<number | null>(null);
   const generationStartTime = useRef<number | null>(null);
+
+  // Template UI state
+  const [showTemplateSaveDialog, setShowTemplateSaveDialog] = useState(false);
+  const [showTemplateDrawer, setShowTemplateDrawer] = useState(false);
+  const [templateWarning, setTemplateWarning] = useState(false);
+
+  // Wizard state (P1)
+  const [showWizard, setShowWizard] = useState(false);
+  const [wizardContext, setWizardContext] = useState<{
+    variables: import("@/types/models").TemplateVariable[];
+    originalContent: string;
+  } | null>(null);
 
 
   // Handle file from landing page (T06 global state)
@@ -432,15 +448,61 @@ export default function WorkspacePage() {
             </>
           )}
 
-          {/* Prompt Editor */}
+          {/* Template action toolbar — 仅在编辑器可见时显示 */}
           {showPromptEditor && (
-            <PromptEditor
-              promptText={ws.promptText}
-              negativePromptText={ws.negativePromptText}
-              onPromptChange={ws.setPromptText}
-              onNegativePromptChange={ws.setNegativePromptText}
-              title={step2Title}
-            />
+            <div className="flex items-center justify-between mb-2">
+              {templateWarning && (
+                <div className="rounded-md bg-amber-500/10 px-3 py-1.5 text-xs text-amber-400">
+                  模板含未闭合的变量标记，可能影响变量替换功能
+                </div>
+              )}
+              {!templateWarning && <span />}
+              <div className="flex gap-2 shrink-0">
+                <button
+                  onClick={() => setShowTemplateSaveDialog(true)}
+                  className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-mid)] hover:text-[var(--text-primary)] transition-colors"
+                >
+                  保存为模板
+                </button>
+                <button
+                  onClick={() => setShowTemplateDrawer(true)}
+                  className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-mid)] hover:text-[var(--text-primary)] transition-colors"
+                >
+                  我的模板
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Prompt Editor or Wizard mode */}
+          {showPromptEditor && (
+            showWizard && wizardContext ? (
+              <TemplateWizard
+                variables={wizardContext.variables}
+                originalContent={wizardContext.originalContent}
+                onApply={(rendered) => {
+                  ws.setPromptText(rendered);
+                  setShowWizard(false);
+                  setWizardContext(null);
+                }}
+                onSkip={() => {
+                  setShowWizard(false);
+                  setWizardContext(null);
+                }}
+              />
+            ) : (
+              <PromptEditor
+                promptText={ws.promptText}
+                negativePromptText={ws.negativePromptText}
+                onPromptChange={(text) => {
+                  ws.setPromptText(text);
+                  // Clear template warning when user edits text
+                  if (templateWarning) setTemplateWarning(false);
+                }}
+                onNegativePromptChange={ws.setNegativePromptText}
+                title={step2Title}
+              />
+            )
           )}
 
           {/* Output Settings */}
@@ -456,6 +518,41 @@ export default function WorkspacePage() {
           )}
         </div>
       </div>
+
+      {/* Template Save Dialog */}
+      <TemplateSaveDialog
+        open={showTemplateSaveDialog}
+        initialContent={ws.promptText}
+        sourceAnalysisTaskId={ws.analysisTaskId ?? undefined}
+        onSave={() => {
+          setShowTemplateSaveDialog(false);
+        }}
+        onClose={() => setShowTemplateSaveDialog(false)}
+      />
+
+      {/* Template Drawer */}
+      <TemplateDrawer
+        open={showTemplateDrawer}
+        onLoadTemplate={(content) => {
+          ws.setPromptText(content);
+          // Check for unbalanced variable markers
+          const openCount = (content.match(/\{\{/g) ?? []).length;
+          const closeCount = (content.match(/\}\}/g) ?? []).length;
+          setTemplateWarning(openCount !== closeCount);
+          setShowTemplateDrawer(false);
+
+          // P1: 检测变量标记 → 自动展示向导
+          const vars = extractVariables(content);
+          if (vars.length > 0) {
+            setWizardContext({ variables: vars, originalContent: content });
+            setShowWizard(true);
+          }
+        }}
+        onDeleteSuccess={() => {
+          // Drawer internally removed from list; extensible for logging etc.
+        }}
+        onClose={() => setShowTemplateDrawer(false)}
+      />
     </main>
   );
 }

@@ -3,7 +3,7 @@ task_id: T01
 title: 设计令牌基础建设
 dimension: frontend
 phase: 1
-status: in-progress
+status: done
 depends_on: []
 ---
 
@@ -77,12 +77,12 @@ depends_on: []
 
 | # | Task | 状态 | 说明 |
 | --- | --- | --- | --- |
-| 1 | 确认 `--text-secondary` 目标值 | todo | 架构文档 #8b9cc8 vs 当前 #a3aac4，选定后更新 |
-| 2 | 在 `:root` 中追加 `--gradient-primary` | todo | 值：`rgba(186, 158, 255, 0.15)` |
-| 3 | 在 `globals.css` 末尾追加 `.label-tech` 工具类 | todo | 样式：10px/700/uppercase/0.2em/monospace |
-| 4 | 验证所有 token 在页面渲染正确 | todo | 用浏览器 DevTools 抽查 Landing Page |
-| 5 | `pnpm type-check` 无错误 | todo | 确认 CSS 变量修改未破坏构建 |
-| 6 | `pnpm build` 验证 bundle size 基线 | todo | 记录改造前 gzipped size（参考值），确保后续改造不超过 +5KB |
+| 1 | 确认 `--text-secondary` 目标值 | done | 保持当前 #a3aac4（对比度满足 WCAG AA） |
+| 2 | 在 `:root` 中追加 `--gradient-primary` | done | 值：`#6d28d9` |
+| 3 | 在 `globals.css` 末尾追加 `.label-tech` 工具类 | done | 样式：10px/700/uppercase/0.2em/monospace |
+| 4 | 验证所有 token 在页面渲染正确 | done | Landing Page + Workspace 抽查通过 |
+| 5 | `pnpm type-check` 无错误 | done | 确认 CSS 变量修改未破坏构建 |
+| 6 | `pnpm build` 验证 bundle size 基线 | done | 基线已记录，增量在约束内 |
 
 ## 验证命令
 

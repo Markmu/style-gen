@@ -28,6 +28,9 @@
   --color-warning: #e5a220;
   --color-success: #3ec98c;
 
+  /* Gradient tokens */
+  --gradient-primary: #6d28d9;
+
   /* Border opacity standards */
   --border-interactive: rgba(51, 65, 85, 0.3); /* 30% for inputs, buttons */
   --border-static: rgba(51, 65, 85, 0.15); /* 15% for cards, dividers */

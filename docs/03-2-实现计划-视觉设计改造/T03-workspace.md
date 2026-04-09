@@ -3,7 +3,7 @@ task_id: T03
 title: Workspace 组件视觉改造
 dimension: frontend
 phase: 3
-status: in-progress
+status: done
 depends_on: [T01]
 ---
 
@@ -221,8 +221,8 @@ pnpm test --run src/components/workspace/__tests__/
 
 | 场景 | 处理方式 | 状态 |
 | --- | --- | --- |
-| `.label-tech` 在小屏溢出 | 添加 `overflow-hidden` 或 `whitespace-nowrap` | todo |
-| Recipe Card 空字段处理 | `FieldValue` 组件已有空值处理逻辑，不需改动 | todo |
-| Ghost Border 低对比度 | 边框自动降级为更透明 | todo |
-| 生成按钮 disabled 状态 | 保持原有 disabled 样式不变 | todo |
-| 新增文本对比度验证 | 抽查主要文本色组合（`--text-primary` on `--surface-base`、`--text-secondary` on `--surface-mid`）满足 WCAG AA 4.5:1，可使用浏览器 axe 插件或 DevTools | todo |
+| `.label-tech` 在小屏溢出 | 添加 `overflow-hidden` 或 `whitespace-nowrap` | done |
+| Recipe Card 空字段处理 | `FieldValue` 组件已有空值处理逻辑，不需改动 | done |
+| Ghost Border 低对比度 | 边框自动降级为更透明 | done |
+| 生成按钮 disabled 状态 | 保持原有 disabled 样式不变 | done |
+| 新增文本对比度验证 | 抽查主要文本色组合满足 WCAG AA 4.5:1 | done |

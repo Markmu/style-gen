@@ -10,7 +10,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
-import type { VisualRecipe, GenerationParams } from "@/types/models";
+import type { VisualRecipe, GenerationParams, TemplateVariable } from "@/types/models";
 
 /** users 表 */
 export const users = pgTable(
@@ -145,5 +145,28 @@ export const generationTasks = pgTable(
     index("idx_generation_tasks_status")
       .on(table.status)
       .where(sql`status IN ('pending', 'processing')`),
+  ]
+);
+
+/** templates 表 */
+export const templates = pgTable(
+  "templates",
+  {
+    id: varchar("id", { length: 26 }).primaryKey(),
+    name: varchar("name", { length: 50 }).notNull(),
+    content: text("content").notNull(),
+    variables: jsonb("variables").$type<TemplateVariable[]>().notNull().default([]),
+    sourceAnalysisTaskId: varchar("source_analysis_task_id", { length: 26 }),
+    userId: varchar("user_id", { length: 26 }).references(() => users.id).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("idx_templates_user_id").on(table.userId),
+    index("idx_templates_user_name").on(table.userId, table.name),
   ]
 );

@@ -3,7 +3,7 @@ task_id: "T03"
 title: "数据关联与隔离改造"
 dimension: backend
 phase: 2
-status: in-progress
+status: done
 depends_on: ["T01"]
 ---
 

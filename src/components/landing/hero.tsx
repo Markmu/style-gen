@@ -2,22 +2,31 @@ import Link from "next/link";
 
 export function Hero() {
   return (
-    <section className="relative px-4 pt-20 pb-16 md:pt-28 md:pb-24">
+    <section className="relative overflow-hidden px-4 pt-20 pb-16 md:pt-28 md:pb-24 bg-[radial-gradient(ellipse_at_top,_var(--gradient-primary,_#6d28d9)_0%,_var(--surface-base)_70%)]">
       <div className="mx-auto max-w-6xl md:flex md:items-start md:gap-16">
         {/* Left: Text */}
         <div className="max-w-xl">
+          <span className="mb-4 inline-block rounded-full border border-[var(--border)]/15 bg-[var(--surface-mid)] px-3 py-1 text-xs text-[var(--text-secondary)]">
+            AI 视觉风格分析工具
+          </span>
           <h1 className="text-4xl font-extrabold tracking-tight text-[var(--text-primary)] md:text-6xl lg:text-7xl">
             参考图风格再创作
           </h1>
           <p className="mt-6 text-lg leading-relaxed text-[var(--text-secondary)] md:text-xl">
             上传参考图，AI 自动提取视觉配方，生成可编辑的 Prompt，一键创建同风格新图
           </p>
-          <div className="mt-10">
+          <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row">
             <Link
               href="/workspace"
               className="btn-primary rounded-xl px-8 py-3 text-base font-semibold text-white"
             >
               开始创作
+            </Link>
+            <Link
+              href="#features"
+              className="rounded-xl border border-[var(--border)]/15 px-6 py-3 text-base font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--accent-primary)]/30 hover:text-[var(--text-primary)]"
+            >
+              查看示例
             </Link>
           </div>
         </div>

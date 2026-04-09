@@ -3,7 +3,7 @@ task_id: "T05"
 title: "全链路联调验收"
 dimension: integration
 phase: 3
-status: review
+status: done
 depends_on: ["T02", "T03", "T04"]
 ---
 

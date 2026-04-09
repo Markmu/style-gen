@@ -1,6 +1,6 @@
 ---
 workflow_type: create-dev-plan
-status: in_review
+status: accepted
 source_architecture: docs/03-1-架构文档-视觉设计改造.md
 project_type: frontend-styling
 generated_at: 2026-04-02
@@ -108,9 +108,9 @@ graph TD
 
 | 任务 | 阶段 | 拆分文件 | 状态 | 依赖 |
 |------|------|---------|------|------|
-| T01 | Phase A | `T01-design-tokens.md` | in-progress | - |
-| T02 | Phase B | `T02-landing-page.md` | review | T01 |
-| T03 | Phase C | `T03-workspace.md` | in-progress | T01 |
+| T01 | Phase A | `T01-design-tokens.md` | done | - |
+| T02 | Phase B | `T02-landing-page.md` | done | T01 |
+| T03 | Phase C | `T03-workspace.md` | done | T01 |
 
 ## 7. 未决策项
 
@@ -165,4 +165,5 @@ pnpm build 2>&1 | grep -E "(Route|Page)"
 |------|---------|------|------|
 | 2026-04-02 | 初始生成 | 全部 | 首次生成实现计划 |
 | 2026-04-02 | 移除 | T04 | 集成验收任务冗余，已删除；验证命令分散至各任务文件 |
+| 2026-04-09 | 状态校正 | README + T01 + T03 | T01 design tokens 已完整（.label-tech + --gradient-primary），T03 workspace Ghost Border /15 统一完成，全部任务标记 done，计划 status 更新为 accepted |
 | 2026-04-04 | 状态校正 | README | T02 已进入 review，T01/T03 仍有未闭合任务项，frontmatter 调整为 in_review |

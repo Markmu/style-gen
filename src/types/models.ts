@@ -99,3 +99,21 @@ export interface GenerationTask {
   createdAt: Date;
   updatedAt: Date;
 }
+
+/** 模板变量定义 */
+export interface TemplateVariable {
+  name: string;           // 变量名，匹配 [a-zA-Z_]\w* 格式
+  defaultValue: string;   // 默认值，用户未填值时使用
+}
+
+/** Prompt 模板 */
+export interface PromptTemplate {
+  id: string;                        // ULID
+  name: string;                      // 模板名称，1-50 字符
+  content: string;                   // 模板正文（含 {{var}} 标记的 prompt 文本）
+  variables: TemplateVariable[];     // 变量定义列表（从 content 自动提取）
+  sourceAnalysisTaskId: string | null;
+  userId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}

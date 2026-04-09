@@ -1,6 +1,6 @@
 ---
 workflow_type: create-dev-plan
-status: in_review
+status: accepted
 source_architecture: "docs/02-1-架构文档-用户登录与数据打通.md"
 project_type: "brownfield"
 generated_at: "2026-03-29"
@@ -128,11 +128,11 @@ graph TD
 
 | 任务 | 阶段 | 拆分文件（含状态） | 依赖 |
 | --- | --- | --- | --- |
-| T01: Auth.js 基础配置与用户模型 | Phase 1 | backend(in-progress) | 无 |
-| T02: 认证中间件与路由守卫 | Phase 2 | backend(review) | T01 |
-| T03: 数据关联与隔离改造 | Phase 2 | backend(in-progress) | T01 |
-| T04: 前端认证 UI | Phase 2 | frontend(in-progress) | T01 |
-| T05: 全链路联调验收 | Phase 3 | frontend(review), integration(review) | T02, T03, T04 |
+| T01: Auth.js 基础配置与用户模型 | Phase 1 | backend(done) | 无 |
+| T02: 认证中间件与路由守卫 | Phase 2 | backend(done) | T01 |
+| T03: 数据关联与隔离改造 | Phase 2 | backend(done) | T01 |
+| T04: 前端认证 UI | Phase 2 | frontend(done) | T01 |
+| T05: 全链路联调验收 | Phase 3 | frontend(done), integration(done) | T02, T03, T04 |
 
 ## 7. 未决策项
 
@@ -173,4 +173,5 @@ pnpm type-check && pnpm lint && pnpm test && pnpm build
 | 2026-03-29 | 质检修补 | T03 | 增加分析流程事务化说明（架构 8.2 错误处理） |
 | 2026-03-29 | 质检修补 | T04 | 增加前端埋点 + signOut 失败兜底（架构 8.5 + 6.3） |
 | 2026-03-29 | 质检修补 | T05 | 401 拦截传入 callbackUrl 保留目标页（架构 4.3） |
+| 2026-04-09 | 状态校正 | README + 全部任务 | T01/T03/T04 代码已完整，T05-integration 依赖解除，全部任务标记 done，计划 status 更新为 accepted |
 | 2026-04-04 | 状态校正 | README | 计划存在 review 任务，且 T01/T03/T04 仍有待处理边界项，frontmatter 调整为 in_review |

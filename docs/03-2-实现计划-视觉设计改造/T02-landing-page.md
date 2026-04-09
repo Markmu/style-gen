@@ -3,7 +3,7 @@ task_id: T02
 title: Landing Page 视觉改造
 dimension: frontend
 phase: 2
-status: review
+status: done
 depends_on: [T01]
 ---
 

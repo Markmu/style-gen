@@ -3,7 +3,7 @@ task_id: "T02"
 title: "认证中间件与路由守卫"
 dimension: backend
 phase: 2
-status: review
+status: done
 depends_on: ["T01"]
 ---
 
