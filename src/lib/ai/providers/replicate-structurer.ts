@@ -1,6 +1,6 @@
 import Replicate from "replicate";
 import { STRUCTURER_SYSTEM_PROMPT } from "../prompts";
-import type { StructurerProvider } from "./types";
+import type { StructurerProvider, StructurerContext } from "./types";
 
 const MODEL = "google/gemini-2.5-flash";
 const TIMEOUT_SECONDS = 30;
@@ -43,7 +43,7 @@ export class ReplicateStructurerProvider implements StructurerProvider {
 
   async structure(params: {
     rawAnalysis: string;
-    context?: { taskId?: string; source?: "analysis_route" | "analysis_webhook" };
+    context?: StructurerContext;
   }): Promise<string> {
     const startedAt = Date.now();
     const meta = {
@@ -57,6 +57,9 @@ export class ReplicateStructurerProvider implements StructurerProvider {
     try {
       const output = await this.client.run(MODEL, {
         input: {
+          ...(params.context?.imageUrl
+            ? { images: [{ value: params.context.imageUrl }] }
+            : {}),
           prompt: `Here is the visual analysis to structure:\n\n${params.rawAnalysis}`,
           system_instruction: STRUCTURER_SYSTEM_PROMPT,
           temperature: 0,

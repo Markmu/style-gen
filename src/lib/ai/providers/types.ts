@@ -15,6 +15,10 @@ export interface VisionProvider {
 export interface StructurerContext {
   taskId?: string;
   source?: 'analysis_route' | 'analysis_webhook';
+  /** 原始图片 URL，传给 LLM 以便交叉验证视觉分析 */
+  imageUrl?: string;
+  /** 图片 MIME 类型 */
+  mimeType?: string;
 }
 
 /** 结构化整理 Provider 接口 */

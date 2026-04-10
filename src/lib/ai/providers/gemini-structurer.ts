@@ -1,6 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { STRUCTURER_SYSTEM_PROMPT } from "../prompts";
-import type { StructurerProvider } from "./types";
+import type { StructurerProvider, StructurerContext } from "./types";
 
 const MODEL = "gemini-2.5-flash";
 const TIMEOUT_MS = 30_000;
@@ -27,7 +27,7 @@ export class GeminiStructurerProvider implements StructurerProvider {
 
   async structure(params: {
     rawAnalysis: string;
-    context?: { taskId?: string; source?: "analysis_route" | "analysis_webhook" };
+    context?: StructurerContext;
   }): Promise<string> {
     const startedAt = Date.now();
     const meta = {
@@ -47,6 +47,16 @@ export class GeminiStructurerProvider implements StructurerProvider {
               role: "user",
               parts: [
                 { text: STRUCTURER_SYSTEM_PROMPT },
+                ...(params.context?.imageUrl
+                  ? [
+                      {
+                        fileData: {
+                          fileUri: params.context.imageUrl,
+                          mimeType: params.context.mimeType ?? "image/jpeg",
+                        },
+                      },
+                    ]
+                  : []),
                 {
                   text: `Here is the visual analysis to structure:\n\n${params.rawAnalysis}`,
                 },

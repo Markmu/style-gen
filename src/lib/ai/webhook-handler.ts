@@ -1,6 +1,7 @@
 import { validateWebhook } from 'replicate';
 import { findAnalysisTaskByIdInternal, updateAnalysisTask } from '@/lib/repositories/analysis-task-repository';
 import { findGenerationTaskByIdInternal, updateGenerationTask } from '@/lib/repositories/generation-task-repository';
+import { findAssetById } from '@/lib/repositories/asset-repository';
 import { structureAnalysis, StructurerError } from './structurer';
 import { uploadBuffer, getPublicUrl } from '@/lib/r2';
 import { createAsset } from '@/lib/repositories/asset-repository';
@@ -253,12 +254,16 @@ async function handleAnalysisWebhook(
     });
 
     try {
+      // 查询原始图片，传给 Structurer 做交叉验证
+      const asset = task.sourceAssetId ? await findAssetById(task.sourceAssetId) : null;
+
       // 同步调用 Gemini 结构化整理
       const structStartTime = Date.now();
       log('webhook_analysis_structurer_started', { taskId, predictionId: prediction.id });
       const structured = await structureAnalysis(rawAnalysis, {
         taskId,
         source: 'analysis_webhook',
+        ...(asset ? { imageUrl: asset.fileUrl, mimeType: asset.mimeType } : {}),
       });
       log('webhook_analysis_structurer_completed', {
         taskId,

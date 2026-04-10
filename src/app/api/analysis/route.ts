@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
       // 6. 根据模式分支处理
       if (result.mode === 'sync') {
         // Gemini 同步模式：保留原有两阶段管线逻辑
-        const syncResult = await executeSyncPipeline(task.id, result.result);
+        const syncResult = await executeSyncPipeline(task.id, result.result, validated.fileUrl, validated.mimeType);
         log("analysis_completed", {
           taskId: task.id,
           duration: Date.now() - startTime,
@@ -215,7 +215,7 @@ export async function POST(request: NextRequest) {
  * 执行同步模式的两阶段分析管线
  * 直接接收视觉分析结果文本（Gemini 模式）
  */
-async function executeSyncPipeline(taskId: string, rawAnalysis: string) {
+async function executeSyncPipeline(taskId: string, rawAnalysis: string, imageUrl?: string, mimeType?: string) {
   // 阶段 2：LLM 结构化整理
   try {
     log("structurer_call_started", { taskId });
@@ -223,6 +223,7 @@ async function executeSyncPipeline(taskId: string, rawAnalysis: string) {
     const structured = await structureAnalysis(rawAnalysis, {
       taskId,
       source: "analysis_route",
+      ...(imageUrl ? { imageUrl, mimeType } : {}),
     });
     log("structurer_call_completed", { taskId, duration: Date.now() - structStartTime });
 

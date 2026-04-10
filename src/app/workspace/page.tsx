@@ -369,8 +369,8 @@ export default function WorkspacePage() {
       <div
         className={`grid flex-1 gap-4 px-6 pb-4 pt-4 ${
           useThreeColumns
-            ? "grid-cols-[1fr_360px_320px]"
-            : "grid-cols-[1fr_320px]"
+            ? "grid-cols-[minmax(500px,1fr)_420px_460px]"
+            : "grid-cols-[minmax(500px,1fr)_460px]"
         }`}
         style={{ minHeight: 0 }}
       >
