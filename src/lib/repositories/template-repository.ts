@@ -87,7 +87,7 @@ export async function findAllByUserId(
     .select({
       id: templates.id,
       name: templates.name,
-      variableCount: sql<number>`COALESCE(array_length(${templates.variables}, 1), 0)`,
+      variableCount: sql<number>`COALESCE(jsonb_array_length(${templates.variables}), 0)`,
       createdAt: templates.createdAt,
     })
     .from(templates)

@@ -26,6 +26,56 @@ export interface WebhookResult {
   status: number;
 }
 
+function log(event: string, data: Record<string, unknown>) {
+  console.log(JSON.stringify({
+    event,
+    timestamp: new Date().toISOString(),
+    ...data,
+  }));
+}
+
+function logError(event: string, data: Record<string, unknown>) {
+  console.error(JSON.stringify({
+    event,
+    timestamp: new Date().toISOString(),
+    ...data,
+  }));
+}
+
+function summarizeOutput(output: unknown): Record<string, unknown> {
+  if (typeof output === 'string') {
+    return {
+      outputType: 'string',
+      outputLength: output.length,
+      outputPreview: output.replace(/\s+/g, ' ').trim().slice(0, 120),
+    };
+  }
+
+  if (Array.isArray(output)) {
+    const first = output[0];
+    return {
+      outputType: 'array',
+      outputLength: output.length,
+      firstItemType: typeof first,
+      firstItemPreview:
+        typeof first === 'string'
+          ? first.replace(/\s+/g, ' ').trim().slice(0, 120)
+          : null,
+    };
+  }
+
+  if (output && typeof output === 'object') {
+    return {
+      outputType: 'object',
+      outputKeys: Object.keys(output as Record<string, unknown>),
+    };
+  }
+
+  return {
+    outputType: output === null ? 'null' : typeof output,
+  };
+}
+
 /**
  * 处理 Replicate Webhook 回调
  * 使用 Replicate SDK 的 validateWebhook 验证签名并分发到相应的处理逻辑
@@ -59,23 +109,19 @@ export async function handleReplicateWebhook(input: WebhookInput): Promise<Webho
     }
   }
 
-  console.log(JSON.stringify({
-    event: 'webhook_received',
-    timestamp: new Date().toISOString(),
+  log('webhook_received', {
     taskId,
     taskType,
     signatureValid,
-  }));
+  });
 
   // 签名验证失败
   if (!webhookSecret) {
-    console.error(JSON.stringify({
-      event: 'webhook_signature_validation_failed',
-      timestamp: new Date().toISOString(),
+    logError('webhook_signature_validation_failed', {
       taskId,
       taskType,
       reason: 'REPLICATE_WEBHOOK_SECRET not configured',
-    }));
+    });
     return {
       response: { ok: false, message: 'Webhook secret not configured' },
       status: 500,
@@ -83,13 +129,11 @@ export async function handleReplicateWebhook(input: WebhookInput): Promise<Webho
   }
 
   if (!signatureValid) {
-    console.error(JSON.stringify({
-      event: 'webhook_signature_validation_failed',
-      timestamp: new Date().toISOString(),
+    logError('webhook_signature_validation_failed', {
       taskId,
       taskType,
       reason: 'Invalid signature',
-    }));
+    });
     return {
       response: { ok: false, message: 'Invalid signature' },
       status: 401,
@@ -101,13 +145,11 @@ export async function handleReplicateWebhook(input: WebhookInput): Promise<Webho
   try {
     prediction = JSON.parse(body);
   } catch (error) {
-    console.error(JSON.stringify({
-      event: 'webhook_payload_parse_failed',
-      timestamp: new Date().toISOString(),
+    logError('webhook_payload_parse_failed', {
       taskId,
       taskType,
       error: error instanceof Error ? error.message : 'Unknown error',
-    }));
+    });
     return {
       response: { ok: false, message: 'Invalid payload' },
       status: 400,
@@ -119,26 +161,22 @@ export async function handleReplicateWebhook(input: WebhookInput): Promise<Webho
     if (taskType === 'analysis') {
       const result = await handleAnalysisWebhook(taskId, prediction);
       const duration = Date.now() - startTime;
-      console.log(JSON.stringify({
-        event: 'webhook_analysis_processed',
-        timestamp: new Date().toISOString(),
+      log('webhook_analysis_processed', {
         taskId,
         status: prediction.status,
         duration,
         result,
-      }));
+      });
       return result;
     } else if (taskType === 'generation') {
       const result = await handleGenerationWebhook(taskId, prediction);
       const duration = Date.now() - startTime;
-      console.log(JSON.stringify({
-        event: 'webhook_generation_processed',
-        timestamp: new Date().toISOString(),
+      log('webhook_generation_processed', {
         taskId,
         status: prediction.status,
         duration,
         result,
-      }));
+      });
       return result;
     } else {
       return {
@@ -147,13 +185,12 @@ export async function handleReplicateWebhook(input: WebhookInput): Promise<Webho
       };
     }
   } catch (error) {
-    console.error(JSON.stringify({
-      event: 'webhook_processing_failed',
-      timestamp: new Date().toISOString(),
+    logError('webhook_processing_failed', {
       taskId,
       taskType,
+      errorName: error instanceof Error ? error.name : 'UnknownError',
       error: error instanceof Error ? error.message : 'Unknown error',
-    }));
+    });
     return {
       response: { ok: false, message: 'Processing failed' },
       status: 500,
@@ -200,12 +237,36 @@ async function handleAnalysisWebhook(
 
   // 4. 处理成功状态
   if (prediction.status === 'succeeded') {
+    log('webhook_analysis_prediction_succeeded', {
+      taskId,
+      predictionId: prediction.id,
+      ...summarizeOutput(prediction.output),
+    });
+
     // 提取视觉分析结果文本
     const rawAnalysis = extractRawAnalysis(prediction.output);
+    log('webhook_analysis_raw_extracted', {
+      taskId,
+      predictionId: prediction.id,
+      rawAnalysisLength: rawAnalysis.length,
+      rawAnalysisPreview: rawAnalysis.replace(/\s+/g, ' ').trim().slice(0, 120),
+    });
 
     try {
       // 同步调用 Gemini 结构化整理
-      const structured = await structureAnalysis(rawAnalysis);
+      const structStartTime = Date.now();
+      log('webhook_analysis_structurer_started', { taskId, predictionId: prediction.id });
+      const structured = await structureAnalysis(rawAnalysis, {
+        taskId,
+        source: 'analysis_webhook',
+      });
+      log('webhook_analysis_structurer_completed', {
+        taskId,
+        predictionId: prediction.id,
+        duration: Date.now() - structStartTime,
+        promptLength: structured.promptText.length,
+        negativePromptLength: structured.negativePromptText.length,
+      });
 
       // 更新任务为完成状态
       await updateAnalysisTask(taskId, {
@@ -223,12 +284,25 @@ async function handleAnalysisWebhook(
     } catch (error) {
       // L3 降级：结构化失败时保存原始分析文本
       if (error instanceof StructurerError) {
+        logError('webhook_analysis_structurer_failed', {
+          taskId,
+          predictionId: prediction.id,
+          errorName: error.name,
+          error: error.message,
+          fallbackApplied: true,
+        });
         await updateAnalysisTask(taskId, {
           status: 'completed',
           promptText: rawAnalysis,
           rawResponse: rawAnalysis,
           errorStage: 'llm',
           errorMessage: error.message,
+        });
+        log('webhook_analysis_fallback_saved', {
+          taskId,
+          predictionId: prediction.id,
+          errorStage: 'llm',
+          promptLength: rawAnalysis.length,
         });
         return {
           response: { ok: true, message: 'Analysis completed with fallback' },
@@ -349,31 +423,33 @@ async function handleGenerationWebhook(
  * 从 prediction output 提取原始分析文本
  */
 function extractRawAnalysis(output: unknown): string {
-  if (typeof output === 'string') {
-    return output;
+  const segments = extractTextSegments(output);
+  if (segments.length > 0) {
+    return segments.join('\n');
   }
-
-  if (Array.isArray(output) && output.length > 0) {
-    const first = output[0];
-    if (typeof first === 'string') {
-      return first;
-    }
-  }
-
-  if (output && typeof output === 'object') {
-    const obj = output as Record<string, unknown>;
-    if (typeof obj.output === 'string') {
-      return obj.output;
-    }
-    if (typeof obj.text === 'string') {
-      return obj.text;
-    }
-    if (typeof obj.result === 'string') {
-      return obj.result;
-    }
-  }
-
   throw new Error('Failed to extract raw analysis from prediction output');
+}
+
+function extractTextSegments(value: unknown): string[] {
+  if (typeof value === 'string') {
+    return [value];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => extractTextSegments(item));
+  }
+
+  if (value && typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    for (const key of ['output', 'text', 'result']) {
+      const segments = extractTextSegments(obj[key]);
+      if (segments.length > 0) {
+        return segments;
+      }
+    }
+  }
+
+  return [];
 }
 
 /**

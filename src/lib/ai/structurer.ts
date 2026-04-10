@@ -1,9 +1,25 @@
-import { GoogleGenAI } from "@google/genai";
 import type { VisualRecipe } from "@/types/models";
-import { STRUCTURER_SYSTEM_PROMPT } from "./prompts";
+import { getStructurerProvider } from "./providers";
+import type { StructurerContext } from "./providers/types";
 
-const GEMINI_MODEL = "gemini-2.5-flash";
-const TIMEOUT_MS = 30_000;
+function log(event: string, data: Record<string, unknown>) {
+  console.log(JSON.stringify({
+    event,
+    timestamp: new Date().toISOString(),
+    ...data,
+  }));
+}
+
+function sanitizePreview(text: string, maxLength = 160): string {
+  return text.replace(/\s+/g, " ").trim().slice(0, maxLength);
+}
+
+type JsonParseStrategy = "trimmed" | "markdown_fence" | "object_slice";
+
+interface JsonParseCandidate {
+  strategy: JsonParseStrategy;
+  text: string;
+}
 
 /** LLM 结构化整理阶段失败 */
 export class StructurerError extends Error {
@@ -20,69 +36,145 @@ export interface StructuredResult {
   negativePromptText: string;
 }
 
+export type { StructurerContext } from "./providers/types";
+
 /**
- * 调用 Gemini LLM 将视觉分析文本整理为结构化 VisualRecipe + Prompt
- * @param rawAnalysis 视觉理解阶段的原始分析文本
- * @returns 结构化结果：recipe、promptText、negativePromptText
+ * 调用配置启用的 Structurer Provider，将视觉分析文本整理为结构化 VisualRecipe + Prompt
  */
 export async function structureAnalysis(
-  rawAnalysis: string
+  rawAnalysis: string,
+  context: StructurerContext = {}
 ): Promise<StructuredResult> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new StructurerError("GEMINI_API_KEY is not configured");
-  }
+  const meta = {
+    taskId: context.taskId ?? "unknown",
+    source: context.source ?? "unknown",
+    provider: process.env.VISION_PROVIDER || "replicate",
+    rawAnalysisLength: rawAnalysis.length,
+  };
 
-  const ai = new GoogleGenAI({ apiKey });
+  log("structurer_started", meta);
 
   try {
-    const response = await Promise.race([
-      ai.models.generateContent({
-        model: GEMINI_MODEL,
-        contents: [
-          {
-            role: "user",
-            parts: [
-              { text: STRUCTURER_SYSTEM_PROMPT },
-              {
-                text: `Here is the visual analysis to structure:\n\n${rawAnalysis}`,
-              },
-            ],
-          },
-        ],
-        config: {
-          responseMimeType: "application/json",
-        },
-      }),
-      new Promise<never>((_, reject) =>
-        setTimeout(
-          () =>
-            reject(
-              new StructurerError(
-                "Structure analysis timed out after 30s"
-              )
-            ),
-          TIMEOUT_MS
-        )
-      ),
-    ]);
-
-    const text = response.text;
-    if (!text) {
-      throw new StructurerError("Structurer model returned empty response");
-    }
-
-    const parsed: unknown = JSON.parse(text);
-    const result = validateStructuredResult(parsed);
+    const provider = getStructurerProvider();
+    const text = await provider.structure({ rawAnalysis, context });
+    const result = parseStructuredResponseText(text, meta);
+    log("structurer_completed", {
+      ...meta,
+      promptLength: result.promptText.length,
+      negativePromptLength: result.negativePromptText.length,
+      recipeKeys: Object.keys(result.recipe),
+    });
     return result;
   } catch (error) {
+    log("structurer_failed", {
+      ...meta,
+      stage: "runtime",
+      errorName: error instanceof Error ? error.name : "UnknownError",
+      error:
+        error instanceof Error ? error.message : "Unknown structurer error",
+      cause: getErrorCauseMessage(error),
+    });
+
     if (error instanceof StructurerError) {
       throw error;
     }
+
     const message =
       error instanceof Error ? error.message : "Unknown structurer error";
     throw new StructurerError(`Structure analysis failed: ${message}`);
   }
+}
+
+function parseStructuredResponseText(
+  text: string,
+  meta: Record<string, unknown>
+): StructuredResult {
+  let parsed: unknown;
+  let lastError: unknown = null;
+
+  for (const candidate of getJsonParseCandidates(text)) {
+    try {
+      parsed = JSON.parse(candidate.text);
+      if (candidate.strategy !== "trimmed") {
+        log("structurer_json_normalized", {
+          ...meta,
+          strategy: candidate.strategy,
+          responsePreview: sanitizePreview(text),
+          normalizedPreview: sanitizePreview(candidate.text),
+        });
+      }
+      return validateStructuredResult(parsed);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  const message =
+    lastError instanceof Error ? lastError.message : "Unknown JSON parse error";
+  log("structurer_json_parse_failed", {
+    ...meta,
+    error: message,
+    responsePreview: sanitizePreview(text),
+  });
+  throw new StructurerError(`Failed to parse structurer JSON: ${message}`);
+}
+
+function getJsonParseCandidates(text: string): JsonParseCandidate[] {
+  const trimmed = text.trim();
+  const candidates: JsonParseCandidate[] = [];
+  const seen = new Set<string>();
+
+  const addCandidate = (strategy: JsonParseStrategy, value: string | undefined) => {
+    const normalized = value?.trim();
+    if (!normalized || seen.has(normalized)) {
+      return;
+    }
+    seen.add(normalized);
+    candidates.push({ strategy, text: normalized });
+  };
+
+  addCandidate("trimmed", trimmed);
+
+  const fencedMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  if (fencedMatch) {
+    addCandidate("markdown_fence", fencedMatch[1]);
+  }
+
+  const firstObjectBrace = trimmed.indexOf("{");
+  const lastObjectBrace = trimmed.lastIndexOf("}");
+  if (firstObjectBrace !== -1 && lastObjectBrace > firstObjectBrace) {
+    addCandidate(
+      "object_slice",
+      trimmed.slice(firstObjectBrace, lastObjectBrace + 1)
+    );
+  }
+
+  return candidates;
+}
+
+function getErrorCauseMessage(error: unknown): string | null {
+  if (!(error instanceof Error)) {
+    return null;
+  }
+
+  const cause = (error as Error & { cause?: unknown }).cause;
+  if (!cause) {
+    return null;
+  }
+
+  if (cause instanceof Error) {
+    return `${cause.name}: ${cause.message}`;
+  }
+
+  if (typeof cause === "object") {
+    try {
+      return JSON.stringify(cause);
+    } catch {
+      return String(cause);
+    }
+  }
+
+  return String(cause);
 }
 
 /** 验证并断言 parsed 数据符合 StructuredResult 结构 */

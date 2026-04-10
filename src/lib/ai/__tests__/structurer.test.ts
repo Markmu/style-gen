@@ -2,6 +2,7 @@ import { structureAnalysis, StructurerError } from "../structurer";
 
 // Mock @google/genai
 const mockGenerateContent = vi.fn();
+const mockReplicateRun = vi.fn();
 
 vi.mock("@google/genai", () => {
   return {
@@ -12,6 +13,14 @@ vi.mock("@google/genai", () => {
         },
       };
     }),
+  };
+});
+
+vi.mock("replicate", () => {
+  return {
+    default: class MockReplicate {
+      run = mockReplicateRun;
+    },
   };
 });
 
@@ -72,7 +81,12 @@ describe("structurer", () => {
         },
       } as unknown as InstanceType<typeof GoogleGenAI>;
     });
-    process.env = { ...ORIGINAL_ENV, GEMINI_API_KEY: "test-api-key" };
+    process.env = {
+      ...ORIGINAL_ENV,
+      VISION_PROVIDER: "gemini",
+      GEMINI_API_KEY: "test-api-key",
+      REPLICATE_API_TOKEN: "test-replicate-token",
+    };
   });
 
   afterEach(() => {
@@ -159,12 +173,69 @@ describe("structurer", () => {
       );
     });
 
+    it("Markdown code fence 包裹的 JSON 也能成功解析", async () => {
+      process.env.VISION_PROVIDER = "replicate";
+      mockReplicateRun.mockResolvedValue([
+        "```json\n",
+        JSON.stringify(VALID_RESULT, null, 2),
+        "\n```",
+      ]);
+
+      const result = await structureAnalysis("raw analysis text", {
+        taskId: "task-1",
+        source: "analysis_webhook",
+      });
+
+      expect(result).toEqual(VALID_RESULT);
+    });
+
     it("StructurerError 透传不被二次包装", async () => {
       const originalError = new StructurerError("Custom structurer error");
       mockGenerateContent.mockRejectedValue(originalError);
 
       await expect(structureAnalysis("raw analysis")).rejects.toThrow(
         originalError
+      );
+    });
+
+    it("VISION_PROVIDER=replicate 时通过 Replicate provider 调用", async () => {
+      process.env.VISION_PROVIDER = "replicate";
+      mockReplicateRun.mockResolvedValue([JSON.stringify(VALID_RESULT)]);
+
+      const result = await structureAnalysis("raw analysis text", {
+        taskId: "task-1",
+        source: "analysis_webhook",
+      });
+
+      expect(result).toEqual(VALID_RESULT);
+      expect(mockReplicateRun).toHaveBeenCalledWith(
+        "google/gemini-2.5-flash",
+        expect.objectContaining({
+          input: expect.objectContaining({
+            system_instruction: expect.stringContaining(
+              "Output ONLY valid JSON"
+            ),
+            prompt: expect.stringContaining("raw analysis text"),
+            temperature: 0,
+            thinking_budget: 0,
+          }),
+          wait: {
+            mode: "block",
+            timeout: 30,
+          },
+        })
+      );
+    });
+
+    it("VISION_PROVIDER=replicate 但缺少 token 时抛出 StructurerError", async () => {
+      process.env.VISION_PROVIDER = "replicate";
+      delete process.env.REPLICATE_API_TOKEN;
+
+      await expect(structureAnalysis("raw analysis")).rejects.toThrow(
+        StructurerError
+      );
+      await expect(structureAnalysis("raw analysis")).rejects.toThrow(
+        "REPLICATE_API_TOKEN environment variable is required for Replicate provider"
       );
     });
   });

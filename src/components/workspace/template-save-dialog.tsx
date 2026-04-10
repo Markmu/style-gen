@@ -157,6 +157,7 @@ export function TemplateSaveDialog({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       onClick={onClose}
       onKeyDown={handleKeyDown}
+      tabIndex={-1}
     >
       {/* 对话框主体 */}
       <div

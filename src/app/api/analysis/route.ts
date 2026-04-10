@@ -220,7 +220,10 @@ async function executeSyncPipeline(taskId: string, rawAnalysis: string) {
   try {
     log("structurer_call_started", { taskId });
     const structStartTime = Date.now();
-    const structured = await structureAnalysis(rawAnalysis);
+    const structured = await structureAnalysis(rawAnalysis, {
+      taskId,
+      source: "analysis_route",
+    });
     log("structurer_call_completed", { taskId, duration: Date.now() - structStartTime });
 
     // 成功：保存 recipe、promptText、negativePromptText、rawResponse

@@ -199,6 +199,69 @@ describe('webhook-handler', () => {
       });
     });
 
+    it('应该拼接完整的数组输出再进行结构化', async () => {
+      const rawAnalysis = [
+        "Here's a detailed visual analysis of the image:",
+        '1. Image Summary: A smiling chef in a white jacket.',
+        '2. Lighting: Soft warm studio lighting.',
+      ].join('\n');
+      const body = JSON.stringify({
+        id: 'pred-1',
+        status: 'succeeded',
+        output: [
+          "Here's a detailed visual analysis of the image:",
+          '1. Image Summary: A smiling chef in a white jacket.',
+          '2. Lighting: Soft warm studio lighting.',
+        ],
+      });
+      const request = createMockRequest(body, 'v1,sig');
+
+      vi.mocked(findAnalysisTaskByIdInternal).mockResolvedValue(mockAnalysisTask);
+      vi.mocked(structureAnalysis).mockResolvedValue({
+        recipe: {
+          imageSummary: 'test summary',
+          subject: 'test subject',
+          scene: 'test scene',
+          composition: 'test composition',
+          cameraLanguage: 'test camera',
+          lighting: 'test lighting',
+          color: 'test color',
+          texture: 'test texture',
+          styleTags: ['tag1', 'tag2'],
+          mood: 'test mood',
+          visualKeywords: ['keyword1', 'keyword2'],
+          mustKeep: ['keep1'],
+          replaceable: ['replace1'],
+        },
+        promptText: 'test prompt',
+        negativePromptText: 'test negative',
+      });
+      vi.mocked(updateAnalysisTask).mockResolvedValue({
+        ...mockAnalysisTask,
+        status: 'completed',
+      });
+
+      const result = await handleReplicateWebhook({
+        taskType: 'analysis',
+        taskId: mockTaskId,
+        request,
+      });
+
+      expect(result.status).toBe(200);
+      expect(result.response.ok).toBe(true);
+      expect(structureAnalysis).toHaveBeenCalledWith(rawAnalysis, {
+        taskId: mockTaskId,
+        source: 'analysis_webhook',
+      });
+      expect(updateAnalysisTask).toHaveBeenCalledWith(mockTaskId, {
+        status: 'completed',
+        recipe: expect.any(Object),
+        promptText: 'test prompt',
+        negativePromptText: 'test negative',
+        rawResponse: rawAnalysis,
+      });
+    });
+
     it('应该在结构化失败时进行 L3 降级', async () => {
       const body = JSON.stringify({
         id: 'pred-1',

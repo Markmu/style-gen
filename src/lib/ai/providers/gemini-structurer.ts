@@ -1,0 +1,91 @@
+import { GoogleGenAI } from "@google/genai";
+import { STRUCTURER_SYSTEM_PROMPT } from "../prompts";
+import type { StructurerProvider } from "./types";
+
+const MODEL = "gemini-2.5-flash";
+const TIMEOUT_MS = 30_000;
+
+function log(event: string, data: Record<string, unknown>) {
+  console.log(JSON.stringify({
+    event,
+    timestamp: new Date().toISOString(),
+    ...data,
+  }));
+}
+
+export class GeminiStructurerProvider implements StructurerProvider {
+  readonly name = "gemini" as const;
+  private client: GoogleGenAI;
+
+  constructor() {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("GEMINI_API_KEY is not configured");
+    }
+    this.client = new GoogleGenAI({ apiKey });
+  }
+
+  async structure(params: {
+    rawAnalysis: string;
+    context?: { taskId?: string; source?: "analysis_route" | "analysis_webhook" };
+  }): Promise<string> {
+    const startedAt = Date.now();
+    const meta = {
+      provider: this.name,
+      taskId: params.context?.taskId ?? "unknown",
+      source: params.context?.source ?? "unknown",
+      model: MODEL,
+      rawAnalysisLength: params.rawAnalysis.length,
+    };
+
+    try {
+      const response = await Promise.race([
+        this.client.models.generateContent({
+          model: MODEL,
+          contents: [
+            {
+              role: "user",
+              parts: [
+                { text: STRUCTURER_SYSTEM_PROMPT },
+                {
+                  text: `Here is the visual analysis to structure:\n\n${params.rawAnalysis}`,
+                },
+              ],
+            },
+          ],
+          config: {
+            responseMimeType: "application/json",
+          },
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error("Structure analysis timed out after 30s")),
+            TIMEOUT_MS
+          )
+        ),
+      ]);
+
+      const text = response.text;
+      log("structurer_provider_response_received", {
+        ...meta,
+        duration: Date.now() - startedAt,
+        hasText: Boolean(text),
+        textLength: text?.length ?? 0,
+      });
+
+      if (!text) {
+        throw new Error("Structurer model returned empty response");
+      }
+
+      return text;
+    } catch (error) {
+      log("structurer_provider_failed", {
+        ...meta,
+        duration: Date.now() - startedAt,
+        errorName: error instanceof Error ? error.name : "UnknownError",
+        error: error instanceof Error ? error.message : "Unknown structurer provider error",
+      });
+      throw error;
+    }
+  }
+}

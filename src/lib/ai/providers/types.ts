@@ -12,6 +12,21 @@ export interface VisionProvider {
   >;
 }
 
+export interface StructurerContext {
+  taskId?: string;
+  source?: 'analysis_route' | 'analysis_webhook';
+}
+
+/** 结构化整理 Provider 接口 */
+export interface StructurerProvider {
+  readonly name: 'replicate' | 'gemini';
+
+  structure(params: {
+    rawAnalysis: string;
+    context?: StructurerContext;
+  }): Promise<string>;
+}
+
 /** 图像生成 Provider 接口 */
 export interface ImageGenProvider {
   readonly name: 'replicate' | 'fal';
