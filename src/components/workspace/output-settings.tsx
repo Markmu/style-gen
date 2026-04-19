@@ -106,9 +106,10 @@ export function OutputSettings({
   const isGenerating = state === "generating";
   const isAnalysisReady = state === "analysis_ready";
   const isGenerationReady = state === "generation_ready";
+  const isHistoryRestored = state === "history_restored";
 
   const canGenerate =
-    (isAnalysisReady || isGenerationReady) && !generationUnavailable;
+    (isAnalysisReady || isGenerationReady || isHistoryRestored) && !generationUnavailable;
 
   const handleGenerate = useCallback(() => {
     if (!canGenerate) return;
@@ -136,7 +137,9 @@ export function OutputSettings({
     ? "正在生成..."
     : isGenerationReady
       ? "重新生成"
-      : "生成首版";
+      : isHistoryRestored
+        ? "生成"
+        : "生成首版";
 
   const stepTitle = isGenerationReady
     ? "Step 3 \u00B7 再次生成"

@@ -153,6 +153,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const cursorParam = searchParams.get("cursor");
     const limitParam = searchParams.get("limit");
+    const searchParam = searchParams.get("search");
 
     let cursor: string | undefined;
     if (cursorParam !== null) {
@@ -179,13 +180,30 @@ export async function GET(request: NextRequest) {
       limit = parsed;
     }
 
+    // search 参数校验：长度限制 ≤ 100 字符
+    let search: string | undefined;
+    if (searchParam !== null) {
+      if (searchParam.length > 100) {
+        return NextResponse.json(
+          { error: "search 参数长度不能超过 100 个字符", code: "INVALID_REQUEST", retryable: false },
+          { status: 400 }
+        );
+      }
+      // trim 后空字符串等同于不过滤
+      const trimmed = searchParam.trim();
+      if (trimmed.length > 0) {
+        search = trimmed;
+      }
+    }
+
     // 3. 查询列表
-    const result = await findAllByUserId(userId, { cursor, limit });
+    const result = await findAllByUserId(userId, { cursor, limit, search });
 
     log("template_list_queried", {
       userId,
       itemCount: result.items.length,
       hasMore: result.hasMore,
+      ...(search ? { search, userId } : {}),
       duration: Date.now() - startTime,
     });
 

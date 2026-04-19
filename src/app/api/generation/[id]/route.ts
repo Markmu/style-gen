@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { findGenerationTaskById } from "@/lib/repositories/generation-task-repository";
+import { findGenerationTaskById, findByIdWithRecipe } from "@/lib/repositories/generation-task-repository";
 import { findAssetById } from "@/lib/repositories/asset-repository";
 import { auth } from "@/auth";
 
@@ -36,7 +36,29 @@ export async function GET(
       );
     }
 
-    // 如果 completed 且有 resultAssetId，查询关联 Asset 获取 fileUrl
+    // 如果是 completed 状态，使用 findByIdWithRecipe 获取含 recipe 的详情
+    if (task.status === "completed") {
+      const detail = await findByIdWithRecipe(id, userId);
+      if (detail) {
+        return NextResponse.json({
+          id: detail.id,
+          analysisTaskId: detail.analysisTaskId,
+          status: detail.status,
+          promptSnapshot: detail.promptSnapshot,
+          negativePromptSnapshot: detail.negativePromptSnapshot,
+          params: detail.params,
+          modelName: detail.modelName,
+          resultAssetId: detail.resultAssetId,
+          resultFileUrl: detail.resultFileUrl,
+          recipe: detail.recipe ?? null,
+          errorMessage: null,
+          createdAt: detail.createdAt.toISOString(),
+          updatedAt: detail.updatedAt.toISOString(),
+        });
+      }
+    }
+
+    // 非 completed 状态或 findByIdWithRecipe 未返回结果：走原有逻辑
     let resultFileUrl: string | null = null;
     if (task.status === "completed" && task.resultAssetId) {
       const asset = await findAssetById(task.resultAssetId);

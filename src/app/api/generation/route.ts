@@ -3,6 +3,7 @@ import { findAnalysisTaskById } from "@/lib/repositories/analysis-task-repositor
 import {
   createGenerationTask,
   updateGenerationTask,
+  listCompleted,
 } from "@/lib/repositories/generation-task-repository";
 import { createAsset } from "@/lib/repositories/asset-repository";
 import { uploadBuffer, getPublicUrl } from "@/lib/r2";
@@ -12,6 +13,58 @@ import { buildWebhookUrl, startTimeoutTimer } from "@/lib/ai/webhook-utils";
 
 /** fal.ai 同步模式超时 120 秒 */
 const SYNC_GENERATION_TIMEOUT_MS = 120_000;
+
+// ─── GET /api/generation：历史列表 ─────────────────────────────────────
+
+export async function GET(request: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: "Unauthorized", code: "UNAUTHORIZED", retryable: false },
+        { status: 401 }
+      );
+    }
+    const userId = session.user.id;
+
+    const { searchParams } = request.nextUrl;
+    const rawPageSize = searchParams.get("pageSize");
+    const cursor = searchParams.get("cursor") ?? null;
+
+    // pageSize clamp 到 [1, 50]
+    let pageSize = 20;
+    if (rawPageSize !== null) {
+      const parsed = Number(rawPageSize);
+      if (!Number.isNaN(parsed)) {
+        pageSize = Math.max(1, Math.min(50, parsed));
+      }
+    }
+
+    const startTime = Date.now();
+    const result = await listCompleted(userId, cursor, pageSize);
+    const duration = Date.now() - startTime;
+
+    log("generation_history_list", { duration, itemCount: result.items.length, userId });
+
+    return NextResponse.json({
+      items: result.items.map((item) => ({
+        id: item.id,
+        resultFileUrl: item.resultFileUrl,
+        createdAt: item.createdAt.toISOString(),
+      })),
+      nextCursor: result.nextCursor,
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Internal server error";
+    return NextResponse.json(
+      { error: message, code: "SERVICE_UNAVAILABLE", retryable: true },
+      { status: 500 }
+    );
+  }
+}
+
+// ─── POST /api/generation：创建生成任务 ────────────────────────────────
 
 interface GenerationRequestBody {
   analysisTaskId: string;

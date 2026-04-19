@@ -39,6 +39,11 @@ const STATUS_BAR_CONFIG: Record<WorkspaceState, StatusBarConfig> = {
     description: "已生成首版结果，可继续对比、下载或迭代",
     showReplaceButton: true,
   },
+  history_restored: {
+    label: "历史已恢复",
+    description: "从历史记录恢复，可调整参数后重新生成",
+    showReplaceButton: true,
+  },
 };
 
 interface StatusBarProps {
@@ -111,5 +116,7 @@ function getStatusColor(state: WorkspaceState): string {
       return "bg-emerald-500/10 text-emerald-400";
     case "generation_ready":
       return "bg-emerald-500/10 text-emerald-400";
+    case "history_restored":
+      return "bg-blue-500/10 text-blue-400";
   }
 }

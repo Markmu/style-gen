@@ -26,7 +26,8 @@ export type WorkspaceState =
   | "analyzing"
   | "analysis_ready"
   | "generating"
-  | "generation_ready";
+  | "generation_ready"
+  | "history_restored";
 
 export interface WorkspaceError {
   message: string;
@@ -198,6 +199,14 @@ export interface WorkspaceActions {
   setGenerationUnavailable: (unavailable: boolean) => void;
   setAnalysisUnavailable: (unavailable: boolean) => void;
   toggleRecipeExpanded: () => void;
+  enterHistoryRestored: (
+    resultFileUrl: string,
+    recipe: VisualRecipe | null,
+    promptSnapshot: string,
+    negativePromptSnapshot: string,
+    analysisTaskId: string
+  ) => void;
+  exitHistoryRestored: () => void;
 }
 
 export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
@@ -377,6 +386,36 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
     }));
   }, []);
 
+  const enterHistoryRestored = useCallback(
+    (
+      resultFileUrl: string,
+      recipe: VisualRecipe | null,
+      promptSnapshot: string,
+      negativePromptSnapshot: string,
+      analysisTaskId: string
+    ) => {
+      setCtx((prev) => ({
+        ...prev,
+        state: "history_restored",
+        resultImageUrl: resultFileUrl,
+        recipe,
+        promptText: promptSnapshot,
+        negativePromptText: negativePromptSnapshot,
+        analysisTaskId,
+        error: null,
+      }));
+    },
+    []
+  );
+
+  const exitHistoryRestored = useCallback(() => {
+    setCtx((prev) => ({
+      ...prev,
+      state: "idle",
+      resultImageUrl: null,
+    }));
+  }, []);
+
   // 持久化关键状态到 sessionStorage
   useEffect(() => {
     // 仅在客户端执行，且跳过初始恢复时的写入
@@ -422,5 +461,7 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
     setGenerationUnavailable,
     setAnalysisUnavailable,
     toggleRecipeExpanded,
+    enterHistoryRestored,
+    exitHistoryRestored,
   };
 }

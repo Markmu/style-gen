@@ -1,4 +1,4 @@
-import { eq, and, desc, lt, sql } from "drizzle-orm";
+import { eq, and, desc, lt, sql, ilike } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { templates } from "@/lib/db/schema";
 import { generateId } from "@/lib/ulid";
@@ -64,6 +64,8 @@ export async function findByName(
 export interface TemplatePaginationParams {
   cursor?: string;
   limit?: number;
+  /** 模板名称模糊搜索关键词（ILIKE） */
+  search?: string;
 }
 
 /** 分页查询结果 */
@@ -76,12 +78,23 @@ export interface TemplatePaginatedResult<T> {
 /**
  * 获取用户模板列表（cursor-based 分页，按创建时间倒序）
  * 返回精简字段，不含完整 content（架构 6.2 原则）
+ * 支持 search 参数进行名称模糊匹配（ILIKE）
  */
 export async function findAllByUserId(
   userId: string,
   params: TemplatePaginationParams = {}
 ): Promise<TemplatePaginatedResult<{ id: string; name: string; variableCount: number; createdAt: Date }>> {
   const limit = Math.min(params.limit ?? 10, 50);
+
+  // 构建基础 WHERE 条件：userId + 可选 cursor
+  const baseConditions = params.cursor
+    ? [eq(templates.userId, userId), lt(templates.createdAt, new Date(params.cursor))]
+    : [eq(templates.userId, userId)];
+
+  // 追加 search ILIKE 条件
+  if (params.search && params.search.trim().length > 0) {
+    baseConditions.push(ilike(templates.name, `%${params.search.trim()}%`));
+  }
 
   const rows = await db
     .select({
@@ -91,14 +104,7 @@ export async function findAllByUserId(
       createdAt: templates.createdAt,
     })
     .from(templates)
-    .where(
-      params.cursor
-        ? and(
-            eq(templates.userId, userId),
-            lt(templates.createdAt, new Date(params.cursor))
-          )
-        : eq(templates.userId, userId)
-    )
+    .where(and(...baseConditions))
     .orderBy(desc(templates.createdAt))
     .limit(limit + 1); // 多查一条判断 hasMore
 

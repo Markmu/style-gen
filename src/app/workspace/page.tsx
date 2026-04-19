@@ -1,14 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, Suspense } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useFileStore } from "@/components/landing/use-file-store";
 import { useWorkspaceState } from "@/hooks/use-workspace-state";
 import { useUpload } from "@/hooks/use-upload";
 import { useAnalysis } from "@/hooks/use-analysis";
 import { useGeneration } from "@/hooks/use-generation";
+import { useHistoryRestore } from "@/hooks/use-history-restore";
 import { StatusBar } from "@/components/workspace/status-bar";
 import { WorkspaceCanvas } from "@/components/workspace/workspace-canvas";
-import { RecipeStep } from "@/components/workspace/recipe-step";
+import { RecipeEditorWithDegrade } from "@/components/workspace/recipe-editor";
 import { PromptEditor } from "@/components/workspace/prompt-editor";
 import {
   OutputSettings,
@@ -17,8 +20,8 @@ import {
 } from "@/components/workspace/output-settings";
 import { AnalysisProgress } from "@/components/workspace/analysis-progress";
 import { TemplateSaveDialog } from "@/components/workspace/template-save-dialog";
-import { TemplateDrawer } from "@/components/workspace/template-drawer";
 import { TemplateWizard } from "@/components/workspace/template-wizard";
+import { HistoryPanel } from "@/components/workspace/history-panel";
 import { extractVariables } from "@/lib/template-parser";
 
 /** L1 degradation threshold: show queueing hint after 60s */
@@ -42,19 +45,22 @@ function getImageDimensions(
   });
 }
 
-export default function WorkspacePage() {
+function WorkspacePageInner() {
   const fileStore = useFileStore();
   const ws = useWorkspaceState();
   const { upload, progress, isUploading } = useUpload();
   const { data: analysisData } = useAnalysis(ws.analysisTaskId);
   const { data: generationData } = useGeneration(ws.generationTaskId);
+  const { restore: restoreHistory, isRestoring: _isRestoring } = useHistoryRestore();
+  const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const hasConsumedFile = useRef(false);
   const analysisStartTime = useRef<number | null>(null);
   const generationStartTime = useRef<number | null>(null);
 
   // Template UI state
   const [showTemplateSaveDialog, setShowTemplateSaveDialog] = useState(false);
-  const [showTemplateDrawer, setShowTemplateDrawer] = useState(false);
   const [templateWarning, setTemplateWarning] = useState(false);
 
   // Wizard state (P1)
@@ -63,6 +69,44 @@ export default function WorkspacePage() {
     variables: import("@/types/models").TemplateVariable[];
     originalContent: string;
   } | null>(null);
+
+  // FEAT-04: templateId query 参数加载逻辑
+  useEffect(() => {
+    const templateId = searchParams.get("templateId");
+    if (!templateId) return;
+
+    let aborted = false;
+
+    async function loadTemplate() {
+      try {
+        const res = await fetch(`/api/templates/${templateId}`);
+        if (!res.ok) throw new Error("Template not found");
+        const template = await res.json();
+
+        if (aborted) return;
+
+        const variables = extractVariables(template.content);
+        if (variables.length > 0) {
+          setWizardContext({ variables, originalContent: template.content });
+          setShowWizard(true);
+        } else {
+          ws.setPromptText(template.content);
+        }
+      } catch {
+        // 模板不存在或加载失败，静默处理（不阻塞用户）
+        console.error("加载模板失败:", templateId);
+      } finally {
+        if (!aborted) {
+          router.replace("/workspace");
+        }
+      }
+    }
+
+    void loadTemplate();
+
+    return () => { aborted = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams.get("templateId")]);
 
 
   // Handle file from landing page (T06 global state)
@@ -163,6 +207,8 @@ export default function WorkspacePage() {
 
     if (generationData.status === "completed" && generationData.resultFileUrl) {
       ws.completeGeneration(generationData.resultFileUrl);
+      // FEAT-02: 生成完成后刷新历史列表
+      queryClient.invalidateQueries({ queryKey: ["generation-history"] });
     } else if (generationData.status === "failed") {
       ws.failGeneration(generationData.errorMessage ?? "生成失败");
     }
@@ -322,6 +368,26 @@ export default function WorkspacePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // FEAT-02: 历史恢复回调
+  const handleHistoryRestore = useCallback(
+    async (id: string) => {
+      try {
+        const restoredData = await restoreHistory(id);
+        ws.enterHistoryRestored(
+          restoredData.resultFileUrl,
+          restoredData.recipe,
+          restoredData.promptSnapshot,
+          restoredData.negativePromptSnapshot,
+          restoredData.analysisTaskId
+        );
+      } catch (err) {
+        // Toast 提示错误（简单 console.warn，后续可接入 toast 系统）
+        console.error("历史恢复失败:", err instanceof Error ? err.message : err);
+      }
+    },
+    [restoreHistory, ws]
+  );
+
   // --- Layout logic (lifted from DecisionPanel) ---
   const isAnalyzing = ws.state === "analyzing";
   const isGenerationReady = ws.state === "generation_ready";
@@ -334,17 +400,20 @@ export default function WorkspacePage() {
     ws.state === "analysis_ready" ||
     ws.state === "generating" ||
     ws.state === "generation_ready" ||
+    ws.state === "history_restored" ||
     hasAnalysisError;
 
   const showPromptEditor =
     ws.state === "analysis_ready" ||
     ws.state === "generating" ||
-    ws.state === "generation_ready";
+    ws.state === "generation_ready" ||
+    ws.state === "history_restored";
 
   const showOutputSettings =
     ws.state === "analysis_ready" ||
     ws.state === "generating" ||
-    ws.state === "generation_ready";
+    ws.state === "generation_ready" ||
+    ws.state === "history_restored";
 
   // Three-column grid when prompt editor is visible
   const useThreeColumns = showPromptEditor;
@@ -354,44 +423,77 @@ export default function WorkspacePage() {
     : "Step 2 \u00B7 生成指令";
 
   return (
-    <main className="flex h-[calc(100dvh-3.5rem)] flex-col overflow-hidden bg-[var(--surface-base)]">
-      <h1 className="sr-only">工作区</h1>
+    <div className="flex h-full">
+      {/* 中央工作区 */}
+      <div className="flex-1 min-w-0 overflow-auto">
+        <h1 className="sr-only">工作区</h1>
 
-      {/* Compact StatusBar */}
-      <StatusBar
-        state={ws.state}
-        error={ws.error}
-        resultImageUrl={ws.resultImageUrl}
-        onReplace={handleReplace}
-      />
+        {/* Compact StatusBar */}
+        <StatusBar
+          state={ws.state}
+          error={ws.error}
+          resultImageUrl={ws.resultImageUrl}
+          onReplace={handleReplace}
+        />
 
-      {/* Workspace grid: 2-col (idle/analyzing) or 3-col (analysis_ready+) */}
-      <div
-        className={`grid flex-1 gap-4 px-6 pb-4 pt-4 ${
-          useThreeColumns
-            ? "grid-cols-[minmax(500px,1fr)_420px_460px]"
-            : "grid-cols-[minmax(500px,1fr)_460px]"
-        }`}
-        style={{ minHeight: 0 }}
-      >
-        {/* Left column: Canvas */}
-        <div className="min-h-0 overflow-y-auto rounded-xl">
-          <WorkspaceCanvas
-            state={ws.state}
-            referenceImageUrl={ws.referenceImageUrl}
-            resultImageUrl={ws.resultImageUrl}
-            recipe={ws.recipe}
-            isUploading={isUploading || ws.state === "uploading"}
-            uploadProgress={progress}
-            onFileSelected={handleFileSelected}
-            onReplace={handleReplace}
-          />
-        </div>
+        {/* Workspace grid: 2-col (idle/analyzing) or 3-col (analysis_ready+) */}
+        <div
+          className={`grid flex-1 gap-4 px-6 pb-4 pt-4 ${
+            useThreeColumns
+              ? "grid-cols-[minmax(500px,1fr)_420px_460px]"
+              : "grid-cols-[minmax(500px,1fr)_460px]"
+          }`}
+          style={{ minHeight: 0 }}
+        >
+          {/* Left column: Canvas */}
+          <div className="min-h-0 overflow-y-auto rounded-xl">
+            <WorkspaceCanvas
+              state={ws.state}
+              referenceImageUrl={ws.referenceImageUrl}
+              resultImageUrl={ws.resultImageUrl}
+              recipe={ws.recipe}
+              isUploading={isUploading || ws.state === "uploading"}
+              uploadProgress={progress}
+              onFileSelected={handleFileSelected}
+              onReplace={handleReplace}
+            />
+          </div>
 
-        {/* Middle column: Recipe / Analysis (three-column mode only) */}
-        {useThreeColumns && (
-          <div className="min-h-0 overflow-y-auto">
-            {showRecipeStep && (
+          {/* Middle column: Recipe / Analysis (three-column mode only) */}
+          {useThreeColumns && (
+            <div className="min-h-0 overflow-y-auto transition-all duration-200">
+              {showRecipeStep && (
+                <>
+                  {isAnalyzing && !ws.degradation.analysisQueueing ? (
+                    <AnalysisProgress
+                      isAnalyzing={isAnalyzing}
+                      error={null}
+                      onRetry={handleRetry}
+                    />
+                  ) : (
+                    <RecipeEditorWithDegrade
+                      recipe={ws.recipe}
+                      state={ws.state}
+                      degradation={ws.degradation}
+                      promptText={ws.promptText}
+                      error={ws.error}
+                      onRetry={handleRetry}
+                      onReplace={handleReplace}
+                    />
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Right column: Prompt Editor + Output Settings (or guide) */}
+          <div className="min-h-0 space-y-4 overflow-y-auto transition-all duration-200">
+            {/* Idle / uploading empty state guide */}
+            {(ws.state === "idle" || ws.state === "uploading") &&
+              !ws.error && <EmptyStateGuide />}
+
+            {/* Two-column fallback: show recipe here when not in three-column mode */}
+            {!useThreeColumns && showRecipeStep && (
               <>
                 {isAnalyzing && !ws.degradation.analysisQueueing ? (
                   <AnalysisProgress
@@ -400,11 +502,9 @@ export default function WorkspacePage() {
                     onRetry={handleRetry}
                   />
                 ) : (
-                  <RecipeStep
+                  <RecipeEditorWithDegrade
                     recipe={ws.recipe}
-                    isExpanded={ws.isRecipeExpanded}
                     state={ws.state}
-                    onToggleExpanded={ws.toggleRecipeExpanded}
                     degradation={ws.degradation}
                     promptText={ws.promptText}
                     error={ws.error}
@@ -414,146 +514,105 @@ export default function WorkspacePage() {
                 )}
               </>
             )}
-          </div>
-        )}
 
-        {/* Right column: Prompt Editor + Output Settings (or guide) */}
-        <div className="min-h-0 space-y-4 overflow-y-auto">
-          {/* Idle / uploading empty state guide */}
-          {(ws.state === "idle" || ws.state === "uploading") &&
-            !ws.error && <EmptyStateGuide />}
+            {/* Template action toolbar — 仅在编辑器可见时显示 */}
+            {showPromptEditor && (
+              <div className="flex items-center justify-between mb-2">
+                {templateWarning && (
+                  <div className="rounded-md bg-amber-500/10 px-3 py-1.5 text-xs text-amber-400">
+                    模板含未闭合的变量标记，可能影响变量替换功能
+                  </div>
+                )}
+                {!templateWarning && <span />}
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    onClick={() => setShowTemplateSaveDialog(true)}
+                    className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-mid)] hover:text-[var(--text-primary)] transition-colors"
+                  >
+                    保存为模板
+                  </button>
+                  <button
+                    onClick={() => router.push("/workspace/templates")}
+                    className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-mid)] hover:text-[var(--text-primary)] transition-colors"
+                  >
+                    模板库
+                  </button>
+                </div>
+              </div>
+            )}
 
-          {/* Two-column fallback: show recipe here when not in three-column mode */}
-          {!useThreeColumns && showRecipeStep && (
-            <>
-              {isAnalyzing && !ws.degradation.analysisQueueing ? (
-                <AnalysisProgress
-                  isAnalyzing={isAnalyzing}
-                  error={null}
-                  onRetry={handleRetry}
+            {/* Prompt Editor or Wizard mode */}
+            {showPromptEditor && (
+              showWizard && wizardContext ? (
+                <TemplateWizard
+                  variables={wizardContext.variables}
+                  originalContent={wizardContext.originalContent}
+                  onApply={(rendered) => {
+                    ws.setPromptText(rendered);
+                    setShowWizard(false);
+                    setWizardContext(null);
+                  }}
+                  onSkip={() => {
+                    setShowWizard(false);
+                    setWizardContext(null);
+                  }}
                 />
               ) : (
-                <RecipeStep
-                  recipe={ws.recipe}
-                  isExpanded={ws.isRecipeExpanded}
-                  state={ws.state}
-                  onToggleExpanded={ws.toggleRecipeExpanded}
-                  degradation={ws.degradation}
+                <PromptEditor
                   promptText={ws.promptText}
-                  error={ws.error}
-                  onRetry={handleRetry}
-                  onReplace={handleReplace}
+                  negativePromptText={ws.negativePromptText}
+                  onPromptChange={(text) => {
+                    ws.setPromptText(text);
+                    // Clear template warning when user edits text
+                    if (templateWarning) setTemplateWarning(false);
+                  }}
+                  onNegativePromptChange={ws.setNegativePromptText}
+                  title={step2Title}
                 />
-              )}
-            </>
-          )}
+              )
+            )}
 
-          {/* Template action toolbar — 仅在编辑器可见时显示 */}
-          {showPromptEditor && (
-            <div className="flex items-center justify-between mb-2">
-              {templateWarning && (
-                <div className="rounded-md bg-amber-500/10 px-3 py-1.5 text-xs text-amber-400">
-                  模板含未闭合的变量标记，可能影响变量替换功能
-                </div>
-              )}
-              {!templateWarning && <span />}
-              <div className="flex gap-2 shrink-0">
-                <button
-                  onClick={() => setShowTemplateSaveDialog(true)}
-                  className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-mid)] hover:text-[var(--text-primary)] transition-colors"
-                >
-                  保存为模板
-                </button>
-                <button
-                  onClick={() => setShowTemplateDrawer(true)}
-                  className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-mid)] hover:text-[var(--text-primary)] transition-colors"
-                >
-                  我的模板
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Prompt Editor or Wizard mode */}
-          {showPromptEditor && (
-            showWizard && wizardContext ? (
-              <TemplateWizard
-                variables={wizardContext.variables}
-                originalContent={wizardContext.originalContent}
-                onApply={(rendered) => {
-                  ws.setPromptText(rendered);
-                  setShowWizard(false);
-                  setWizardContext(null);
-                }}
-                onSkip={() => {
-                  setShowWizard(false);
-                  setWizardContext(null);
-                }}
+            {/* Output Settings */}
+            {showOutputSettings && (
+              <OutputSettings
+                state={ws.state}
+                generationUnavailable={ws.degradation.generationUnavailable}
+                onGenerate={handleGenerate}
+                generationQueueing={ws.degradation.generationQueueing}
+                error={ws.error}
+                onRetry={handleGenerateRetry}
               />
-            ) : (
-              <PromptEditor
-                promptText={ws.promptText}
-                negativePromptText={ws.negativePromptText}
-                onPromptChange={(text) => {
-                  ws.setPromptText(text);
-                  // Clear template warning when user edits text
-                  if (templateWarning) setTemplateWarning(false);
-                }}
-                onNegativePromptChange={ws.setNegativePromptText}
-                title={step2Title}
-              />
-            )
-          )}
-
-          {/* Output Settings */}
-          {showOutputSettings && (
-            <OutputSettings
-              state={ws.state}
-              generationUnavailable={ws.degradation.generationUnavailable}
-              onGenerate={handleGenerate}
-              generationQueueing={ws.degradation.generationQueueing}
-              error={ws.error}
-              onRetry={handleGenerateRetry}
-            />
-          )}
+            )}
+          </div>
         </div>
+
+        {/* Template Save Dialog */}
+        <TemplateSaveDialog
+          open={showTemplateSaveDialog}
+          initialContent={ws.promptText}
+          sourceAnalysisTaskId={ws.analysisTaskId ?? undefined}
+          onSave={() => {
+            setShowTemplateSaveDialog(false);
+          }}
+          onClose={() => setShowTemplateSaveDialog(false)}
+        />
       </div>
 
-      {/* Template Save Dialog */}
-      <TemplateSaveDialog
-        open={showTemplateSaveDialog}
-        initialContent={ws.promptText}
-        sourceAnalysisTaskId={ws.analysisTaskId ?? undefined}
-        onSave={() => {
-          setShowTemplateSaveDialog(false);
-        }}
-        onClose={() => setShowTemplateSaveDialog(false)}
+      {/* 右侧历史面板 */}
+      <HistoryPanel
+        currentGenerationTaskId={ws.generationTaskId ?? undefined}
+        onRestore={handleHistoryRestore}
       />
+    </div>
+  );
+}
 
-      {/* Template Drawer */}
-      <TemplateDrawer
-        open={showTemplateDrawer}
-        onLoadTemplate={(content) => {
-          ws.setPromptText(content);
-          // Check for unbalanced variable markers
-          const openCount = (content.match(/\{\{/g) ?? []).length;
-          const closeCount = (content.match(/\}\}/g) ?? []).length;
-          setTemplateWarning(openCount !== closeCount);
-          setShowTemplateDrawer(false);
-
-          // P1: 检测变量标记 → 自动展示向导
-          const vars = extractVariables(content);
-          if (vars.length > 0) {
-            setWizardContext({ variables: vars, originalContent: content });
-            setShowWizard(true);
-          }
-        }}
-        onDeleteSuccess={() => {
-          // Drawer internally removed from list; extensible for logging etc.
-        }}
-        onClose={() => setShowTemplateDrawer(false)}
-      />
-    </main>
+/** Suspense boundary for useSearchParams() (Next.js 15 requirement) */
+export default function WorkspacePage() {
+  return (
+    <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-[var(--text-secondary)]">加载中...</div>}>
+      <WorkspacePageInner />
+    </Suspense>
   );
 }
 
