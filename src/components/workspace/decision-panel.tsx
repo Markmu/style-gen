@@ -111,10 +111,9 @@ export function DecisionPanel({
     return <EmptyStatePreview />;
   }
 
-  // Step 2 title varies by state
-  const step2Title = isGenerationReady
-    ? "Step 2 \u00B7 继续调整指令"
-    : "Step 2 \u00B7 生成指令";
+  const promptEditorTitle = isGenerationReady
+    ? "继续调整指令"
+    : "生成指令";
 
   return (
     <div className="space-y-6">
@@ -143,22 +142,18 @@ export function DecisionPanel({
         </>
       )}
 
-      {/* Step 2: Prompt Editor (wrapped with step title) */}
+      {/* Prompt Editor */}
       {showPromptEditor && (
-        <div className="space-y-3">
-          <h3 className="text-base font-bold text-[var(--text-primary)]">
-            {step2Title}
-          </h3>
-          <PromptEditor
-            promptText={promptText}
-            negativePromptText={negativePromptText}
-            onPromptChange={onPromptChange}
-            onNegativePromptChange={onNegativePromptChange}
-          />
-        </div>
+        <PromptEditor
+          promptText={promptText}
+          negativePromptText={negativePromptText}
+          onPromptChange={onPromptChange}
+          onNegativePromptChange={onNegativePromptChange}
+          title={promptEditorTitle}
+        />
       )}
 
-      {/* Step 3: Output Settings (with generation error/degradation) */}
+      {/* Output Settings (with generation error/degradation) */}
       {showOutputSettings && (
         <OutputSettings
           state={state}

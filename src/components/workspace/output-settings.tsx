@@ -141,9 +141,7 @@ export function OutputSettings({
         ? "生成"
         : "生成首版";
 
-  const stepTitle = isGenerationReady
-    ? "Step 3 \u00B7 再次生成"
-    : "Step 3 \u00B7 输出设置";
+  const panelTitle = isGenerationReady ? "再次生成" : "输出设置";
 
   // --- Degradation / error conditions ---
   const showGenerationError =
@@ -154,9 +152,8 @@ export function OutputSettings({
 
   return (
     <div className="space-y-4 rounded-xl bg-[var(--surface-mid)] p-5 ring-1 ring-[var(--border)]">
-      {/* Step title */}
       <h3 className="text-base font-bold text-[var(--text-primary)]">
-        {stepTitle}
+        {panelTitle}
       </h3>
 
       {/* Generation error (priority over degradation hints) */}

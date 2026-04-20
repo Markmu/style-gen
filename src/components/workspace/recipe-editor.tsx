@@ -24,6 +24,7 @@ interface RecipeEditorProps {
   recipe: VisualRecipe | null;
   onChange?: (recipe: VisualRecipe) => void;
   degraded?: boolean;
+  onSaveTemplate?: () => void;
 }
 
 /* ------------------------------------------------------------------ */
@@ -319,6 +320,18 @@ function DegradationHint({
   );
 }
 
+function SaveTemplateButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="shrink-0 rounded-md border border-[var(--border-interactive)] px-2.5 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)]"
+    >
+      保存为模板
+    </button>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /*  Main component                                                     */
 /* ------------------------------------------------------------------ */
@@ -327,6 +340,7 @@ export function RecipeEditor({
   recipe,
   onChange,
   degraded = false,
+  onSaveTemplate,
 }: RecipeEditorProps) {
   const [expandedRow, setExpandedRow] = useState<RecipeRowKey | null>(null);
   const [showExtraFields, setShowExtraFields] = useState(false);
@@ -388,9 +402,44 @@ export function RecipeEditor({
   if (!recipe) {
     return (
       <div className="space-y-4 rounded-xl bg-[var(--surface-mid)] p-5 ring-1 ring-[var(--border)]">
-        <div className="flex items-center gap-2">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <svg
+              className="h-5 w-5 shrink-0 text-[var(--text-secondary)]"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+            <h3 className="text-base font-bold text-[var(--text-primary)]">
+              风格拆解
+            </h3>
+          </div>
+          {onSaveTemplate && <SaveTemplateButton onClick={onSaveTemplate} />}
+        </div>
+        <p className="text-sm text-[var(--text-secondary)]">
+          上传参考图开始分析
+        </p>
+      </div>
+    );
+  }
+
+  // Use editingRecipe if available (during active edit), otherwise use prop recipe
+  const displayRecipe = editingRecipe ?? recipe;
+
+  return (
+    <div className="space-y-4 rounded-xl bg-[var(--surface-mid)] p-5 ring-1 ring-[var(--border)]">
+      {/* Title */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
           <svg
-            className="h-5 w-5 text-[var(--text-secondary)]"
+            className="h-5 w-5 shrink-0 text-[var(--text-secondary)]"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -406,36 +455,7 @@ export function RecipeEditor({
             风格拆解
           </h3>
         </div>
-        <p className="text-sm text-[var(--text-secondary)]">
-          上传参考图开始分析
-        </p>
-      </div>
-    );
-  }
-
-  // Use editingRecipe if available (during active edit), otherwise use prop recipe
-  const displayRecipe = editingRecipe ?? recipe;
-
-  return (
-    <div className="space-y-4 rounded-xl bg-[var(--surface-mid)] p-5 ring-1 ring-[var(--border)]">
-      {/* Title */}
-      <div className="flex items-center gap-2">
-        <svg
-          className="h-5 w-5 text-[var(--text-secondary)]"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-          />
-        </svg>
-        <h3 className="text-base font-bold text-[var(--text-primary)]">
-          风格拆解
-        </h3>
+        {onSaveTemplate && <SaveTemplateButton onClick={onSaveTemplate} />}
       </div>
 
       {/* Degraded overlay */}
@@ -528,6 +548,7 @@ interface RecipeEditorWithDegradeProps {
   error: WorkspaceError | null;
   onRetry: () => void;
   onReplace: () => void;
+  onSaveTemplate?: () => void;
 }
 
 /**
@@ -545,6 +566,7 @@ export function RecipeEditorWithDegrade({
   error,
   onRetry,
   onReplace,
+  onSaveTemplate,
 }: RecipeEditorWithDegradeProps) {
   const isGenerationReady = state === "generation_ready";
 
@@ -643,6 +665,7 @@ export function RecipeEditorWithDegrade({
         recipe={recipe}
         onChange={onChange}
         degraded={showL4Hint}
+        onSaveTemplate={onSaveTemplate}
       />
     </div>
   );

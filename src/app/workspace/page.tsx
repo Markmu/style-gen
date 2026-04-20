@@ -62,6 +62,9 @@ function WorkspacePageInner() {
   // Template UI state
   const [showTemplateSaveDialog, setShowTemplateSaveDialog] = useState(false);
   const [templateWarning, setTemplateWarning] = useState(false);
+  const handleOpenTemplateSave = useCallback(() => {
+    setShowTemplateSaveDialog(true);
+  }, []);
 
   // Wizard state (P1)
   const [showWizard, setShowWizard] = useState(false);
@@ -418,12 +421,12 @@ function WorkspacePageInner() {
   // Three-column grid when prompt editor is visible
   const useThreeColumns = showPromptEditor;
 
-  const step2Title = isGenerationReady
-    ? "Step 2 \u00B7 继续调整指令"
-    : "Step 2 \u00B7 生成指令";
+  const promptEditorTitle = isGenerationReady
+    ? "继续调整指令"
+    : "生成指令";
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full overflow-hidden">
       {/* 中央工作区 */}
       <div className="flex-1 min-w-0 overflow-auto">
         <h1 className="sr-only">工作区</h1>
@@ -479,6 +482,9 @@ function WorkspacePageInner() {
                       error={ws.error}
                       onRetry={handleRetry}
                       onReplace={handleReplace}
+                      onSaveTemplate={
+                        showPromptEditor ? handleOpenTemplateSave : undefined
+                      }
                     />
                   )}
                 </>
@@ -510,34 +516,32 @@ function WorkspacePageInner() {
                     error={ws.error}
                     onRetry={handleRetry}
                     onReplace={handleReplace}
+                    onSaveTemplate={
+                      showPromptEditor ? handleOpenTemplateSave : undefined
+                    }
                   />
                 )}
               </>
             )}
 
-            {/* Template action toolbar — 仅在编辑器可见时显示 */}
+            {/* Template library toolbar — 仅在编辑器可见时显示 */}
             {showPromptEditor && (
-              <div className="flex items-center justify-between mb-2">
+              <div
+                className={`mb-2 flex items-center ${
+                  templateWarning ? "justify-between gap-3" : "justify-end"
+                }`}
+              >
                 {templateWarning && (
                   <div className="rounded-md bg-amber-500/10 px-3 py-1.5 text-xs text-amber-400">
                     模板含未闭合的变量标记，可能影响变量替换功能
                   </div>
                 )}
-                {!templateWarning && <span />}
-                <div className="flex gap-2 shrink-0">
-                  <button
-                    onClick={() => setShowTemplateSaveDialog(true)}
-                    className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-mid)] hover:text-[var(--text-primary)] transition-colors"
-                  >
-                    保存为模板
-                  </button>
-                  <button
-                    onClick={() => router.push("/workspace/templates")}
-                    className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-mid)] hover:text-[var(--text-primary)] transition-colors"
-                  >
-                    模板库
-                  </button>
-                </div>
+                <button
+                  onClick={() => router.push("/workspace/templates")}
+                  className="shrink-0 rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-mid)] hover:text-[var(--text-primary)]"
+                >
+                  模板库
+                </button>
               </div>
             )}
 
@@ -567,7 +571,7 @@ function WorkspacePageInner() {
                     if (templateWarning) setTemplateWarning(false);
                   }}
                   onNegativePromptChange={ws.setNegativePromptText}
-                  title={step2Title}
+                  title={promptEditorTitle}
                 />
               )
             )}

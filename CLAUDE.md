@@ -88,3 +88,14 @@ See `.env.example`: `DATABASE_URL`, `R2_*`, `GEMINI_API_KEY`, `FAL_KEY`.
 ## Documentation
 
 Architecture and implementation plans are in `docs/`. The architecture doc (`docs/01-1-架构文档-参考图风格再创作.md`) is the source of truth for ADRs and data schemas.
+
+## Design System
+
+`docs/design/DESIGN.md` is the canonical system design specification for all UI/UX work. Before changing visual styling, layout, components, interaction states, typography, color, or motion, read and follow this file.
+
+Design priority order:
+1. `docs/design/DESIGN.md` — source of truth for the current visual system ("The Precision Frame")
+2. Existing component patterns and tokens in `src/app/globals.css`
+3. Older design docs and implementation plans in `docs/`
+
+If older docs or existing UI conflict with `docs/design/DESIGN.md`, prefer `docs/design/DESIGN.md` unless the task explicitly asks to preserve legacy behavior.
