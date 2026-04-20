@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useHistoryList, type GenerationHistoryItem } from "@/hooks/use-history-list";
 
 export interface HistoryPanelProps {
@@ -39,11 +39,11 @@ export function HistoryPanel({
   currentGenerationTaskId,
   onRestore,
 }: HistoryPanelProps) {
+  const [isOpen, setIsOpen] = useState(false);
   const {
     data,
     isLoading,
     isError,
-    error: _error,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
@@ -55,7 +55,7 @@ export function HistoryPanel({
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!sentinelRef.current) return;
+    if (!isOpen || !sentinelRef.current) return;
 
     observerRef.current = new IntersectionObserver(
       (entries) => {
@@ -71,105 +71,158 @@ export function HistoryPanel({
     return () => {
       observerRef.current?.disconnect();
     };
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [isOpen, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const drawerId = "workspace-history-drawer";
+  const toggleLabel = isOpen ? "收起历史记录" : "展开历史记录";
 
   return (
-    <aside className="flex h-full w-56 flex-shrink-0 flex-col border-l border-[var(--border)] bg-[var(--surface-mid)]">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
-        <h2 className="text-sm font-bold text-[var(--text-primary)]">History</h2>
-        <button
-          type="button"
-          onClick={() => refetch()}
-          className="rounded-md p-1 text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)]"
-          aria-label="刷新历史记录"
-        >
-          <span className="material-symbols-outlined text-lg">refresh</span>
-        </button>
-      </div>
+    <aside
+      className={`flex h-full max-w-[calc(100vw-5rem)] flex-shrink-0 justify-end overflow-hidden bg-[var(--surface-base)] transition-[width] duration-150 ease-out ${
+        isOpen ? "w-72" : "w-10"
+      }`}
+      aria-label="历史记录"
+    >
+      {!isOpen && (
+        <div className="flex h-full w-10 flex-col items-center bg-[var(--surface-mid)] ring-1 ring-inset ring-[var(--border-static)]">
+          <button
+            type="button"
+            onClick={() => setIsOpen(true)}
+            className="mt-3 flex h-10 w-full items-center justify-center text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[var(--accent-primary)]"
+            aria-controls={drawerId}
+            aria-expanded={isOpen}
+            aria-label={toggleLabel}
+            title={toggleLabel}
+          >
+            <span className="material-symbols-outlined text-lg">history</span>
+          </button>
+        </div>
+      )}
 
-      {/* Content area */}
-      <div className="flex-1 overflow-y-auto">
-        {/* Loading skeleton */}
-        {isLoading && (
-          <div className="grid grid-cols-2 gap-2 p-2">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <ThumbnailSkeleton key={i} />
-            ))}
-          </div>
-        )}
-
-        {/* Error state */}
-        {isError && !isLoading && (
-          <div className="flex flex-col items-center justify-center gap-2 px-4 py-8">
-            <p className="text-center text-sm text-[var(--text-secondary)]">
-              加载失败，点击重试
-            </p>
-            <button
-              type="button"
-              onClick={() => refetch()}
-              className="rounded-md px-3 py-1.5 text-xs font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-bright)]"
-            >
-              重试
-            </button>
-          </div>
-        )}
-
-        {/* Empty state */}
-        {!isLoading && !isError && (!data || data.length === 0) && (
-          <div className="flex flex-1 items-center justify-center py-8">
-            <p className="text-center text-sm text-[var(--text-secondary)]">
-              还没有生成记录
-            </p>
-          </div>
-        )}
-
-        {/* Thumbnail grid */}
-        {!isLoading && data && data.length > 0 && (
+      <div
+        id={drawerId}
+        className={`h-full w-72 max-w-[calc(100vw-5rem)] overflow-hidden bg-[var(--surface-mid)] ring-1 ring-inset ring-[var(--border-static)] transition-opacity duration-150 ease-out ${
+          isOpen ? "flex flex-col opacity-100" : "hidden opacity-0"
+        }`}
+        aria-hidden={!isOpen}
+      >
+        {isOpen && (
           <>
-            {/* Current generation progress indicator */}
-            {currentGenerationTaskId && (
-              <div className="mx-2 mt-2 flex items-center gap-2 rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface-bright)] px-3 py-2">
-                <span className="relative flex h-2 w-2 shrink-0">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" />
-                </span>
-                <span className="text-xs text-[var(--text-secondary)]">生成中...</span>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-2 p-2">
-              {data.map((item: GenerationHistoryItem) => (
+            <div className="flex items-center gap-2 px-3 py-3">
+              <h2 className="min-w-0 flex-1 text-sm font-bold text-[var(--text-primary)]">
+                History
+              </h2>
+              <div className="flex shrink-0 items-center gap-1">
                 <button
-                  key={item.id}
                   type="button"
-                  onClick={() => onRestore?.(item.id)}
-                  className="flex cursor-pointer flex-col items-center gap-1.5 rounded-lg p-2 transition-colors hover:bg-[var(--surface-bright)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+                  onClick={() => refetch()}
+                  className="rounded-md p-1 text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)]"
+                  aria-label="刷新历史记录"
+                  title="刷新历史记录"
                 >
-                  <div className="aspect-square w-full overflow-hidden rounded-md bg-[var(--surface-bright)]">
-                    <img
-                      src={item.resultFileUrl}
-                      alt=""
-                      className="h-full w-full object-cover"
-                      loading="lazy"
-                    />
-                  </div>
-                  <span className="truncate text-xs text-[var(--text-secondary)]">
-                    {formatRelativeTime(item.createdAt)}
+                  <span className="material-symbols-outlined text-lg">refresh</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="rounded-md p-1 text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent-primary)]"
+                  aria-controls={drawerId}
+                  aria-expanded={isOpen}
+                  aria-label={toggleLabel}
+                  title={toggleLabel}
+                >
+                  <span className="material-symbols-outlined text-lg">
+                    keyboard_double_arrow_right
                   </span>
                 </button>
-              ))}
+              </div>
             </div>
 
-            {/* Sentinel for infinite scroll */}
-            <div ref={sentinelRef} className="h-1" />
+            {/* Content area */}
+            <div className="flex-1 overflow-y-auto">
+              {/* Loading skeleton */}
+              {isLoading && (
+                <div className="grid grid-cols-2 gap-2 p-2">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <ThumbnailSkeleton key={i} />
+                  ))}
+                </div>
+              )}
 
-            {/* Loading more indicator */}
-            {isFetchingNextPage && (
-              <div className="flex justify-center py-2">
-                <span className="text-xs text-[var(--text-secondary)]">加载中...</span>
-              </div>
-            )}
+              {/* Error state */}
+              {isError && !isLoading && (
+                <div className="flex flex-col items-center justify-center gap-2 px-4 py-8">
+                  <p className="text-center text-sm text-[var(--text-secondary)]">
+                    加载失败，点击重试
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => refetch()}
+                    className="rounded-md px-3 py-1.5 text-xs font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-bright)]"
+                  >
+                    重试
+                  </button>
+                </div>
+              )}
+
+              {/* Empty state */}
+              {!isLoading && !isError && (!data || data.length === 0) && (
+                <div className="flex flex-1 items-center justify-center py-8">
+                  <p className="text-center text-sm text-[var(--text-secondary)]">
+                    还没有生成记录
+                  </p>
+                </div>
+              )}
+
+              {/* Thumbnail grid */}
+              {!isLoading && data && data.length > 0 && (
+                <>
+                  {/* Current generation progress indicator */}
+                  {currentGenerationTaskId && (
+                    <div className="mx-2 mt-2 flex items-center gap-2 rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface-bright)] px-3 py-2">
+                      <span className="relative flex h-2 w-2 shrink-0">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
+                        <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" />
+                      </span>
+                      <span className="text-xs text-[var(--text-secondary)]">生成中...</span>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-2 p-2">
+                    {data.map((item: GenerationHistoryItem) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => onRestore?.(item.id)}
+                        className="flex cursor-pointer flex-col items-center gap-1.5 rounded-lg p-2 transition-colors hover:bg-[var(--surface-bright)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]"
+                      >
+                        <div className="aspect-square w-full overflow-hidden rounded-md bg-[var(--surface-bright)]">
+                          <img
+                            src={item.resultFileUrl}
+                            alt=""
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                        </div>
+                        <span className="truncate text-xs text-[var(--text-secondary)]">
+                          {formatRelativeTime(item.createdAt)}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Sentinel for infinite scroll */}
+                  <div ref={sentinelRef} className="h-1" />
+
+                  {/* Loading more indicator */}
+                  {isFetchingNextPage && (
+                    <div className="flex justify-center py-2">
+                      <span className="text-xs text-[var(--text-secondary)]">加载中...</span>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </>
         )}
       </div>
