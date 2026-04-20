@@ -61,7 +61,6 @@ function WorkspacePageInner() {
 
   // Template UI state
   const [showTemplateSaveDialog, setShowTemplateSaveDialog] = useState(false);
-  const [templateWarning, setTemplateWarning] = useState(false);
   const handleOpenTemplateSave = useCallback(() => {
     setShowTemplateSaveDialog(true);
   }, []);
@@ -524,27 +523,6 @@ function WorkspacePageInner() {
               </>
             )}
 
-            {/* Template library toolbar — 仅在编辑器可见时显示 */}
-            {showPromptEditor && (
-              <div
-                className={`mb-2 flex items-center ${
-                  templateWarning ? "justify-between gap-3" : "justify-end"
-                }`}
-              >
-                {templateWarning && (
-                  <div className="rounded-md bg-amber-500/10 px-3 py-1.5 text-xs text-amber-400">
-                    模板含未闭合的变量标记，可能影响变量替换功能
-                  </div>
-                )}
-                <button
-                  onClick={() => router.push("/workspace/templates")}
-                  className="shrink-0 rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-mid)] hover:text-[var(--text-primary)]"
-                >
-                  模板库
-                </button>
-              </div>
-            )}
-
             {/* Prompt Editor or Wizard mode */}
             {showPromptEditor && (
               showWizard && wizardContext ? (
@@ -565,11 +543,7 @@ function WorkspacePageInner() {
                 <PromptEditor
                   promptText={ws.promptText}
                   negativePromptText={ws.negativePromptText}
-                  onPromptChange={(text) => {
-                    ws.setPromptText(text);
-                    // Clear template warning when user edits text
-                    if (templateWarning) setTemplateWarning(false);
-                  }}
+                  onPromptChange={ws.setPromptText}
                   onNegativePromptChange={ws.setNegativePromptText}
                   title={promptEditorTitle}
                 />
