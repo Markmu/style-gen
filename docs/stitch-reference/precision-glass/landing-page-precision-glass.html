@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Aether AI | The Precision Prism</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "outline": "#727687",
+            "surface": "#f7f9fb",
+            "on-surface": "#191c1e",
+            "error-container": "#ffdad6",
+            "primary-container": "#0066ff",
+            "surface-container-lowest": "#ffffff",
+            "on-secondary-container": "#54647a",
+            "tertiary": "#51596f",
+            "on-error-container": "#93000a",
+            "primary-fixed-dim": "#b3c5ff",
+            "on-primary": "#ffffff",
+            "error": "#ba1a1a",
+            "tertiary-container": "#697188",
+            "surface-bright": "#f7f9fb",
+            "surface-variant": "#e0e3e5",
+            "primary": "#0050cb",
+            "tertiary-fixed-dim": "#bec6e0",
+            "on-tertiary-container": "#f7f7ff",
+            "surface-tint": "#0054d6",
+            "on-secondary-fixed-variant": "#38485d",
+            "secondary-fixed-dim": "#b7c8e1",
+            "inverse-on-surface": "#eff1f3",
+            "on-error": "#ffffff",
+            "secondary": "#505f76",
+            "on-tertiary-fixed": "#131b2e",
+            "on-background": "#191c1e",
+            "inverse-primary": "#b3c5ff",
+            "surface-container-high": "#e6e8ea",
+            "background": "#f7f9fb",
+            "outline-variant": "#c2c6d8",
+            "on-tertiary-fixed-variant": "#3f465c",
+            "on-primary-container": "#f8f7ff",
+            "primary-fixed": "#dae1ff",
+            "tertiary-fixed": "#dae2fd",
+            "inverse-surface": "#2d3133",
+            "on-primary-fixed-variant": "#003fa4",
+            "on-secondary": "#ffffff",
+            "surface-container": "#eceef0",
+            "on-primary-fixed": "#001849",
+            "secondary-fixed": "#d3e4fe",
+            "surface-container-highest": "#e0e3e5",
+            "on-secondary-fixed": "#0b1c30",
+            "secondary-container": "#d0e1fb",
+            "on-tertiary": "#ffffff",
+            "surface-container-low": "#f2f4f6",
+            "surface-dim": "#d8dadc",
+            "on-surface-variant": "#424656"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "fontFamily": {
+            "headline": ["Inter"],
+            "body": ["Inter"],
+            "label": ["Inter"]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    body { font-family: 'Inter', sans-serif; background-color: #f7f9fb; }
+    .glass-effect {
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(30px);
+      -webkit-backdrop-filter: blur(30px);
+      border: 1px solid rgba(194, 198, 216, 0.15);
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+    }
+    .hero-gradient {
+      background: radial-gradient(circle at top right, rgba(0, 80, 203, 0.05), transparent 40%),
+                  radial-gradient(circle at bottom left, rgba(0, 102, 255, 0.03), transparent 40%);
+    }
+  </style>
+</head>
+<body class="text-on-surface selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopNavBar Implementation -->
+<nav class="fixed top-4 left-1/2 -translate-x-1/2 w-[95%] max-w-7xl rounded-2xl border border-white/15 bg-white/10 backdrop-blur-[30px] shadow-[0px_20px_40px_rgba(25,28,30,0.06)] flex justify-between items-center px-8 h-14 z-50">
+<div class="text-lg font-black tracking-tighter text-slate-900">
+      PromptEngine
+    </div>
+<div class="hidden md:flex items-center space-x-8">
+<a class="font-['Inter'] tracking-tight text-sm font-medium text-blue-600 border-b border-blue-600 pb-1 hover:text-blue-500 transition-colors" href="#">Home</a>
+<a class="font-['Inter'] tracking-tight text-sm font-medium text-slate-500 hover:text-blue-500 transition-colors" href="#">Analysis</a>
+<a class="font-['Inter'] tracking-tight text-sm font-medium text-slate-500 hover:text-blue-500 transition-colors" href="#">Generate</a>
+<a class="font-['Inter'] tracking-tight text-sm font-medium text-slate-500 hover:text-blue-500 transition-colors" href="#">Templates</a>
+</div>
+<div class="flex items-center space-x-4">
+<button class="material-symbols-outlined text-slate-500 hover:text-blue-500 transition-colors" data-icon="account_circle">account_circle</button>
+<button class="material-symbols-outlined text-slate-500 hover:text-blue-500 transition-colors" data-icon="settings">settings</button>
+</div>
+</nav>
+<main class="relative hero-gradient pt-32 pb-24 overflow-hidden">
+<!-- Hero Section -->
+<div class="max-w-7xl mx-auto px-8 relative">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+<!-- Text Content -->
+<div class="lg:col-span-6 space-y-8">
+<div class="inline-flex items-center px-3 py-1 rounded-full bg-surface-container-high/40 border border-outline-variant/10 text-[10px] uppercase tracking-[0.05em] font-semibold text-primary">
+            Aether AI System 2.0
+          </div>
+<h1 class="text-display-lg font-extrabold tracking-tight text-on-surface leading-[1.1] md:text-6xl lg:text-7xl">
+            Image to <span class="text-primary italic">Intelligence</span>.
+          </h1>
+<p class="text-on-surface-variant text-lg leading-relaxed max-w-lg">
+            Turn any visual concept into precise, reusable prompt assets. Aether extracts the neural fingerprint of design to maintain absolute consistency across your generation pipeline.
+          </p>
+<div class="flex items-center gap-4 pt-4">
+<button class="bg-primary text-on-primary px-8 py-3 rounded-md font-semibold shadow-lg shadow-primary/20 hover:scale-95 transition-transform duration-200">
+              Begin Extraction
+            </button>
+<button class="glass-effect text-on-surface px-8 py-3 rounded-md font-semibold border border-outline-variant/20 hover:bg-surface-container-low transition-colors duration-200">
+              View Showcase
+            </button>
+</div>
+</div>
+<!-- Visual Hero: The Precision Prism -->
+<div class="lg:col-span-6 relative">
+<div class="relative w-full aspect-square rounded-2xl overflow-hidden shadow-2xl">
+<img alt="Prism Structure" class="object-cover w-full h-full" data-alt="Abstract 3D crystalline geometric structure with soft prismatic light refraction and clean white architectural minimalist background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuATQ_FF6rwXK-Pa9L8btw6H8nS7zgg_ctTS8egX1Uepk7Hub4nTP4j88bJXlUlNYRpI5RLAHnPOtIXfvAZFnHCttU8X0pJw0TLM17O736UMR6TpoFNDAbXoFQMawrM2yIZKQ4eesxCHfXKQc-sANttMtf3B2n-4Ry96gPQhoBhrHtfCxSrMjZ-F2PoUm_81inJkfmNbwfuuNYvfo0i37PiRs0AX2ADE5Wn-HU0PiEKA5gbOHQ9BLLXLd8JmYkNlCJFMl2kveNTGqg"/>
+<!-- Floating UI Overlays -->
+<div class="absolute top-8 left-8 glass-effect p-4 rounded-xl shadow-lg border border-white/20 w-48">
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-primary text-sm" data-icon="auto_awesome">auto_awesome</span>
+<span class="text-[10px] font-bold uppercase tracking-widest text-on-surface">Precision Map</span>
+</div>
+<div class="h-1.5 w-full bg-surface-variant rounded-full overflow-hidden">
+<div class="h-full bg-primary w-3/4"></div>
+</div>
+</div>
+<div class="absolute bottom-8 right-8 glass-effect p-4 rounded-xl shadow-lg border border-white/20">
+<div class="flex flex-col gap-1">
+<span class="text-[9px] font-bold text-primary uppercase">Active Token</span>
+<span class="text-sm font-mono font-medium text-on-surface">#prism_core_012</span>
+</div>
+</div>
+</div>
+<!-- Background Decorative Elements -->
+<div class="absolute -z-10 -top-12 -right-12 w-64 h-64 bg-primary/5 blur-3xl rounded-full"></div>
+</div>
+</div>
+</div>
+<!-- Features Bento-lite Grid -->
+<section class="max-w-7xl mx-auto px-8 mt-48">
+<div class="flex flex-col md:flex-row justify-between items-end mb-16 gap-4">
+<div>
+<h2 class="text-3xl font-bold text-on-surface tracking-tight">The Core Architecture</h2>
+<p class="text-on-surface-variant mt-2">Precision instruments for the modern generative designer.</p>
+</div>
+<div class="h-[1px] flex-grow mx-8 bg-outline-variant/10 hidden md:block"></div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Feature 1: Neural Extraction -->
+<div class="group bg-surface-container-low p-10 rounded-2xl border border-outline-variant/5 hover:border-primary/20 transition-all duration-300">
+<div class="w-12 h-12 rounded-lg bg-surface-container-lowest flex items-center justify-center mb-8 shadow-sm border border-outline-variant/10">
+<span class="material-symbols-outlined text-primary" data-icon="psychology">psychology</span>
+</div>
+<h3 class="text-xl font-bold text-on-surface mb-4">Neural Extraction</h3>
+<p class="text-on-surface-variant text-sm leading-relaxed">
+            Deconstruct complex visuals into semantic mathematical weights. Our proprietary engine identifies style, mood, and composition at the atomic level.
+          </p>
+</div>
+<!-- Feature 2: Asset Vault -->
+<div class="group bg-surface-container-low p-10 rounded-2xl border border-outline-variant/5 hover:border-primary/20 transition-all duration-300">
+<div class="w-12 h-12 rounded-lg bg-surface-container-lowest flex items-center justify-center mb-8 shadow-sm border border-outline-variant/10">
+<span class="material-symbols-outlined text-primary" data-icon="folder_managed">folder_managed</span>
+</div>
+<h3 class="text-xl font-bold text-on-surface mb-4">Asset Vault</h3>
+<p class="text-on-surface-variant text-sm leading-relaxed">
+            A centralized repository for your refined prompt structures. Version-controlled, searchable, and ready for multi-model deployment instantly.
+          </p>
+</div>
+<!-- Feature 3: Style Consistency -->
+<div class="group bg-surface-container-low p-10 rounded-2xl border border-outline-variant/5 hover:border-primary/20 transition-all duration-300">
+<div class="w-12 h-12 rounded-lg bg-surface-container-lowest flex items-center justify-center mb-8 shadow-sm border border-outline-variant/10">
+<span class="material-symbols-outlined text-primary" data-icon="auto_fix_high">auto_fix_high</span>
+</div>
+<h3 class="text-xl font-bold text-on-surface mb-4">Style Consistency</h3>
+<p class="text-on-surface-variant text-sm leading-relaxed">
+            Eliminate prompt drift. Lock in specific visual parameters to ensure every generation follows your brand’s unique aesthetic signature.
+          </p>
+</div>
+</div>
+</section>
+<!-- Secondary Visual Section: Tonal Shift -->
+<section class="mt-48 bg-surface-container text-center py-24">
+<div class="max-w-3xl mx-auto px-8">
+<span class="text-[10px] font-black uppercase tracking-[0.2em] text-primary block mb-6">Designed for scale</span>
+<h2 class="text-4xl font-bold text-on-surface tracking-tight leading-tight">
+          Sophisticated tools shouldn't <br/> be complicated.
+        </h2>
+<p class="text-on-surface-variant mt-6 text-lg">
+          Aether removes the guesswork from prompt engineering. We provide the clarity you need to move from experimentation to production.
+        </p>
+<div class="mt-12 flex justify-center">
+<div class="relative p-[1px] rounded-md bg-gradient-to-r from-primary to-primary-container group">
+<button class="bg-surface px-10 py-4 rounded-md font-bold text-primary group-hover:bg-transparent group-hover:text-white transition-all duration-200">
+               Get Enterprise Access
+             </button>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer Implementation -->
+<footer class="bg-slate-50 w-full py-12">
+<div class="max-w-7xl mx-auto px-8 flex flex-col md:flex-row justify-between items-center gap-4">
+<div class="font-['Inter'] text-[10px] uppercase tracking-[0.05em] font-semibold text-slate-400">
+        © 2024 PROMPTENGINE AI. PRECISION ENGINEERED.
+      </div>
+<div class="flex items-center space-x-8">
+<a class="font-['Inter'] text-[10px] uppercase tracking-[0.05em] font-semibold text-slate-400 hover:text-blue-600 transition-colors" href="#">Privacy</a>
+<a class="font-['Inter'] text-[10px] uppercase tracking-[0.05em] font-semibold text-slate-400 hover:text-blue-600 transition-colors" href="#">Terms</a>
+<a class="font-['Inter'] text-[10px] uppercase tracking-[0.05em] font-semibold text-slate-400 hover:text-blue-600 transition-colors" href="#">Documentation</a>
+<a class="font-['Inter'] text-[10px] uppercase tracking-[0.05em] font-semibold text-slate-400 hover:text-blue-600 transition-colors" href="#">API</a>
+</div>
+</div>
+</footer>
+</body></html>
