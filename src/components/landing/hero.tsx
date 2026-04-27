@@ -31,17 +31,17 @@ export function Hero() {
         </div>
 
         <div className="glass-panel rounded-lg p-5">
-          <div className="grid gap-3 md:grid-cols-3">
-            <div className="media-lens min-h-52 rounded-lg p-4">
+          <div className="grid gap-4 md:grid-cols-[1fr_1.05fr_1fr]">
+            <div className="media-lens flex min-h-52 flex-col rounded-lg p-4">
               <p className="label-tech text-[var(--text-muted)]">Reference</p>
-              <div className="mt-5 aspect-[4/5] rounded-lg bg-[linear-gradient(145deg,#f9d5c0,#bfd9ff_52%,#fff8ea)] p-3">
-                <div className="h-full rounded-md bg-[rgba(255,255,255,0.38)] p-3">
-                  <div className="h-20 rounded-full bg-[#f4a88f]" />
-                  <div className="mt-4 h-12 rounded-md bg-[#2b4f7f]/70" />
+              <div className="mt-5 aspect-[4/5] overflow-hidden rounded-lg bg-[linear-gradient(145deg,#f9d5c0,#bfd9ff_52%,#fff8ea)] p-3">
+                <div className="flex h-full flex-col justify-between rounded-md bg-[rgba(255,255,255,0.42)] p-3">
+                  <div className="mx-auto aspect-square w-[74%] rounded-full bg-[#f4a88f]" />
+                  <div className="h-[28%] rounded-md bg-[#2b4f7f]/70" />
                 </div>
               </div>
-              <p className="mt-3 text-sm text-[var(--text-secondary)]">
-                参考图保留在画布中心。
+              <p className="mt-3 text-sm leading-5 text-[var(--text-secondary)]">
+                参考图留在画布。
               </p>
             </div>
 
@@ -67,16 +67,16 @@ export function Hero() {
               </div>
             </div>
 
-            <div className="media-lens min-h-52 rounded-lg p-4">
+            <div className="media-lens flex min-h-52 flex-col rounded-lg p-4">
               <p className="label-tech text-[var(--color-success)]">Render</p>
-              <div className="mt-5 aspect-[4/5] rounded-lg bg-[linear-gradient(145deg,#eef7ff,#ffffff_48%,#d7ecff)] p-3">
-                <div className="h-full rounded-md bg-[rgba(0,80,203,0.08)] p-3">
-                  <div className="ml-auto h-24 w-24 rounded-full bg-[#bfd9ff]" />
-                  <div className="mt-8 h-10 rounded-md bg-[#f4a88f]/80" />
+              <div className="mt-5 aspect-[4/5] overflow-hidden rounded-lg bg-[linear-gradient(145deg,#eef7ff,#ffffff_48%,#d7ecff)] p-3">
+                <div className="flex h-full flex-col justify-between rounded-md bg-[rgba(0,80,203,0.08)] p-3">
+                  <div className="mx-auto aspect-square w-[70%] rounded-full bg-[#bfd9ff]" />
+                  <div className="mx-auto h-[18%] w-[78%] rounded-md bg-[#f4a88f]/80" />
                 </div>
               </div>
-              <p className="mt-3 text-sm text-[var(--text-secondary)]">
-                生成结果进入可继续编辑状态。
+              <p className="mt-3 text-sm leading-5 text-[var(--text-secondary)]">
+                结果可继续编辑。
               </p>
             </div>
           </div>
