@@ -60,6 +60,9 @@ describe("UploadEntry", () => {
     expect(
       screen.getByRole("alert"),
     ).toHaveTextContent("仅支持 JPG、PNG、WebP 格式的图片");
+    expect(
+      screen.getByRole("button", { name: "重新选择" }),
+    ).toBeInTheDocument();
     expect(mockPush).not.toHaveBeenCalled();
     expect(mockSetFile).not.toHaveBeenCalled();
   });
@@ -77,6 +80,9 @@ describe("UploadEntry", () => {
     expect(
       screen.getByRole("alert"),
     ).toHaveTextContent("文件大小不能超过 10MB");
+    expect(
+      screen.getByRole("button", { name: "重新选择" }),
+    ).toBeInTheDocument();
     expect(mockPush).not.toHaveBeenCalled();
     expect(mockSetFile).not.toHaveBeenCalled();
   });

@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 const workflow = [
   {
     step: "01",
@@ -20,8 +18,8 @@ const workflow = [
 
 export function ValueSection() {
   return (
-    <section className="px-4 py-16 md:py-24">
-      <div className="mx-auto max-w-4xl">
+    <section className="px-4 py-14 md:py-20">
+      <div className="mx-auto max-w-5xl">
         <h2 className="text-2xl font-bold text-[var(--text-primary)] md:text-3xl">
           三步完成风格再创作
         </h2>
@@ -29,13 +27,13 @@ export function ValueSection() {
           简单高效，让 AI 帮你提取和应用任何视觉风格
         </p>
 
-        <div className="mt-14 grid grid-cols-1 gap-10 md:grid-cols-3 md:gap-10">
+        <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-3">
           {workflow.map((item) => (
             <div
               key={item.step}
-              className="rounded-xl p-5 transition-all duration-300 hover:border-[var(--accent-primary)]/30 hover:bg-[var(--surface-bright)] ring-1 ring-[var(--border)]"
+              className="surface-panel interactive-lift rounded-lg p-5"
             >
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--accent-primary)] text-xs font-bold text-white">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--accent-primary-soft)] text-xs font-bold text-[var(--accent-primary)]">
                 {item.step}
               </span>
               <h3 className="mt-4 text-base font-bold text-[var(--text-primary)]">
@@ -44,18 +42,8 @@ export function ValueSection() {
               <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">
                 {item.description}
               </p>
-              <div className="mt-4 h-px w-full bg-gradient-to-r from-transparent via-[var(--border)]/30 to-transparent" />
             </div>
           ))}
-        </div>
-
-        <div className="mt-14">
-          <Link
-            href="/workspace"
-            className="btn-primary rounded-xl px-8 py-3 text-base font-semibold text-white"
-          >
-            立即体验
-          </Link>
         </div>
       </div>
     </section>

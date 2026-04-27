@@ -1,44 +1,57 @@
 @import "tailwindcss";
 
-/* ── Professional Dark UI – Design Tokens ── */
+/* Precision Glass design tokens */
 :root {
-  /* Neutral-cool surfaces (slate-based, minimal saturation) */
-  --surface-base: #0a0f1a;
-  --surface-low: #111827;
-  --surface-mid: #1a2234;
-  --surface-bright: #252f46;
-  --surface-hover: #2d3a50;
+  /* Neutral surfaces. Keep the legacy names so existing components continue to render. */
+  --surface-base: #f7f9fb;
+  --surface-low: #f2f4f6;
+  --surface-mid: rgba(255, 255, 255, 0.66);
+  --surface-bright: rgba(255, 255, 255, 0.88);
+  --surface-hover: rgba(0, 80, 203, 0.07);
 
-  /* High-contrast text */
-  --text-primary: #e2e8f0;
-  --text-secondary: #94a3b8;
+  --surface-page: #f7f9fb;
+  --surface-panel: rgba(255, 255, 255, 0.64);
+  --surface-floating: rgba(255, 255, 255, 0.18);
+  --surface-control: rgba(255, 255, 255, 0.76);
+  --surface-media: #eef3f8;
 
-  /* Brand accent: steel blue-teal — clearly interactive, distinctly ours */
-  --accent-primary: #5b9ead;
-  --accent-primary-dim: #4a8a9a;
+  /* Text hierarchy */
+  --text-primary: #191c1e;
+  --text-secondary: #424656;
+  --text-muted: #727784;
 
-  /* Functional accent: desaturated indigo for states */
-  --accent-secondary: #818cf8;
+  /* Functional intent */
+  --accent-primary: #0050cb;
+  --accent-primary-dim: #003f9f;
+  --accent-primary-soft: rgba(0, 80, 203, 0.1);
 
-  /* Neutral borders */
-  --border: #334155;
+  --accent-secondary: #0066ff;
+
+  /* Ghost borders and hairlines */
+  --border: rgba(194, 198, 216, 0.2);
+  --border-static: rgba(194, 198, 216, 0.15);
+  --border-interactive: rgba(0, 80, 203, 0.24);
 
   /* Semantic colors */
-  --color-error: #ff6e84;
-  --color-warning: #e5a220;
-  --color-success: #3ec98c;
+  --color-error: #c92a3a;
+  --color-warning: #9f6500;
+  --color-success: #137a42;
+  --color-error-soft: rgba(201, 42, 58, 0.1);
+  --color-warning-soft: rgba(159, 101, 0, 0.11);
+  --color-success-soft: rgba(19, 122, 66, 0.1);
 
   /* Gradient tokens */
-  --gradient-primary: #6d28d9;
+  --gradient-primary: #0050cb;
 
-  /* Border opacity standards */
-  --border-interactive: rgba(51, 65, 85, 0.3); /* 30% for inputs, buttons */
-  --border-static: rgba(51, 65, 85, 0.15); /* 15% for cards, dividers */
+  --shadow-ambient: 0 20px 40px rgba(25, 28, 30, 0.06);
+  --shadow-glass: inset 0 1px 0 rgba(255, 255, 255, 0.48), 0 18px 38px rgba(25, 28, 30, 0.05);
+  --focus-ring: 0 0 0 3px rgba(0, 80, 203, 0.16);
+  --header-height: 64px;
 }
 
-/* ── Base Styles ── */
+/* Base Styles */
 body {
-  background-color: var(--surface-base);
+  background-color: var(--surface-page);
   color: var(--text-primary);
   font-family: "Geist", system-ui, sans-serif;
 }
@@ -47,7 +60,12 @@ h1, h2, h3, h4, h5, h6 {
   font-family: "Sora", system-ui, sans-serif;
 }
 
-/* ── Material Symbols ── */
+::selection {
+  background-color: var(--accent-primary-soft);
+  color: var(--text-primary);
+}
+
+/* Material Symbols */
 .icon {
   font-family: "Material Symbols Outlined";
   font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
@@ -56,7 +74,7 @@ h1, h2, h3, h4, h5, h6 {
   user-select: none;
 }
 
-/* ── Technical Label ── */
+/* Technical Label */
 .label-tech {
   font-size: 10px;
   font-weight: 700;
@@ -65,20 +83,151 @@ h1, h2, h3, h4, h5, h6 {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
-/* ── Primary Button (solid fill, subtle hover) ── */
+.glass-panel {
+  background: var(--surface-floating);
+  border: 1px solid var(--border-static);
+  box-shadow: var(--shadow-glass);
+  backdrop-filter: blur(30px) saturate(140%);
+  -webkit-backdrop-filter: blur(30px) saturate(140%);
+}
+
+.surface-panel {
+  background: var(--surface-panel);
+  border: 1px solid var(--border-static);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42);
+}
+
+.interactive-lift {
+  transition:
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.16s ease;
+}
+
+.interactive-lift:hover {
+  background-color: var(--surface-hover);
+  transform: translateY(-1px);
+}
+
+.interactive-lift:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.interactive-lift:active {
+  transform: translateY(0);
+}
+
+.interactive-lift:disabled,
+.interactive-lift[aria-disabled="true"] {
+  cursor: not-allowed;
+  transform: none;
+  opacity: 0.56;
+}
+
+.media-lens {
+  overflow: hidden;
+  background: var(--surface-media);
+  border: 1px solid rgba(194, 198, 216, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.44);
+}
+
 .btn-primary {
-  background-color: var(--accent-primary);
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
   color: white;
-  transition: background-color 0.15s ease, opacity 0.15s ease;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 12px 28px rgba(0, 80, 203, 0.2);
+  transition:
+    background-color 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease,
+    transform 0.15s ease;
 }
 
 .btn-primary:hover {
-  background-color: var(--accent-primary-dim);
+  background: linear-gradient(135deg, var(--accent-primary-dim), var(--accent-primary));
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
 }
 
 .btn-primary:disabled {
-  background-color: var(--surface-bright);
+  background: var(--surface-control);
   color: var(--text-secondary);
   cursor: not-allowed;
-  opacity: 0.6;
+  opacity: 0.64;
+  box-shadow: none;
+  transform: none;
+}
+
+.btn-secondary {
+  background: var(--surface-floating);
+  color: var(--text-primary);
+  border: 1px solid var(--border-static);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.36);
+  backdrop-filter: blur(30px) saturate(135%);
+  -webkit-backdrop-filter: blur(30px) saturate(135%);
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.34);
+  border-color: var(--border-interactive);
+  transform: translateY(-1px);
+}
+
+.btn-secondary:focus-visible,
+.btn-primary:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.btn-secondary:active {
+  transform: translateY(0);
+}
+
+.btn-secondary:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.58;
+  transform: none;
+}
+
+.input-precision {
+  background: var(--surface-control);
+  color: var(--text-primary);
+  border: 0;
+  border-bottom: 1px solid var(--border-static);
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.input-precision::placeholder {
+  color: var(--text-muted);
+}
+
+.input-precision:focus {
+  outline: none;
+  border-bottom-color: var(--accent-primary);
+  box-shadow: 0 6px 18px rgba(0, 80, 203, 0.09);
+}
+
+.input-precision[aria-invalid="true"],
+.input-precision[data-state="error"] {
+  border-bottom-color: var(--color-error);
+  background: var(--color-error-soft);
+}
+
+.input-precision:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.62;
 }

@@ -55,6 +55,11 @@ export function UploadEntry() {
     }
   }, [session]);
 
+  const handleReset = useCallback(() => {
+    setError(null);
+    inputRef.current?.click();
+  }, []);
+
   const handleChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
@@ -99,14 +104,14 @@ export function UploadEntry() {
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`w-full max-w-lg cursor-pointer rounded-2xl border-2 border-dashed p-10 text-center transition-colors ${
+        className={`glass-panel interactive-lift w-full max-w-2xl cursor-pointer rounded-lg p-8 text-center ${
           isDragOver
-            ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/10"
-            : "border-[var(--border)] bg-[var(--surface-low)] hover:border-[var(--accent-primary)]/50 hover:bg-[var(--surface-mid)]"
+            ? "bg-[var(--accent-primary-soft)]"
+            : "hover:bg-[var(--surface-panel)]"
         }`}
       >
-        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--accent-primary)]/10">
-          <span className="icon text-[var(--accent-primary)]">cloud_upload</span>
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-[var(--accent-primary-soft)]">
+          <span className="icon text-[var(--accent-primary)]" aria-hidden="true">cloud_upload</span>
         </div>
         <p className="text-base font-medium text-[var(--text-primary)]">
           点击或拖拽上传参考图
@@ -116,9 +121,19 @@ export function UploadEntry() {
         </p>
       </div>
       {error && (
-        <p className="mt-3 text-sm text-[var(--color-error)]" role="alert">
-          {error}
-        </p>
+        <div
+          className="mt-3 flex flex-wrap items-center justify-center gap-3 text-sm text-[var(--color-error)]"
+          role="alert"
+        >
+          <span>{error}</span>
+          <button
+            className="btn-secondary rounded-md px-3 py-1.5 text-xs"
+            onClick={handleReset}
+            type="button"
+          >
+            重新选择
+          </button>
+        </div>
       )}
       <input
         ref={inputRef}

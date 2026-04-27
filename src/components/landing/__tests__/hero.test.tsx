@@ -12,7 +12,18 @@ describe("Hero", () => {
   it("渲染副标题", () => {
     render(<Hero />);
     expect(
-      screen.getByText(/上传参考图，AI 自动提取视觉配方/),
+      screen.getByText(/上传一张参考图，获得可编辑的视觉配方/),
     ).toBeInTheDocument();
+  });
+
+  it("渲染产品闭环预览和模板入口", () => {
+    render(<Hero />);
+    expect(screen.getByText("Reference")).toBeInTheDocument();
+    expect(screen.getByText("Recipe")).toBeInTheDocument();
+    expect(screen.getByText("Render")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "模板库" })).toHaveAttribute(
+      "href",
+      "/workspace/templates",
+    );
   });
 });

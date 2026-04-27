@@ -40,10 +40,16 @@ export function LeftSidebar() {
   const router = useRouter();
 
   return (
-    <aside className="flex h-full w-56 flex-shrink-0 flex-col border-r border-[var(--border)] bg-[var(--surface-mid)]">
+    <aside
+      aria-label="工作区导航"
+      className="surface-panel flex h-full w-56 flex-shrink-0 flex-col"
+    >
       {/* Brand */}
       <div className="flex items-center gap-2.5 px-4 py-5">
-        <span className="material-symbols-outlined text-2xl text-[var(--accent-primary)]">
+        <span
+          className="material-symbols-outlined text-2xl text-[var(--accent-primary)]"
+          aria-hidden="true"
+        >
           palette
         </span>
         <span className="text-base font-bold text-[var(--text-primary)]">
@@ -60,9 +66,10 @@ export function LeftSidebar() {
               key={item.href}
               type="button"
               onClick={() => router.push(item.href)}
-              className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              aria-current={active ? "page" : undefined}
+              className={`interactive-lift flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium ${
                 active
-                  ? "border-l-2 border-[var(--accent-primary)] bg-[var(--surface-bright)] text-[var(--text-primary)]"
+                  ? "bg-[var(--accent-primary-soft)] text-[var(--accent-primary)]"
                   : "text-[var(--text-secondary)] hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)]"
               }`}
             >
@@ -74,12 +81,12 @@ export function LeftSidebar() {
       </nav>
 
       {/* Bottom links */}
-      <div className="border-t border-[var(--border)] px-3 pt-3 pb-4 space-y-1">
+      <div className="space-y-1 px-3 pt-3 pb-4">
         {bottomLinks.map((link) => (
           <a
             key={link.label}
             href={link.href}
-            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)]"
+            className="interactive-lift flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)]"
           >
             {link.icon}
             {link.label}

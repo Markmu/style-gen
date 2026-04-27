@@ -7,9 +7,9 @@ import { Footer } from "@/components/landing/footer";
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-[var(--surface-base)]">
+    <main className="min-h-screen bg-[var(--surface-page)]">
       <Hero />
-      <div className="pb-12">
+      <div className="-mt-14 pb-12">
         <UploadEntry />
       </div>
       <ValueSection />

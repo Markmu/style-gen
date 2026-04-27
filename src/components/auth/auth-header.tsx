@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
 import { LoginButton } from "./login-button";
 import { UserMenu } from "./user-menu";
@@ -21,6 +21,7 @@ function getOAuthErrorMessage(error: string): string {
 
 export function AuthHeader() {
   const { data: session, status } = useSession();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const prevStatusRef = useRef(status);
@@ -51,38 +52,64 @@ export function AuthHeader() {
 
   if (status === "loading") return null; // 避免闪烁
 
+  const navItems = [
+    { label: "首页", href: "/", icon: "home", active: pathname === "/" },
+    {
+      label: "工作台",
+      href: "/workspace",
+      icon: "hub",
+      active: pathname === "/workspace",
+    },
+    {
+      label: "模板库",
+      href: "/workspace/templates",
+      icon: "library_books",
+      active: pathname.startsWith("/workspace/templates"),
+    },
+  ];
+
   return (
     <>
-      <header className="sticky top-0 z-50 border-b border-[var(--border)] bg-[var(--surface-base)]/80 backdrop-blur-md">
-        <div className="flex h-14 items-center justify-between px-6">
-          <Link href="/" className="flex items-center gap-2.5">
-            <span className="icon text-[var(--accent-primary)]">auto_awesome</span>
-            <span className="text-base font-bold text-[var(--text-primary)]">StyleGen</span>
+      <header className="glass-panel sticky top-0 z-50">
+        <div className="flex h-[var(--header-height)] items-center justify-between px-6">
+          <Link
+            href="/"
+            className="interactive-lift flex items-center gap-2.5 rounded-md px-2 py-1.5"
+            aria-current={pathname === "/" ? "page" : undefined}
+          >
+            <span className="icon text-[var(--accent-primary)]" aria-hidden="true">
+              auto_awesome
+            </span>
+            <span className="text-base font-bold text-[var(--text-primary)]">
+              Visoryn
+            </span>
           </Link>
 
-          {/* 功能链接 */}
-          <nav className="hidden items-center gap-6 md:flex">
-            <Link
-              href="/#features"
-              className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-            >
-              <span className="icon text-base">explore</span>
-              功能
-            </Link>
-            <Link
-              href="/workspace"
-              className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-            >
-              <span className="icon text-base">hub</span>
-              工作台
-            </Link>
+          <nav className="hidden items-center gap-2 md:flex" aria-label="全站导航">
+            {navItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={item.active ? "page" : undefined}
+                className={`interactive-lift flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium ${
+                  item.active
+                    ? "bg-[var(--accent-primary-soft)] text-[var(--accent-primary)]"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                }`}
+              >
+                <span className="icon text-base" aria-hidden="true">
+                  {item.icon}
+                </span>
+                {item.label}
+              </Link>
+            ))}
           </nav>
 
           <div>{session ? <UserMenu /> : <LoginButton />}</div>
         </div>
       </header>
       {errorMessage && (
-        <div className="fixed top-16 right-4 z-50 rounded-lg border border-[var(--color-error)]/30 bg-[var(--color-error)]/10 px-4 py-3 text-sm text-[var(--color-error)] shadow-md backdrop-blur-sm">
+        <div className="glass-panel fixed top-20 right-4 z-50 rounded-lg px-4 py-3 text-sm text-[var(--color-error)]">
           {errorMessage}
         </div>
       )}

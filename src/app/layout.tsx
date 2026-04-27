@@ -28,7 +28,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body>
+      <body className="min-h-screen bg-[var(--surface-page)] text-[var(--text-primary)]">
         <Providers>
           <Suspense>
             <AuthHeader />

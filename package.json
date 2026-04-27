@@ -28,6 +28,7 @@
     "@fal-ai/client": "^1.9.4",
     "@google/genai": "^1.46.0",
     "@tanstack/react-query": "^5.67.0",
+    "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
     "next": "^15.3.0",
     "next-auth": "5.0.0-beta.30",
