@@ -54,6 +54,46 @@ describe("ReplicateStructurerProvider", () => {
     );
   });
 
+  it("带原图上下文时不向 Replicate structurer 传递 images", async () => {
+    mockRun.mockResolvedValue(['{"ok":true}']);
+
+    await provider.structure({
+      rawAnalysis: "raw analysis text",
+      context: {
+        taskId: "task-1",
+        source: "analysis_webhook",
+        imageUrl: "https://example.com/source.jpg",
+        mimeType: "image/jpeg",
+      },
+    });
+
+    expect(mockRun).toHaveBeenCalledWith(
+      "google/gemini-2.5-flash",
+      {
+        input: {
+          prompt: "Here is the visual analysis to structure:\n\nraw analysis text",
+          system_instruction: STRUCTURER_SYSTEM_PROMPT,
+          temperature: 0,
+          thinking_budget: 0,
+        },
+        wait: {
+          mode: "block",
+          timeout: 30,
+        },
+      }
+    );
+  });
+
+  it("兼容对象包裹的 Replicate 输出", async () => {
+    mockRun.mockResolvedValue({ output: ['{"ok":true}'] });
+
+    const result = await provider.structure({
+      rawAnalysis: "raw analysis text",
+    });
+
+    expect(result).toBe('{"ok":true}');
+  });
+
   it("空输出时抛出错误", async () => {
     mockRun.mockResolvedValue([]);
 

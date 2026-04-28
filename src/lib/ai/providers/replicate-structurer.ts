@@ -15,7 +15,7 @@ function log(event: string, data: Record<string, unknown>) {
 
 function normalizeOutput(output: unknown): string {
   if (typeof output === "string") {
-    return output;
+    return output.trim();
   }
 
   if (Array.isArray(output)) {
@@ -25,7 +25,38 @@ function normalizeOutput(output: unknown): string {
     return parts.join("").trim();
   }
 
+  if (output && typeof output === "object") {
+    const record = output as Record<string, unknown>;
+    for (const key of ["output", "text", "response", "content"]) {
+      const text = normalizeOutput(record[key]);
+      if (text) {
+        return text;
+      }
+    }
+  }
+
   return "";
+}
+
+function summarizeOutputShape(output: unknown): Record<string, unknown> {
+  if (Array.isArray(output)) {
+    return {
+      outputType: "array",
+      outputLength: output.length,
+      itemTypes: [...new Set(output.map((item) => typeof item))],
+    };
+  }
+
+  if (output && typeof output === "object") {
+    return {
+      outputType: "object",
+      outputKeys: Object.keys(output as Record<string, unknown>).slice(0, 10),
+    };
+  }
+
+  return {
+    outputType: output === null ? "null" : typeof output,
+  };
 }
 
 export class ReplicateStructurerProvider implements StructurerProvider {
@@ -57,9 +88,6 @@ export class ReplicateStructurerProvider implements StructurerProvider {
     try {
       const output = await this.client.run(MODEL, {
         input: {
-          ...(params.context?.imageUrl
-            ? { images: [{ value: params.context.imageUrl }] }
-            : {}),
           prompt: `Here is the visual analysis to structure:\n\n${params.rawAnalysis}`,
           system_instruction: STRUCTURER_SYSTEM_PROMPT,
           temperature: 0,
@@ -77,6 +105,7 @@ export class ReplicateStructurerProvider implements StructurerProvider {
         duration: Date.now() - startedAt,
         hasText: Boolean(text),
         textLength: text.length,
+        ...(text ? {} : summarizeOutputShape(output)),
       });
 
       if (!text) {
