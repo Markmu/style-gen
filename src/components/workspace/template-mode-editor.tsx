@@ -19,8 +19,8 @@ export function TemplateModeEditor({
   onVariableChange,
 }: TemplateModeEditorProps) {
   return (
-    <div className="grid min-h-0 flex-1 grid-rows-[minmax(220px,1fr)_auto] gap-4">
-      <label className="flex min-h-0 flex-col gap-2">
+    <div className="flex min-h-full flex-col gap-4">
+      <label className="flex min-h-[220px] flex-1 flex-col gap-2">
         <span className="text-sm font-medium text-[var(--text-secondary)]">
           模板原文
         </span>

@@ -402,27 +402,11 @@ export function RecipeEditor({
   if (!recipe) {
     return (
       <div className="space-y-4 rounded-xl bg-[var(--surface-mid)] p-5 ring-1 ring-[var(--border)]">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <svg
-              className="h-5 w-5 shrink-0 text-[var(--text-secondary)]"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-            <h3 className="text-base font-bold text-[var(--text-primary)]">
-              风格拆解
-            </h3>
+        {onSaveTemplate && (
+          <div className="flex justify-end">
+            <SaveTemplateButton onClick={onSaveTemplate} />
           </div>
-          {onSaveTemplate && <SaveTemplateButton onClick={onSaveTemplate} />}
-        </div>
+        )}
         <p className="text-sm text-[var(--text-secondary)]">
           上传参考图开始分析
         </p>
@@ -435,28 +419,11 @@ export function RecipeEditor({
 
   return (
     <div className="space-y-4 rounded-xl bg-[var(--surface-mid)] p-5 ring-1 ring-[var(--border)]">
-      {/* Title */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <svg
-            className="h-5 w-5 shrink-0 text-[var(--text-secondary)]"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-            />
-          </svg>
-          <h3 className="text-base font-bold text-[var(--text-primary)]">
-            风格拆解
-          </h3>
+      {onSaveTemplate && (
+        <div className="flex justify-end">
+          <SaveTemplateButton onClick={onSaveTemplate} />
         </div>
-        {onSaveTemplate && <SaveTemplateButton onClick={onSaveTemplate} />}
-      </div>
+      )}
 
       {/* Degraded overlay */}
       {degraded && (
@@ -568,8 +535,6 @@ export function RecipeEditorWithDegrade({
   onReplace,
   onSaveTemplate,
 }: RecipeEditorWithDegradeProps) {
-  const isGenerationReady = state === "generation_ready";
-
   // --- Determine which degradation/error to show ---
   const isAnalysisError =
     state === "idle" && error && error.stage !== "generation";
@@ -587,15 +552,8 @@ export function RecipeEditorWithDegrade({
 
   // --- Error display (priority over degradation) ---
   if (isAnalysisError && error) {
-    const stepTitle = isGenerationReady
-      ? "Step 1 · 本次生成参数"
-      : "Step 1 · 风格拆解";
-
     return (
       <div className="space-y-4 rounded-xl bg-[var(--surface-mid)] p-5 ring-1 ring-[var(--border)]">
-        <h3 className="text-base font-bold text-[var(--text-primary)]">
-          {stepTitle}
-        </h3>
         {error.code ? (
           <ErrorDisplay
             code={error.code as ApiErrorCode}
@@ -617,15 +575,8 @@ export function RecipeEditorWithDegrade({
 
   // --- L1 analysis queueing ---
   if (isL1AnalysisQueueing) {
-    const stepTitle = isGenerationReady
-      ? "Step 1 · 本次生成参数"
-      : "Step 1 · 风格拆解";
-
     return (
       <div className="space-y-4 rounded-xl bg-[var(--surface-mid)] p-5 ring-1 ring-[var(--border)]">
-        <h3 className="text-base font-bold text-[var(--text-primary)]">
-          {stepTitle}
-        </h3>
         <DegradationHint
           title="分析排队中，请耐心等待"
           description="当前请求较多，处理可能需要更长时间"

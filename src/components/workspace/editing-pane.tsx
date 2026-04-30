@@ -17,7 +17,10 @@ export function EditingPane({
   generatePanel,
 }: EditingPaneProps) {
   return (
-    <div data-testid="editing-pane" className="flex h-full min-h-0 flex-col gap-4">
+    <div
+      data-testid="editing-pane"
+      className="flex h-full min-h-0 min-w-0 flex-col gap-2 overflow-hidden"
+    >
       <UnifiedPromptEditor
         initialPromptText={promptText}
         initialTemplateContent={templateContent}

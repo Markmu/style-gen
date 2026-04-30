@@ -39,7 +39,7 @@ export function AnalysisPane({
   onSaveTemplate,
 }: AnalysisPaneProps) {
   return (
-    <div data-testid="analysis-pane" className="flex h-full min-h-0 flex-col gap-4">
+    <div data-testid="analysis-pane" className="flex h-full min-h-0 flex-col gap-2">
       <ReferencePreview
         referenceImageUrl={referenceImageUrl}
         isUploading={isUploading || state === "uploading"}

@@ -99,15 +99,10 @@ export function UnifiedPromptEditor({
   return (
     <div
       data-testid="unified-prompt-editor"
-      className="surface-panel flex min-h-0 flex-1 flex-col rounded-xl p-5"
+      className="surface-panel flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl p-5"
     >
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
-          <p className="label-tech text-[var(--text-muted)]">Edit</p>
-          <h3 className="mt-1 text-base font-semibold text-[var(--text-primary)]">
-            合一编辑区
-          </h3>
-        </div>
+      <div className="mb-4 flex shrink-0 items-center justify-between gap-3">
+        <p className="label-tech text-[var(--text-muted)]">Edit</p>
         <div className="flex rounded-lg bg-[var(--surface-low)] p-1">
           <button
             type="button"
@@ -134,17 +129,19 @@ export function UnifiedPromptEditor({
         </div>
       </div>
 
-      {mode === "template" ? (
-        <TemplateModeEditor
-          templateSource={templateSource}
-          variables={variables}
-          variableValues={variableValues}
-          onTemplateChange={handleTemplateChange}
-          onVariableChange={handleVariableChange}
-        />
-      ) : (
-        <TextModeEditor promptText={textPrompt} onChange={handleTextChange} />
-      )}
+      <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+        {mode === "template" ? (
+          <TemplateModeEditor
+            templateSource={templateSource}
+            variables={variables}
+            variableValues={variableValues}
+            onTemplateChange={handleTemplateChange}
+            onVariableChange={handleVariableChange}
+          />
+        ) : (
+          <TextModeEditor promptText={textPrompt} onChange={handleTextChange} />
+        )}
+      </div>
     </div>
   );
 }

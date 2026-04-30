@@ -7,10 +7,7 @@ interface TextModeEditorProps {
 
 export function TextModeEditor({ promptText, onChange }: TextModeEditorProps) {
   return (
-    <label className="flex min-h-0 flex-1 flex-col gap-2">
-      <span className="text-sm font-medium text-[var(--text-secondary)]">
-        完整生成提示
-      </span>
+    <label className="flex min-h-0 flex-1 flex-col">
       <textarea
         aria-label="完整生成提示"
         value={promptText}

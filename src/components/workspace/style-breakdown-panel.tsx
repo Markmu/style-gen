@@ -36,32 +36,34 @@ export function StyleBreakdownPanel({
   return (
     <div
       data-testid="style-breakdown-panel"
-      className="surface-panel min-h-0 flex-1 overflow-y-auto rounded-xl p-4"
+      className="surface-panel flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl p-4"
     >
-      {isAnalyzing && !degradation.analysisQueueing ? (
-        <AnalysisProgress isAnalyzing error={null} onRetry={onRetry} />
-      ) : hasAnalysisError || recipe || degradation.analysisQueueing ? (
-        <RecipeEditorWithDegrade
-          recipe={recipe}
-          state={state}
-          degradation={degradation}
-          promptText={promptText}
-          error={error}
-          onRetry={onRetry}
-          onReplace={onReplace}
-          onSaveTemplate={onSaveTemplate}
-        />
-      ) : (
-        <div className="flex h-full min-h-[260px] flex-col justify-center rounded-lg bg-[var(--surface-low)] p-6">
-          <p className="label-tech text-[var(--text-muted)]">Analyze</p>
-          <h2 className="mt-3 text-lg font-semibold text-[var(--text-primary)]">
-            风格拆解
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-            上传参考图后，视觉结构、光线、色彩和情绪会在这里展开。
-          </p>
-        </div>
-      )}
+      <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
+        <h2 className="label-tech text-[var(--text-muted)]">Analyze</h2>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {isAnalyzing && !degradation.analysisQueueing ? (
+          <AnalysisProgress isAnalyzing error={null} onRetry={onRetry} />
+        ) : hasAnalysisError || recipe || degradation.analysisQueueing ? (
+          <RecipeEditorWithDegrade
+            recipe={recipe}
+            state={state}
+            degradation={degradation}
+            promptText={promptText}
+            error={error}
+            onRetry={onRetry}
+            onReplace={onReplace}
+            onSaveTemplate={onSaveTemplate}
+          />
+        ) : (
+          <div className="flex h-full min-h-[260px] flex-col justify-center rounded-lg bg-[var(--surface-low)] p-6">
+            <p className="text-sm leading-6 text-[var(--text-secondary)]">
+              上传参考图后，视觉结构、光线、色彩和情绪会在这里展开。
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

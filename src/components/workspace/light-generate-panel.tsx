@@ -67,14 +67,12 @@ export function LightGeneratePanel({
   );
 
   return (
-    <div data-testid="light-generate-panel" className="surface-panel rounded-xl p-4">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="label-tech text-[var(--text-muted)]">Generate</p>
-          <h3 className="mt-1 text-base font-semibold text-[var(--text-primary)]">
-            轻量生成区
-          </h3>
-        </div>
+    <div
+      data-testid="light-generate-panel"
+      className="surface-panel min-w-0 shrink-0 overflow-hidden rounded-xl p-4"
+    >
+      <div className="mb-4 flex items-start justify-between gap-4">
+        <p className="label-tech text-[var(--text-muted)]">Generate</p>
         {error?.stage === "generation" && (
           <button
             type="button"
@@ -86,7 +84,7 @@ export function LightGeneratePanel({
         )}
       </div>
 
-      <div className="mt-4 grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
+      <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
         <div className="space-y-3">
           <div>
             <span className="mb-2 block text-xs font-medium text-[var(--text-secondary)]">

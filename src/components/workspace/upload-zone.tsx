@@ -160,7 +160,7 @@ export function UploadZone({
   // Show upload progress
   if (isUploading) {
     return (
-      <div className="flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/5 p-10">
+      <div className="flex h-full min-h-0 flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/5 p-4">
         <div className="h-2 w-full max-w-xs overflow-hidden rounded-full bg-[var(--surface-bright)]">
           <div
             className="h-full rounded-full bg-[var(--accent-primary)] transition-all duration-300"
@@ -174,7 +174,7 @@ export function UploadZone({
 
   // Show drop zone with onboarding guidance
   return (
-    <div className="flex flex-col items-center">
+    <div className="flex h-full min-h-0 flex-col items-center">
       <div
         role="button"
         tabIndex={0}
@@ -185,7 +185,7 @@ export function UploadZone({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`w-full cursor-pointer rounded-2xl border-2 border-dashed p-8 text-center transition-colors md:p-12 ${
+        className={`flex h-full min-h-0 w-full cursor-pointer flex-col justify-center rounded-2xl border-2 border-dashed p-4 text-center transition-colors md:p-5 ${
           isDragOver
             ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/10"
             : "border-[var(--border)]/15 bg-[var(--surface-low)] hover:border-[var(--accent-primary)]/30 hover:bg-[var(--surface-mid)]"
@@ -200,7 +200,7 @@ export function UploadZone({
         <p className="mt-2 text-sm text-[var(--text-secondary)]">
           支持 JPG / PNG / WebP，不超过 10MB
         </p>
-        <div className="mt-6 flex items-center justify-center gap-6 text-xs text-[var(--text-secondary)]">
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-[var(--text-secondary)]">
           <span>1. 上传参考图</span>
           <span aria-hidden="true">→</span>
           <span>2. AI 分析风格</span>

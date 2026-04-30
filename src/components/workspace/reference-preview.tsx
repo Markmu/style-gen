@@ -21,12 +21,10 @@ export function ReferencePreview({
   return (
     <div
       data-testid="reference-preview"
-      className="surface-panel flex h-[230px] shrink-0 flex-col rounded-xl p-4"
+      className="surface-panel flex h-[230px] min-w-0 shrink-0 flex-col overflow-hidden rounded-xl p-4"
     >
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold text-[var(--text-primary)]">
-          参考图
-        </h2>
+      <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
+        <h2 className="label-tech text-[var(--text-muted)]">Image</h2>
         {referenceImageUrl && (
           <button
             type="button"
@@ -49,13 +47,15 @@ export function ReferencePreview({
           />
         </div>
       ) : (
-        <UploadZone
-          referenceImageUrl={null}
-          isUploading={isUploading}
-          uploadProgress={uploadProgress}
-          onFileSelected={onFileSelected}
-          onReplace={onReplace}
-        />
+        <div className="min-h-0 flex-1 overflow-hidden">
+          <UploadZone
+            referenceImageUrl={null}
+            isUploading={isUploading}
+            uploadProgress={uploadProgress}
+            onFileSelected={onFileSelected}
+            onReplace={onReplace}
+          />
+        </div>
       )}
     </div>
   );
