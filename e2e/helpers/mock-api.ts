@@ -93,7 +93,7 @@ export async function mockAnalysisPolling(
   taskId: string,
   response: object,
 ) {
-  await page.route(`**/api/analysis/${taskId}`, async (route) => {
+  await page.route(`**/api/analysis/${taskId}**`, async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -109,7 +109,7 @@ export async function mockAnalysisPollingSequence(
   responses: object[],
 ) {
   let callIndex = 0
-  await page.route(`**/api/analysis/${taskId}`, async (route) => {
+  await page.route(`**/api/analysis/${taskId}**`, async (route) => {
     const response = responses[Math.min(callIndex, responses.length - 1)]
     callIndex++
     await route.fulfill({
@@ -144,7 +144,7 @@ export async function mockGenerationPolling(
   taskId: string,
   response: object,
 ) {
-  await page.route(`**/api/generation/${taskId}`, async (route) => {
+  await page.route(`**/api/generation/${taskId}**`, async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -160,7 +160,7 @@ export async function mockGenerationPollingSequence(
   responses: object[],
 ) {
   let callIndex = 0
-  await page.route(`**/api/generation/${taskId}`, async (route) => {
+  await page.route(`**/api/generation/${taskId}**`, async (route) => {
     const response = responses[Math.min(callIndex, responses.length - 1)]
     callIndex++
     await route.fulfill({

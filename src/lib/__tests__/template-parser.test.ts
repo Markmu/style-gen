@@ -1,5 +1,6 @@
 import {
   extractVariables,
+  mergeVariableValues,
   replaceVariables,
   hasVariables,
 } from "@/lib/template-parser";
@@ -139,6 +140,20 @@ describe("template-parser", () => {
         expr: "(a + b)",
       });
       expect(result).toBe("Expr: (a + b)");
+    });
+  });
+
+  describe("mergeVariableValues", () => {
+    it("按模板首次出现顺序保留已有变量并新增空值", () => {
+      const result = mergeVariableValues("{{subject}} with {{lighting}} and {{subject}}", {
+        subject: "glass chair",
+        removed: "unused",
+      });
+
+      expect(result).toEqual({
+        subject: "glass chair",
+        lighting: "",
+      });
     });
   });
 

@@ -10,19 +10,14 @@ import { useAnalysis } from "@/hooks/use-analysis";
 import { useGeneration } from "@/hooks/use-generation";
 import { useHistoryRestore } from "@/hooks/use-history-restore";
 import { StatusBar } from "@/components/workspace/status-bar";
-import { WorkspaceCanvas } from "@/components/workspace/workspace-canvas";
-import { RecipeEditorWithDegrade } from "@/components/workspace/recipe-editor";
-import { PromptEditor } from "@/components/workspace/prompt-editor";
-import {
-  OutputSettings,
-  type AspectRatio,
-  type Quality,
-} from "@/components/workspace/output-settings";
-import { AnalysisProgress } from "@/components/workspace/analysis-progress";
+import { WorkspaceTwoPaneLayout } from "@/components/workspace/workspace-two-pane-layout";
+import { AnalysisPane } from "@/components/workspace/analysis-pane";
+import { EditingPane } from "@/components/workspace/editing-pane";
+import { LightGeneratePanel } from "@/components/workspace/light-generate-panel";
+import { GenerationDialog } from "@/components/workspace/generation-dialog";
+import type { AspectRatio, Quality } from "@/components/workspace/output-settings";
 import { TemplateSaveDialog } from "@/components/workspace/template-save-dialog";
-import { TemplateWizard } from "@/components/workspace/template-wizard";
 import { HistoryPanel } from "@/components/workspace/history-panel";
-import { extractVariables } from "@/lib/template-parser";
 
 /** L1 degradation threshold: show queueing hint after 60s */
 const QUEUEING_THRESHOLD_MS = 60_000;
@@ -51,26 +46,26 @@ function WorkspacePageInner() {
   const { upload, progress, isUploading } = useUpload();
   const { data: analysisData } = useAnalysis(ws.analysisTaskId);
   const { data: generationData } = useGeneration(ws.generationTaskId);
-  const { restore: restoreHistory, isRestoring: _isRestoring } = useHistoryRestore();
+  const { restore: restoreHistory } = useHistoryRestore();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const router = useRouter();
   const hasConsumedFile = useRef(false);
   const analysisStartTime = useRef<number | null>(null);
   const generationStartTime = useRef<number | null>(null);
+  const [generationDialogOpen, setGenerationDialogOpen] = useState(false);
+  const [resolvedPromptText, setResolvedPromptText] = useState("");
+  const [templateContent, setTemplateContent] = useState<string | null>(null);
+  const [generationParams, setGenerationParams] = useState<{
+    aspectRatio: AspectRatio;
+    quality: Quality;
+  }>({ aspectRatio: "1:1", quality: "standard" });
 
   // Template UI state
   const [showTemplateSaveDialog, setShowTemplateSaveDialog] = useState(false);
   const handleOpenTemplateSave = useCallback(() => {
     setShowTemplateSaveDialog(true);
   }, []);
-
-  // Wizard state (P1)
-  const [showWizard, setShowWizard] = useState(false);
-  const [wizardContext, setWizardContext] = useState<{
-    variables: import("@/types/models").TemplateVariable[];
-    originalContent: string;
-  } | null>(null);
 
   // FEAT-04: templateId query 参数加载逻辑
   useEffect(() => {
@@ -87,13 +82,8 @@ function WorkspacePageInner() {
 
         if (aborted) return;
 
-        const variables = extractVariables(template.content);
-        if (variables.length > 0) {
-          setWizardContext({ variables, originalContent: template.content });
-          setShowWizard(true);
-        } else {
-          ws.setPromptText(template.content);
-        }
+        setTemplateContent(template.content);
+        ws.setPromptText(template.content);
       } catch {
         // 模板不存在或加载失败，静默处理（不阻塞用户）
         console.error("加载模板失败:", templateId);
@@ -209,10 +199,12 @@ function WorkspacePageInner() {
 
     if (generationData.status === "completed" && generationData.resultFileUrl) {
       ws.completeGeneration(generationData.resultFileUrl);
+      setGenerationDialogOpen(true);
       // FEAT-02: 生成完成后刷新历史列表
       queryClient.invalidateQueries({ queryKey: ["generation-history"] });
     } else if (generationData.status === "failed") {
       ws.failGeneration(generationData.errorMessage ?? "生成失败");
+      setGenerationDialogOpen(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [generationData?.status, generationData?.id]);
@@ -331,13 +323,14 @@ function WorkspacePageInner() {
       if (ws.degradation.generationUnavailable) return;
 
       try {
+        setGenerationDialogOpen(true);
         const res = await fetch("/api/generation", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             analysisTaskId: ws.analysisTaskId,
-            promptText: ws.promptText,
-            negativePromptText: ws.negativePromptText,
+            promptText: resolvedPromptText,
+            negativePromptText: "",
             params: {
               aspectRatio: params.aspectRatio,
               quality: params.quality,
@@ -360,13 +353,19 @@ function WorkspacePageInner() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ws.analysisTaskId, ws.promptText, ws.negativePromptText, ws.degradation.generationUnavailable],
+    [ws.analysisTaskId, resolvedPromptText, ws.degradation.generationUnavailable],
   );
 
   const handleGenerateRetry = useCallback(() => {
     ws.clearError();
     // Clear degradation state
     ws.setGenerationUnavailable(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleResolvedPromptChange = useCallback((value: string) => {
+    setResolvedPromptText(value);
+    ws.setPromptText(value);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -390,44 +389,10 @@ function WorkspacePageInner() {
     [restoreHistory, ws]
   );
 
-  // --- Layout logic (lifted from DecisionPanel) ---
-  const isAnalyzing = ws.state === "analyzing";
-  const isGenerationReady = ws.state === "generation_ready";
-
-  const hasAnalysisError =
-    ws.state === "idle" && ws.error && ws.error.stage !== "generation";
-
-  const showRecipeStep =
-    ws.state === "analyzing" ||
-    ws.state === "analysis_ready" ||
-    ws.state === "generating" ||
-    ws.state === "generation_ready" ||
-    ws.state === "history_restored" ||
-    hasAnalysisError;
-
-  const showPromptEditor =
-    ws.state === "analysis_ready" ||
-    ws.state === "generating" ||
-    ws.state === "generation_ready" ||
-    ws.state === "history_restored";
-
-  const showOutputSettings =
-    ws.state === "analysis_ready" ||
-    ws.state === "generating" ||
-    ws.state === "generation_ready" ||
-    ws.state === "history_restored";
-
-  // Three-column grid when prompt editor is visible
-  const useThreeColumns = showPromptEditor;
-
-  const promptEditorTitle = isGenerationReady
-    ? "继续调整指令"
-    : "生成指令";
-
   return (
     <div className="flex h-full overflow-hidden">
       {/* 中央工作区 */}
-      <div className="flex-1 min-w-0 overflow-auto">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <h1 className="sr-only">工作区</h1>
 
         {/* Compact StatusBar */}
@@ -438,131 +403,60 @@ function WorkspacePageInner() {
           onReplace={handleReplace}
         />
 
-        {/* Workspace grid: 2-col (idle/analyzing) or 3-col (analysis_ready+) */}
-        <div
-          className={`grid flex-1 gap-4 px-6 pb-4 pt-4 ${
-            useThreeColumns
-              ? "grid-cols-[minmax(500px,1fr)_420px_460px]"
-              : "grid-cols-[minmax(500px,1fr)_460px]"
-          }`}
-          style={{ minHeight: 0 }}
-        >
-          {/* Left column: Canvas */}
-          <div className="min-h-0 overflow-y-auto rounded-xl">
-            <WorkspaceCanvas
+        <div className="min-h-0 flex-1 overflow-hidden">
+          <WorkspaceTwoPaneLayout
+            analysis={
+              <AnalysisPane
               state={ws.state}
               referenceImageUrl={ws.referenceImageUrl}
-              resultImageUrl={ws.resultImageUrl}
               recipe={ws.recipe}
               isUploading={isUploading || ws.state === "uploading"}
               uploadProgress={progress}
+                degradation={ws.degradation}
+                promptText={ws.promptText}
+                error={ws.error}
               onFileSelected={handleFileSelected}
               onReplace={handleReplace}
+                onRetry={handleRetry}
+                onSaveTemplate={handleOpenTemplateSave}
             />
-          </div>
-
-          {/* Middle column: Recipe / Analysis (three-column mode only) */}
-          {useThreeColumns && (
-            <div className="min-h-0 overflow-y-auto transition-all duration-200">
-              {showRecipeStep && (
-                <>
-                  {isAnalyzing && !ws.degradation.analysisQueueing ? (
-                    <AnalysisProgress
-                      isAnalyzing={isAnalyzing}
-                      error={null}
-                      onRetry={handleRetry}
-                    />
-                  ) : (
-                    <RecipeEditorWithDegrade
-                      recipe={ws.recipe}
-                      state={ws.state}
-                      degradation={ws.degradation}
-                      promptText={ws.promptText}
-                      error={ws.error}
-                      onRetry={handleRetry}
-                      onReplace={handleReplace}
-                      onSaveTemplate={
-                        showPromptEditor ? handleOpenTemplateSave : undefined
-                      }
-                    />
-                  )}
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Right column: Prompt Editor + Output Settings (or guide) */}
-          <div className="min-h-0 space-y-4 overflow-y-auto transition-all duration-200">
-            {/* Idle / uploading empty state guide */}
-            {(ws.state === "idle" || ws.state === "uploading") &&
-              !ws.error && <EmptyStateGuide />}
-
-            {/* Two-column fallback: show recipe here when not in three-column mode */}
-            {!useThreeColumns && showRecipeStep && (
-              <>
-                {isAnalyzing && !ws.degradation.analysisQueueing ? (
-                  <AnalysisProgress
-                    isAnalyzing={isAnalyzing}
-                    error={null}
-                    onRetry={handleRetry}
-                  />
-                ) : (
-                  <RecipeEditorWithDegrade
-                    recipe={ws.recipe}
+            }
+            editing={
+              <EditingPane
+                promptText={ws.promptText}
+                templateContent={templateContent}
+                onResolvedPromptChange={handleResolvedPromptChange}
+                generatePanel={
+                  <LightGeneratePanel
                     state={ws.state}
-                    degradation={ws.degradation}
-                    promptText={ws.promptText}
+                    promptText={resolvedPromptText || ws.promptText}
+                    params={generationParams}
+                    generationUnavailable={ws.degradation.generationUnavailable}
                     error={ws.error}
-                    onRetry={handleRetry}
-                    onReplace={handleReplace}
-                    onSaveTemplate={
-                      showPromptEditor ? handleOpenTemplateSave : undefined
-                    }
+                    onParamsChange={setGenerationParams}
+                    onGenerate={handleGenerate}
+                    onRetry={handleGenerateRetry}
                   />
-                )}
-              </>
-            )}
-
-            {/* Prompt Editor or Wizard mode */}
-            {showPromptEditor && (
-              showWizard && wizardContext ? (
-                <TemplateWizard
-                  variables={wizardContext.variables}
-                  originalContent={wizardContext.originalContent}
-                  onApply={(rendered) => {
-                    ws.setPromptText(rendered);
-                    setShowWizard(false);
-                    setWizardContext(null);
-                  }}
-                  onSkip={() => {
-                    setShowWizard(false);
-                    setWizardContext(null);
-                  }}
-                />
-              ) : (
-                <PromptEditor
-                  promptText={ws.promptText}
-                  negativePromptText={ws.negativePromptText}
-                  onPromptChange={ws.setPromptText}
-                  onNegativePromptChange={ws.setNegativePromptText}
-                  title={promptEditorTitle}
-                />
-              )
-            )}
-
-            {/* Output Settings */}
-            {showOutputSettings && (
-              <OutputSettings
-                state={ws.state}
-                generationUnavailable={ws.degradation.generationUnavailable}
-                onGenerate={handleGenerate}
-                generationQueueing={ws.degradation.generationQueueing}
-                error={ws.error}
-                onRetry={handleGenerateRetry}
+                }
               />
-            )}
-          </div>
+            }
+          />
         </div>
+
+        <GenerationDialog
+          open={generationDialogOpen}
+          state={ws.state}
+          resultImageUrl={ws.resultImageUrl}
+          error={ws.error}
+          generationQueueing={ws.degradation.generationQueueing}
+          onClose={() => setGenerationDialogOpen(false)}
+          onRetry={() => {
+            handleGenerateRetry();
+            if (ws.state !== "generating") {
+              void handleGenerate(generationParams);
+            }
+          }}
+                />
 
         {/* Template Save Dialog */}
         <TemplateSaveDialog
@@ -591,34 +485,5 @@ export default function WorkspacePage() {
     <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-[var(--text-secondary)]">加载中...</div>}>
       <WorkspacePageInner />
     </Suspense>
-  );
-}
-
-/** Idle state guide: shows three-step workflow */
-function EmptyStateGuide() {
-  const steps = [
-    { number: "1", label: "AI 分析风格" },
-    { number: "2", label: "编辑生成指令" },
-    { number: "3", label: "设置参数生成" },
-  ];
-
-  return (
-    <div className="rounded-xl bg-[var(--surface-mid)] p-6 ring-1 ring-[var(--border)]">
-      <h3 className="text-base font-bold text-[var(--text-primary)]">
-        创作流程
-      </h3>
-      <div className="mt-4 space-y-3">
-        {steps.map((step) => (
-          <div key={step.number} className="flex items-center gap-3">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--surface-bright)] text-xs font-medium text-[var(--text-secondary)]">
-              {step.number}
-            </span>
-            <span className="text-sm text-[var(--text-secondary)]">
-              {step.label}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
   );
 }

@@ -8,9 +8,12 @@ vi.mock("@/auth", () => ({
 }));
 
 const mockFindGenerationTaskById = vi.fn();
+const mockFindByIdWithRecipe = vi.fn();
 vi.mock("@/lib/repositories/generation-task-repository", () => ({
   findGenerationTaskById: (...args: unknown[]) =>
     mockFindGenerationTaskById(...args),
+  findByIdWithRecipe: (...args: unknown[]) =>
+    mockFindByIdWithRecipe(...args),
 }));
 
 const mockFindAssetById = vi.fn();
@@ -66,6 +69,8 @@ describe("GET /api/generation/[id]", () => {
     mockAuth.mockReset();
     mockAuth.mockResolvedValue({ user: { id: "user-1" } });
     mockFindGenerationTaskById.mockReset();
+    mockFindByIdWithRecipe.mockReset();
+    mockFindByIdWithRecipe.mockResolvedValue(null);
     mockFindAssetById.mockReset();
   });
 

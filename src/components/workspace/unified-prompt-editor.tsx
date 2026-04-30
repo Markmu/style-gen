@@ -1,0 +1,150 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  extractVariables,
+  mergeVariableValues,
+  replaceVariables,
+} from "@/lib/template-parser";
+import { TemplateModeEditor } from "@/components/workspace/template-mode-editor";
+import { TextModeEditor } from "@/components/workspace/text-mode-editor";
+
+type PromptMode = "template" | "text";
+
+interface UnifiedPromptEditorProps {
+  initialPromptText: string;
+  initialTemplateContent?: string | null;
+  onResolvedPromptChange: (value: string) => void;
+}
+
+export function UnifiedPromptEditor({
+  initialPromptText,
+  initialTemplateContent,
+  onResolvedPromptChange,
+}: UnifiedPromptEditorProps) {
+  const [mode, setMode] = useState<PromptMode>(
+    initialTemplateContent ? "template" : "text",
+  );
+  const [templateSource, setTemplateSource] = useState(
+    initialTemplateContent || initialPromptText,
+  );
+  const [variableValues, setVariableValues] = useState<Record<string, string>>(
+    () => mergeVariableValues(initialTemplateContent || initialPromptText, {}),
+  );
+  const [textPrompt, setTextPrompt] = useState(initialPromptText);
+  const textTouchedRef = useRef(false);
+  const lastPromptRef = useRef(initialPromptText);
+  const lastTemplateRef = useRef(initialTemplateContent ?? null);
+  const lastEmittedPromptRef = useRef(initialPromptText);
+
+  useEffect(() => {
+    if (initialTemplateContent && initialTemplateContent !== lastTemplateRef.current) {
+      lastTemplateRef.current = initialTemplateContent;
+      lastPromptRef.current = initialPromptText;
+      textTouchedRef.current = false;
+      setMode("template");
+      setTemplateSource(initialTemplateContent);
+      setVariableValues((previous) => mergeVariableValues(initialTemplateContent, previous));
+      setTextPrompt(replaceVariables(initialTemplateContent, {}));
+      return;
+    }
+
+    if (
+      initialPromptText &&
+      initialPromptText !== lastPromptRef.current &&
+      initialPromptText !== lastEmittedPromptRef.current &&
+      !initialTemplateContent
+    ) {
+      lastPromptRef.current = initialPromptText;
+      textTouchedRef.current = false;
+      setTextPrompt(initialPromptText);
+      setTemplateSource(initialPromptText);
+      setMode("text");
+    }
+  }, [initialPromptText, initialTemplateContent]);
+
+  const variables = useMemo(() => extractVariables(templateSource), [templateSource]);
+  const resolvedTemplatePrompt = useMemo(
+    () => replaceVariables(templateSource, variableValues),
+    [templateSource, variableValues],
+  );
+  const resolvedPrompt = mode === "template" ? resolvedTemplatePrompt : textPrompt;
+
+  useEffect(() => {
+    lastEmittedPromptRef.current = resolvedPrompt;
+    onResolvedPromptChange(resolvedPrompt);
+  }, [onResolvedPromptChange, resolvedPrompt]);
+
+  const handleTemplateChange = useCallback((value: string) => {
+    setTemplateSource(value);
+    setVariableValues((previous) => mergeVariableValues(value, previous));
+  }, []);
+
+  const handleVariableChange = useCallback((name: string, value: string) => {
+    setVariableValues((previous) => ({ ...previous, [name]: value }));
+  }, []);
+
+  const handleTextChange = useCallback((value: string) => {
+    textTouchedRef.current = true;
+    setTextPrompt(value);
+  }, []);
+
+  const switchToText = useCallback(() => {
+    setMode("text");
+    if (!textTouchedRef.current) {
+      setTextPrompt(resolvedTemplatePrompt);
+    }
+  }, [resolvedTemplatePrompt]);
+
+  return (
+    <div
+      data-testid="unified-prompt-editor"
+      className="surface-panel flex min-h-0 flex-1 flex-col rounded-xl p-5"
+    >
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div>
+          <p className="label-tech text-[var(--text-muted)]">Edit</p>
+          <h3 className="mt-1 text-base font-semibold text-[var(--text-primary)]">
+            合一编辑区
+          </h3>
+        </div>
+        <div className="flex rounded-lg bg-[var(--surface-low)] p-1">
+          <button
+            type="button"
+            onClick={() => setMode("template")}
+            className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
+              mode === "template"
+                ? "bg-[var(--surface-bright)] text-[var(--text-primary)]"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            }`}
+          >
+            模板模式
+          </button>
+          <button
+            type="button"
+            onClick={switchToText}
+            className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
+              mode === "text"
+                ? "bg-[var(--surface-bright)] text-[var(--text-primary)]"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            }`}
+          >
+            文本模式
+          </button>
+        </div>
+      </div>
+
+      {mode === "template" ? (
+        <TemplateModeEditor
+          templateSource={templateSource}
+          variables={variables}
+          variableValues={variableValues}
+          onTemplateChange={handleTemplateChange}
+          onVariableChange={handleVariableChange}
+        />
+      ) : (
+        <TextModeEditor promptText={textPrompt} onChange={handleTextChange} />
+      )}
+    </div>
+  );
+}

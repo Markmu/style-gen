@@ -49,6 +49,21 @@ export function replaceVariables(
 }
 
 /**
+ * 根据模板正文重新合并变量值。
+ * 保留仍存在的变量值，新增变量为空，已删除变量被移除。
+ */
+export function mergeVariableValues(
+  content: string,
+  previousValues: Record<string, string>
+): Record<string, string> {
+  const variables = extractVariables(content);
+  return variables.reduce<Record<string, string>>((nextValues, variable) => {
+    nextValues[variable.name] = previousValues[variable.name] ?? "";
+    return nextValues;
+  }, {});
+}
+
+/**
  * 检测模板正文是否包含变量标记
  */
 export function hasVariables(content: string): boolean {
