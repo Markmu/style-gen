@@ -17,7 +17,6 @@ interface StyleBreakdownPanelProps {
   error: WorkspaceError | null;
   onRetry: () => void;
   onReplace: () => void;
-  onSaveTemplate?: () => void;
 }
 
 export function StyleBreakdownPanel({
@@ -28,7 +27,6 @@ export function StyleBreakdownPanel({
   error,
   onRetry,
   onReplace,
-  onSaveTemplate,
 }: StyleBreakdownPanelProps) {
   const isAnalyzing = state === "analyzing";
   const hasAnalysisError = state === "idle" && error && error.stage !== "generation";
@@ -54,7 +52,6 @@ export function StyleBreakdownPanel({
             error={error}
             onRetry={onRetry}
             onReplace={onReplace}
-            onSaveTemplate={onSaveTemplate}
           />
         ) : (
           <div className="flex h-full min-h-[260px] flex-col justify-center rounded-lg bg-[var(--surface-low)] p-6">

@@ -15,12 +15,16 @@ interface UnifiedPromptEditorProps {
   initialPromptText: string;
   initialTemplateContent?: string | null;
   onResolvedPromptChange: (value: string) => void;
+  onTemplateContentChange?: (value: string) => void;
+  onSaveTemplate?: (templateContent: string) => void;
 }
 
 export function UnifiedPromptEditor({
   initialPromptText,
   initialTemplateContent,
   onResolvedPromptChange,
+  onTemplateContentChange,
+  onSaveTemplate,
 }: UnifiedPromptEditorProps) {
   const [mode, setMode] = useState<PromptMode>(
     initialTemplateContent ? "template" : "text",
@@ -75,6 +79,10 @@ export function UnifiedPromptEditor({
     onResolvedPromptChange(resolvedPrompt);
   }, [onResolvedPromptChange, resolvedPrompt]);
 
+  useEffect(() => {
+    onTemplateContentChange?.(templateSource);
+  }, [onTemplateContentChange, templateSource]);
+
   const handleTemplateChange = useCallback((value: string) => {
     setTemplateSource(value);
     setVariableValues((previous) => mergeVariableValues(value, previous));
@@ -103,29 +111,40 @@ export function UnifiedPromptEditor({
     >
       <div className="mb-4 flex shrink-0 items-center justify-between gap-3">
         <p className="label-tech text-[var(--text-muted)]">Edit</p>
-        <div className="flex rounded-lg bg-[var(--surface-low)] p-1">
-          <button
-            type="button"
-            onClick={() => setMode("template")}
-            className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
-              mode === "template"
-                ? "bg-[var(--surface-bright)] text-[var(--text-primary)]"
-                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-            }`}
-          >
-            模板模式
-          </button>
-          <button
-            type="button"
-            onClick={switchToText}
-            className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
-              mode === "text"
-                ? "bg-[var(--surface-bright)] text-[var(--text-primary)]"
-                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-            }`}
-          >
-            文本模式
-          </button>
+        <div className="flex items-center gap-2">
+          {onSaveTemplate && (
+            <button
+              type="button"
+              onClick={() => onSaveTemplate(templateSource)}
+              className="h-7 shrink-0 rounded-md border border-[var(--border-interactive)] px-2.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)]"
+            >
+              保存为模板
+            </button>
+          )}
+          <div className="flex h-7 rounded-md bg-[var(--surface-low)] p-0.5">
+            <button
+              type="button"
+              onClick={() => setMode("template")}
+              className={`h-6 rounded-[5px] px-2.5 text-xs transition-colors ${
+                mode === "template"
+                  ? "bg-[var(--surface-bright)] text-[var(--text-primary)]"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              }`}
+            >
+              模板模式
+            </button>
+            <button
+              type="button"
+              onClick={switchToText}
+              className={`h-6 rounded-[5px] px-2.5 text-xs transition-colors ${
+                mode === "text"
+                  ? "bg-[var(--surface-bright)] text-[var(--text-primary)]"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              }`}
+            >
+              文本模式
+            </button>
+          </div>
         </div>
       </div>
 

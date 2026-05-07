@@ -24,14 +24,7 @@ interface RecipeEditorProps {
   recipe: VisualRecipe | null;
   onChange?: (recipe: VisualRecipe) => void;
   degraded?: boolean;
-  onSaveTemplate?: () => void;
 }
-
-/* ------------------------------------------------------------------ */
-/*  Constants                                                          */
-/* ------------------------------------------------------------------ */
-
-const TRUNCATE_LENGTH = 60;
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -50,12 +43,6 @@ function buildRowText(recipe: VisualRecipe, rowIndex: number): string {
     }
   }
   return parts.join(" / ");
-}
-
-/** Truncate text to ~60 chars with ellipsis */
-function truncate(text: string, maxLen: number = TRUNCATE_LENGTH): string {
-  if (text.length <= maxLen) return text;
-  return text.slice(0, maxLen) + "...";
 }
 
 /* ------------------------------------------------------------------ */
@@ -100,10 +87,10 @@ function EditableRow({
           {label}
         </span>
         <span
-          className="text-sm text-[var(--text-primary)]"
+          className="text-sm leading-6 text-[var(--text-primary)] whitespace-normal break-words"
           title={text || undefined}
         >
-          {truncate(displayText)}
+          {displayText}
         </span>
       </div>
       {!isReadOnly && (
@@ -320,18 +307,6 @@ function DegradationHint({
   );
 }
 
-function SaveTemplateButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="shrink-0 rounded-md border border-[var(--border-interactive)] px-2.5 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)]"
-    >
-      保存为模板
-    </button>
-  );
-}
-
 /* ------------------------------------------------------------------ */
 /*  Main component                                                     */
 /* ------------------------------------------------------------------ */
@@ -340,10 +315,8 @@ export function RecipeEditor({
   recipe,
   onChange,
   degraded = false,
-  onSaveTemplate,
 }: RecipeEditorProps) {
   const [expandedRow, setExpandedRow] = useState<RecipeRowKey | null>(null);
-  const [showExtraFields, setShowExtraFields] = useState(false);
 
   // Local mutable copy for editing (synced back via onChange)
   const [editingRecipe, setEditingRecipe] = useState<VisualRecipe | null>(
@@ -393,20 +366,10 @@ export function RecipeEditor({
     setExpandedRow(null);
   }, [editingRecipe, onChange]);
 
-  /** Toggle extra fields visibility */
-  const handleToggleExtraFields = useCallback(() => {
-    setShowExtraFields((prev) => !prev);
-  }, []);
-
   // --- Empty state ---
   if (!recipe) {
     return (
-      <div className="space-y-4 rounded-xl bg-[var(--surface-mid)] p-5 ring-1 ring-[var(--border)]">
-        {onSaveTemplate && (
-          <div className="flex justify-end">
-            <SaveTemplateButton onClick={onSaveTemplate} />
-          </div>
-        )}
+      <div className="space-y-4">
         <p className="text-sm text-[var(--text-secondary)]">
           上传参考图开始分析
         </p>
@@ -418,13 +381,7 @@ export function RecipeEditor({
   const displayRecipe = editingRecipe ?? recipe;
 
   return (
-    <div className="space-y-4 rounded-xl bg-[var(--surface-mid)] p-5 ring-1 ring-[var(--border)]">
-      {onSaveTemplate && (
-        <div className="flex justify-end">
-          <SaveTemplateButton onClick={onSaveTemplate} />
-        </div>
-      )}
-
+    <div className="space-y-4">
       {/* Degraded overlay */}
       {degraded && (
         <DegradationHint
@@ -464,40 +421,7 @@ export function RecipeEditor({
         })}
       </div>
 
-      {/* Expand/collapse extra fields button */}
-      <button
-        onClick={handleToggleExtraFields}
-        className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--surface-bright)] px-3 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)]"
-        type="button"
-      >
-        <span>
-          {showExtraFields ? "收起完整配方" : "查看完整配方"}
-        </span>
-        <svg
-          className={`h-4 w-4 transition-transform duration-300 ${showExtraFields ? "rotate-180" : ""}`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M19 9l-7 7-7-7"
-          />
-        </svg>
-      </button>
-
-      {/* Expandable extra fields (with CSS grid animation) */}
-      <div
-        className={`grid overflow-hidden transition-all duration-300 ease-out ${
-          showExtraFields ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-        }`}
-      >
-        <div className="min-h-0">
-          <ExtraFieldsDetail recipe={displayRecipe} />
-        </div>
-      </div>
+      <ExtraFieldsDetail recipe={displayRecipe} />
     </div>
   );
 }
@@ -515,7 +439,6 @@ interface RecipeEditorWithDegradeProps {
   error: WorkspaceError | null;
   onRetry: () => void;
   onReplace: () => void;
-  onSaveTemplate?: () => void;
 }
 
 /**
@@ -533,7 +456,6 @@ export function RecipeEditorWithDegrade({
   error,
   onRetry,
   onReplace,
-  onSaveTemplate,
 }: RecipeEditorWithDegradeProps) {
   // --- Determine which degradation/error to show ---
   const isAnalysisError =
@@ -553,7 +475,7 @@ export function RecipeEditorWithDegrade({
   // --- Error display (priority over degradation) ---
   if (isAnalysisError && error) {
     return (
-      <div className="space-y-4 rounded-xl bg-[var(--surface-mid)] p-5 ring-1 ring-[var(--border)]">
+      <div className="space-y-4">
         {error.code ? (
           <ErrorDisplay
             code={error.code as ApiErrorCode}
@@ -576,7 +498,7 @@ export function RecipeEditorWithDegrade({
   // --- L1 analysis queueing ---
   if (isL1AnalysisQueueing) {
     return (
-      <div className="space-y-4 rounded-xl bg-[var(--surface-mid)] p-5 ring-1 ring-[var(--border)]">
+      <div className="space-y-4">
         <DegradationHint
           title="分析排队中，请耐心等待"
           description="当前请求较多，处理可能需要更长时间"
@@ -616,7 +538,6 @@ export function RecipeEditorWithDegrade({
         recipe={recipe}
         onChange={onChange}
         degraded={showL4Hint}
-        onSaveTemplate={onSaveTemplate}
       />
     </div>
   );

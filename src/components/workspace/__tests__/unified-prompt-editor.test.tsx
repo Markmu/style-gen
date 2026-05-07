@@ -18,12 +18,14 @@ describe("UnifiedPromptEditor", () => {
   it("renders template variables outside the template body and resolves them", async () => {
     const user = userEvent.setup();
     const onResolvedPromptChange = vi.fn();
+    const onTemplateContentChange = vi.fn();
 
     render(
       <UnifiedPromptEditor
         initialPromptText=""
         initialTemplateContent="Create {{subject}} in {{lighting}}."
         onResolvedPromptChange={onResolvedPromptChange}
+        onTemplateContentChange={onTemplateContentChange}
       />,
     );
 
@@ -40,6 +42,9 @@ describe("UnifiedPromptEditor", () => {
     );
     expect(onResolvedPromptChange).toHaveBeenLastCalledWith(
       "Create glass chair in soft daylight.",
+    );
+    expect(onTemplateContentChange).toHaveBeenCalledWith(
+      "Create {{subject}} in {{lighting}}.",
     );
   });
 
@@ -61,6 +66,39 @@ describe("UnifiedPromptEditor", () => {
     await user.click(screen.getByRole("button", { name: "文本模式" }));
 
     expect(screen.getByLabelText("完整生成提示")).toHaveValue("manual draft");
+  });
+
+  it("keeps save-template content sourced from template mode after switching to text mode", async () => {
+    const user = userEvent.setup();
+    const onTemplateContentChange = vi.fn();
+    const onSaveTemplate = vi.fn();
+
+    render(
+      <UnifiedPromptEditor
+        initialPromptText=""
+        initialTemplateContent="Create {{var1}} with {{var2}}."
+        onResolvedPromptChange={vi.fn()}
+        onTemplateContentChange={onTemplateContentChange}
+        onSaveTemplate={onSaveTemplate}
+      />,
+    );
+
+    await user.type(screen.getByLabelText("变量 var1"), "glass chair");
+    await user.type(screen.getByLabelText("变量 var2"), "rim light");
+    await user.click(screen.getByRole("button", { name: "文本模式" }));
+
+    expect(screen.getByLabelText("完整生成提示")).toHaveValue(
+      "Create glass chair with rim light.",
+    );
+    expect(onTemplateContentChange).toHaveBeenLastCalledWith(
+      "Create {{var1}} with {{var2}}.",
+    );
+
+    await user.click(screen.getByRole("button", { name: "保存为模板" }));
+
+    expect(onSaveTemplate).toHaveBeenCalledWith(
+      "Create {{var1}} with {{var2}}.",
+    );
   });
 
   it("refreshes text draft when an external prompt replaces the current workspace context", () => {

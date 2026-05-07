@@ -64,10 +64,10 @@ export function LeftSidebar() {
   return (
     <aside
       aria-label="工作区导航"
-      className="surface-panel flex h-full w-56 flex-shrink-0 flex-col"
+      className="surface-panel flex h-full w-48 flex-shrink-0 flex-col"
     >
       {/* Brand */}
-      <div className="flex items-center gap-2.5 px-4 py-5">
+      <div className="flex items-center gap-2.5 px-3.5 py-5">
         <span
           className="material-symbols-outlined text-2xl text-[var(--accent-primary)]"
           aria-hidden="true"
@@ -80,7 +80,7 @@ export function LeftSidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 px-3">
+      <nav className="flex-1 space-y-1 px-2.5">
         {navItems.map((item) => {
           const active = item.match(pathname);
           return (
@@ -103,7 +103,7 @@ export function LeftSidebar() {
       </nav>
 
       {/* Signed-in user */}
-      <div className="relative border-t border-[var(--border-static)] px-3 pt-3 pb-4">
+      <div className="relative border-t border-[var(--border-static)] px-2.5 pt-3 pb-4">
         {status === "loading" ? (
           <div className="flex items-center gap-3 rounded-lg px-3 py-2">
             <div className="h-9 w-9 rounded-full bg-[var(--surface-bright)]" />

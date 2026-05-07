@@ -7,6 +7,8 @@ interface EditingPaneProps {
   promptText: string;
   templateContent?: string | null;
   onResolvedPromptChange: (value: string) => void;
+  onTemplateContentChange?: (value: string) => void;
+  onSaveTemplate?: (templateContent: string) => void;
   generatePanel: ReactNode;
 }
 
@@ -14,6 +16,8 @@ export function EditingPane({
   promptText,
   templateContent,
   onResolvedPromptChange,
+  onTemplateContentChange,
+  onSaveTemplate,
   generatePanel,
 }: EditingPaneProps) {
   return (
@@ -25,6 +29,8 @@ export function EditingPane({
         initialPromptText={promptText}
         initialTemplateContent={templateContent}
         onResolvedPromptChange={onResolvedPromptChange}
+        onTemplateContentChange={onTemplateContentChange}
+        onSaveTemplate={onSaveTemplate}
       />
       {generatePanel}
     </div>

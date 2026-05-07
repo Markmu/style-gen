@@ -21,7 +21,6 @@ interface AnalysisPaneProps {
   onFileSelected: (file: File) => void;
   onReplace: () => void;
   onRetry: () => void;
-  onSaveTemplate?: () => void;
 }
 
 export function AnalysisPane({
@@ -36,7 +35,6 @@ export function AnalysisPane({
   onFileSelected,
   onReplace,
   onRetry,
-  onSaveTemplate,
 }: AnalysisPaneProps) {
   return (
     <div data-testid="analysis-pane" className="flex h-full min-h-0 flex-col gap-2">
@@ -55,7 +53,6 @@ export function AnalysisPane({
         error={error}
         onRetry={onRetry}
         onReplace={onReplace}
-        onSaveTemplate={onSaveTemplate}
       />
     </div>
   );

@@ -55,6 +55,7 @@ function WorkspacePageInner() {
   const generationStartTime = useRef<number | null>(null);
   const [generationDialogOpen, setGenerationDialogOpen] = useState(false);
   const [resolvedPromptText, setResolvedPromptText] = useState("");
+  const [templateSaveContent, setTemplateSaveContent] = useState("");
   const [templateContent, setTemplateContent] = useState<string | null>(null);
   const [generationParams, setGenerationParams] = useState<{
     aspectRatio: AspectRatio;
@@ -63,7 +64,10 @@ function WorkspacePageInner() {
 
   // Template UI state
   const [showTemplateSaveDialog, setShowTemplateSaveDialog] = useState(false);
-  const handleOpenTemplateSave = useCallback(() => {
+  const handleOpenTemplateSave = useCallback((content?: string) => {
+    if (content !== undefined) {
+      setTemplateSaveContent(content);
+    }
     setShowTemplateSaveDialog(true);
   }, []);
 
@@ -418,7 +422,6 @@ function WorkspacePageInner() {
               onFileSelected={handleFileSelected}
               onReplace={handleReplace}
                 onRetry={handleRetry}
-                onSaveTemplate={handleOpenTemplateSave}
             />
             }
             editing={
@@ -426,6 +429,8 @@ function WorkspacePageInner() {
                 promptText={ws.promptText}
                 templateContent={templateContent}
                 onResolvedPromptChange={handleResolvedPromptChange}
+                onTemplateContentChange={setTemplateSaveContent}
+                onSaveTemplate={handleOpenTemplateSave}
                 generatePanel={
                   <LightGeneratePanel
                     state={ws.state}
@@ -461,7 +466,7 @@ function WorkspacePageInner() {
         {/* Template Save Dialog */}
         <TemplateSaveDialog
           open={showTemplateSaveDialog}
-          initialContent={ws.promptText}
+          initialContent={templateSaveContent || templateContent || ws.promptText}
           sourceAnalysisTaskId={ws.analysisTaskId ?? undefined}
           onSave={() => {
             setShowTemplateSaveDialog(false);
