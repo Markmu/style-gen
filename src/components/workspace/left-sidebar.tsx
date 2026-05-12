@@ -67,7 +67,10 @@ export function LeftSidebar() {
       className="surface-panel flex h-full w-48 flex-shrink-0 flex-col"
     >
       {/* Brand */}
-      <div className="flex items-center gap-2.5 px-3.5 py-5">
+      <a
+        href="/"
+        className="flex items-center gap-2.5 px-3.5 py-5 transition-opacity hover:opacity-80"
+      >
         <span
           className="material-symbols-outlined text-2xl text-[var(--accent-primary)]"
           aria-hidden="true"
@@ -77,7 +80,7 @@ export function LeftSidebar() {
         <span className="text-base font-bold text-[var(--text-primary)]">
           Visoryn
         </span>
-      </div>
+      </a>
 
       {/* Navigation */}
       <nav className="flex-1 space-y-1 px-2.5">
