@@ -3,6 +3,7 @@
 import { useCallback } from "react";
 import type { WorkspaceError, WorkspaceState } from "@/hooks/use-workspace-state";
 import type { AspectRatio, Quality } from "@/components/workspace/output-settings";
+import { hasUnresolvedVariables } from "@/lib/template-parser";
 
 const ASPECT_RATIOS: AspectRatio[] = ["1:1", "4:3", "16:9", "3:4", "9:16"];
 const QUALITY_OPTIONS: { label: string; value: Quality }[] = [
@@ -33,15 +34,23 @@ export function LightGeneratePanel({
 }: LightGeneratePanelProps) {
   const isGenerating = state === "generating";
   const promptReady = promptText.trim().length > 0;
+  const hasUnresolvedTemplateVariables = hasUnresolvedVariables(promptText);
   const stateReady =
     state === "analysis_ready" ||
     state === "generation_ready" ||
     state === "history_restored";
-  const canGenerate = stateReady && promptReady && !generationUnavailable && !isGenerating;
+  const canGenerate =
+    stateReady &&
+    promptReady &&
+    !hasUnresolvedTemplateVariables &&
+    !generationUnavailable &&
+    !isGenerating;
 
   const unavailableReason = !promptReady
     ? "需要先获得或填写完整生成提示"
-    : generationUnavailable
+    : hasUnresolvedTemplateVariables
+      ? "请先填写所有模板变量"
+      : generationUnavailable
       ? "图片生成服务暂时不可用"
       : !stateReady
         ? "完成分析后即可生成"

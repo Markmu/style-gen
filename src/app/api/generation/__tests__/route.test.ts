@@ -14,9 +14,11 @@ vi.mock("@/lib/repositories/analysis-task-repository", () => ({
 
 const mockCreateGenerationTask = vi.fn();
 const mockUpdateGenerationTask = vi.fn();
+const mockListCompleted = vi.fn();
 vi.mock("@/lib/repositories/generation-task-repository", () => ({
   createGenerationTask: (...args: unknown[]) => mockCreateGenerationTask(...args),
   updateGenerationTask: (...args: unknown[]) => mockUpdateGenerationTask(...args),
+  listCompleted: (...args: unknown[]) => mockListCompleted(...args),
 }));
 
 const mockCreateAsset = vi.fn();
@@ -46,7 +48,7 @@ vi.mock("@/lib/r2", () => ({
 // Mock global fetch for downloading temp image
 const mockFetch = vi.fn();
 
-import { POST } from "../route";
+import { GET, POST } from "../route";
 
 // ---- Helpers ----
 
@@ -56,6 +58,10 @@ function createRequest(body: unknown): NextRequest {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+}
+
+function createGetRequest(url = "http://localhost:3000/api/generation?pageSize=20"): NextRequest {
+  return new NextRequest(url, { method: "GET" });
 }
 
 const validBody = {
@@ -113,6 +119,85 @@ const mockReplicateProvider = {
 
 // ---- Tests ----
 
+describe("GET /api/generation", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockAuth.mockReset();
+    mockAuth.mockResolvedValue({ user: { id: "user-1" } });
+    mockListCompleted.mockReset();
+  });
+
+  it("返回当前用户的生成历史列表", async () => {
+    mockListCompleted.mockResolvedValueOnce({
+      items: [
+        {
+          id: "gen-history-1",
+          resultFileUrl: "https://cdn.example.com/result.webp",
+          createdAt: new Date("2026-05-11T05:00:00.000Z"),
+        },
+      ],
+      nextCursor: "2026-05-11T05:00:00.000Z::gen-history-1",
+    });
+
+    const res = await GET(createGetRequest());
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(mockListCompleted).toHaveBeenCalledWith("user-1", null, 20);
+    expect(json).toEqual({
+      items: [
+        {
+          id: "gen-history-1",
+          resultFileUrl: "https://cdn.example.com/result.webp",
+          createdAt: "2026-05-11T05:00:00.000Z",
+        },
+      ],
+      nextCursor: "2026-05-11T05:00:00.000Z::gen-history-1",
+    });
+  });
+
+  it("未登录时返回 401 且不查询历史", async () => {
+    mockAuth.mockResolvedValueOnce(null);
+
+    const res = await GET(createGetRequest());
+    const json = await res.json();
+
+    expect(res.status).toBe(401);
+    expect(json.code).toBe("UNAUTHORIZED");
+    expect(mockListCompleted).not.toHaveBeenCalled();
+  });
+
+  it("pageSize 会限制在 1 到 50 之间", async () => {
+    mockListCompleted.mockResolvedValue({ items: [], nextCursor: null });
+
+    await GET(createGetRequest("http://localhost:3000/api/generation?pageSize=100"));
+    await GET(createGetRequest("http://localhost:3000/api/generation?pageSize=0"));
+    await GET(createGetRequest("http://localhost:3000/api/generation?pageSize=abc"));
+    await GET(createGetRequest("http://localhost:3000/api/generation?pageSize=1.5"));
+
+    expect(mockListCompleted).toHaveBeenNthCalledWith(1, "user-1", null, 50);
+    expect(mockListCompleted).toHaveBeenNthCalledWith(2, "user-1", null, 1);
+    expect(mockListCompleted).toHaveBeenNthCalledWith(3, "user-1", null, 20);
+    expect(mockListCompleted).toHaveBeenNthCalledWith(4, "user-1", null, 1);
+  });
+
+  it("查询异常时打印结构化错误日志", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    mockListCompleted.mockRejectedValueOnce(new Error("connect ECONNREFUSED 127.0.0.1:5433"));
+
+    const res = await GET(createGetRequest());
+    const json = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(json.code).toBe("SERVICE_UNAVAILABLE");
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("generation_history_list_failed")
+    );
+
+    errorSpy.mockRestore();
+  });
+});
+
 describe("POST /api/generation", () => {
   const originalFetch = globalThis.fetch;
 
@@ -123,6 +208,7 @@ describe("POST /api/generation", () => {
     mockFindAnalysisTaskById.mockReset();
     mockCreateGenerationTask.mockReset();
     mockUpdateGenerationTask.mockReset();
+    mockListCompleted.mockReset();
     mockCreateAsset.mockReset();
     mockGetImageGenProvider.mockReset();
     mockBuildWebhookUrl.mockReset();

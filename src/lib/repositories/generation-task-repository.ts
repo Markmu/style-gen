@@ -1,4 +1,4 @@
-import { eq, sql, and, desc, lt } from "drizzle-orm";
+import { eq, sql, and, desc, lt, or } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { generationTasks, assets, analysisTasks } from "@/lib/db/schema";
 import { generateId } from "@/lib/ulid";
@@ -171,14 +171,20 @@ export async function listCompleted(
   if (cursor) {
     const parts = cursor.split("::");
     if (parts.length === 2) {
-      const [cursorAt, _cursorId] = parts;
-      // keyset 分页：取 created_at < cursorAt OR (created_at = cursorAt AND id > cursorId)
-      // 简化实现：使用 created_at < cursorAt 作为主要条件，避免复杂 OR
-      baseConditions.push(
-        lt(generationTasks.createdAt, new Date(cursorAt))
+      const [cursorAt, cursorId] = parts;
+      const cursorDate = new Date(cursorAt);
+      if (Number.isNaN(cursorDate.getTime()) || !cursorId) {
+        return { items: [], nextCursor: null };
+      }
+      // keyset 分页：排序为 created_at DESC, id DESC，因此下一页取游标之后的数据。
+      const cursorCondition = or(
+        lt(generationTasks.createdAt, cursorDate),
+        and(eq(generationTasks.createdAt, cursorDate), lt(generationTasks.id, cursorId))
       );
+      if (cursorCondition) baseConditions.push(cursorCondition);
+    } else {
+      return { items: [], nextCursor: null };
     }
-    // 无效 cursor 视为无更多数据
   }
 
   const rows = await db

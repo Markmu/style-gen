@@ -5,7 +5,8 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // Next dev occasionally serves transient 404s under high parallelism.
+  workers: 1,
   reporter: 'html',
   use: {
     trace: 'on-first-retry',

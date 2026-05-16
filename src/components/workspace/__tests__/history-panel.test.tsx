@@ -48,6 +48,7 @@ describe("HistoryPanel", () => {
   it("默认收起且不展示历史记录内容", () => {
     const { container } = render(<HistoryPanel />);
 
+    expect(mockUseHistoryList).toHaveBeenCalledWith(false);
     expect(screen.queryByRole("heading", { name: "History" })).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "展开历史记录" }),
@@ -67,6 +68,7 @@ describe("HistoryPanel", () => {
 
     await user.click(screen.getByRole("button", { name: "展开历史记录" }));
 
+    expect(mockUseHistoryList).toHaveBeenLastCalledWith(true);
     expect(screen.getByRole("heading", { name: "History" })).toBeInTheDocument();
     expect(container.firstElementChild).toHaveClass("w-72");
 

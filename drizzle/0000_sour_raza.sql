@@ -57,7 +57,6 @@ CREATE TABLE "templates" (
 	"name" varchar(50) NOT NULL,
 	"content" text NOT NULL,
 	"variables" jsonb DEFAULT '[]'::jsonb NOT NULL,
-	"source_analysis_task_id" varchar(26),
 	"user_id" varchar(26) NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL

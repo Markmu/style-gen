@@ -10,7 +10,12 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
-import type { VisualRecipe, GenerationParams, TemplateVariable } from "@/types/models";
+import type {
+  AnalysisTemplateStatus,
+  VisualRecipe,
+  GenerationParams,
+  TemplateVariable,
+} from "@/types/models";
 
 /** users 表 */
 export const users = pgTable(
@@ -74,6 +79,14 @@ export const analysisTasks = pgTable(
     rawResponse: text("raw_response"),
     errorMessage: text("error_message"),
     errorStage: varchar("error_stage", { length: 10 }),
+    analysisTemplateContent: text("analysis_template_content"),
+    analysisTemplateVariables: jsonb("analysis_template_variables")
+      .$type<TemplateVariable[]>()
+      .notNull()
+      .default([]),
+    analysisTemplateStatus: varchar("analysis_template_status", { length: 20 })
+      .$type<AnalysisTemplateStatus | null>(),
+    analysisTemplateReason: text("analysis_template_reason"),
     provider: varchar("provider", { length: 20 }).notNull().default("gemini"),
     externalId: varchar("external_id", { length: 255 }),
     modelName: varchar("model_name", { length: 100 }),
@@ -93,6 +106,10 @@ export const analysisTasks = pgTable(
     check(
       "analysis_tasks_error_stage_check",
       sql`${table.errorStage} IN ('vision', 'llm')`
+    ),
+    check(
+      "analysis_tasks_template_status_check",
+      sql`${table.analysisTemplateStatus} IS NULL OR ${table.analysisTemplateStatus} IN ('ready', 'partial', 'fallback')`
     ),
     check(
       "analysis_tasks_provider_check",
@@ -156,7 +173,6 @@ export const templates = pgTable(
     name: varchar("name", { length: 50 }).notNull(),
     content: text("content").notNull(),
     variables: jsonb("variables").$type<TemplateVariable[]>().notNull().default([]),
-    sourceAnalysisTaskId: varchar("source_analysis_task_id", { length: 26 }),
     userId: varchar("user_id", { length: 26 }).references(() => users.id).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

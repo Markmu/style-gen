@@ -54,6 +54,10 @@ function makeCamelCaseRow(overrides: Partial<Record<string, unknown>> = {}) {
     rawResponse: null,
     errorMessage: null,
     errorStage: null,
+    analysisTemplateContent: null,
+    analysisTemplateVariables: [],
+    analysisTemplateStatus: null,
+    analysisTemplateReason: null,
     provider: "gemini" as const,
     externalId: null,
     modelName: null,
@@ -111,6 +115,10 @@ describe("analysis-task-repository", () => {
         rawResponse: null,
         errorMessage: null,
         errorStage: null,
+        analysisTemplateContent: null,
+        analysisTemplateVariables: [],
+        analysisTemplateStatus: null,
+        analysisTemplateReason: null,
         provider: "gemini",
         externalId: null,
         modelName: null,
@@ -164,6 +172,27 @@ describe("analysis-task-repository", () => {
 
       expect(task!.recipe).toEqual(sampleRecipe);
       expect(task!.recipe!.styleTags).toEqual(["landscape", "nature"]);
+    });
+
+    it("自动模板字段 JSONB 自动解析并归一化数组", async () => {
+      const row = makeCamelCaseRow({
+        analysisTemplateContent: "Create {{subject}}.",
+        analysisTemplateVariables: [
+          { name: "subject", defaultValue: "glass chair", label: "Subject", sourceField: "subject" },
+        ],
+        analysisTemplateStatus: "ready",
+        analysisTemplateReason: null,
+      });
+      mockWhere.mockResolvedValueOnce([row]);
+
+      const task = await findAnalysisTaskById("TASK_001", "USER_001");
+
+      expect(task!.analysisTemplateContent).toBe("Create {{subject}}.");
+      expect(task!.analysisTemplateVariables).toEqual([
+        { name: "subject", defaultValue: "glass chair", label: "Subject", sourceField: "subject" },
+      ]);
+      expect(task!.analysisTemplateStatus).toBe("ready");
+      expect(task!.analysisTemplateReason).toBeNull();
     });
   });
 
@@ -226,6 +255,32 @@ describe("analysis-task-repository", () => {
 
       const setArg = mockUpdateSet.mock.calls[0][0];
       expect(setArg.recipe).toBeNull();
+    });
+
+    it("自动模板字段正常传递", async () => {
+      const variables = [
+        { name: "subject", defaultValue: "glass chair", label: "Subject", sourceField: "subject" as const },
+      ];
+      const row = makeCamelCaseRow({
+        analysisTemplateContent: "Create {{subject}}.",
+        analysisTemplateVariables: variables,
+        analysisTemplateStatus: "ready",
+      });
+      mockReturning.mockResolvedValueOnce([row]);
+
+      const task = await updateAnalysisTask("TASK_001", {
+        analysisTemplateContent: "Create {{subject}}.",
+        analysisTemplateVariables: variables,
+        analysisTemplateStatus: "ready",
+        analysisTemplateReason: null,
+      });
+
+      expect(task.analysisTemplateVariables).toEqual(variables);
+      const setArg = mockUpdateSet.mock.calls[0][0];
+      expect(setArg.analysisTemplateContent).toBe("Create {{subject}}.");
+      expect(setArg.analysisTemplateVariables).toEqual(variables);
+      expect(setArg.analysisTemplateStatus).toBe("ready");
+      expect(setArg.analysisTemplateReason).toBeNull();
     });
 
     it("未找到记录抛出异常", async () => {

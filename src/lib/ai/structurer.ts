@@ -1,6 +1,33 @@
-import type { VisualRecipe } from "@/types/models";
+import type {
+  AnalysisTemplateSourceField,
+  AnalysisTemplateStatus,
+  TemplateVariable,
+  VisualRecipe,
+} from "@/types/models";
+import {
+  extractVariables,
+  hasUnresolvedVariables,
+  replaceVariables,
+} from "@/lib/template-parser";
 import { getStructurerProvider } from "./providers";
 import type { StructurerContext } from "./providers/types";
+
+const ANALYSIS_TEMPLATE_CONTENT_MAX_LENGTH = 6000;
+const ANALYSIS_TEMPLATE_REASON_MAX_LENGTH = 500;
+const TEMPLATE_VARIABLE_DEFAULT_MAX_LENGTH = 500;
+const TEMPLATE_VARIABLE_LABEL_MAX_LENGTH = 80;
+const MAX_ANALYSIS_TEMPLATE_VARIABLES = 8;
+const VARIABLE_NAME_RE = /^[a-zA-Z_]\w*$/;
+const VALID_TEMPLATE_SOURCE_FIELDS = new Set<AnalysisTemplateSourceField>([
+  "subject",
+  "scene",
+  "visual_style",
+  "lighting_color",
+  "composition",
+  "camera_language",
+  "texture",
+  "mood",
+]);
 
 function log(event: string, data: Record<string, unknown>) {
   console.log(JSON.stringify({
@@ -34,6 +61,10 @@ export interface StructuredResult {
   recipe: VisualRecipe;
   promptText: string;
   negativePromptText: string;
+  analysisTemplateContent: string | null;
+  analysisTemplateVariables: TemplateVariable[];
+  analysisTemplateStatus: AnalysisTemplateStatus;
+  analysisTemplateReason: string | null;
 }
 
 export type { StructurerContext } from "./providers/types";
@@ -63,6 +94,9 @@ export async function structureAnalysis(
       promptLength: result.promptText.length,
       negativePromptLength: result.negativePromptText.length,
       recipeKeys: Object.keys(result.recipe),
+      templateStatus: result.analysisTemplateStatus,
+      templateVariableCount: result.analysisTemplateVariables.length,
+      templateFallbackReason: result.analysisTemplateReason,
     });
     return result;
   } catch (error) {
@@ -177,6 +211,211 @@ function getErrorCauseMessage(error: unknown): string | null {
   return String(cause);
 }
 
+function normalizeReason(reason: unknown, fallback: string): string {
+  const text = typeof reason === "string" && reason.trim() ? reason.trim() : fallback;
+  return text.length > ANALYSIS_TEMPLATE_REASON_MAX_LENGTH
+    ? `${text.slice(0, ANALYSIS_TEMPLATE_REASON_MAX_LENGTH - 1)}…`
+    : text;
+}
+
+function fallbackTemplate(
+  reason: unknown,
+  fallbackReason: string,
+): Pick<
+  StructuredResult,
+  | "analysisTemplateContent"
+  | "analysisTemplateVariables"
+  | "analysisTemplateStatus"
+  | "analysisTemplateReason"
+> {
+  return {
+    analysisTemplateContent: null,
+    analysisTemplateVariables: [],
+    analysisTemplateStatus: "fallback",
+    analysisTemplateReason: normalizeReason(reason, fallbackReason),
+  };
+}
+
+function normalizeTemplateStatus(status: unknown): AnalysisTemplateStatus {
+  return status === "ready" || status === "partial" || status === "fallback"
+    ? status
+    : "fallback";
+}
+
+function normalizeVariable(
+  name: string,
+  provided: TemplateVariable | undefined,
+): TemplateVariable | null {
+  if (!provided || typeof provided.defaultValue !== "string") {
+    return null;
+  }
+
+  const defaultValue = provided.defaultValue.trim();
+  if (!defaultValue || defaultValue.length > TEMPLATE_VARIABLE_DEFAULT_MAX_LENGTH) {
+    return null;
+  }
+
+  const variable: TemplateVariable = {
+    name,
+    defaultValue,
+  };
+
+  if (
+    typeof provided.label === "string" &&
+    provided.label.trim().length > 0 &&
+    provided.label.length <= TEMPLATE_VARIABLE_LABEL_MAX_LENGTH
+  ) {
+    variable.label = provided.label.trim();
+  }
+
+  if (
+    typeof provided.sourceField === "string" &&
+    VALID_TEMPLATE_SOURCE_FIELDS.has(provided.sourceField)
+  ) {
+    variable.sourceField = provided.sourceField;
+  }
+
+  return variable;
+}
+
+function normalizeTemplateFields(
+  obj: Record<string, unknown>,
+): {
+  template: Pick<
+    StructuredResult,
+    | "analysisTemplateContent"
+    | "analysisTemplateVariables"
+    | "analysisTemplateStatus"
+    | "analysisTemplateReason"
+  >;
+  renderedPromptText: string | null;
+} {
+  if (obj.analysisTemplateStatus === undefined) {
+    return {
+      template: fallbackTemplate(
+        obj.analysisTemplateReason,
+        "missing analysisTemplateStatus"
+      ),
+      renderedPromptText: null,
+    };
+  }
+
+  const status = normalizeTemplateStatus(obj.analysisTemplateStatus);
+
+  if (status === "fallback") {
+    return {
+      template: fallbackTemplate(
+        obj.analysisTemplateReason,
+        "analysis template status is fallback"
+      ),
+      renderedPromptText: null,
+    };
+  }
+
+  if (typeof obj.analysisTemplateContent !== "string" || !obj.analysisTemplateContent.trim()) {
+    return {
+      template: fallbackTemplate(
+        obj.analysisTemplateReason,
+        "missing analysisTemplateContent"
+      ),
+      renderedPromptText: null,
+    };
+  }
+
+  const content = obj.analysisTemplateContent.trim();
+  if (content.length > ANALYSIS_TEMPLATE_CONTENT_MAX_LENGTH) {
+    return {
+      template: fallbackTemplate(
+        obj.analysisTemplateReason,
+        "analysisTemplateContent exceeds length limit"
+      ),
+      renderedPromptText: null,
+    };
+  }
+
+  const contentVariables = extractVariables(content)
+    .filter((variable) => VARIABLE_NAME_RE.test(variable.name))
+    .slice(0, MAX_ANALYSIS_TEMPLATE_VARIABLES);
+
+  if (contentVariables.length === 0) {
+    return {
+      template: fallbackTemplate(
+        obj.analysisTemplateReason,
+        "analysisTemplateContent has no valid variables"
+      ),
+      renderedPromptText: null,
+    };
+  }
+
+  if (!Array.isArray(obj.analysisTemplateVariables)) {
+    return {
+      template: fallbackTemplate(
+        obj.analysisTemplateReason,
+        "missing analysisTemplateVariables"
+      ),
+      renderedPromptText: null,
+    };
+  }
+
+  const providedByName = new Map<string, TemplateVariable>();
+  for (const value of obj.analysisTemplateVariables) {
+    if (!value || typeof value !== "object") continue;
+    const variable = value as TemplateVariable;
+    if (
+      typeof variable.name !== "string" ||
+      !VARIABLE_NAME_RE.test(variable.name) ||
+      providedByName.has(variable.name)
+    ) {
+      continue;
+    }
+    providedByName.set(variable.name, variable);
+  }
+
+  const variables = contentVariables
+    .map((variable) => normalizeVariable(variable.name, providedByName.get(variable.name)))
+    .filter((variable): variable is TemplateVariable => variable !== null);
+
+  if (variables.length === 0) {
+    return {
+      template: fallbackTemplate(
+        obj.analysisTemplateReason,
+        "analysisTemplateVariables has no usable defaults"
+      ),
+      renderedPromptText: null,
+    };
+  }
+
+  const defaults = variables.reduce<Record<string, string>>((values, variable) => {
+    values[variable.name] = variable.defaultValue;
+    return values;
+  }, {});
+  const renderedPromptText = replaceVariables(content, defaults);
+
+  if (hasUnresolvedVariables(renderedPromptText)) {
+    return {
+      template: fallbackTemplate(
+        obj.analysisTemplateReason,
+        "rendered prompt still contains unresolved variables"
+      ),
+      renderedPromptText: null,
+    };
+  }
+
+  return {
+    template: {
+      analysisTemplateContent: content,
+      analysisTemplateVariables: variables,
+      analysisTemplateStatus: status,
+      analysisTemplateReason:
+        typeof obj.analysisTemplateReason === "string" &&
+        obj.analysisTemplateReason.trim().length > 0
+          ? normalizeReason(obj.analysisTemplateReason, "")
+          : null,
+    },
+    renderedPromptText,
+  };
+}
+
 /** 验证并断言 parsed 数据符合 StructuredResult 结构 */
 function validateStructuredResult(parsed: unknown): StructuredResult {
   if (!parsed || typeof parsed !== "object") {
@@ -237,9 +476,12 @@ function validateStructuredResult(parsed: unknown): StructuredResult {
     }
   }
 
+  const { template, renderedPromptText } = normalizeTemplateFields(obj);
+
   return {
     recipe: recipe as unknown as VisualRecipe,
-    promptText: obj.promptText as string,
+    promptText: renderedPromptText ?? (obj.promptText as string),
     negativePromptText: obj.negativePromptText as string,
+    ...template,
   };
 }

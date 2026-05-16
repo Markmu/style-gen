@@ -6,6 +6,7 @@ import type {
   AnalysisTask,
   AnalysisTaskErrorStage,
   AnalysisTaskStatus,
+  AnalysisTemplateStatus,
   VisionProviderName,
 } from "@/types/models";
 
@@ -23,6 +24,10 @@ function rowToAnalysisTask(row: AnalysisTaskRow): AnalysisTask {
     rawResponse: row.rawResponse,
     errorMessage: row.errorMessage,
     errorStage: row.errorStage as AnalysisTaskErrorStage | null,
+    analysisTemplateContent: row.analysisTemplateContent,
+    analysisTemplateVariables: row.analysisTemplateVariables ?? [],
+    analysisTemplateStatus: row.analysisTemplateStatus as AnalysisTemplateStatus | null,
+    analysisTemplateReason: row.analysisTemplateReason,
     provider: row.provider as VisionProviderName,
     externalId: row.externalId,
     modelName: row.modelName,
@@ -91,6 +96,10 @@ type AnalysisTaskUpdatable = Partial<
     | "rawResponse"
     | "errorMessage"
     | "errorStage"
+    | "analysisTemplateContent"
+    | "analysisTemplateVariables"
+    | "analysisTemplateStatus"
+    | "analysisTemplateReason"
     | "externalId"
   >
 >;
@@ -114,6 +123,14 @@ export async function updateAnalysisTask(
   if (updates.errorMessage !== undefined)
     setObj.errorMessage = updates.errorMessage;
   if (updates.errorStage !== undefined) setObj.errorStage = updates.errorStage;
+  if ("analysisTemplateContent" in updates)
+    setObj.analysisTemplateContent = updates.analysisTemplateContent;
+  if (updates.analysisTemplateVariables !== undefined)
+    setObj.analysisTemplateVariables = updates.analysisTemplateVariables;
+  if ("analysisTemplateStatus" in updates)
+    setObj.analysisTemplateStatus = updates.analysisTemplateStatus;
+  if ("analysisTemplateReason" in updates)
+    setObj.analysisTemplateReason = updates.analysisTemplateReason;
   if (updates.externalId !== undefined) setObj.externalId = updates.externalId;
 
   const rows = await db

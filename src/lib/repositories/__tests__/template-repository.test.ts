@@ -17,12 +17,17 @@ const mockFrom = vi.fn(() => ({ where: mockWhere, orderBy: mockOrderBy }));
 const mockSelect = vi.fn(() => ({ from: mockFrom }));
 const mockDeleteWhere = vi.fn();
 const mockDelete = vi.fn(() => ({ where: mockDeleteWhere }));
+const mockUpdateSet = vi.fn(() => ({
+  where: vi.fn(() => ({ returning: mockReturning })),
+}));
+const mockUpdate = vi.fn(() => ({ set: mockUpdateSet }));
 
 vi.mock("@/lib/db", () => ({
   db: {
     insert: (...args: unknown[]) => mockInsert(...args),
     select: (...args: unknown[]) => mockSelect(...args),
     delete: (...args: unknown[]) => mockDelete(...args),
+    update: (...args: unknown[]) => mockUpdate(...args),
   },
 }));
 
@@ -36,6 +41,13 @@ vi.mock("@/lib/template-parser", () => ({
       ? [{ name: "var1", defaultValue: "" }]
       : []
   ),
+  mergeTemplateVariables: vi.fn((content: string, providedVariables?: Array<{ name: string; defaultValue: string }>) =>
+    providedVariables && providedVariables.length > 0
+      ? providedVariables.filter((variable) => content.includes(`{{${variable.name}}}`))
+      : content.includes("{{")
+        ? [{ name: "var1", defaultValue: "" }]
+        : []
+  ),
 }));
 
 import {
@@ -44,6 +56,7 @@ import {
   findAllByUserId,
   findById,
   deleteTemplate,
+  updateTemplate,
 } from "@/lib/repositories/template-repository";
 
 const NOW = new Date("2025-01-01T00:00:00Z");
@@ -54,7 +67,6 @@ function makeTemplateRow(overrides: Partial<Record<string, unknown>> = {}) {
     name: "My Template",
     content: "Hello {{name}}!",
     variables: [{ name: "name", defaultValue: "" }],
-    sourceAnalysisTaskId: null,
     userId: "USER_001",
     createdAt: NOW,
     updatedAt: NOW,
@@ -72,6 +84,8 @@ describe("template-repository", () => {
     mockWhere.mockClear();
     mockDelete.mockClear();
     mockDeleteWhere.mockClear();
+    mockUpdate.mockClear();
+    mockUpdateSet.mockClear();
     mockGenerateId.mockReset();
     mockGenerateId.mockReturnValue("TPL_001");
   });
@@ -91,47 +105,29 @@ describe("template-repository", () => {
         name: "My Template",
         content: "Hello {{name}}!",
         variables: [{ name: "name", defaultValue: "" }],
-        sourceAnalysisTaskId: null,
         userId: "USER_001",
         createdAt: NOW,
         updatedAt: NOW,
       });
+      expect(mockValues.mock.calls[0][0]).not.toHaveProperty("sourceAnalysisTaskId");
     });
 
-    it("传入正确的 values（含 sourceAnalysisTaskId）", async () => {
-      const row = makeTemplateRow({
-        sourceAnalysisTaskId: "ANALYSIS_001",
-      });
+    it("保存请求提供 variables 时保留默认值", async () => {
+      const variables = [
+        { name: "subject", defaultValue: "glass chair", label: "Subject", sourceField: "subject" },
+      ];
+      const row = makeTemplateRow({ variables });
       mockReturning.mockResolvedValueOnce([row]);
 
       await createTemplate("USER_001", {
         name: "My Template",
-        content: "Hello {{name}}!",
-        sourceAnalysisTaskId: "ANALYSIS_001",
-      });
-
-      expect(mockValues).toHaveBeenCalledWith({
-        id: "TPL_001",
-        name: "My Template",
-        content: "Hello {{name}}!",
-        variables: expect.any(Array),
-        sourceAnalysisTaskId: "ANALYSIS_001",
-        userId: "USER_001",
-      });
-    });
-
-    it("sourceAnalysisTaskId 缺失时为 null", async () => {
-      const row = makeTemplateRow();
-      mockReturning.mockResolvedValueOnce([row]);
-
-      await createTemplate("USER_001", {
-        name: "My Template",
-        content: "Hello {{name}}!",
+        content: "Hello {{subject}}!",
+        variables,
       });
 
       expect(mockValues).toHaveBeenCalledWith(
         expect.objectContaining({
-          sourceAnalysisTaskId: null,
+          variables,
         })
       );
     });
@@ -242,6 +238,24 @@ describe("template-repository", () => {
       await expect(
         deleteTemplate("NON_EXISTENT", "USER_001")
       ).rejects.toThrow("Template not found or not owned by user: NON_EXISTENT");
+    });
+  });
+
+  describe("updateTemplate", () => {
+    it("仅更新 variables 时使用 existing.content 合并默认值", async () => {
+      const variables = [
+        { name: "name", defaultValue: "Alice", label: "Name", sourceField: "subject" },
+      ];
+      mockWhere.mockResolvedValueOnce([makeTemplateRow()]);
+      mockReturning.mockResolvedValueOnce([makeTemplateRow({ variables })]);
+
+      const result = await updateTemplate("TPL_001", "USER_001", {
+        variables,
+      });
+
+      expect(result.variables).toEqual(variables);
+      const setArg = mockUpdateSet.mock.calls[0][0];
+      expect(setArg.variables).toEqual(variables);
     });
   });
 });

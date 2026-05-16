@@ -1,6 +1,7 @@
 "use client";
 
 import { signOut, useSession } from "next-auth/react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { trackAuthEvent } from "@/components/auth/auth-tracking";
@@ -67,7 +68,7 @@ export function LeftSidebar() {
       className="surface-panel flex h-full w-48 flex-shrink-0 flex-col"
     >
       {/* Brand */}
-      <a
+      <Link
         href="/"
         className="flex items-center gap-2.5 px-3.5 py-5 transition-opacity hover:opacity-80"
       >
@@ -80,7 +81,7 @@ export function LeftSidebar() {
         <span className="text-base font-bold text-[var(--text-primary)]">
           Visoryn
         </span>
-      </a>
+      </Link>
 
       {/* Navigation */}
       <nav className="flex-1 space-y-1 px-2.5">

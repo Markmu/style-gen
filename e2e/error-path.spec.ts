@@ -119,7 +119,7 @@ test.describe('Error Path', () => {
     await retryBtn.click()
 
     // Should eventually show recipe step (analysis completes on retry)
-    await expect(page.getByText('Step 1')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText('可生成')).toBeVisible({ timeout: 15000 })
   })
 
   test('生成 API 失败展示错误', async ({ page }) => {
@@ -142,10 +142,10 @@ test.describe('Error Path', () => {
     await page.goto('/workspace')
     const fileInput = page.locator('input[type="file"]')
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
-    await expect(page.getByText('Step 1')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText('可生成')).toBeVisible({ timeout: 15000 })
 
     // Click generate
-    await page.getByRole('button', { name: '生成首版' }).click()
+    await page.getByRole('button', { name: '生成图片' }).click()
 
     // Should show error title (in <p> not heading)
     await expect(page.getByText('服务暂时不可用').first()).toBeVisible({ timeout: 15000 })
@@ -167,15 +167,15 @@ test.describe('Error Path', () => {
     await page.goto('/workspace')
     const fileInput = page.locator('input[type="file"]')
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
-    await expect(page.getByText('Step 1')).toBeVisible({ timeout: 15000 })
-    await page.getByRole('button', { name: '生成首版' }).click()
+    await expect(page.getByText('可生成')).toBeVisible({ timeout: 15000 })
+    await page.getByRole('button', { name: '生成图片' }).click()
     await expect(page.getByText('服务暂时不可用').first()).toBeVisible({ timeout: 15000 })
 
     // Prompt editor should still be visible — use heading selector to avoid matching degradation message
-    await expect(page.getByRole('heading', { name: 'Prompt 编辑' })).toBeVisible()
+    await expect(page.getByTestId('unified-prompt-editor')).toBeVisible()
 
     // Prompt text should be preserved
-    const promptTextarea = page.locator('#prompt-text')
+    const promptTextarea = page.getByLabel('完整生成提示')
     await expect(promptTextarea).not.toBeEmpty()
   })
 

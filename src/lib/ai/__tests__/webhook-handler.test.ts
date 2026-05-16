@@ -190,13 +190,14 @@ describe('webhook-handler', () => {
 
       expect(result.status).toBe(200);
       expect(result.response.ok).toBe(true);
-      expect(updateAnalysisTask).toHaveBeenCalledWith(mockTaskId, {
+      expect(updateAnalysisTask).toHaveBeenCalledWith(mockTaskId, expect.objectContaining({
         status: 'completed',
         recipe: expect.any(Object),
         promptText: 'test prompt',
         negativePromptText: 'test negative',
         rawResponse: 'raw analysis text',
-      });
+        analysisTemplateVariables: expect.any(Array),
+      }));
     });
 
     it('应该拼接完整的数组输出再进行结构化', async () => {
@@ -253,13 +254,14 @@ describe('webhook-handler', () => {
         taskId: mockTaskId,
         source: 'analysis_webhook',
       });
-      expect(updateAnalysisTask).toHaveBeenCalledWith(mockTaskId, {
+      expect(updateAnalysisTask).toHaveBeenCalledWith(mockTaskId, expect.objectContaining({
         status: 'completed',
         recipe: expect.any(Object),
         promptText: 'test prompt',
         negativePromptText: 'test negative',
         rawResponse: rawAnalysis,
-      });
+        analysisTemplateVariables: expect.any(Array),
+      }));
     });
 
     it('应该在结构化失败时进行 L3 降级', async () => {
@@ -287,13 +289,18 @@ describe('webhook-handler', () => {
 
       expect(result.status).toBe(200);
       expect(result.response.ok).toBe(true);
-      expect(updateAnalysisTask).toHaveBeenCalledWith(mockTaskId, {
+      expect(updateAnalysisTask).toHaveBeenCalledWith(mockTaskId, expect.objectContaining({
         status: 'completed',
+        recipe: null,
         promptText: 'raw analysis text',
+        negativePromptText: '',
         rawResponse: 'raw analysis text',
+        analysisTemplateContent: null,
+        analysisTemplateVariables: [],
+        analysisTemplateStatus: 'fallback',
         errorStage: 'llm',
         errorMessage: expect.any(String),
-      });
+      }));
     });
 
     it('应该处理分析任务失败', async () => {

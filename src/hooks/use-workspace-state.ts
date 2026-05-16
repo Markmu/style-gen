@@ -1,13 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { VisualRecipe } from "@/types/models";
+import type {
+  AnalysisTemplateStatus,
+  TemplateVariable,
+  VisualRecipe,
+} from "@/types/models";
 
 /** sessionStorage key */
 const STORAGE_KEY = "style-gen-workspace-state";
 
 /** 当前持久化数据版本号 */
-const STORAGE_VERSION = 1;
+const STORAGE_VERSION = 2;
 
 /** 持久化状态结构（仅包含需要跨页面恢复的关键数据） */
 export interface WorkspacePersistedState {
@@ -17,6 +21,10 @@ export interface WorkspacePersistedState {
   recipe: VisualRecipe | null;
   promptText: string;
   negativePromptText: string;
+  analysisTemplateContent: string | null;
+  analysisTemplateVariables: TemplateVariable[];
+  analysisTemplateStatus: AnalysisTemplateStatus | null;
+  analysisTemplateReason: string | null;
   generationTaskId: string | null;
 }
 
@@ -58,12 +66,61 @@ export interface WorkspaceContext {
   recipe: VisualRecipe | null;
   promptText: string;
   negativePromptText: string;
+  analysisTemplateContent: string | null;
+  analysisTemplateVariables: TemplateVariable[];
+  analysisTemplateStatus: AnalysisTemplateStatus | null;
+  analysisTemplateReason: string | null;
   generationTaskId: string | null;
   resultImageUrl: string | null;
   mimeType: string | null;
   error: WorkspaceError | null;
   degradation: DegradationState;
   isRecipeExpanded: boolean;
+}
+
+interface WorkspaceAnalysisTemplatePayload {
+  analysisTemplateContent: string | null;
+  analysisTemplateVariables: TemplateVariable[];
+  analysisTemplateStatus: AnalysisTemplateStatus | null;
+  analysisTemplateReason: string | null;
+}
+
+const EMPTY_TEMPLATE_FALLBACK_REASON = "未识别到足够稳定的可替换变量";
+
+function normalizeAnalysisTemplatePayload(
+  template: WorkspaceAnalysisTemplatePayload | undefined,
+): WorkspaceAnalysisTemplatePayload | undefined {
+  if (!template) return undefined;
+
+  const status = template.analysisTemplateStatus;
+  const variables = Array.isArray(template.analysisTemplateVariables)
+    ? template.analysisTemplateVariables
+    : [];
+  const hasUsableTemplate =
+    (status === "ready" || status === "partial") &&
+    !!template.analysisTemplateContent?.trim() &&
+    variables.length > 0;
+
+  if (hasUsableTemplate) {
+    return { ...template, analysisTemplateVariables: variables };
+  }
+
+  if (status === "ready" || status === "partial" || status === "fallback") {
+    return {
+      analysisTemplateContent: null,
+      analysisTemplateVariables: [],
+      analysisTemplateStatus: "fallback",
+      analysisTemplateReason:
+        template.analysisTemplateReason ?? EMPTY_TEMPLATE_FALLBACK_REASON,
+    };
+  }
+
+  return {
+    analysisTemplateContent: null,
+    analysisTemplateVariables: [],
+    analysisTemplateStatus: null,
+    analysisTemplateReason: template.analysisTemplateReason ?? null,
+  };
 }
 
 const initialDegradation: DegradationState = {
@@ -81,6 +138,10 @@ const initialContext: WorkspaceContext = {
   recipe: null,
   promptText: "",
   negativePromptText: "",
+  analysisTemplateContent: null,
+  analysisTemplateVariables: [],
+  analysisTemplateStatus: null,
+  analysisTemplateReason: null,
   generationTaskId: null,
   resultImageUrl: null,
   mimeType: null,
@@ -120,10 +181,14 @@ function loadPersistedState(): Partial<WorkspacePersistedState> | null {
 }
 
 /** 写入 sessionStorage（debounce 避免频繁写入） */
+type PersistWriter = ((state: WorkspacePersistedState) => void) & {
+  cancel: () => void;
+};
+
 function createPersistWriter() {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-  return (state: WorkspacePersistedState) => {
+  const write: PersistWriter = (state: WorkspacePersistedState) => {
     if (typeof window === "undefined") return;
 
     if (timeoutId !== null) {
@@ -140,6 +205,15 @@ function createPersistWriter() {
       timeoutId = null;
     }, 300);
   };
+
+  write.cancel = () => {
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
+      timeoutId = null;
+    }
+  };
+
+  return write;
 }
 
 const persistState = createPersistWriter();
@@ -148,6 +222,7 @@ const persistState = createPersistWriter();
 function clearPersistedState(): void {
   if (typeof window === "undefined") return;
   try {
+    persistState.cancel();
     sessionStorage.removeItem(STORAGE_KEY);
   } catch (err) {
     console.error("[workspace] 清除 sessionStorage 失败:", err);
@@ -170,6 +245,10 @@ function restoreFromPersistedState(
     recipe: persisted.recipe ?? null,
     promptText: persisted.promptText ?? "",
     negativePromptText: persisted.negativePromptText ?? "",
+    analysisTemplateContent: persisted.analysisTemplateContent ?? null,
+    analysisTemplateVariables: persisted.analysisTemplateVariables ?? [],
+    analysisTemplateStatus: persisted.analysisTemplateStatus ?? null,
+    analysisTemplateReason: persisted.analysisTemplateReason ?? null,
     generationTaskId: persisted.generationTaskId ?? null,
     analysisTaskId: null, // 不恢复 analysisTaskId，因为任务可能已过期
     resultImageUrl: null, // 不恢复 resultImageUrl，因为 URL 可能已失效
@@ -184,7 +263,12 @@ export interface WorkspaceActions {
   startUpload: (mimeType?: string) => void;
   completeUpload: (assetId: string, fileUrl: string) => void;
   startAnalysis: (taskId: string) => void;
-  completeAnalysis: (recipe: VisualRecipe | null, promptText: string, negativePromptText: string) => void;
+  completeAnalysis: (
+    recipe: VisualRecipe | null,
+    promptText: string,
+    negativePromptText: string,
+    template?: WorkspaceAnalysisTemplatePayload
+  ) => void;
   failAnalysis: (message: string, stage?: string, code?: string, retryable?: boolean) => void;
   startGeneration: (taskId: string) => void;
   completeGeneration: (resultImageUrl: string) => void;
@@ -226,7 +310,7 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
   };
 
   const [ctx, setCtx] = useState<WorkspaceContext>(getInitialState);
-  const isRestoredRef = useRef(ctx !== initialContext);
+  const didSkipInitialPersistRef = useRef(false);
 
   const startUpload = useCallback((mimeType?: string) => {
     setCtx((prev) => ({
@@ -257,13 +341,30 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
   }, []);
 
   const completeAnalysis = useCallback(
-    (recipe: VisualRecipe | null, promptText: string, negativePromptText: string) => {
+    (
+      recipe: VisualRecipe | null,
+      promptText: string,
+      negativePromptText: string,
+      template: WorkspaceAnalysisTemplatePayload | undefined,
+    ) => {
+      const normalizedTemplate = normalizeAnalysisTemplatePayload(template);
+      const nextStatus = normalizedTemplate?.analysisTemplateStatus ?? null;
+      const shouldUseTemplate =
+        nextStatus === "ready" || nextStatus === "partial";
       setCtx((prev) => ({
         ...prev,
         state: "analysis_ready",
         recipe,
         promptText,
         negativePromptText,
+        analysisTemplateContent: shouldUseTemplate
+          ? normalizedTemplate?.analysisTemplateContent ?? null
+          : null,
+        analysisTemplateVariables: shouldUseTemplate
+          ? normalizedTemplate?.analysisTemplateVariables ?? []
+          : [],
+        analysisTemplateStatus: nextStatus,
+        analysisTemplateReason: normalizedTemplate?.analysisTemplateReason ?? null,
         error: null,
       }));
     },
@@ -401,6 +502,10 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
         recipe,
         promptText: promptSnapshot,
         negativePromptText: negativePromptSnapshot,
+        analysisTemplateContent: null,
+        analysisTemplateVariables: [],
+        analysisTemplateStatus: null,
+        analysisTemplateReason: null,
         analysisTaskId,
         error: null,
       }));
@@ -418,8 +523,18 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
 
   // 持久化关键状态到 sessionStorage
   useEffect(() => {
-    // 仅在客户端执行，且跳过初始恢复时的写入
-    if (typeof window === "undefined" || !isRestoredRef.current) return;
+    if (typeof window === "undefined") return;
+
+    // 初次渲染只完成恢复/初始化，不立即回写，避免覆盖已恢复状态。
+    if (!didSkipInitialPersistRef.current) {
+      didSkipInitialPersistRef.current = true;
+      return;
+    }
+
+    if (!ctx.assetId || !ctx.referenceImageUrl) {
+      clearPersistedState();
+      return;
+    }
 
     const persistedState: WorkspacePersistedState = {
       version: STORAGE_VERSION,
@@ -428,6 +543,10 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
       recipe: ctx.recipe,
       promptText: ctx.promptText,
       negativePromptText: ctx.negativePromptText,
+      analysisTemplateContent: ctx.analysisTemplateContent,
+      analysisTemplateVariables: ctx.analysisTemplateVariables,
+      analysisTemplateStatus: ctx.analysisTemplateStatus,
+      analysisTemplateReason: ctx.analysisTemplateReason,
       generationTaskId: ctx.generationTaskId,
     };
 
@@ -438,6 +557,10 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
     ctx.recipe,
     ctx.promptText,
     ctx.negativePromptText,
+    ctx.analysisTemplateContent,
+    ctx.analysisTemplateVariables,
+    ctx.analysisTemplateStatus,
+    ctx.analysisTemplateReason,
     ctx.generationTaskId,
   ]);
 

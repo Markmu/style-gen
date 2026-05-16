@@ -90,7 +90,7 @@ test.describe('首页展示', () => {
 
     // 验证描述文案
     await expect(
-      page.getByText('上传参考图，AI 提取视觉配方，一键生成同风格新图')
+      page.getByText('上传一张参考图，获得可编辑的视觉配方、Prompt 和同风格生成入口。')
     ).toBeVisible()
   })
 

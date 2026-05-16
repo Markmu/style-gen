@@ -6,6 +6,7 @@ import {
   updateTemplate,
   findByName,
 } from "@/lib/repositories/template-repository";
+import type { TemplateVariable } from "@/types/models";
 
 /** 从 session 获取 userId，未认证返回 401 */
 async function requireAuth(_request: Request): Promise<{ userId: string } | Response> {
@@ -22,6 +23,45 @@ async function requireAuth(_request: Request): Promise<{ userId: string } | Resp
 /** 结构化日志 [架构8.5 可观测性] */
 function log(event: string, data: Record<string, unknown>) {
   console.log(JSON.stringify({ event, timestamp: new Date().toISOString(), ...data }));
+}
+
+const VARIABLE_NAME_RE = /^[a-zA-Z_]\w*$/;
+const VALID_SOURCE_FIELDS = new Set([
+  "subject",
+  "scene",
+  "visual_style",
+  "lighting_color",
+  "composition",
+  "camera_language",
+  "texture",
+  "mood",
+]);
+
+function validateVariables(value: unknown): TemplateVariable[] | undefined | null {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.length > 20) return null;
+
+  const variables: TemplateVariable[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") return null;
+    const obj = item as Record<string, unknown>;
+    if (typeof obj.name !== "string" || !VARIABLE_NAME_RE.test(obj.name)) return null;
+    if (typeof obj.defaultValue !== "string" || obj.defaultValue.length > 500) return null;
+    if (obj.label !== undefined && (typeof obj.label !== "string" || obj.label.length > 80)) return null;
+    if (
+      obj.sourceField !== undefined &&
+      (typeof obj.sourceField !== "string" || !VALID_SOURCE_FIELDS.has(obj.sourceField))
+    ) {
+      return null;
+    }
+    variables.push({
+      name: obj.name,
+      defaultValue: obj.defaultValue,
+      ...(typeof obj.label === "string" && obj.label ? { label: obj.label } : {}),
+      ...(typeof obj.sourceField === "string" ? { sourceField: obj.sourceField as TemplateVariable["sourceField"] } : {}),
+    });
+  }
+  return variables;
 }
 
 // ─── GET /api/templates/:id — 模板详情 ───
@@ -151,7 +191,12 @@ export async function PUT(
     const { id } = await params;
 
     // 3. 解析请求体
-    let body: { name?: string; content?: string };
+    let body: {
+      name?: string;
+      content?: string;
+      variables?: unknown;
+      sourceAnalysisTaskId?: unknown;
+    };
     try {
       body = (await request.json()) as { name?: string; content?: string };
     } catch {
@@ -162,9 +207,9 @@ export async function PUT(
     }
 
     // 4. 校验至少提供一个字段
-    if (!body.name && !body.content) {
+    if (!body.name && !body.content && body.variables === undefined) {
       return NextResponse.json(
-        { error: "至少需要提供 name 或 content 字段", code: "INVALID_REQUEST", retryable: false },
+        { error: "至少需要提供 name、content 或 variables 字段", code: "INVALID_REQUEST", retryable: false },
         { status: 400 }
       );
     }
@@ -181,6 +226,24 @@ export async function PUT(
     if (body.content !== undefined && (body.content.length === 0 || body.content.length > 10000)) {
       return NextResponse.json(
         { error: "内容长度必须在 1-10000 个字符之间", code: "INVALID_REQUEST", retryable: false },
+        { status: 400 }
+      );
+    }
+
+    const variables = validateVariables(body.variables);
+    if (variables === null) {
+      return NextResponse.json(
+        { error: "variables 参数不合法", code: "INVALID_REQUEST", retryable: false },
+        { status: 400 }
+      );
+    }
+
+    if (
+      body.sourceAnalysisTaskId !== undefined &&
+      typeof body.sourceAnalysisTaskId !== "string"
+    ) {
+      return NextResponse.json(
+        { error: "sourceAnalysisTaskId 参数不合法", code: "INVALID_REQUEST", retryable: false },
         { status: 400 }
       );
     }
@@ -211,12 +274,16 @@ export async function PUT(
     const updated = await updateTemplate(id, userId, {
       name: body.name,
       content: body.content,
+      ...(variables !== undefined ? { variables } : {}),
     });
 
     log("template_updated", {
       templateId: id,
       name: updated.name,
       hasContentUpdate: body.content !== undefined,
+      variableCount: updated.variables.length,
+      defaultValueCount: updated.variables.filter((variable) => variable.defaultValue).length,
+      sourceAnalysisTaskIdPresent: typeof body.sourceAnalysisTaskId === "string",
       duration: Date.now() - startTime,
     });
 

@@ -2,6 +2,7 @@
 
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTemplateSearch, type TemplateListItem } from "@/hooks/use-template-search";
 import { TemplateCard } from "@/components/workspace/template-card";
 
@@ -20,6 +21,7 @@ function SkeletonCard() {
 
 export default function TemplateLibraryPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const {
     templates,
     isLoading,
@@ -47,10 +49,10 @@ export default function TemplateLibraryPage() {
         const data = (await res.json()) as { error?: string };
         throw new Error(data.error ?? "复制失败");
       }
-      // 刷新列表
+      await queryClient.invalidateQueries({ queryKey: ["templates"] });
       router.refresh();
     },
-    [router],
+    [queryClient, router],
   );
 
   /** 删除模板 */
@@ -63,10 +65,10 @@ export default function TemplateLibraryPage() {
         const data = (await res.json()) as { error?: string };
         throw new Error(data.error ?? "删除失败");
       }
-      // 刷新列表
+      await queryClient.invalidateQueries({ queryKey: ["templates"] });
       router.refresh();
     },
-    [router],
+    [queryClient, router],
   );
 
   /** 编辑模板（跳转或打开编辑器 — 暂用 console 提示） */

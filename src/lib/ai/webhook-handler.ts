@@ -265,12 +265,18 @@ async function handleAnalysisWebhook(
         source: 'analysis_webhook',
         ...(asset ? { imageUrl: asset.fileUrl, mimeType: asset.mimeType } : {}),
       });
+      const analysisTemplateVariables = structured.analysisTemplateVariables ?? [];
+      const analysisTemplateStatus = structured.analysisTemplateStatus ?? 'fallback';
+      const analysisTemplateReason = structured.analysisTemplateReason ?? null;
       log('webhook_analysis_structurer_completed', {
         taskId,
         predictionId: prediction.id,
         duration: Date.now() - structStartTime,
         promptLength: structured.promptText.length,
         negativePromptLength: structured.negativePromptText.length,
+        templateStatus: analysisTemplateStatus,
+        templateVariableCount: analysisTemplateVariables.length,
+        templateFallbackReason: analysisTemplateReason,
       });
 
       // 更新任务为完成状态
@@ -280,6 +286,10 @@ async function handleAnalysisWebhook(
         promptText: structured.promptText,
         negativePromptText: structured.negativePromptText,
         rawResponse: rawAnalysis,
+        analysisTemplateContent: structured.analysisTemplateContent ?? null,
+        analysisTemplateVariables,
+        analysisTemplateStatus,
+        analysisTemplateReason,
       });
 
       return {
@@ -298,8 +308,14 @@ async function handleAnalysisWebhook(
         });
         await updateAnalysisTask(taskId, {
           status: 'completed',
+          recipe: null,
           promptText: rawAnalysis,
+          negativePromptText: '',
           rawResponse: rawAnalysis,
+          analysisTemplateContent: null,
+          analysisTemplateVariables: [],
+          analysisTemplateStatus: 'fallback',
+          analysisTemplateReason: error.message,
           errorStage: 'llm',
           errorMessage: error.message,
         });

@@ -35,8 +35,8 @@ export async function GET(request: NextRequest) {
     let pageSize = 20;
     if (rawPageSize !== null) {
       const parsed = Number(rawPageSize);
-      if (!Number.isNaN(parsed)) {
-        pageSize = Math.max(1, Math.min(50, parsed));
+      if (Number.isFinite(parsed)) {
+        pageSize = Math.max(1, Math.min(50, Math.trunc(parsed)));
       }
     }
 
@@ -57,6 +57,10 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Internal server error";
+    logError("generation_history_list_failed", error, {
+      path: request.nextUrl.pathname,
+      query: request.nextUrl.search,
+    });
     return NextResponse.json(
       { error: message, code: "SERVICE_UNAVAILABLE", retryable: true },
       { status: 500 }
@@ -105,6 +109,19 @@ function validateBody(body: unknown): GenerationRequestBody | null {
 /** 结构化日志输出 */
 function log(event: string, data: Record<string, unknown>) {
   console.log(JSON.stringify({ event, timestamp: new Date().toISOString(), ...data }));
+}
+
+/** 结构化错误日志输出 */
+function logError(event: string, error: unknown, data: Record<string, unknown> = {}) {
+  const message = error instanceof Error ? error.message : String(error);
+  const stack = error instanceof Error ? error.stack : undefined;
+  console.error(JSON.stringify({
+    event,
+    timestamp: new Date().toISOString(),
+    error: message,
+    stack,
+    ...data,
+  }));
 }
 
 /** fal.ai 同步模式：后台异步执行生成任务（含 120s 超时） */
@@ -295,6 +312,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Internal server error";
+    logError("generation_create_failed", error);
     return NextResponse.json(
       { error: message, code: "SERVICE_UNAVAILABLE", retryable: true },
       { status: 500 }

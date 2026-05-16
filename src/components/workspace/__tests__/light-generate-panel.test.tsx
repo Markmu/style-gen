@@ -76,4 +76,11 @@ describe("LightGeneratePanel", () => {
     expect(screen.getByRole("button", { name: "生成图片" })).toBeDisabled();
     expect(screen.getByText("图片生成服务暂时不可用")).toBeInTheDocument();
   });
+
+  it("disables generation when prompt still contains unresolved variables", () => {
+    render(<LightGeneratePanel {...defaultProps} promptText="Create {{subject}}" />);
+
+    expect(screen.getByRole("button", { name: "生成图片" })).toBeDisabled();
+    expect(screen.getByText("请先填写所有模板变量")).toBeInTheDocument();
+  });
 });

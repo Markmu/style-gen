@@ -163,6 +163,9 @@ export async function POST(request: NextRequest) {
           duration: Date.now() - startTime,
           status: "completed",
           mode: 'sync',
+          templateStatus: syncResult.analysisTemplateStatus,
+          templateVariableCount: syncResult.analysisTemplateVariables.length,
+          templateFallbackReason: syncResult.analysisTemplateReason,
         });
         return NextResponse.json(syncResult);
       }
@@ -225,7 +228,13 @@ async function executeSyncPipeline(taskId: string, rawAnalysis: string, imageUrl
       source: "analysis_route",
       ...(imageUrl ? { imageUrl, mimeType } : {}),
     });
-    log("structurer_call_completed", { taskId, duration: Date.now() - structStartTime });
+    log("structurer_call_completed", {
+      taskId,
+      duration: Date.now() - structStartTime,
+      templateStatus: structured.analysisTemplateStatus,
+      templateVariableCount: structured.analysisTemplateVariables.length,
+      templateFallbackReason: structured.analysisTemplateReason,
+    });
 
     // 成功：保存 recipe、promptText、negativePromptText、rawResponse
     const completedTask = await updateAnalysisTask(taskId, {
@@ -234,6 +243,10 @@ async function executeSyncPipeline(taskId: string, rawAnalysis: string, imageUrl
       promptText: structured.promptText,
       negativePromptText: structured.negativePromptText,
       rawResponse: rawAnalysis,
+      analysisTemplateContent: structured.analysisTemplateContent,
+      analysisTemplateVariables: structured.analysisTemplateVariables,
+      analysisTemplateStatus: structured.analysisTemplateStatus,
+      analysisTemplateReason: structured.analysisTemplateReason,
     });
 
     return completedTask;
@@ -248,6 +261,10 @@ async function executeSyncPipeline(taskId: string, rawAnalysis: string, imageUrl
         promptText: rawAnalysis,
         negativePromptText: "",
         rawResponse: rawAnalysis,
+        analysisTemplateContent: null,
+        analysisTemplateVariables: [],
+        analysisTemplateStatus: "fallback",
+        analysisTemplateReason: error.message,
         errorMessage: error.message,
         errorStage: "llm",
       });
@@ -266,6 +283,10 @@ async function executeSyncPipeline(taskId: string, rawAnalysis: string, imageUrl
       promptText: rawAnalysis,
       negativePromptText: "",
       rawResponse: rawAnalysis,
+      analysisTemplateContent: null,
+      analysisTemplateVariables: [],
+      analysisTemplateStatus: "fallback",
+      analysisTemplateReason: errorMessage,
       errorMessage,
       errorStage: "llm",
     });

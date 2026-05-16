@@ -29,9 +29,10 @@ test.describe('Edge Cases', () => {
     await page.goto('/workspace')
     const fileInput = page.locator('input[type="file"]')
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
-    await expect(page.getByText('Step 1')).toBeVisible({ timeout: 15000 })
-    await page.getByRole('button', { name: '生成首版' }).click()
+    await expect(page.getByText('可生成')).toBeVisible({ timeout: 15000 })
+    await page.getByRole('button', { name: '生成图片' }).click()
     await expect(page.locator('h3').filter({ hasText: /^生成结果$/ })).toBeVisible({ timeout: 15000 })
+    await page.getByText('关闭弹窗', { exact: true }).click()
 
     // Click "更换参考图"
     const replaceBtn = page.getByRole('button', { name: '更换参考图' })
@@ -42,7 +43,7 @@ test.describe('Edge Cases', () => {
     await expect(page.getByText('点击或拖拽上传参考图')).toBeVisible({ timeout: 5000 })
 
     // Recipe and generation result should be gone
-    await expect(page.getByText('Step 1')).not.toBeVisible()
+    await expect(page.getByText('可生成', { exact: true })).not.toBeVisible()
     await expect(page.locator('h3').filter({ hasText: /^生成结果$/ })).not.toBeVisible()
   })
 
@@ -119,10 +120,10 @@ test.describe('Edge Cases', () => {
     await page.goto('/workspace')
     const fileInput = page.locator('input[type="file"]')
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
-    await expect(page.getByText('Step 1')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText('可生成')).toBeVisible({ timeout: 15000 })
 
     // Click generate button rapidly
-    const generateBtn = page.getByRole('button', { name: '生成首版' })
+    const generateBtn = page.getByRole('button', { name: '生成图片' })
     await generateBtn.click()
     // After first click, button changes to "正在生成..." and is disabled
     // So subsequent clicks should not go through

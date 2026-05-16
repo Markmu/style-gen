@@ -1,6 +1,7 @@
 import {
   extractVariables,
   mergeVariableValues,
+  mergeTemplateVariables,
   replaceVariables,
   hasVariables,
 } from "@/lib/template-parser";
@@ -154,6 +155,42 @@ describe("template-parser", () => {
         subject: "glass chair",
         lighting: "",
       });
+    });
+  });
+
+  describe("mergeTemplateVariables", () => {
+    it("按正文变量顺序保留默认值和元信息", () => {
+      const result = mergeTemplateVariables("{{scene}} with {{subject}}", [
+        { name: "subject", defaultValue: "glass chair", label: "Subject", sourceField: "subject" },
+        { name: "scene", defaultValue: "white studio", label: "Scene", sourceField: "scene" },
+      ]);
+
+      expect(result).toEqual([
+        { name: "scene", defaultValue: "white studio", label: "Scene", sourceField: "scene" },
+        { name: "subject", defaultValue: "glass chair", label: "Subject", sourceField: "subject" },
+      ]);
+    });
+
+    it("丢弃正文外变量、重复变量和非法 sourceField", () => {
+      const result = mergeTemplateVariables("{{subject}}", [
+        { name: "subject", defaultValue: "first", label: "Subject", sourceField: "subject" },
+        { name: "subject", defaultValue: "second", label: "Duplicate", sourceField: "scene" },
+        { name: "outside", defaultValue: "ignored", label: "Outside", sourceField: "mood" },
+        { name: "bad", defaultValue: "ignored", label: "Bad", sourceField: "not_valid" as never },
+      ]);
+
+      expect(result).toEqual([
+        { name: "subject", defaultValue: "first", label: "Subject", sourceField: "subject" },
+      ]);
+    });
+
+    it("未提供变量时按旧行为生成空默认值", () => {
+      const result = mergeTemplateVariables("{{subject}} and {{lighting}}");
+
+      expect(result).toEqual([
+        { name: "subject", defaultValue: "" },
+        { name: "lighting", defaultValue: "" },
+      ]);
     });
   });
 

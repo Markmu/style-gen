@@ -16,8 +16,8 @@ test.describe('workspace 09 two pane layout', () => {
     await uploadAndStartAnalysis(page, { analysisTaskId: 'two-pane-analysis-task' })
 
     await expect(page.getByTestId('workspace-two-pane-layout')).toBeVisible()
-    await expect(page.getByTestId('reference-preview')).toContainText('参考图')
-    await expect(page.getByTestId('style-breakdown-panel')).toContainText(/分析|排队/)
+    await expect(page.getByTestId('reference-preview')).toContainText('Image')
+    await expect(page.getByTestId('style-breakdown-panel')).toContainText(/Analyze|正在分析|排队/)
     await expect(page.getByTestId('editing-pane')).toBeVisible()
   })
 
@@ -28,7 +28,7 @@ test.describe('workspace 09 two pane layout', () => {
     const breakdownBox = await page.getByTestId('style-breakdown-panel').boundingBox()
 
     expect(referenceBox?.height ?? 0).toBeLessThan(breakdownBox?.height ?? 0)
-    await expect(page.getByTestId('style-breakdown-panel')).toContainText('风格拆解')
+    await expect(page.getByTestId('style-breakdown-panel')).toContainText('Subject')
     await expect(page.getByTestId('editing-pane')).toBeVisible()
   })
 

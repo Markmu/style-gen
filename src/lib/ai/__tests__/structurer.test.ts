@@ -44,8 +44,25 @@ const VALID_RESULT = {
     mustKeep: ["golden light"],
     replaceable: ["specific flowers"],
   },
-  promptText: "A serene mountain landscape...",
+  promptText: "A serene mountain landscape with golden light.",
   negativePromptText: "blurry, low quality",
+  analysisTemplateContent: "Create {{subject}} with {{lighting}}.",
+  analysisTemplateVariables: [
+    {
+      name: "subject",
+      label: "Subject",
+      defaultValue: "Mountain range",
+      sourceField: "subject",
+    },
+    {
+      name: "lighting",
+      label: "Lighting",
+      defaultValue: "Golden hour",
+      sourceField: "lighting_color",
+    },
+  ],
+  analysisTemplateStatus: "ready",
+  analysisTemplateReason: null,
 };
 
 function mockValidResponse(overrides: Record<string, unknown> = {}) {
@@ -100,10 +117,15 @@ describe("structurer", () => {
 
       const result = await structureAnalysis("raw analysis text");
 
-      expect(result).toEqual(VALID_RESULT);
+      expect(result).toEqual({
+        ...VALID_RESULT,
+        promptText: "Create Mountain range with Golden hour.",
+      });
       expect(result.recipe.imageSummary).toBe("A serene landscape");
-      expect(result.promptText).toBe("A serene mountain landscape...");
+      expect(result.promptText).toBe("Create Mountain range with Golden hour.");
       expect(result.negativePromptText).toBe("blurry, low quality");
+      expect(result.analysisTemplateStatus).toBe("ready");
+      expect(result.analysisTemplateVariables).toHaveLength(2);
     });
 
     it("使用 JSON mode (responseMimeType: application/json)", async () => {
@@ -186,7 +208,10 @@ describe("structurer", () => {
         source: "analysis_webhook",
       });
 
-      expect(result).toEqual(VALID_RESULT);
+      expect(result).toEqual({
+        ...VALID_RESULT,
+        promptText: "Create Mountain range with Golden hour.",
+      });
     });
 
     it("StructurerError 透传不被二次包装", async () => {
@@ -207,7 +232,10 @@ describe("structurer", () => {
         source: "analysis_webhook",
       });
 
-      expect(result).toEqual(VALID_RESULT);
+      expect(result).toEqual({
+        ...VALID_RESULT,
+        promptText: "Create Mountain range with Golden hour.",
+      });
       expect(mockReplicateRun).toHaveBeenCalledWith(
         "google/gemini-2.5-flash",
         expect.objectContaining({
@@ -348,8 +376,67 @@ describe("structurer", () => {
       const result = await structureAnalysis("raw analysis");
 
       expect(result.recipe).toEqual(VALID_RESULT.recipe);
-      expect(result.promptText).toBe(VALID_RESULT.promptText);
+      expect(result.promptText).toBe("Create Mountain range with Golden hour.");
       expect(result.negativePromptText).toBe(VALID_RESULT.negativePromptText);
+      expect(result.analysisTemplateContent).toBe(VALID_RESULT.analysisTemplateContent);
+      expect(result.analysisTemplateStatus).toBe("ready");
+    });
+
+    it("缺少自动模板字段时降级为 fallback 但保留普通 prompt", async () => {
+      const legacyResult = {
+        recipe: VALID_RESULT.recipe,
+        promptText: "Legacy prompt text",
+        negativePromptText: "negative",
+      };
+      mockGenerateContent.mockResolvedValue({
+        text: JSON.stringify(legacyResult),
+      });
+
+      const result = await structureAnalysis("raw analysis");
+
+      expect(result.promptText).toBe("Legacy prompt text");
+      expect(result.analysisTemplateContent).toBeNull();
+      expect(result.analysisTemplateVariables).toEqual([]);
+      expect(result.analysisTemplateStatus).toBe("fallback");
+      expect(result.analysisTemplateReason).toContain("missing");
+    });
+
+    it("过滤正文外变量并按模板正文首次出现顺序渲染默认值", async () => {
+      mockValidResponse({
+        promptText: "Provider prompt",
+        analysisTemplateContent: "{{lighting}} around {{subject}}.",
+        analysisTemplateVariables: [
+          { name: "subject", defaultValue: "glass chair", label: "Subject", sourceField: "subject" },
+          { name: "extra", defaultValue: "ignored", label: "Extra", sourceField: "mood" },
+          { name: "lighting", defaultValue: "soft daylight", label: "Lighting", sourceField: "lighting_color" },
+        ],
+        analysisTemplateStatus: "partial",
+      });
+
+      const result = await structureAnalysis("raw analysis");
+
+      expect(result.analysisTemplateStatus).toBe("partial");
+      expect(result.analysisTemplateVariables.map((item) => item.name)).toEqual([
+        "lighting",
+        "subject",
+      ]);
+      expect(result.promptText).toBe("soft daylight around glass chair.");
+    });
+
+    it("模板正文过长时 fallback 且不透传正文和变量", async () => {
+      mockValidResponse({
+        analysisTemplateContent: `{{subject}} ${"x".repeat(6001)}`,
+        analysisTemplateVariables: [
+          { name: "subject", defaultValue: "mountain", label: "Subject", sourceField: "subject" },
+        ],
+      });
+
+      const result = await structureAnalysis("raw analysis");
+
+      expect(result.analysisTemplateStatus).toBe("fallback");
+      expect(result.analysisTemplateContent).toBeNull();
+      expect(result.analysisTemplateVariables).toEqual([]);
+      expect(result.promptText).toBe(VALID_RESULT.promptText);
     });
 
     it("parsed 为 null 时抛出 StructurerError", async () => {

@@ -48,7 +48,7 @@ export function HistoryPanel({
     hasNextPage,
     isFetchingNextPage,
     refetch,
-  } = useHistoryList();
+  } = useHistoryList(isOpen);
 
   // 滚动到底部加载更多
   const observerRef = useRef<IntersectionObserver | null>(null);

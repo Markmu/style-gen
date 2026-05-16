@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import type { PromptTemplate } from "@/types/models";
-import { extractVariables } from "@/lib/template-parser";
+import type { PromptTemplate, TemplateVariable } from "@/types/models";
+import { mergeTemplateVariables } from "@/lib/template-parser";
 
 interface TemplateSaveDialogProps {
   open: boolean;
   initialContent: string;
+  initialVariables?: TemplateVariable[];
   sourceAnalysisTaskId?: string;
   onSave: (template: PromptTemplate) => void;
   onClose: () => void;
@@ -20,6 +21,7 @@ const MAX_CONTENT_LENGTH = 10_000;
 export function TemplateSaveDialog({
   open,
   initialContent,
+  initialVariables = [],
   sourceAnalysisTaskId,
   onSave,
   onClose,
@@ -48,7 +50,7 @@ export function TemplateSaveDialog({
     }
   }, [open, initialContent]);
 
-  const variables = extractVariables(content);
+  const variables = mergeTemplateVariables(content, initialVariables);
 
   /** 在 textarea 当前光标位置插入 {{varName}} */
   const insertVariable = useCallback(
@@ -117,6 +119,7 @@ export function TemplateSaveDialog({
         body: JSON.stringify({
           name: name.trim(),
           content,
+          variables,
           sourceAnalysisTaskId: sourceAnalysisTaskId ?? undefined,
         }),
       });
@@ -311,7 +314,10 @@ export function TemplateSaveDialog({
                   key={v.name}
                   className="rounded-md bg-[var(--surface-bright)] px-2 py-0.5 text-xs font-mono text-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)]/20"
                 >
-                  {`{{${v.name}}}`}
+                  <span>{`{{${v.name}}}`}</span>
+                  <span className="ml-1 text-[var(--text-secondary)]">
+                    {v.defaultValue || "空默认值"}
+                  </span>
                 </li>
               ))}
             </ul>

@@ -5,6 +5,7 @@ import {
   findByName,
   findAllByUserId,
 } from "@/lib/repositories/template-repository";
+import type { TemplateVariable } from "@/types/models";
 
 /** 从 session 获取 userId，未认证返回 401 */
 async function requireAuth(_request: Request): Promise<{ userId: string } | Response> {
@@ -52,7 +53,49 @@ function checkRateLimit(ip: string): Response | null {
 interface CreateTemplateRequest {
   name: string;
   content: string;
+  variables?: TemplateVariable[];
   sourceAnalysisTaskId?: string;
+}
+
+const VARIABLE_NAME_RE = /^[a-zA-Z_]\w*$/;
+const VALID_SOURCE_FIELDS = new Set([
+  "subject",
+  "scene",
+  "visual_style",
+  "lighting_color",
+  "composition",
+  "camera_language",
+  "texture",
+  "mood",
+]);
+
+function validateVariables(value: unknown): TemplateVariable[] | undefined | null {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.length > 20) return null;
+
+  const variables: TemplateVariable[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") return null;
+    const obj = item as Record<string, unknown>;
+    if (typeof obj.name !== "string" || !VARIABLE_NAME_RE.test(obj.name)) return null;
+    if (typeof obj.defaultValue !== "string" || obj.defaultValue.length > 500) return null;
+    if (obj.label !== undefined && (typeof obj.label !== "string" || obj.label.length > 80)) return null;
+    if (
+      obj.sourceField !== undefined &&
+      (typeof obj.sourceField !== "string" || !VALID_SOURCE_FIELDS.has(obj.sourceField))
+    ) {
+      return null;
+    }
+
+    variables.push({
+      name: obj.name,
+      defaultValue: obj.defaultValue,
+      ...(typeof obj.label === "string" && obj.label ? { label: obj.label } : {}),
+      ...(typeof obj.sourceField === "string" ? { sourceField: obj.sourceField as TemplateVariable["sourceField"] } : {}),
+    });
+  }
+
+  return variables;
 }
 
 function validateCreateBody(body: unknown): CreateTemplateRequest | null {
@@ -62,10 +105,13 @@ function validateCreateBody(body: unknown): CreateTemplateRequest | null {
   if (typeof obj.name !== "string" || obj.name.length < 1 || obj.name.length > 50) return null;
   if (typeof obj.content !== "string" || obj.content.length === 0 || obj.content.length > 10000) return null;
   if (obj.sourceAnalysisTaskId !== undefined && typeof obj.sourceAnalysisTaskId !== "string") return null;
+  const variables = validateVariables(obj.variables);
+  if (variables === null) return null;
 
   return {
     name: obj.name.trim(),
     content: obj.content,
+    ...(variables !== undefined ? { variables } : {}),
     sourceAnalysisTaskId: obj.sourceAnalysisTaskId as string | undefined,
   };
 }
@@ -107,13 +153,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 5. 创建模板（Repository 内部自动提取 variables）
-    const template = await createTemplate(userId, validated);
+    // 5. 创建模板（sourceAnalysisTaskId 仅用于日志，不写入 templates 表）
+    const template = await createTemplate(userId, {
+      name: validated.name,
+      content: validated.content,
+      ...(validated.variables !== undefined ? { variables: validated.variables } : {}),
+    });
 
     log("template_created", {
       templateId: template.id,
       name: template.name,
       variableCount: template.variables.length,
+      defaultValueCount: template.variables.filter((variable) => variable.defaultValue).length,
+      sourceAnalysisTaskIdPresent: Boolean(validated.sourceAnalysisTaskId),
       duration: Date.now() - startTime,
     });
 

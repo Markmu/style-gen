@@ -30,6 +30,8 @@ export function StyleBreakdownPanel({
 }: StyleBreakdownPanelProps) {
   const isAnalyzing = state === "analyzing";
   const hasAnalysisError = state === "idle" && error && error.stage !== "generation";
+  const hasRawAnalysisFallback =
+    state === "analysis_ready" && !recipe && promptText.trim().length > 0;
 
   return (
     <div
@@ -43,7 +45,11 @@ export function StyleBreakdownPanel({
       <div className="min-h-0 flex-1 overflow-y-auto">
         {isAnalyzing && !degradation.analysisQueueing ? (
           <AnalysisProgress isAnalyzing error={null} onRetry={onRetry} />
-        ) : hasAnalysisError || recipe || degradation.analysisQueueing ? (
+        ) : hasAnalysisError ||
+          recipe ||
+          degradation.analysisQueueing ||
+          degradation.analysisUnavailable ||
+          hasRawAnalysisFallback ? (
           <RecipeEditorWithDegrade
             recipe={recipe}
             state={state}

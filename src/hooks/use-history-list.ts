@@ -34,7 +34,7 @@ async function fetchGenerationHistory(
   return res.json() as Promise<GenerationHistoryResponse>;
 }
 
-export function useHistoryList() {
+export function useHistoryList(enabled = true) {
   const queryClient = useQueryClient();
 
   const query = useInfiniteQuery<GenerationHistoryResponse, Error>({
@@ -44,6 +44,7 @@ export function useHistoryList() {
     initialPageParam: undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     refetchOnWindowFocus: false,
+    enabled,
   });
 
   /** 使缓存失效（供生成完成后调用） */

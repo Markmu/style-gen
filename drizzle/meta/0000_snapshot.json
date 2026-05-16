@@ -485,12 +485,6 @@
           "notNull": true,
           "default": "'[]'::jsonb"
         },
-        "source_analysis_task_id": {
-          "name": "source_analysis_task_id",
-          "type": "varchar(26)",
-          "primaryKey": false,
-          "notNull": false
-        },
         "user_id": {
           "name": "user_id",
           "type": "varchar(26)",

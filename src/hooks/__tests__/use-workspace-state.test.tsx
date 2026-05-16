@@ -20,6 +20,17 @@ const mockRecipe: VisualRecipe = {
 };
 
 describe("useWorkspaceState", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    sessionStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.clearAllTimers();
+    sessionStorage.clear();
+    vi.useRealTimers();
+  });
+
   // 1. 初始状态为 idle - P0
   it("初始状态为 idle", () => {
     const { result } = renderHook(() => useWorkspaceState());
@@ -92,6 +103,115 @@ describe("useWorkspaceState", () => {
     expect(result.current.recipe).toEqual(mockRecipe);
     expect(result.current.promptText).toBe("generated prompt");
     expect(result.current.negativePromptText).toBe("negative prompt");
+  });
+
+  it("completeAnalysis 写入自动模板字段", () => {
+    const { result } = renderHook(() => useWorkspaceState());
+
+    act(() => {
+      result.current.completeAnalysis(mockRecipe, "rendered prompt", "", {
+        analysisTemplateContent: "Create {{subject}}.",
+        analysisTemplateVariables: [
+          { name: "subject", defaultValue: "glass fox", label: "Subject", sourceField: "subject" },
+        ],
+        analysisTemplateStatus: "ready",
+        analysisTemplateReason: null,
+      });
+    });
+
+    expect(result.current.analysisTemplateContent).toBe("Create {{subject}}.");
+    expect(result.current.analysisTemplateVariables).toEqual([
+      { name: "subject", defaultValue: "glass fox", label: "Subject", sourceField: "subject" },
+    ]);
+    expect(result.current.analysisTemplateStatus).toBe("ready");
+    expect(result.current.analysisTemplateReason).toBeNull();
+  });
+
+  it("新会话分析完成后持久化自动模板字段", () => {
+    const { result } = renderHook(() => useWorkspaceState());
+
+    act(() => {
+      result.current.completeUpload("asset-123", "https://example.com/img.png");
+    });
+    act(() => {
+      result.current.completeAnalysis(mockRecipe, "rendered prompt", "", {
+        analysisTemplateContent: "Create {{subject}}.",
+        analysisTemplateVariables: [
+          { name: "subject", defaultValue: "glass fox", label: "Subject", sourceField: "subject" },
+        ],
+        analysisTemplateStatus: "ready",
+        analysisTemplateReason: null,
+      });
+    });
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+
+    const persisted = JSON.parse(
+      sessionStorage.getItem("style-gen-workspace-state") ?? "{}",
+    );
+    expect(persisted.analysisTemplateContent).toBe("Create {{subject}}.");
+    expect(persisted.analysisTemplateVariables).toEqual([
+      { name: "subject", defaultValue: "glass fox", label: "Subject", sourceField: "subject" },
+    ]);
+    expect(persisted.analysisTemplateStatus).toBe("ready");
+  });
+
+  it("fallback analysis 清空模板正文和变量但保留 prompt", () => {
+    const { result } = renderHook(() => useWorkspaceState());
+
+    act(() => {
+      result.current.completeAnalysis(mockRecipe, "fallback prompt", "", {
+        analysisTemplateContent: null,
+        analysisTemplateVariables: [],
+        analysisTemplateStatus: "fallback",
+        analysisTemplateReason: "No stable variables",
+      });
+    });
+
+    expect(result.current.promptText).toBe("fallback prompt");
+    expect(result.current.analysisTemplateContent).toBeNull();
+    expect(result.current.analysisTemplateVariables).toEqual([]);
+    expect(result.current.analysisTemplateStatus).toBe("fallback");
+    expect(result.current.analysisTemplateReason).toBe("No stable variables");
+  });
+
+  it("ready analysis with empty variables falls back to text prompt", () => {
+    const { result } = renderHook(() => useWorkspaceState());
+
+    act(() => {
+      result.current.completeAnalysis(mockRecipe, "rendered prompt", "", {
+        analysisTemplateContent: "Create {{subject}}.",
+        analysisTemplateVariables: [],
+        analysisTemplateStatus: "ready",
+        analysisTemplateReason: null,
+      });
+    });
+
+    expect(result.current.promptText).toBe("rendered prompt");
+    expect(result.current.analysisTemplateContent).toBeNull();
+    expect(result.current.analysisTemplateVariables).toEqual([]);
+    expect(result.current.analysisTemplateStatus).toBe("fallback");
+    expect(result.current.analysisTemplateReason).toBe("未识别到足够稳定的可替换变量");
+  });
+
+  it("partial analysis with empty variables falls back to text prompt", () => {
+    const { result } = renderHook(() => useWorkspaceState());
+
+    act(() => {
+      result.current.completeAnalysis(mockRecipe, "partial prompt", "", {
+        analysisTemplateContent: "Create {{subject}}.",
+        analysisTemplateVariables: [],
+        analysisTemplateStatus: "partial",
+        analysisTemplateReason: "No trusted variables",
+      });
+    });
+
+    expect(result.current.promptText).toBe("partial prompt");
+    expect(result.current.analysisTemplateContent).toBeNull();
+    expect(result.current.analysisTemplateVariables).toEqual([]);
+    expect(result.current.analysisTemplateStatus).toBe("fallback");
+    expect(result.current.analysisTemplateReason).toBe("No trusted variables");
   });
 
   // 5. failAnalysis 回退到 idle - P0

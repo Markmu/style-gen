@@ -18,6 +18,8 @@ import { GenerationDialog } from "@/components/workspace/generation-dialog";
 import type { AspectRatio, Quality } from "@/components/workspace/output-settings";
 import { TemplateSaveDialog } from "@/components/workspace/template-save-dialog";
 import { HistoryPanel } from "@/components/workspace/history-panel";
+import { hasUnresolvedVariables } from "@/lib/template-parser";
+import type { TemplateVariable } from "@/types/models";
 
 /** L1 degradation threshold: show queueing hint after 60s */
 const QUEUEING_THRESHOLD_MS = 60_000;
@@ -57,6 +59,8 @@ function WorkspacePageInner() {
   const [resolvedPromptText, setResolvedPromptText] = useState("");
   const [templateSaveContent, setTemplateSaveContent] = useState("");
   const [templateContent, setTemplateContent] = useState<string | null>(null);
+  const [templateVariables, setTemplateVariables] = useState<TemplateVariable[]>([]);
+  const [currentTemplateVariables, setCurrentTemplateVariables] = useState<TemplateVariable[]>([]);
   const [generationParams, setGenerationParams] = useState<{
     aspectRatio: AspectRatio;
     quality: Quality;
@@ -87,6 +91,8 @@ function WorkspacePageInner() {
         if (aborted) return;
 
         setTemplateContent(template.content);
+        setTemplateVariables(template.variables ?? []);
+        setCurrentTemplateVariables(template.variables ?? []);
         ws.setPromptText(template.content);
       } catch {
         // 模板不存在或加载失败，静默处理（不阻塞用户）
@@ -180,10 +186,27 @@ function WorkspacePageInner() {
     if (analysisData.id !== ws.analysisTaskId) return;
 
     if (analysisData.status === "completed") {
+      const templateStatus = analysisData.analysisTemplateStatus ?? null;
+      const analysisTemplateVariables = analysisData.analysisTemplateVariables ?? [];
+      const hasAnalysisTemplate =
+        (templateStatus === "ready" || templateStatus === "partial") &&
+        !!analysisData.analysisTemplateContent &&
+        analysisTemplateVariables.length > 0;
+      setTemplateContent(null);
+      setTemplateVariables([]);
+      setCurrentTemplateVariables(
+        hasAnalysisTemplate ? analysisTemplateVariables : [],
+      );
       ws.completeAnalysis(
         analysisData.recipe,
         analysisData.promptText ?? "",
         analysisData.negativePromptText ?? "",
+        {
+          analysisTemplateContent: analysisData.analysisTemplateContent,
+          analysisTemplateVariables,
+          analysisTemplateStatus: templateStatus,
+          analysisTemplateReason: analysisData.analysisTemplateReason,
+        },
       );
     } else if (analysisData.status === "failed") {
       ws.failAnalysis(
@@ -322,6 +345,8 @@ function WorkspacePageInner() {
   const handleGenerate = useCallback(
     async (params: { aspectRatio: AspectRatio; quality: Quality }) => {
       if (!ws.analysisTaskId) return;
+      const prompt = resolvedPromptText.trim();
+      if (!prompt || hasUnresolvedVariables(prompt)) return;
 
       // L2: block when generation service unavailable
       if (ws.degradation.generationUnavailable) return;
@@ -333,7 +358,7 @@ function WorkspacePageInner() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             analysisTaskId: ws.analysisTaskId,
-            promptText: resolvedPromptText,
+            promptText: prompt,
             negativePromptText: "",
             params: {
               aspectRatio: params.aspectRatio,
@@ -372,6 +397,24 @@ function WorkspacePageInner() {
     ws.setPromptText(value);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const activeTemplateContent =
+    templateContent ??
+    (ws.analysisTemplateStatus === "ready" || ws.analysisTemplateStatus === "partial"
+      ? ws.analysisTemplateContent
+      : null);
+  const activeTemplateVariables =
+    templateContent !== null ? templateVariables : ws.analysisTemplateVariables;
+  const activeTemplateStatus =
+    templateContent !== null ? null : ws.analysisTemplateStatus;
+  const activeTemplateReason =
+    templateContent !== null ? null : ws.analysisTemplateReason;
+  const activeTemplateKey =
+    templateContent !== null
+      ? `template:${searchParams.get("templateId") ?? "loaded"}:${templateContent}`
+      : ws.analysisTaskId
+        ? `analysis:${ws.analysisTaskId}:${ws.analysisTemplateStatus ?? "none"}`
+        : null;
 
   // FEAT-02: 历史恢复回调
   const handleHistoryRestore = useCallback(
@@ -427,9 +470,14 @@ function WorkspacePageInner() {
             editing={
               <EditingPane
                 promptText={ws.promptText}
-                templateContent={templateContent}
+                templateContent={activeTemplateContent}
+                templateVariables={activeTemplateVariables}
+                templateStatus={activeTemplateStatus}
+                templateReason={activeTemplateReason}
+                templateKey={activeTemplateKey}
                 onResolvedPromptChange={handleResolvedPromptChange}
                 onTemplateContentChange={setTemplateSaveContent}
+                onTemplateVariablesChange={setCurrentTemplateVariables}
                 onSaveTemplate={handleOpenTemplateSave}
                 generatePanel={
                   <LightGeneratePanel
@@ -466,7 +514,8 @@ function WorkspacePageInner() {
         {/* Template Save Dialog */}
         <TemplateSaveDialog
           open={showTemplateSaveDialog}
-          initialContent={templateSaveContent || templateContent || ws.promptText}
+          initialContent={templateSaveContent || activeTemplateContent || ws.promptText}
+          initialVariables={currentTemplateVariables}
           sourceAnalysisTaskId={ws.analysisTaskId ?? undefined}
           onSave={() => {
             setShowTemplateSaveDialog(false);

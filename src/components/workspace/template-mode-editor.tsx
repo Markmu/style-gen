@@ -1,12 +1,15 @@
 "use client";
 
 import type { TemplateVariable } from "@/types/models";
+import type { AnalysisTemplateStatus } from "@/types/models";
 import { TemplateVariablePanel } from "@/components/workspace/template-variable-panel";
 
 interface TemplateModeEditorProps {
   templateSource: string;
   variables: TemplateVariable[];
   variableValues: Record<string, string>;
+  templateStatus?: AnalysisTemplateStatus | null;
+  templateReason?: string | null;
   onTemplateChange: (value: string) => void;
   onVariableChange: (name: string, value: string) => void;
 }
@@ -15,6 +18,8 @@ export function TemplateModeEditor({
   templateSource,
   variables,
   variableValues,
+  templateStatus,
+  templateReason,
   onTemplateChange,
   onVariableChange,
 }: TemplateModeEditorProps) {
@@ -35,6 +40,8 @@ export function TemplateModeEditor({
       <TemplateVariablePanel
         variables={variables}
         values={variableValues}
+        templateStatus={templateStatus}
+        templateReason={templateReason}
         onChange={onVariableChange}
       />
     </div>

@@ -18,6 +18,10 @@ describe("prompts", () => {
       expect(STRUCTURER_SYSTEM_PROMPT).toContain("imageSummary");
       expect(STRUCTURER_SYSTEM_PROMPT).toContain("promptText");
       expect(STRUCTURER_SYSTEM_PROMPT).toContain("negativePromptText");
+      expect(STRUCTURER_SYSTEM_PROMPT).toContain("analysisTemplateContent");
+      expect(STRUCTURER_SYSTEM_PROMPT).toContain("analysisTemplateVariables");
+      expect(STRUCTURER_SYSTEM_PROMPT).toContain("analysisTemplateStatus");
+      expect(STRUCTURER_SYSTEM_PROMPT).toContain("fallback");
     });
   });
 });

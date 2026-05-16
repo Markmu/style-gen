@@ -84,6 +84,13 @@ function makePendingTask(overrides: Partial<AnalysisTask> = {}): AnalysisTask {
     rawResponse: null,
     errorMessage: null,
     errorStage: null,
+    analysisTemplateContent: null,
+    analysisTemplateVariables: [],
+    analysisTemplateStatus: null,
+    analysisTemplateReason: null,
+    provider: "gemini",
+    externalId: null,
+    modelName: "gemini-2.5-flash",
     userId: "user-1",
     createdAt: new Date("2025-01-01"),
     updatedAt: new Date("2025-01-01"),
@@ -133,8 +140,15 @@ function setupSuccessMocks() {
   // 结构化分析
   mockStructureAnalysis.mockResolvedValue({
     recipe: VALID_RECIPE,
-    promptText: "A serene mountain landscape...",
+    promptText: "Create Mountain range with Golden hour.",
     negativePromptText: "blurry, low quality",
+    analysisTemplateContent: "Create {{subject}} with {{lighting}}.",
+    analysisTemplateVariables: [
+      { name: "subject", defaultValue: "Mountain range", label: "Subject", sourceField: "subject" },
+      { name: "lighting", defaultValue: "Golden hour", label: "Lighting", sourceField: "lighting_color" },
+    ],
+    analysisTemplateStatus: "ready",
+    analysisTemplateReason: null,
   });
 }
 
@@ -153,8 +167,11 @@ describe("POST /api/analysis", () => {
     expect(response.status).toBe(200);
     expect(data.status).toBe("completed");
     expect(data.recipe).toEqual(VALID_RECIPE);
-    expect(data.promptText).toBe("A serene mountain landscape...");
+    expect(data.promptText).toBe("Create Mountain range with Golden hour.");
     expect(data.negativePromptText).toBe("blurry, low quality");
+    expect(data.analysisTemplateContent).toBe("Create {{subject}} with {{lighting}}.");
+    expect(data.analysisTemplateVariables).toHaveLength(2);
+    expect(data.analysisTemplateStatus).toBe("ready");
   });
 
   // --- 请求体校验 ---
@@ -271,6 +288,10 @@ describe("POST /api/analysis", () => {
         recipe: null,
         promptText: "Raw visual analysis text",
         negativePromptText: "",
+        analysisTemplateContent: null,
+        analysisTemplateVariables: [],
+        analysisTemplateStatus: "fallback",
+        analysisTemplateReason: expect.any(String),
         errorStage: "llm",
       })
     );

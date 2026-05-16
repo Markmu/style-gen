@@ -54,6 +54,20 @@ export type AnalysisTaskStatus = "pending" | "processing" | "completed" | "faile
 /** 分析任务错误阶段 */
 export type AnalysisTaskErrorStage = "vision" | "llm";
 
+/** 分析自动模板状态 */
+export type AnalysisTemplateStatus = "ready" | "partial" | "fallback";
+
+/** 分析自动模板变量来源字段 */
+export type AnalysisTemplateSourceField =
+  | "subject"
+  | "scene"
+  | "visual_style"
+  | "lighting_color"
+  | "composition"
+  | "camera_language"
+  | "texture"
+  | "mood";
+
 /** 分析任务 */
 export interface AnalysisTask {
   id: string;
@@ -65,6 +79,10 @@ export interface AnalysisTask {
   rawResponse: string | null;
   errorMessage: string | null;
   errorStage: AnalysisTaskErrorStage | null;
+  analysisTemplateContent: string | null;
+  analysisTemplateVariables: TemplateVariable[];
+  analysisTemplateStatus: AnalysisTemplateStatus | null;
+  analysisTemplateReason: string | null;
   provider: VisionProviderName;
   externalId: string | null;
   modelName: string | null;
@@ -104,6 +122,8 @@ export interface GenerationTask {
 export interface TemplateVariable {
   name: string;           // 变量名，匹配 [a-zA-Z_]\w* 格式
   defaultValue: string;   // 默认值，用户未填值时使用
+  label?: string;         // 展示标签，缺失时回退到 name
+  sourceField?: AnalysisTemplateSourceField; // 自动模板变量来源
 }
 
 /** Prompt 模板 */
@@ -112,7 +132,6 @@ export interface PromptTemplate {
   name: string;                      // 模板名称，1-50 字符
   content: string;                   // 模板正文（含 {{var}} 标记的 prompt 文本）
   variables: TemplateVariable[];     // 变量定义列表（从 content 自动提取）
-  sourceAnalysisTaskId: string | null;
   userId: string;
   createdAt: Date;
   updatedAt: Date;

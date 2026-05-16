@@ -75,18 +75,20 @@ test.describe('Workspace Degradation Scenarios', () => {
     await expect(page.getByText('可生成')).toBeVisible({ timeout: 15000 })
 
     // Click generate to trigger L2
-    await page.getByRole('button', { name: '生成首版' }).click()
+    await page.getByRole('button', { name: '生成图片' }).click()
 
     // Verify OutputSettings area shows error display (SERVICE_UNAVAILABLE triggers ErrorDisplay)
     await expect(page.getByText('服务暂时不可用').first()).toBeVisible({ timeout: 15000 })
 
     // Verify generate button is disabled (generationUnavailable blocks it)
-    const genBtn = page.getByRole('button', { name: '重新生成' })
+    const genBtn = page
+      .getByTestId('light-generate-panel')
+      .getByRole('button', { name: '重新生成' })
     await expect(genBtn).toBeDisabled()
 
     // Verify Prompt editor is still usable
-    await expect(page.getByRole('heading', { name: 'Prompt 编辑' })).toBeVisible()
-    const promptTextarea = page.locator('#prompt-text')
+    await expect(page.getByTestId('unified-prompt-editor')).toBeVisible()
+    const promptTextarea = page.getByLabel('完整生成提示')
     await expect(promptTextarea).not.toBeDisabled()
   })
 
@@ -109,7 +111,7 @@ test.describe('Workspace Degradation Scenarios', () => {
     ).toBeVisible({ timeout: 15000 })
 
     // Verify Prompt editor is pre-filled with raw analysis text
-    const promptTextarea = page.locator('#prompt-text')
+    const promptTextarea = page.getByLabel('完整生成提示')
     await expect(promptTextarea).toHaveValue(/Raw visual analysis/)
   })
 
@@ -223,13 +225,15 @@ test.describe('Workspace Degradation Scenarios', () => {
     await expect(page.getByText('可生成')).toBeVisible({ timeout: 15000 })
 
     // Click generate
-    await page.getByRole('button', { name: '生成首版' }).click()
+    await page.getByRole('button', { name: '生成图片' }).click()
 
     // Verify OutputSettings area shows ErrorDisplay
     await expect(page.getByText('服务暂时不可用').first()).toBeVisible({ timeout: 15000 })
 
-    // Click retry (generation retry clears both error and generationUnavailable flag)
-    const retryBtn = page.getByRole('button', { name: '重试' })
+    // Return to the editor and click the recovery action. This clears both the
+    // error and generationUnavailable flag without firing another generation.
+    await page.getByRole('button', { name: '返回编辑' }).click()
+    const retryBtn = page.getByRole('button', { name: '恢复生成' })
     await expect(retryBtn).toBeVisible()
     await retryBtn.click()
 

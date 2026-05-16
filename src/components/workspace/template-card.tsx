@@ -6,9 +6,9 @@ import type { TemplateListItem } from "@/hooks/use-template-search";
 interface TemplateCardProps {
   template: TemplateListItem;
   onUse: (id: string) => void;
-  onEdit?: (id: string) => void;
-  onDuplicate?: (id: string) => void;
-  onDelete?: (id: string) => void;
+  onEdit?: (id: string) => void | Promise<void>;
+  onDuplicate?: (id: string) => void | Promise<void>;
+  onDelete?: (id: string) => void | Promise<void>;
 }
 
 /**
@@ -27,6 +27,7 @@ export function TemplateCard({
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState(false);
   const [duplicating, setDuplicating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const handleUse = useCallback(() => {
     onUse(template.id);
@@ -43,11 +44,16 @@ export function TemplateCard({
     }
   }, [onDuplicate, template.id]);
 
-  const handleDelete = useCallback(() => {
+  const handleDelete = useCallback(async () => {
     if (!onDelete) return;
-    onDelete(template.id);
-    setDeleteTarget(false);
-    setActionMenuId(null);
+    setDeleting(true);
+    try {
+      await onDelete(template.id);
+      setDeleteTarget(false);
+      setActionMenuId(null);
+    } finally {
+      setDeleting(false);
+    }
   }, [onDelete, template.id]);
 
   return (
@@ -177,7 +183,7 @@ export function TemplateCard({
             aria-label="确认删除"
           >
             <p className="mb-4 text-sm text-[var(--text-primary)]">
-              确定删除模板&ldquo;{template.name}&rdquo；？删除后不可恢复。
+              确定删除模板&ldquo;{template.name}&rdquo;？删除后不可恢复。
             </p>
             <div className="flex justify-end gap-2">
               <button
@@ -190,9 +196,10 @@ export function TemplateCard({
               <button
                 type="button"
                 onClick={handleDelete}
-                className="rounded-lg px-3 py-1.5 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10"
+                disabled={deleting}
+                className="rounded-lg px-3 py-1.5 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                删除
+                {deleting ? "删除中..." : "删除"}
               </button>
             </div>
           </div>

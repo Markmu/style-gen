@@ -97,7 +97,7 @@ export async function mockAnalysisPolling(
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(response),
+      body: JSON.stringify({ ...response, id: taskId }),
     })
   })
 }
@@ -115,7 +115,7 @@ export async function mockAnalysisPollingSequence(
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(response),
+      body: JSON.stringify({ ...response, id: taskId }),
     })
   })
 }
@@ -148,7 +148,7 @@ export async function mockGenerationPolling(
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(response),
+      body: JSON.stringify({ ...response, id: taskId }),
     })
   })
 }
@@ -166,7 +166,7 @@ export async function mockGenerationPollingSequence(
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(response),
+      body: JSON.stringify({ ...response, id: taskId }),
     })
   })
 }

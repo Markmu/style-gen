@@ -50,6 +50,15 @@ function makeCompletedTask(
     rawResponse: "Raw visual analysis text",
     errorMessage: null,
     errorStage: null,
+    analysisTemplateContent: "Create {{subject}}.",
+    analysisTemplateVariables: [
+      { name: "subject", defaultValue: "Mountain range", label: "Subject", sourceField: "subject" },
+    ],
+    analysisTemplateStatus: "ready",
+    analysisTemplateReason: null,
+    provider: "gemini",
+    externalId: null,
+    modelName: "gemini-2.5-flash",
     userId: "user-1",
     createdAt: new Date("2025-01-01"),
     updatedAt: new Date("2025-01-01"),
@@ -76,6 +85,11 @@ describe("GET /api/analysis/[id]", () => {
     expect(data.id).toBe("task-1");
     expect(data.status).toBe("completed");
     expect(data.promptText).toBe("A serene mountain landscape...");
+    expect(data.analysisTemplateContent).toBe("Create {{subject}}.");
+    expect(data.analysisTemplateVariables).toEqual([
+      { name: "subject", defaultValue: "Mountain range", label: "Subject", sourceField: "subject" },
+    ]);
+    expect(data.analysisTemplateStatus).toBe("ready");
     expect(mockFindAnalysisTaskById).toHaveBeenCalledWith("task-1", "user-1");
   });
 

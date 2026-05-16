@@ -2,8 +2,8 @@ import { eq, and, desc, lt, sql, ilike } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { templates } from "@/lib/db/schema";
 import { generateId } from "@/lib/ulid";
-import { extractVariables } from "@/lib/template-parser";
-import type { PromptTemplate } from "@/types/models";
+import { mergeTemplateVariables } from "@/lib/template-parser";
+import type { PromptTemplate, TemplateVariable } from "@/types/models";
 
 type TemplateRow = typeof templates.$inferSelect;
 
@@ -13,7 +13,6 @@ function rowToTemplate(row: TemplateRow): PromptTemplate {
     name: row.name,
     content: row.content,
     variables: row.variables ?? [],
-    sourceAnalysisTaskId: row.sourceAnalysisTaskId ?? null,
     userId: row.userId,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -26,11 +25,11 @@ export async function createTemplate(
   data: {
     name: string;
     content: string;
-    sourceAnalysisTaskId?: string;
+    variables?: TemplateVariable[];
   }
 ): Promise<PromptTemplate> {
   const id = generateId();
-  const variables = extractVariables(data.content);
+  const variables = mergeTemplateVariables(data.content, data.variables);
 
   const [row] = await db
     .insert(templates)
@@ -39,7 +38,6 @@ export async function createTemplate(
       name: data.name,
       content: data.content,
       variables,
-      sourceAnalysisTaskId: data.sourceAnalysisTaskId ?? null,
       userId,
     })
     .returning();
@@ -154,7 +152,7 @@ export async function deleteTemplate(
 export async function updateTemplate(
   id: string,
   userId: string,
-  data: { name?: string; content?: string }
+  data: { name?: string; content?: string; variables?: TemplateVariable[] }
 ): Promise<PromptTemplate> {
   const existing = await findById(id, userId);
   if (!existing) throw new Error(`Template not found: ${id}`);
@@ -163,7 +161,9 @@ export async function updateTemplate(
   if (data.name !== undefined) updates.name = data.name;
   if (data.content !== undefined) {
     updates.content = data.content;
-    updates.variables = extractVariables(data.content);
+    updates.variables = mergeTemplateVariables(data.content, data.variables);
+  } else if (data.variables !== undefined) {
+    updates.variables = mergeTemplateVariables(existing.content, data.variables);
   }
 
   const rows = await db
@@ -200,7 +200,6 @@ export async function duplicateTemplate(
       name: newName,
       content: existing.content,
       variables: existing.variables,
-      sourceAnalysisTaskId: null, // 复制的模板不保留来源追溯
       userId,
     })
     .returning();

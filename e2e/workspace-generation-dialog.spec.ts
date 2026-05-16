@@ -51,8 +51,8 @@ test.describe('workspace 09 generation dialog', () => {
     await page.getByText('关闭弹窗', { exact: true }).click()
 
     await expect(page.getByTestId('workspace-two-pane-layout')).toBeVisible()
-    await expect(page.getByTestId('reference-preview')).toContainText('参考图')
-    await expect(page.getByTestId('style-breakdown-panel')).toContainText('风格拆解')
+    await expect(page.getByTestId('reference-preview')).toContainText('Image')
+    await expect(page.getByTestId('style-breakdown-panel')).toContainText('Subject')
     await expect(page.getByTestId('unified-prompt-editor')).toBeVisible()
   })
 
@@ -73,7 +73,7 @@ test.describe('workspace 09 generation dialog', () => {
     await page.getByRole('button', { name: '返回编辑' }).click()
 
     await expect(page.getByRole('dialog', { name: '生成任务' })).toHaveCount(0)
-    await expect(page.getByTestId('reference-preview')).toContainText('参考图')
+    await expect(page.getByTestId('reference-preview')).toContainText('Image')
     await expect(page.getByTestId('unified-prompt-editor')).toBeVisible()
   })
 })
