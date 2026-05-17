@@ -12,7 +12,7 @@ import {
 const TEST_IMAGE_PATH = resolve(__dirname, 'fixtures/test-image.png')
 
 test.describe('Edge Cases', () => {
-  test('替换参考图清空结果', async ({ page }) => {
+  test('替换Reference清空结果', async ({ page }) => {
     const analysisTaskId = 'mock-analysis-task-id'
     const genTaskId = 'mock-generation-task-id'
     const analysisCompleted = loadFixture('analysis-completed.json')
@@ -29,25 +29,25 @@ test.describe('Edge Cases', () => {
     await page.goto('/workspace')
     const fileInput = page.locator('input[type="file"]')
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
-    await expect(page.getByText('可生成')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText('Ready to Generate')).toBeVisible({ timeout: 15000 })
     await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
-    await expect(page.locator('h3').filter({ hasText: /^生成结果$/ })).toBeVisible({ timeout: 15000 })
-    await page.getByText('关闭弹窗', { exact: true }).click()
+    await expect(page.locator('h3').filter({ hasText: /^Generated Result$/ })).toBeVisible({ timeout: 15000 })
+    await page.getByText('Close Dialog', { exact: true }).click()
 
-    // Click "更换参考图"
-    const replaceBtn = page.getByRole('button', { name: '更换参考图' })
+    // Click "Replace Reference"
+    const replaceBtn = page.getByRole('button', { name: 'Replace Reference' })
     await expect(replaceBtn).toBeVisible()
     await replaceBtn.click()
 
     // Results should be cleared — back to idle state with drop zone
-    await expect(page.getByText('点击或拖拽上传参考图')).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText('Click or drag to upload a reference image')).toBeVisible({ timeout: 5000 })
 
     // Recipe and generation result should be gone
-    await expect(page.getByText('可生成', { exact: true })).not.toBeVisible()
-    await expect(page.locator('h3').filter({ hasText: /^生成结果$/ })).not.toBeVisible()
+    await expect(page.getByText('Ready to Generate', { exact: true })).not.toBeVisible()
+    await expect(page.locator('h3').filter({ hasText: /^Generated Result$/ })).not.toBeVisible()
   })
 
-  test('分析中刷新页面回到 idle', async ({ page }) => {
+  test('Analyzing刷新页面回到 idle', async ({ page }) => {
     const taskId = 'mock-analysis-task-id'
 
     await mockUploadPresign(page)
@@ -69,13 +69,13 @@ test.describe('Edge Cases', () => {
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
 
     // Wait for analysis progress indicator
-    await expect(page.getByText('AI 正在分析图片风格...')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText('AI is analyzing the image style...')).toBeVisible({ timeout: 15000 })
 
     // Refresh the page
     await page.reload()
 
     // Should be back to idle state
-    await expect(page.getByText('点击或拖拽上传参考图')).toBeVisible({ timeout: 10000 })
+    await expect(page.getByText('Click or drag to upload a reference image')).toBeVisible({ timeout: 10000 })
   })
 
   test('快速连续点击生成只发一次请求', async ({ page }) => {
@@ -120,7 +120,7 @@ test.describe('Edge Cases', () => {
     await page.goto('/workspace')
     const fileInput = page.locator('input[type="file"]')
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
-    await expect(page.getByText('可生成')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText('Ready to Generate')).toBeVisible({ timeout: 15000 })
 
     // Click generate button rapidly
     const generateBtn = page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' })

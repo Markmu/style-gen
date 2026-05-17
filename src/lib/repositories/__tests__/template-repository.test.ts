@@ -224,7 +224,7 @@ describe("template-repository", () => {
   });
 
   describe("deleteTemplate", () => {
-    it("成功删除模板", async () => {
+    it("成功Delete模板", async () => {
       mockDeleteWhere.mockResolvedValueOnce({ rowCount: 1 });
 
       await expect(

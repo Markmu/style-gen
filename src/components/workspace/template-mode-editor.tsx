@@ -27,14 +27,14 @@ export function TemplateModeEditor({
     <div className="flex min-h-full flex-col gap-4">
       <label className="flex min-h-[220px] flex-1 flex-col gap-2">
         <span className="text-sm font-medium text-[var(--text-secondary)]">
-          模板原文
+          Template Source
         </span>
         <textarea
-          aria-label="模板原文"
+          aria-label="Template Source"
           value={templateSource}
           onChange={(event) => onTemplateChange(event.target.value)}
           className="input-precision min-h-0 flex-1 resize-none rounded-t-lg px-3 py-3 text-sm leading-6"
-          placeholder="输入模板，例如：Create {{subject}} with {{lighting}}."
+          placeholder="Enter a template, e.g. Create {{subject}} with {{lighting}}."
         />
       </label>
       <TemplateVariablePanel

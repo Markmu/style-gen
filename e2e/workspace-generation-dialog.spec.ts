@@ -31,8 +31,8 @@ test.describe('workspace 09 generation dialog', () => {
     await expect(page.getByLabel(/Negative Prompt/i)).toHaveCount(0)
     await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
 
-    await expect(page.getByRole('dialog', { name: '生成任务' })).toBeVisible()
-    await expect(page.getByTestId('generation-dialog')).toContainText(/生成|排队/)
+    await expect(page.getByRole('dialog', { name: 'Generation Task' })).toBeVisible()
+    await expect(page.getByTestId('generation-dialog')).toContainText(/Generation|queued/)
     expect(requestBody && requestBody['negativePromptText']).toBe('')
   })
 
@@ -46,9 +46,9 @@ test.describe('workspace 09 generation dialog', () => {
     await uploadAndCompleteAnalysis(page, { analysisTaskId: 'dialog-completed-analysis-task' })
     await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
 
-    await expect(page.getByRole('dialog', { name: '生成任务' })).toBeVisible()
-    await expect(page.getByTestId('generation-dialog')).toContainText('生成结果')
-    await page.getByText('关闭弹窗', { exact: true }).click()
+    await expect(page.getByRole('dialog', { name: 'Generation Task' })).toBeVisible()
+    await expect(page.getByTestId('generation-dialog')).toContainText('Generated Result')
+    await page.getByText('Close Dialog', { exact: true }).click()
 
     await expect(page.getByTestId('workspace-two-pane-layout')).toBeVisible()
     await expect(page.getByTestId('reference-preview')).toContainText('Image')
@@ -62,17 +62,17 @@ test.describe('workspace 09 generation dialog', () => {
       id: 'dialog-failed-task',
       status: 'failed',
       resultFileUrl: null,
-      errorMessage: '生成服务暂时不可用',
+      errorMessage: 'Generation service temporarily unavailable',
     })
 
     await uploadAndCompleteAnalysis(page, { analysisTaskId: 'dialog-failed-analysis-task' })
     await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
 
-    await expect(page.getByRole('dialog', { name: '生成任务' })).toBeVisible()
-    await expect(page.getByTestId('generation-dialog')).toContainText('生成失败')
-    await page.getByRole('button', { name: '返回编辑' }).click()
+    await expect(page.getByRole('dialog', { name: 'Generation Task' })).toBeVisible()
+    await expect(page.getByTestId('generation-dialog')).toContainText('Generation Failed')
+    await page.getByRole('button', { name: 'Back to Edit' }).click()
 
-    await expect(page.getByRole('dialog', { name: '生成任务' })).toHaveCount(0)
+    await expect(page.getByRole('dialog', { name: 'Generation Task' })).toHaveCount(0)
     await expect(page.getByTestId('reference-preview')).toContainText('Image')
     await expect(page.getByTestId('unified-prompt-editor')).toBeVisible()
   })

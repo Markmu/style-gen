@@ -10,38 +10,38 @@ interface StatusBarConfig {
 
 const STATUS_BAR_CONFIG: Record<WorkspaceState, StatusBarConfig> = {
   idle: {
-    label: "未开始",
-    description: "上传参考图，提炼风格特征，再生成可继续迭代的新图",
+    label: "Not Started",
+    description: "Upload a reference, extract style traits, then generate an image you can keep iterating",
     showReplaceButton: false,
   },
   uploading: {
-    label: "未开始",
-    description: "上传参考图，提炼风格特征，再生成可继续迭代的新图",
+    label: "Not Started",
+    description: "Upload a reference, extract style traits, then generate an image you can keep iterating",
     showReplaceButton: false,
   },
   analyzing: {
-    label: "分析中",
-    description: "AI 正在分析参考图的风格特征",
+    label: "Analyzing",
+    description: "AI is analyzing the reference image style traits",
     showReplaceButton: false,
   },
   analysis_ready: {
-    label: "可生成",
-    description: "AI 已提炼出参考图的风格特征，你可以继续调整生成意图",
+    label: "Ready to Generate",
+    description: "AI has extracted the reference style traits. You can refine the generation intent.",
     showReplaceButton: true,
   },
   generating: {
-    label: "生成中",
-    description: "正在生成图片，请稍候",
+    label: "Generating",
+    description: "Generating image. Please wait.",
     showReplaceButton: true,
   },
   generation_ready: {
-    label: "已完成",
-    description: "已生成首版结果，可继续对比、下载或迭代",
+    label: "Done",
+    description: "First result is ready. Compare, download, or keep iterating.",
     showReplaceButton: true,
   },
   history_restored: {
-    label: "历史已恢复",
-    description: "从历史记录恢复，可调整参数后重新生成",
+    label: "History Restored",
+    description: "Restored from history. Adjust settings and generate again.",
     showReplaceButton: true,
   },
 };
@@ -61,7 +61,7 @@ export function StatusBar({ state, onReplace }: StatusBarProps) {
       {/* Left: title + description */}
       <div className="flex min-w-0 items-center gap-3">
         <h2 className="shrink-0 text-sm font-bold text-[var(--text-primary)]">
-          基于参考图创作
+          Create From Reference
         </h2>
         <span className="truncate text-xs text-[var(--text-secondary)]">
           {config.description}
@@ -77,7 +77,7 @@ export function StatusBar({ state, onReplace }: StatusBarProps) {
             onClick={onReplace}
             className="rounded-md px-2.5 py-1 text-xs text-[var(--text-secondary)] ring-1 ring-[var(--border)] transition-colors hover:bg-[var(--surface-bright)]"
           >
-            更换参考图
+            Replace Reference
           </button>
         )}
       </div>

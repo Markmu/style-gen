@@ -17,7 +17,7 @@ test.describe('workspace 09 two pane layout', () => {
 
     await expect(page.getByTestId('workspace-two-pane-layout')).toBeVisible()
     await expect(page.getByTestId('reference-preview')).toContainText('Image')
-    await expect(page.getByTestId('style-breakdown-panel')).toContainText(/Analyze|正在分析|排队/)
+    await expect(page.getByTestId('style-breakdown-panel')).toContainText(/Analyze|Analyzing|queued/)
     await expect(page.getByTestId('editing-pane')).toBeVisible()
   })
 

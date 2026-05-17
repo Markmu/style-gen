@@ -14,15 +14,15 @@ describe("AnalysisProgress", () => {
     vi.clearAllMocks();
   });
 
-  // 1. 分析中显示加载动画 - P0
-  it("分析中显示 'AI 正在分析图片风格...'", () => {
+  // 1. Analyzing显示加载动画 - P0
+  it("Analyzing显示 'AI is analyzing the image style...'", () => {
     render(<AnalysisProgress {...defaultProps} isAnalyzing={true} />);
 
-    expect(screen.getByText("AI 正在分析图片风格...")).toBeInTheDocument();
+    expect(screen.getByText("AI is analyzing the image style...")).toBeInTheDocument();
   });
 
   // 2. 错误态展示 - P0
-  it("错误态展示 - '分析失败', stage, error message, '重新分析' 按钮", () => {
+  it("错误态展示 - 'Analysis Failed', stage, error message, 'Analyze Again' 按钮", () => {
     render(
       <AnalysisProgress
         {...defaultProps}
@@ -30,14 +30,14 @@ describe("AnalysisProgress", () => {
       />,
     );
 
-    expect(screen.getByText("分析失败")).toBeInTheDocument();
-    expect(screen.getByText("阶段：视觉理解")).toBeInTheDocument();
+    expect(screen.getByText("Analysis Failed")).toBeInTheDocument();
+    expect(screen.getByText("Stage: Vision Understanding")).toBeInTheDocument();
     expect(screen.getByText("API timeout")).toBeInTheDocument();
-    expect(screen.getByText("重新分析")).toBeInTheDocument();
+    expect(screen.getByText("Analyze Again")).toBeInTheDocument();
   });
 
   // 3. LLM 阶段错误 - P1
-  it("LLM 阶段错误 - 显示 'LLM 结构化'", () => {
+  it("LLM 阶段错误 - 显示 'LLM Structuring'", () => {
     render(
       <AnalysisProgress
         {...defaultProps}
@@ -45,11 +45,11 @@ describe("AnalysisProgress", () => {
       />,
     );
 
-    expect(screen.getByText("阶段：LLM 结构化")).toBeInTheDocument();
+    expect(screen.getByText("Stage: LLM Structuring")).toBeInTheDocument();
   });
 
-  // 4. 重试按钮点击 - P0
-  it("重试按钮点击 - onRetry called", () => {
+  // 4. Retry按钮点击 - P0
+  it("Retry按钮点击 - onRetry called", () => {
     const onRetry = vi.fn();
     render(
       <AnalysisProgress
@@ -59,7 +59,7 @@ describe("AnalysisProgress", () => {
       />,
     );
 
-    fireEvent.click(screen.getByText("重新分析"));
+    fireEvent.click(screen.getByText("Analyze Again"));
     expect(onRetry).toHaveBeenCalledOnce();
   });
 

@@ -44,12 +44,12 @@ describe("WorkspaceCanvas", () => {
 
   // --- canvasView derivation ---
 
-  it("canvasView=upload：无参考图时渲染 UploadZone", () => {
+  it("canvasView=upload：无Reference时渲染 UploadZone", () => {
     render(<WorkspaceCanvas {...defaultProps} />);
-    expect(screen.getByText("点击或拖拽上传参考图")).toBeInTheDocument();
+    expect(screen.getByText("Click or drag to upload a reference image")).toBeInTheDocument();
   });
 
-  it("canvasView=reference：有参考图无结果图时渲染参考图", () => {
+  it("canvasView=reference：有Reference无Result时渲染Reference", () => {
     render(
       <WorkspaceCanvas
         {...defaultProps}
@@ -59,12 +59,12 @@ describe("WorkspaceCanvas", () => {
       />,
     );
 
-    const img = screen.getByAltText("参考图");
+    const img = screen.getByAltText("Reference");
     expect(img).toBeInTheDocument();
     expect(img).toHaveAttribute("src", "https://example.com/ref.png");
   });
 
-  it("canvasView=result：有结果图且 generation_ready 时渲染结果图", () => {
+  it("canvasView=result：有Result且 generation_ready 时渲染Result", () => {
     render(
       <WorkspaceCanvas
         {...defaultProps}
@@ -75,14 +75,14 @@ describe("WorkspaceCanvas", () => {
       />,
     );
 
-    const img = screen.getByAltText("生成结果");
+    const img = screen.getByAltText("Generated Result");
     expect(img).toBeInTheDocument();
     expect(img).toHaveAttribute("src", "https://example.com/result.png");
   });
 
   // --- Analyzing overlay ---
 
-  it("analyzing 状态下显示分析中视觉反馈", () => {
+  it("analyzing 状态下显示Analyzing视觉反馈", () => {
     render(
       <WorkspaceCanvas
         {...defaultProps}
@@ -92,7 +92,7 @@ describe("WorkspaceCanvas", () => {
     );
 
     expect(
-      screen.getByText("AI 正在分析风格特征..."),
+      screen.getByText("AI is analyzing style features..."),
     ).toBeInTheDocument();
   });
 
@@ -117,8 +117,8 @@ describe("WorkspaceCanvas", () => {
 
   it("upload 视图下 UploadZone 正确渲染", () => {
     render(<WorkspaceCanvas {...defaultProps} />);
-    expect(screen.getByText("点击或拖拽上传参考图")).toBeInTheDocument();
-    expect(screen.getByText(/支持 JPG \/ PNG \/ WebP/)).toBeInTheDocument();
+    expect(screen.getByText("Click or drag to upload a reference image")).toBeInTheDocument();
+    expect(screen.getByText(/JPG, PNG, or WebP/)).toBeInTheDocument();
   });
 
   // --- Uploading state ---
@@ -133,7 +133,7 @@ describe("WorkspaceCanvas", () => {
       />,
     );
 
-    expect(screen.getByText("正在上传... 50%")).toBeInTheDocument();
+    expect(screen.getByText("Uploading... 50%")).toBeInTheDocument();
   });
 
   // --- CanvasToolbar in result view ---
@@ -149,8 +149,8 @@ describe("WorkspaceCanvas", () => {
       />,
     );
 
-    expect(screen.getByText("结果图")).toBeInTheDocument();
-    expect(screen.getByText("对比查看")).toBeInTheDocument();
-    expect(screen.getByText("下载")).toBeInTheDocument();
+    expect(screen.getByText("Result")).toBeInTheDocument();
+    expect(screen.getByText("Compare")).toBeInTheDocument();
+    expect(screen.getByText("Download")).toBeInTheDocument();
   });
 });

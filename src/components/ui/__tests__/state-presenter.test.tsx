@@ -7,20 +7,20 @@ describe("StatePresenter", () => {
   it("renders empty state copy and actions", () => {
     render(<StatePresenter status="empty" />);
 
-    expect(screen.getByText("准备开始")).toBeInTheDocument();
-    expect(screen.getByText(/添加参考图或选择模板/)).toBeInTheDocument();
+    expect(screen.getByText("Ready to Start")).toBeInTheDocument();
+    expect(screen.getByText(/Add a reference image or choose a template/)).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "添加参考图" }),
+      screen.getByRole("button", { name: "Add Reference" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "浏览模板" }),
+      screen.getByRole("button", { name: "Browse Templates" }),
     ).toBeInTheDocument();
   });
 
   it("renders processing state without forcing a modal", () => {
     const { container } = render(<StatePresenter compact status="processing" />);
 
-    expect(screen.getByText("正在处理")).toBeInTheDocument();
+    expect(screen.getByText("Processing")).toBeInTheDocument();
     expect(container.querySelector('[role="dialog"]')).not.toBeInTheDocument();
     expect(container.querySelector("[data-status='processing']")).toBeInTheDocument();
   });
@@ -29,22 +29,22 @@ describe("StatePresenter", () => {
     const { container } = render(<StatePresenter status="failedRecoverable" />);
 
     expect(container.querySelector("[aria-live='assertive']")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "重试" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "返回编辑" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Back to Edit" })).toBeInTheDocument();
   });
 
   it("renders auth required action", () => {
     render(<StatePresenter status="authRequired" />);
 
-    expect(screen.getByText("需要登录")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "登录" })).toBeInTheDocument();
+    expect(screen.getByText("Login Required")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Log in" })).toBeInTheDocument();
   });
 
   it("renders no results recovery copy", () => {
     render(<StatePresenter status="noResults" />);
 
-    expect(screen.getByText("没有匹配结果")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "清空搜索" })).toBeInTheDocument();
+    expect(screen.getByText("No Matches")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Clear Search" })).toBeInTheDocument();
   });
 
   it("uses overrides and invokes actions", async () => {
@@ -54,21 +54,21 @@ describe("StatePresenter", () => {
 
     render(
       <StatePresenter
-        description="当前分析没有完成，参考图仍会保留。"
+        description="The current analysis did not finish, but the reference is preserved."
         onPrimaryAction={onPrimaryAction}
         onSecondaryAction={onSecondaryAction}
-        primaryActionLabel="重试分析"
-        secondaryActionLabel="更换参考图"
+        primaryActionLabel="Retry Analysis"
+        secondaryActionLabel="Replace Reference"
         status="failedRecoverable"
-        title="分析失败"
+        title="Analysis Failed"
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "重试分析" }));
-    await user.click(screen.getByRole("button", { name: "更换参考图" }));
+    await user.click(screen.getByRole("button", { name: "Retry Analysis" }));
+    await user.click(screen.getByRole("button", { name: "Replace Reference" }));
 
-    expect(screen.getByText("分析失败")).toBeInTheDocument();
-    expect(screen.getByText(/参考图仍会保留/)).toBeInTheDocument();
+    expect(screen.getByText("Analysis Failed")).toBeInTheDocument();
+    expect(screen.getByText(/reference is preserved/)).toBeInTheDocument();
     expect(onPrimaryAction).toHaveBeenCalledOnce();
     expect(onSecondaryAction).toHaveBeenCalledOnce();
   });

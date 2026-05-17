@@ -99,7 +99,7 @@ export function LeftSidebar() {
 
   return (
     <aside
-      aria-label="工作区导航"
+      aria-label="Workspace navigation"
       data-collapsed={isCollapsed}
       className={`surface-panel flex h-full flex-shrink-0 flex-col transition-[width] duration-200 ease-out ${
         isCollapsed ? "w-[4.25rem]" : "w-48"
@@ -137,8 +137,8 @@ export function LeftSidebar() {
             setIsCollapsed((collapsed) => !collapsed);
             setIsUserMenuOpen(false);
           }}
-          aria-label={isCollapsed ? "展开菜单栏" : "折叠菜单栏"}
-          title={isCollapsed ? "展开菜单栏" : "折叠菜单栏"}
+          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           className="interactive-lift flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
         >
           <span className="material-symbols-outlined text-lg" aria-hidden="true">
@@ -208,7 +208,7 @@ export function LeftSidebar() {
                   <span className="material-symbols-outlined text-base" aria-hidden="true">
                     logout
                   </span>
-                  退出登录
+                  Log out
                 </button>
               </div>
             )}
@@ -217,11 +217,11 @@ export function LeftSidebar() {
               onClick={() => setIsUserMenuOpen((open) => !open)}
               aria-label={
                 isCollapsed
-                  ? `用户菜单：${userName || userEmail || "Workspace user"}`
-                  : "用户菜单"
+                  ? `User menu：${userName || userEmail || "Workspace user"}`
+                  : "User menu"
               }
               aria-expanded={isUserMenuOpen}
-              title={isCollapsed ? userName || userEmail || "用户菜单" : undefined}
+              title={isCollapsed ? userName || userEmail || "User menu" : undefined}
               className={`interactive-lift flex w-full min-w-0 items-center gap-3 rounded-lg px-3 py-2 text-left ${
                 isCollapsed ? "justify-center gap-0 px-0" : ""
               }`}

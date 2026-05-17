@@ -11,11 +11,11 @@ import { trackAuthEvent } from "./auth-tracking";
 function getOAuthErrorMessage(error: string): string {
   switch (error) {
     case "OAuthAccountNotLinked":
-      return "登录失败";
+      return "Login failed";
     case "AccessDenied":
-      return "登录已取消";
+      return "Login canceled";
     default:
-      return "登录失败，请重试";
+      return "Login failed. Please try again.";
   }
 }
 
@@ -39,7 +39,7 @@ export function AuthHeader() {
     }
   }, [oauthError]);
 
-  // 登录成功埋点：status 从 loading 变为 authenticated
+  // Log in成功埋点：status 从 loading 变为 authenticated
   useEffect(() => {
     if (
       prevStatusRef.current === "loading" &&
@@ -50,18 +50,18 @@ export function AuthHeader() {
     prevStatusRef.current = status;
   }, [status]);
 
-  if (status === "loading") return null; // 避免闪烁
+  if (status === "loading") return null; // Avoid flicker.
 
   const navItems = [
-    { label: "首页", href: "/", icon: "home", active: pathname === "/" },
+    { label: "Home", href: "/", icon: "home", active: pathname === "/" },
     {
-      label: "工作台",
+      label: "Workspace",
       href: "/workspace",
       icon: "hub",
       active: pathname === "/workspace",
     },
     {
-      label: "模板库",
+      label: "Template Library",
       href: "/workspace/templates",
       icon: "library_books",
       active: pathname.startsWith("/workspace/templates"),
@@ -85,7 +85,7 @@ export function AuthHeader() {
             </span>
           </Link>
 
-          <nav className="hidden items-center gap-2 md:flex" aria-label="全站导航">
+          <nav className="hidden items-center gap-2 md:flex" aria-label="Site navigation">
             {navItems.map((item) => (
               <Link
                 key={item.href}

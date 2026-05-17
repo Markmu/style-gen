@@ -46,7 +46,7 @@ describe("RecipeStep", () => {
 
   // --- 5-field summary ---
 
-  it("默认展示 5 字段核心摘要（subject/scene/lighting/color/mood）", () => {
+  it("默认展示 5 字段Core Summary（subject/scene/lighting/color/mood）", () => {
     render(<RecipeStep {...defaultProps} />);
 
     expect(screen.getByText("Mountain range")).toBeInTheDocument();
@@ -56,11 +56,11 @@ describe("RecipeStep", () => {
     expect(screen.getByText("Peaceful")).toBeInTheDocument();
   });
 
-  it("默认折叠状态下展开按钮文案为 '展开完整配方'", () => {
+  it("默认折叠状态下展开按钮文案为 'Expand Full Recipe'", () => {
     render(<RecipeStep {...defaultProps} />);
 
-    expect(screen.getByText("展开完整配方")).toBeInTheDocument();
-    expect(screen.queryByText("收起完整配方")).not.toBeInTheDocument();
+    expect(screen.getByText("Expand Full Recipe")).toBeInTheDocument();
+    expect(screen.queryByText("Collapse Full Recipe")).not.toBeInTheDocument();
   });
 
   // --- Expand/collapse ---
@@ -73,23 +73,23 @@ describe("RecipeStep", () => {
       <RecipeStep {...defaultProps} onToggleExpanded={onToggleExpanded} />,
     );
 
-    await user.click(screen.getByText("展开完整配方"));
+    await user.click(screen.getByText("Expand Full Recipe"));
     expect(onToggleExpanded).toHaveBeenCalledOnce();
   });
 
   it("isExpanded=true 时展示完整配方内容", () => {
     render(<RecipeStep {...defaultProps} isExpanded={true} />);
 
-    expect(screen.getByText("构图与镜头")).toBeInTheDocument();
+    expect(screen.getByText("Composition & Camera")).toBeInTheDocument();
     expect(screen.getByText("Rule of thirds")).toBeInTheDocument();
     expect(screen.getByText("Wide angle")).toBeInTheDocument();
-    expect(screen.getByText("质感与风格")).toBeInTheDocument();
+    expect(screen.getByText("Texture & Style")).toBeInTheDocument();
     expect(screen.getByText("Soft")).toBeInTheDocument();
   });
 
-  it("isExpanded=true 时展开按钮文案变为 '收起完整配方'", () => {
+  it("isExpanded=true 时展开按钮文案变为 'Collapse Full Recipe'", () => {
     render(<RecipeStep {...defaultProps} isExpanded={true} />);
-    expect(screen.getByText("收起完整配方")).toBeInTheDocument();
+    expect(screen.getByText("Collapse Full Recipe")).toBeInTheDocument();
   });
 
   // --- L3 degradation ---
@@ -105,7 +105,7 @@ describe("RecipeStep", () => {
     );
 
     expect(
-      screen.getByText("AI 结构化处理失败，已降级为原始分析结果"),
+      screen.getByText("AI structuring failed, so raw analysis is shown instead."),
     ).toBeInTheDocument();
   });
 
@@ -120,7 +120,7 @@ describe("RecipeStep", () => {
     );
 
     expect(
-      screen.getByText("分析服务暂时不可用，请稍后重试"),
+      screen.getByText("Analysis is temporarily unavailable. Please try again later."),
     ).toBeInTheDocument();
   });
 
@@ -137,7 +137,7 @@ describe("RecipeStep", () => {
     );
 
     expect(
-      screen.getByText("分析排队中，请耐心等待"),
+      screen.getByText("Analysis is queued. Thanks for waiting."),
     ).toBeInTheDocument();
   });
 
@@ -160,17 +160,17 @@ describe("RecipeStep", () => {
       />,
     );
 
-    expect(screen.getByText("视觉分析失败")).toBeInTheDocument();
+    expect(screen.getByText("Vision Analysis Failed")).toBeInTheDocument();
   });
 
   // --- generation_ready title ---
 
-  it("generation_ready 状态下标题变为 '本次生成参数'", () => {
+  it("generation_ready 状态下标题变为 'Generation Settings'", () => {
     render(
       <RecipeStep {...defaultProps} state="generation_ready" />,
     );
 
-    expect(screen.getByText(/本次生成参数/)).toBeInTheDocument();
+    expect(screen.getByText(/Generation Settings/)).toBeInTheDocument();
   });
 
   // --- null recipe, no special conditions: return null ---

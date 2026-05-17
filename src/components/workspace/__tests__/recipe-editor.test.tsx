@@ -36,7 +36,7 @@ describe("RecipeEditor", () => {
       screen.queryByRole("button", { name: "查看完整配方" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "收起完整配方" }),
+      screen.queryByRole("button", { name: "Collapse Full Recipe" }),
     ).not.toBeInTheDocument();
   });
 });

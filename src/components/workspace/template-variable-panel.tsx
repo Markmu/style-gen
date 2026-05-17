@@ -22,10 +22,10 @@ export function TemplateVariablePanel({
     <div data-testid="template-variable-panel" className="space-y-3">
       <div>
         <h4 className="text-sm font-semibold text-[var(--text-primary)]">
-          变量
+          Variables
         </h4>
         <p className="mt-1 text-xs text-[var(--text-secondary)]">
-          变量值会渲染进完整提示，不改写模板原文。
+          Variable values render into the full prompt without changing the source template.
         </p>
       </div>
 
@@ -34,12 +34,12 @@ export function TemplateVariablePanel({
           {templateStatus === "fallback" ? (
             <>
               <p className="font-medium text-[var(--text-primary)]">
-                本次没有识别到足够稳定的可替换变量
+                No stable replaceable variables were detected this time.
               </p>
               {templateReason && <p className="mt-1 text-xs">{templateReason}</p>}
             </>
           ) : (
-            "当前模板没有变量。"
+            "This template has no variables."
           )}
         </div>
       ) : (
@@ -57,11 +57,11 @@ export function TemplateVariablePanel({
                 )}
               </span>
               <input
-                aria-label={`变量 ${variable.name}`}
+                aria-label={`Variable ${variable.name}`}
                 value={values[variable.name] ?? ""}
                 onChange={(event) => onChange(variable.name, event.target.value)}
                 className="input-precision w-full rounded-t-md px-3 py-2 text-sm"
-                placeholder={`填写 ${variable.name}`}
+                placeholder={`Fill ${variable.name}`}
               />
             </label>
           ))}

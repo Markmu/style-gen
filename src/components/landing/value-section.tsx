@@ -1,18 +1,18 @@
 const workflow = [
   {
     step: "01",
-    title: "上传参考图",
-    description: "选择一张你喜欢的图片作为风格参考",
+    title: "Upload Reference",
+    description: "Choose an image you want to use as a style reference",
   },
   {
     step: "02",
-    title: "AI 提取视觉配方",
-    description: "深度分析色彩、构图、光照、质感等视觉特征",
+    title: "AI Extracts the Visual Recipe",
+    description: "Analyze color, composition, lighting, texture, and other visual traits",
   },
   {
     step: "03",
-    title: "生成同风格新图",
-    description: "基于提取的配方，用文字描述生成新图片",
+    title: "Generate a New Image in the Same Style",
+    description: "Use the extracted recipe and your text intent to generate a new image",
   },
 ] as const;
 
@@ -21,10 +21,10 @@ export function ValueSection() {
     <section className="px-4 py-14 md:py-20">
       <div className="mx-auto max-w-5xl">
         <h2 className="text-2xl font-bold text-[var(--text-primary)] md:text-3xl">
-          三步完成风格再创作
+          Recreate a Style in Three Steps
         </h2>
         <p className="mt-4 max-w-lg text-base text-[var(--text-secondary)]">
-          简单高效，让 AI 帮你提取和应用任何视觉风格
+          A focused workflow for extracting and applying any visual style with AI
         </p>
 
         <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-3">

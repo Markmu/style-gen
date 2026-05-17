@@ -47,7 +47,7 @@ export function useHistoryList(enabled = true) {
     enabled,
   });
 
-  /** 使缓存失效（供生成完成后调用） */
+  /** 使缓存失效（供Generation Complete后调用） */
   const refetch = () => {
     queryClient.invalidateQueries({ queryKey: ["generation-history"] });
   };

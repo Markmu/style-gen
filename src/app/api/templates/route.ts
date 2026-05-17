@@ -24,7 +24,7 @@ function log(event: string, data: Record<string, unknown>) {
   console.log(JSON.stringify({ event, timestamp: new Date().toISOString(), ...data }));
 }
 
-// ─── Rate Limit：内存级滑动窗口计数器（30 次/小时/IP）[架构8.3] ───
+// ─── Rate Limit：内存级滑动窗口计数器（30 times/小时/IP）[架构8.3] ───
 
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
 
@@ -39,7 +39,7 @@ function checkRateLimit(ip: string): Response | null {
 
   if (entry.count >= 30) {
     return NextResponse.json(
-      { error: "请求过于频繁", code: "RATE_LIMITED", retryable: true },
+      { error: "Too Many Requests", code: "RATE_LIMITED", retryable: true },
       { status: 429 }
     );
   }
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
 
     if (!validated) {
       return NextResponse.json(
-        { error: "请求参数不合法", code: "INVALID_REQUEST", retryable: false },
+        { error: "Invalid request parameters", code: "INVALID_REQUEST", retryable: false },
         { status: 400 }
       );
     }
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
     if (existing) {
       log("template_name_conflict", { name: validated.name, userId });
       return NextResponse.json(
-        { error: "已存在同名模板", code: "TEMPLATE_NAME_CONFLICT", retryable: false },
+        { error: "A template with this name already exists", code: "TEMPLATE_NAME_CONFLICT", retryable: false },
         { status: 409 }
       );
     }
@@ -213,7 +213,7 @@ export async function GET(request: NextRequest) {
       const parsed = new Date(cursorParam);
       if (isNaN(parsed.getTime())) {
         return NextResponse.json(
-          { error: "cursor 参数格式不合法，需为 ISO 8601 日期字符串", code: "INVALID_REQUEST", retryable: false },
+          { error: "Invalid cursor. Use an ISO 8601 date string", code: "INVALID_REQUEST", retryable: false },
           { status: 400 }
         );
       }
@@ -225,7 +225,7 @@ export async function GET(request: NextRequest) {
       const parsed = Number(limitParam);
       if (!Number.isInteger(parsed) || parsed < 1 || parsed > 50) {
         return NextResponse.json(
-          { error: "limit 参数需为 1-50 之间的整数", code: "INVALID_REQUEST", retryable: false },
+          { error: "limit must be an integer from 1 to 50", code: "INVALID_REQUEST", retryable: false },
           { status: 400 }
         );
       }
@@ -237,7 +237,7 @@ export async function GET(request: NextRequest) {
     if (searchParam !== null) {
       if (searchParam.length > 100) {
         return NextResponse.json(
-          { error: "search 参数长度不能超过 100 个字符", code: "INVALID_REQUEST", retryable: false },
+          { error: "search must be 100 characters or fewer", code: "INVALID_REQUEST", retryable: false },
           { status: 400 }
         );
       }

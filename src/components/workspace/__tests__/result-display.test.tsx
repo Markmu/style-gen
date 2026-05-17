@@ -15,49 +15,49 @@ describe("ResultDisplay", () => {
     params: { aspectRatio: "16:9", quality: "hd" },
   };
 
-  it('渲染结果图 - img with alt "生成结果"', () => {
+  it('渲染Result - img with alt "Generated Result"', () => {
     render(<ResultDisplay {...defaultProps} />);
-    const img = screen.getByAltText("生成结果");
+    const img = screen.getByAltText("Generated Result");
     expect(img).toBeInTheDocument();
     expect(img).toHaveAttribute("src", "https://example.com/result.png");
   });
 
-  it('显示生成参数 - "宽高比: 16:9" and "画质: 高清"', () => {
+  it('显示生成参数 - "Aspect Ratio: 16:9" and "Quality: HD"', () => {
     render(<ResultDisplay {...defaultProps} />);
-    expect(screen.getByText(/宽高比: 16:9/)).toBeInTheDocument();
-    expect(screen.getByText(/画质: 高清/)).toBeInTheDocument();
+    expect(screen.getByText(/Aspect Ratio: 16:9/)).toBeInTheDocument();
+    expect(screen.getByText(/Quality: HD/)).toBeInTheDocument();
   });
 
-  it('标准画质显示文案 - "画质: 标准"', () => {
+  it('StandardQuality显示文案 - "Quality: Standard"', () => {
     render(
       <ResultDisplay
         {...defaultProps}
         params={{ aspectRatio: "1:1", quality: "standard" }}
       />,
     );
-    expect(screen.getByText(/画质: 标准/)).toBeInTheDocument();
+    expect(screen.getByText(/Quality: Standard/)).toBeInTheDocument();
   });
 
-  it('查看 Prompt 快照 - details/summary "查看使用的 Prompt"', () => {
+  it('查看 Prompt 快照 - details/summary "View Prompt Used"', () => {
     render(<ResultDisplay {...defaultProps} />);
-    expect(screen.getByText("查看使用的 Prompt")).toBeInTheDocument();
+    expect(screen.getByText("View Prompt Used")).toBeInTheDocument();
   });
 });
 
 describe("ResultError", () => {
-  it('显示错误信息 - "生成失败" and error message', () => {
+  it('显示错误信息 - "Generation Failed" and error message', () => {
     render(<ResultError errorMessage="network error" onRetry={vi.fn()} />);
-    expect(screen.getByText("生成失败")).toBeInTheDocument();
+    expect(screen.getByText("Generation Failed")).toBeInTheDocument();
     expect(screen.getByText("network error")).toBeInTheDocument();
   });
 
-  it("重试按钮 - onRetry called", async () => {
+  it("Retry按钮 - onRetry called", async () => {
     const onRetry = vi.fn();
     const user = userEvent.setup();
 
     render(<ResultError errorMessage="error" onRetry={onRetry} />);
 
-    await user.click(screen.getByRole("button", { name: "重试" }));
+    await user.click(screen.getByRole("button", { name: "Retry" }));
     expect(onRetry).toHaveBeenCalledOnce();
   });
 });

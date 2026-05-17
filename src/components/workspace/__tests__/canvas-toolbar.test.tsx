@@ -20,14 +20,14 @@ describe("CanvasToolbar", () => {
   it("三个操作按钮正确渲染", () => {
     render(<CanvasToolbar {...defaultProps} />);
 
-    expect(screen.getByText("结果图")).toBeInTheDocument();
-    expect(screen.getByText("对比查看")).toBeInTheDocument();
-    expect(screen.getByText("下载")).toBeInTheDocument();
+    expect(screen.getByText("Result")).toBeInTheDocument();
+    expect(screen.getByText("Compare")).toBeInTheDocument();
+    expect(screen.getByText("Download")).toBeInTheDocument();
   });
 
   // --- Click comparison toggles activeView ---
 
-  it("点击对比查看切换视图", async () => {
+  it("点击Compare切换视图", async () => {
     const onViewChange = vi.fn();
     const user = userEvent.setup();
 
@@ -35,11 +35,11 @@ describe("CanvasToolbar", () => {
       <CanvasToolbar {...defaultProps} onViewChange={onViewChange} />,
     );
 
-    await user.click(screen.getByText("对比查看"));
+    await user.click(screen.getByText("Compare"));
     expect(onViewChange).toHaveBeenCalledWith("comparison");
   });
 
-  it("点击结果图切换视图", async () => {
+  it("点击Result切换视图", async () => {
     const onViewChange = vi.fn();
     const user = userEvent.setup();
 
@@ -51,16 +51,16 @@ describe("CanvasToolbar", () => {
       />,
     );
 
-    await user.click(screen.getByText("结果图"));
+    await user.click(screen.getByText("Result"));
     expect(onViewChange).toHaveBeenCalledWith("result");
   });
 
   // --- Download button href ---
 
-  it("下载按钮 href 正确", () => {
+  it("Download按钮 href 正确", () => {
     render(<CanvasToolbar {...defaultProps} />);
 
-    const downloadLink = screen.getByText("下载");
+    const downloadLink = screen.getByText("Download");
     expect(downloadLink).toHaveAttribute(
       "href",
       "https://example.com/result.png",

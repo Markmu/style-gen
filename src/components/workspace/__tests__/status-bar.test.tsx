@@ -18,12 +18,12 @@ describe("StatusBar", () => {
   // --- Status label text ---
 
   it.each<{ state: WorkspaceState; expectedLabel: string }>([
-    { state: "idle", expectedLabel: "未开始" },
-    { state: "uploading", expectedLabel: "未开始" },
-    { state: "analyzing", expectedLabel: "分析中" },
-    { state: "analysis_ready", expectedLabel: "可生成" },
-    { state: "generating", expectedLabel: "生成中" },
-    { state: "generation_ready", expectedLabel: "已完成" },
+    { state: "idle", expectedLabel: "Not Started" },
+    { state: "uploading", expectedLabel: "Not Started" },
+    { state: "analyzing", expectedLabel: "Analyzing" },
+    { state: "analysis_ready", expectedLabel: "Ready to Generate" },
+    { state: "generating", expectedLabel: "Generating" },
+    { state: "generation_ready", expectedLabel: "Done" },
   ])(
     "状态 $state 下标签文案为 $expectedLabel",
     ({ state, expectedLabel }) => {
@@ -35,10 +35,10 @@ describe("StatusBar", () => {
   // --- showReplaceButton conditions ---
 
   it.each<WorkspaceState>(["idle", "uploading", "analyzing"])(
-    "状态 %s 不显示更换参考图按钮",
+    "状态 %s 不显示Replace Reference按钮",
     (state) => {
       render(<StatusBar {...defaultProps} state={state} />);
-      expect(screen.queryByText("更换参考图")).not.toBeInTheDocument();
+      expect(screen.queryByText("Replace Reference")).not.toBeInTheDocument();
     },
   );
 
@@ -46,14 +46,14 @@ describe("StatusBar", () => {
     "analysis_ready",
     "generating",
     "generation_ready",
-  ])("状态 %s 显示更换参考图按钮", (state) => {
+  ])("状态 %s 显示Replace Reference按钮", (state) => {
     render(<StatusBar {...defaultProps} state={state} />);
-    expect(screen.getByText("更换参考图")).toBeInTheDocument();
+    expect(screen.getByText("Replace Reference")).toBeInTheDocument();
   });
 
   // --- Replace button callback ---
 
-  it("点击更换参考图按钮触发 onReplace 回调", async () => {
+  it("点击Replace Reference按钮触发 onReplace 回调", async () => {
     const onReplace = vi.fn();
     const user = userEvent.setup();
 
@@ -61,14 +61,14 @@ describe("StatusBar", () => {
       <StatusBar {...defaultProps} state="analysis_ready" onReplace={onReplace} />,
     );
 
-    await user.click(screen.getByText("更换参考图"));
+    await user.click(screen.getByText("Replace Reference"));
     expect(onReplace).toHaveBeenCalledOnce();
   });
 
   // --- Title always renders ---
 
-  it("始终展示标题 '基于参考图创作'", () => {
+  it("始终展示标题 'Create From Reference'", () => {
     render(<StatusBar {...defaultProps} state="idle" />);
-    expect(screen.getByText("基于参考图创作")).toBeInTheDocument();
+    expect(screen.getByText("Create From Reference")).toBeInTheDocument();
   });
 });

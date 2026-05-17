@@ -9,23 +9,23 @@ export function Hero() {
             Surface - State - Action
           </span>
           <h1 className="text-4xl font-extrabold tracking-tight text-[var(--text-primary)] md:text-6xl lg:text-7xl">
-            参考图风格再创作
+            Reference Image Style Recreation
           </h1>
           <p className="mt-6 text-lg leading-relaxed text-[var(--text-secondary)] md:text-xl">
-            上传一张参考图，获得可编辑的视觉配方、Prompt 和同风格生成入口。
+            Upload a reference image to get an editable visual recipe, prompt, and same-style generation workflow.
           </p>
           <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row">
             <Link
               href="/workspace"
               className="btn-primary rounded-lg px-8 py-3 text-base font-semibold text-white"
             >
-              开始创作
+              Start Creating
             </Link>
             <Link
               href="/workspace/templates"
               className="btn-secondary rounded-lg px-6 py-3 text-base font-medium"
             >
-              模板库
+              Template Library
             </Link>
           </div>
         </div>
@@ -41,7 +41,7 @@ export function Hero() {
                 </div>
               </div>
               <p className="mt-3 text-sm leading-5 text-[var(--text-secondary)]">
-                参考图留在画布。
+                Your reference stays on canvas.
               </p>
             </div>
 
@@ -49,7 +49,7 @@ export function Hero() {
               <p className="label-tech text-[var(--accent-primary)]">Recipe</p>
               <div className="mt-5 space-y-4 text-sm">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-[var(--text-muted)]">色彩</span>
+                  <span className="text-[var(--text-muted)]">Color</span>
                   <div className="flex gap-1.5">
                     <span className="h-5 w-5 rounded-full bg-[#f4a88f]" />
                     <span className="h-5 w-5 rounded-full bg-[#bfd9ff]" />
@@ -57,8 +57,8 @@ export function Hero() {
                   </div>
                 </div>
                 <div>
-                  <span className="text-[var(--text-muted)]">构图</span>
-                  <p className="mt-1 text-[var(--text-primary)]">主体偏右，留白稳定。</p>
+                  <span className="text-[var(--text-muted)]">Composition</span>
+                  <p className="mt-1 text-[var(--text-primary)]">Subject sits right with steady negative space.</p>
                 </div>
                 <div>
                   <span className="text-[var(--text-muted)]">Prompt</span>
@@ -76,7 +76,7 @@ export function Hero() {
                 </div>
               </div>
               <p className="mt-3 text-sm leading-5 text-[var(--text-secondary)]">
-                结果可继续编辑。
+                Keep refining the result.
               </p>
             </div>
           </div>

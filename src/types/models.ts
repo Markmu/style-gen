@@ -25,7 +25,7 @@ export interface User {
   updatedAt: Date;
 }
 
-/** 视觉配方 — AI 两阶段链路提取的结构化风格描述 */
+/** Visual Recipe — AI 两阶段链路提取的结构化风格描述 */
 export interface VisualRecipe {
   imageSummary: string;
   subject: string;
@@ -57,7 +57,7 @@ export type AnalysisTaskErrorStage = "vision" | "llm";
 /** 分析自动模板状态 */
 export type AnalysisTemplateStatus = "ready" | "partial" | "fallback";
 
-/** 分析自动模板变量来源字段 */
+/** 分析自动模板Variables来源字段 */
 export type AnalysisTemplateSourceField =
   | "subject"
   | "scene"
@@ -97,10 +97,10 @@ export interface GenerationParams {
   quality: string;
 }
 
-/** 生成任务状态 */
+/** Generation Task状态 */
 export type GenerationTaskStatus = "pending" | "processing" | "completed" | "failed";
 
-/** 生成任务 */
+/** Generation Task */
 export interface GenerationTask {
   id: string;
   analysisTaskId: string;
@@ -118,20 +118,20 @@ export interface GenerationTask {
   updatedAt: Date;
 }
 
-/** 模板变量定义 */
+/** 模板Variables定义 */
 export interface TemplateVariable {
-  name: string;           // 变量名，匹配 [a-zA-Z_]\w* 格式
+  name: string;           // Variable name，匹配 [a-zA-Z_]\w* 格式
   defaultValue: string;   // 默认值，用户未填值时使用
   label?: string;         // 展示标签，缺失时回退到 name
-  sourceField?: AnalysisTemplateSourceField; // 自动模板变量来源
+  sourceField?: AnalysisTemplateSourceField; // 自动模板Variables来源
 }
 
 /** Prompt 模板 */
 export interface PromptTemplate {
   id: string;                        // ULID
-  name: string;                      // 模板名称，1-50 字符
+  name: string;                      // Template Name，1-50 字符
   content: string;                   // 模板正文（含 {{var}} 标记的 prompt 文本）
-  variables: TemplateVariable[];     // 变量定义列表（从 content 自动提取）
+  variables: TemplateVariable[];     // Variables定义列表（从 content 自动提取）
   userId: string;
   createdAt: Date;
   updatedAt: Date;

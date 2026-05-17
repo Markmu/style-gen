@@ -86,7 +86,7 @@ export async function GET(
     if (!template) {
       log("template_not_found", { templateId: id, userId });
       return NextResponse.json(
-        { error: "模板不存在", code: "TEMPLATE_NOT_FOUND", retryable: false },
+        { error: "Template not found", code: "TEMPLATE_NOT_FOUND", retryable: false },
         { status: 404 }
       );
     }
@@ -118,7 +118,7 @@ export async function GET(
   }
 }
 
-// ─── DELETE /api/templates/:id — 删除模板 ───
+// ─── DELETE /api/templates/:id — Delete模板 ───
 
 export async function DELETE(
   request: NextRequest,
@@ -135,14 +135,14 @@ export async function DELETE(
     // 2. 获取模板 ID
     const { id } = await params;
 
-    // 3. 删除模板（Repository 内部校验归属 + 不存在时抛异常）
+    // 3. Delete模板（Repository 内部校验归属 + 不存在时抛异常）
     try {
       await deleteTemplate(id, userId);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Template not found";
       log("template_delete_failed", { templateId: id, userId, error: message });
       return NextResponse.json(
-        { error: "模板不存在", code: "TEMPLATE_NOT_FOUND", retryable: false },
+        { error: "Template not found", code: "TEMPLATE_NOT_FOUND", retryable: false },
         { status: 404 }
       );
     }
@@ -201,7 +201,7 @@ export async function PUT(
       body = (await request.json()) as { name?: string; content?: string };
     } catch {
       return NextResponse.json(
-        { error: "请求体格式错误", code: "INVALID_REQUEST", retryable: false },
+        { error: "Invalid request body", code: "INVALID_REQUEST", retryable: false },
         { status: 400 }
       );
     }
@@ -209,7 +209,7 @@ export async function PUT(
     // 4. 校验至少提供一个字段
     if (!body.name && !body.content && body.variables === undefined) {
       return NextResponse.json(
-        { error: "至少需要提供 name、content 或 variables 字段", code: "INVALID_REQUEST", retryable: false },
+        { error: "Provide at least one of name, content, or variables", code: "INVALID_REQUEST", retryable: false },
         { status: 400 }
       );
     }
@@ -217,7 +217,7 @@ export async function PUT(
     // 5. 校验 name 格式（如果提供）
     if (body.name !== undefined && (body.name.length < 1 || body.name.length > 50)) {
       return NextResponse.json(
-        { error: "名称长度必须在 1-50 个字符之间", code: "INVALID_REQUEST", retryable: false },
+        { error: "Name must be 1-50 characters", code: "INVALID_REQUEST", retryable: false },
         { status: 400 }
       );
     }
@@ -225,7 +225,7 @@ export async function PUT(
     // 6. 校验 content 格式（如果提供）
     if (body.content !== undefined && (body.content.length === 0 || body.content.length > 10000)) {
       return NextResponse.json(
-        { error: "内容长度必须在 1-10000 个字符之间", code: "INVALID_REQUEST", retryable: false },
+        { error: "Content must be 1-10000 characters", code: "INVALID_REQUEST", retryable: false },
         { status: 400 }
       );
     }
@@ -233,7 +233,7 @@ export async function PUT(
     const variables = validateVariables(body.variables);
     if (variables === null) {
       return NextResponse.json(
-        { error: "variables 参数不合法", code: "INVALID_REQUEST", retryable: false },
+        { error: "Invalid variables parameter", code: "INVALID_REQUEST", retryable: false },
         { status: 400 }
       );
     }
@@ -243,7 +243,7 @@ export async function PUT(
       typeof body.sourceAnalysisTaskId !== "string"
     ) {
       return NextResponse.json(
-        { error: "sourceAnalysisTaskId 参数不合法", code: "INVALID_REQUEST", retryable: false },
+        { error: "Invalid sourceAnalysisTaskId parameter", code: "INVALID_REQUEST", retryable: false },
         { status: 400 }
       );
     }
@@ -253,7 +253,7 @@ export async function PUT(
     if (!existing) {
       log("template_not_found", { templateId: id, userId });
       return NextResponse.json(
-        { error: "模板不存在", code: "TEMPLATE_NOT_FOUND", retryable: false },
+        { error: "Template not found", code: "TEMPLATE_NOT_FOUND", retryable: false },
         { status: 404 }
       );
     }
@@ -264,7 +264,7 @@ export async function PUT(
       if (duplicate && duplicate.id !== id) {
         log("template_name_conflict", { templateId: id, name: body.name, userId });
         return NextResponse.json(
-          { error: "同名模板已存在", code: "CONFLICT", retryable: false },
+          { error: "A template with this name already exists", code: "CONFLICT", retryable: false },
           { status: 409 }
         );
       }

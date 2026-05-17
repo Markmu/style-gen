@@ -13,10 +13,10 @@ const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 
 function validateFile(file: File): string | null {
   if (!ACCEPTED_TYPES.includes(file.type)) {
-    return "仅支持 JPG、PNG、WebP 格式的图片";
+    return "Only JPG, PNG, and WebP images are supported";
   }
   if (file.size > MAX_SIZE_BYTES) {
-    return "文件大小不能超过 10MB";
+    return "File size must be 10MB or less";
   }
   return null;
 }
@@ -43,10 +43,10 @@ export function UploadZone({
 
   const handleFile = useCallback(
     (file: File) => {
-      // 如果已有参考图，显示确认对话框
+      // 如果已有Reference，显示Confirm对话框
       if (referenceImageUrl && !showReplaceConfirm) {
         setShowReplaceConfirm(true);
-        // 暂存文件，等待用户确认
+        // 暂存文件，等待用户Confirm
         return;
       }
 
@@ -108,14 +108,14 @@ export function UploadZone({
   if (referenceImageUrl && !isUploading) {
     return (
       <div className="flex flex-col items-center gap-4">
-        {/* 内联替换确认 */}
+        {/* 内联替换Confirm */}
         {showReplaceConfirm ? (
           <div className="w-full rounded-xl border-2 border-amber-500/30 bg-amber-500/10 p-6">
             <p className="text-center text-sm font-medium text-amber-400">
-              替换当前参考图？
+              Replace the current reference?
             </p>
             <p className="mt-2 text-center text-xs text-amber-400/70">
-              这将清除当前的分析结果和生成内容
+              This will clear the current analysis and generated result
             </p>
             <div className="mt-4 flex items-center justify-center gap-3">
               <button
@@ -123,14 +123,14 @@ export function UploadZone({
                 onClick={handleCancelReplace}
                 className="rounded-lg px-4 py-2 text-sm text-[var(--text-secondary)] ring-1 ring-[var(--border)]/15 transition-colors hover:bg-[var(--surface-bright)]"
               >
-                取消
+                Cancel
               </button>
               <button
                 type="button"
                 onClick={handleConfirmReplace}
                 className="rounded-lg px-4 py-2 text-sm text-white bg-[var(--accent-primary)] transition-colors hover:bg-[var(--accent-primary)]/80"
               >
-                确认替换
+                Replace Reference
               </button>
             </div>
           </div>
@@ -140,7 +140,7 @@ export function UploadZone({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={referenceImageUrl}
-                alt="参考图预览"
+                alt="Reference preview"
                 className="h-auto w-full object-contain"
               />
             </div>
@@ -149,7 +149,7 @@ export function UploadZone({
               onClick={() => setShowReplaceConfirm(true)}
               className="rounded-lg px-4 py-2 text-sm text-[var(--text-secondary)] ring-1 ring-[var(--border)]/15/15 transition-colors hover:bg-[var(--surface-bright)]"
             >
-              替换参考图
+              Replace Reference
             </button>
           </>
         )}
@@ -167,7 +167,7 @@ export function UploadZone({
             style={{ width: `${uploadProgress}%` }}
           />
         </div>
-        <p className="text-sm text-[var(--text-secondary)]">正在上传... {uploadProgress}%</p>
+        <p className="text-sm text-[var(--text-secondary)]">Uploading... {uploadProgress}%</p>
       </div>
     );
   }
@@ -195,17 +195,17 @@ export function UploadZone({
           <span className="icon text-[var(--accent-primary)]">add_photo_alternate</span>
         </div>
         <p className="text-base font-medium text-[var(--text-primary)]">
-          点击或拖拽上传参考图
+          Click or drag to upload a reference image
         </p>
         <p className="mt-2 text-sm text-[var(--text-secondary)]">
-          支持 JPG / PNG / WebP，不超过 10MB
+          JPG, PNG, or WebP, up to 10MB
         </p>
         <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-[var(--text-secondary)]">
-          <span>1. 上传参考图</span>
+          <span>1. Upload Reference</span>
           <span aria-hidden="true">→</span>
-          <span>2. AI 分析风格</span>
+          <span>2. AI Analyzes Style</span>
           <span aria-hidden="true">→</span>
-          <span>3. 生成同风格新图</span>
+          <span>3. Generate a New Image in the Same Style</span>
         </div>
       </div>
       {error && (

@@ -23,8 +23,8 @@ describe("PromptEditor", () => {
     expect(screen.getByLabelText(/^Negative Prompt/)).toBeInTheDocument();
   });
 
-  // 2. 编辑 Prompt - P0
-  it("编辑 Prompt - onPromptChange called", () => {
+  // 2. Edit Prompt - P0
+  it("Edit Prompt - onPromptChange called", () => {
     const onPromptChange = vi.fn();
     render(
       <PromptEditor {...defaultProps} onPromptChange={onPromptChange} />,
@@ -36,8 +36,8 @@ describe("PromptEditor", () => {
     expect(onPromptChange).toHaveBeenCalledWith("a cat on a roof");
   });
 
-  // 3. 编辑 Negative Prompt - P0
-  it("编辑 Negative Prompt - onNegativePromptChange called", () => {
+  // 3. Edit Negative Prompt - P0
+  it("Edit Negative Prompt - onNegativePromptChange called", () => {
     const onNegativePromptChange = vi.fn();
     render(
       <PromptEditor

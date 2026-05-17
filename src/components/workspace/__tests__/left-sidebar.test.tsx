@@ -55,11 +55,11 @@ describe("LeftSidebar", () => {
 
     render(<LeftSidebar />);
 
-    const sidebar = screen.getByLabelText("工作区导航");
+    const sidebar = screen.getByLabelText("Workspace navigation");
     expect(sidebar).toHaveAttribute("data-collapsed", "false");
     expect(screen.getByText("Generate")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "折叠菜单栏" }));
+    await user.click(screen.getByRole("button", { name: "Collapse sidebar" }));
 
     expect(sidebar).toHaveAttribute("data-collapsed", "true");
     expect(screen.queryByText("Generate")).not.toBeInTheDocument();
@@ -68,7 +68,7 @@ describe("LeftSidebar", () => {
       expect(window.localStorage.getItem("style-gen:workspace-sidebar-collapsed")).toBe("true"),
     );
 
-    await user.click(screen.getByRole("button", { name: "展开菜单栏" }));
+    await user.click(screen.getByRole("button", { name: "Expand sidebar" }));
 
     expect(sidebar).toHaveAttribute("data-collapsed", "false");
     expect(screen.getByText("Generate")).toBeInTheDocument();

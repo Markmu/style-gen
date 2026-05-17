@@ -15,7 +15,7 @@ import { test, expect } from '@playwright/test'
  * 因此无法端到端验证"用户 A 看不到用户 B 的数据"。
  * 该场景通过以下方式保证：
  * - Repository 的 WHERE user_id = ? 条件（单元测试覆盖）
- * - API Route 从 session.user.id 获取 userId（代码审查确认）
+ * - API Route 从 session.user.id 获取 userId（代码审查Confirm）
  */
 test.describe('数据隔离 - 认证前置检查', () => {
   test('所有业务 API 均拒绝未认证请求', async ({ request }) => {
@@ -93,7 +93,7 @@ test.describe('数据隔离 - 认证前置检查', () => {
     expect(body.code).toBe('UNAUTHORIZED')
   })
 
-  test('未认证用户无法创建生成任务', async ({ request }) => {
+  test('未认证用户无法创建Generation Task', async ({ request }) => {
     const response = await request.post('/api/generation', {
       data: {
         analysisTaskId: 'test-analysis-id',
@@ -108,7 +108,7 @@ test.describe('数据隔离 - 认证前置检查', () => {
     expect(body.code).toBe('UNAUTHORIZED')
   })
 
-  test('未认证用户无法查询生成任务', async ({ request }) => {
+  test('未认证用户无法查询Generation Task', async ({ request }) => {
     const response = await request.get('/api/generation/any-task-id')
 
     expect(response.status()).toBe(401)
@@ -131,7 +131,7 @@ test.describe('数据隔离 - 认证前置检查', () => {
 })
 
 test.describe('数据隔离 - 页面路由守卫', () => {
-  test('受保护页面路由未登录重定向到首页', async ({ page }) => {
+  test('受保护页面路由未Log in重定向到Home', async ({ page }) => {
     // /workspace 是受保护的页面路由
     await page.goto('/workspace')
 
@@ -150,9 +150,9 @@ test.describe('数据隔离 - 页面路由守卫', () => {
 })
 
 test.describe('数据隔离 - 前端 401 处理契约', () => {
-  test('API 返回 401 时前端引导重新登录', async ({ page }) => {
-    // 模拟已登录用户的 session 过期场景：
-    // 前端 hooks 收到 401 后调用 signIn 引导重新登录
+  test('API 返回 401 时前端引导重新Log in', async ({ page }) => {
+    // 模拟已Log in用户的 session 过期场景：
+    // 前端 hooks 收到 401 后调用 signIn 引导重新Log in
     await page.goto('/')
 
     // 拦截 analysis polling 返回 401

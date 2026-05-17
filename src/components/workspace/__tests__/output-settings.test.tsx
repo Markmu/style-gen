@@ -67,13 +67,13 @@ describe("OutputSettings", () => {
       <OutputSettings {...defaultProps} generationUnavailable={true} />,
     );
     expect(
-      screen.getByText("图片生成服务暂时不可用"),
+      screen.getByText("Image generation is temporarily unavailable"),
     ).toBeInTheDocument();
   });
 
   // --- Aspect ratio selector ---
 
-  it("渲染所有宽高比选项 (5 buttons)", () => {
+  it("渲染所有Aspect Ratio选项 (5 buttons)", () => {
     render(<OutputSettings {...defaultProps} />);
     const ratios = ["1:1", "4:3", "16:9", "3:4", "9:16"];
     ratios.forEach((ratio) => {
@@ -85,13 +85,13 @@ describe("OutputSettings", () => {
 
   // --- Quality selector ---
 
-  it("渲染画质选项（标准/高清）", () => {
+  it("渲染Quality选项（Standard/HD）", () => {
     render(<OutputSettings {...defaultProps} />);
     expect(
-      screen.getByRole("button", { name: "标准" }),
+      screen.getByRole("button", { name: "Standard" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "高清" }),
+      screen.getByRole("button", { name: "HD" }),
     ).toBeInTheDocument();
   });
 
@@ -110,7 +110,7 @@ describe("OutputSettings", () => {
     });
   });
 
-  it("切换宽高比后生成 - 16:9", async () => {
+  it("切换Aspect Ratio后生成 - 16:9", async () => {
     const onGenerate = vi.fn();
     const user = userEvent.setup();
 
@@ -125,13 +125,13 @@ describe("OutputSettings", () => {
     });
   });
 
-  it("切换画质后生成 - 高清", async () => {
+  it("切换Quality后生成 - HD", async () => {
     const onGenerate = vi.fn();
     const user = userEvent.setup();
 
     render(<OutputSettings {...defaultProps} onGenerate={onGenerate} />);
 
-    await user.click(screen.getByRole("button", { name: "高清" }));
+    await user.click(screen.getByRole("button", { name: "HD" }));
     await user.click(screen.getByRole("button", { name: "GENERATE" }));
 
     expect(onGenerate).toHaveBeenCalledWith({
@@ -158,7 +158,7 @@ describe("OutputSettings", () => {
       />,
     );
 
-    expect(screen.getByText("生成超时")).toBeInTheDocument();
+    expect(screen.getByText("Generation Timed Out")).toBeInTheDocument();
   });
 
   // --- L1 generation queueing ---
@@ -173,7 +173,7 @@ describe("OutputSettings", () => {
     );
 
     expect(
-      screen.getByText("生成排队中，请耐心等待"),
+      screen.getByText("Generation is queued. Thanks for waiting"),
     ).toBeInTheDocument();
   });
 });

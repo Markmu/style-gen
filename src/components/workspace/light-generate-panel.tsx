@@ -7,8 +7,8 @@ import { hasUnresolvedVariables } from "@/lib/template-parser";
 
 const ASPECT_RATIOS: AspectRatio[] = ["1:1", "4:3", "16:9", "3:4", "9:16"];
 const QUALITY_OPTIONS: { label: string; value: Quality }[] = [
-  { label: "标准", value: "standard" },
-  { label: "高清", value: "hd" },
+  { label: "Standard", value: "standard" },
+  { label: "HD", value: "hd" },
 ];
 
 interface LightGeneratePanelProps {
@@ -47,13 +47,13 @@ export function LightGeneratePanel({
     !isGenerating;
 
   const unavailableReason = !promptReady
-    ? "需要先获得或填写完整生成提示"
+    ? "Get or enter a complete generation prompt first"
     : hasUnresolvedTemplateVariables
-      ? "请先填写所有模板变量"
+      ? "Fill in all template variables first"
       : generationUnavailable
-      ? "图片生成服务暂时不可用"
+      ? "Image generation is temporarily unavailable"
       : !stateReady
-        ? "完成分析后即可生成"
+        ? "Generate after analysis is complete"
         : "";
 
   const handleGenerate = useCallback(() => {
@@ -88,7 +88,7 @@ export function LightGeneratePanel({
             onClick={onRetry}
             className="btn-secondary rounded-md px-3 py-1.5 text-xs"
           >
-            恢复生成
+            Resume Generation
           </button>
         )}
       </div>
@@ -97,7 +97,7 @@ export function LightGeneratePanel({
         <div className="space-y-3">
           <div>
             <span className="mb-2 block text-xs font-medium text-[var(--text-secondary)]">
-              宽高比
+              Aspect Ratio
             </span>
             <div className="flex flex-wrap gap-2">
               {ASPECT_RATIOS.map((value) => (
@@ -120,7 +120,7 @@ export function LightGeneratePanel({
 
           <div>
             <span className="mb-2 block text-xs font-medium text-[var(--text-secondary)]">
-              画质
+              Quality
             </span>
             <div className="flex flex-wrap gap-2">
               {QUALITY_OPTIONS.map((option) => (

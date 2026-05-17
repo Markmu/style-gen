@@ -21,8 +21,8 @@ const ASPECT_RATIOS: { label: string; value: AspectRatio }[] = [
 ];
 
 const QUALITY_OPTIONS: { label: string; value: Quality }[] = [
-  { label: "标准", value: "standard" },
-  { label: "高清", value: "hd" },
+  { label: "Standard", value: "standard" },
+  { label: "HD", value: "hd" },
 ];
 
 // localStorage stored data structure
@@ -137,7 +137,7 @@ export function OutputSettings({
     ? "GENERATING..."
     : "GENERATE";
 
-  const panelTitle = isGenerationReady ? "再次生成" : "输出设置";
+  const panelTitle = isGenerationReady ? "Generate Again" : "Output Settings";
 
   // --- Degradation / error conditions ---
   const showGenerationError =
@@ -164,7 +164,7 @@ export function OutputSettings({
             />
           ) : (
             <div className="rounded-lg border border-[var(--color-error)]/30 bg-[var(--color-error)]/10 p-4">
-              <p className="text-sm font-medium text-[var(--color-error)]">生成失败</p>
+              <p className="text-sm font-medium text-[var(--color-error)]">Generation Failed</p>
               <p className="mt-1 text-xs text-[var(--color-error)]/80">{error.message}</p>
               <div className="mt-3">
                 <RetryButton type="generation" onRetry={onRetry} />
@@ -178,10 +178,10 @@ export function OutputSettings({
       {showL2Unavailable && !showGenerationError && (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
           <p className="text-sm font-medium text-amber-400">
-            图片生成服务暂时不可用
+            Image generation is temporarily unavailable
           </p>
           <p className="mt-1 text-xs text-amber-400/70">
-            分析结果和 Prompt 编辑功能仍可使用
+            Analysis results and the prompt editor remain available.
           </p>
         </div>
       )}
@@ -193,10 +193,10 @@ export function OutputSettings({
             <div className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-amber-400 border-t-transparent" />
             <div>
               <p className="text-sm font-medium text-amber-400">
-                生成排队中，请耐心等待
+                Generation is queued. Thanks for waiting
               </p>
               <p className="text-xs text-amber-400/70">
-                当前请求较多，生成可能需要更长时间
+                High demand may make generation take longer
               </p>
             </div>
           </div>
@@ -211,7 +211,7 @@ export function OutputSettings({
       {/* Aspect ratio selector */}
       <div>
         <label className="mb-2 block text-xs font-medium text-[var(--text-secondary)]">
-          宽高比
+          Aspect Ratio
         </label>
         <div className="flex flex-wrap gap-2">
           {ASPECT_RATIOS.map((option) => (
@@ -235,7 +235,7 @@ export function OutputSettings({
       {/* Quality selector */}
       <div>
         <label className="mb-2 block text-xs font-medium text-[var(--text-secondary)]">
-          画质
+          Quality
         </label>
         <div className="flex gap-2">
           {QUALITY_OPTIONS.map((option) => (

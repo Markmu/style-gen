@@ -1,7 +1,7 @@
 /**
  * 按标识符限流工具（基于内存，首版单实例可接受）
  *
- * 标识符（identifier）可以是 userId（已登录用户）或 IP（未登录用户）。
+ * 标识符（identifier）可以是 userId（已Log in用户）或 IP（未Log in用户）。
  * 注意：内存限流在多实例部署时不共享，进程重启后重置。
  */
 
@@ -50,7 +50,7 @@ export interface RateLimitResult {
 /**
  * 检查给定标识符在指定 action 下是否超限。
  *
- * @param identifier  限流标识符：已登录用户为 userId，未登录用户为客户端 IP
+ * @param identifier  限流标识符：已Log in用户为 userId，未Log in用户为客户端 IP
  * @param action      动作标识，如 "upload" | "analysis" | "generation"
  * @param config      时间窗口 + 最大请求数
  */

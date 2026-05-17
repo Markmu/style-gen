@@ -30,8 +30,8 @@ describe("GenerationDialog", () => {
   it("renders progress in a dialog while generating", () => {
     render(<GenerationDialog {...defaultProps} />);
 
-    expect(screen.getByRole("dialog", { name: "生成任务" })).toBeInTheDocument();
-    expect(screen.getByText("正在生成图片...")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Generation Task" })).toBeInTheDocument();
+    expect(screen.getByText("Generating image...")).toBeInTheDocument();
   });
 
   it("renders the completed result and closes without invoking retry", async () => {
@@ -49,8 +49,8 @@ describe("GenerationDialog", () => {
       />,
     );
 
-    expect(screen.getByAltText("生成结果")).toBeInTheDocument();
-    await user.click(screen.getByText("关闭弹窗"));
+    expect(screen.getByAltText("Generated Result")).toBeInTheDocument();
+    await user.click(screen.getByText("Close Dialog"));
 
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onRetry).not.toHaveBeenCalled();
@@ -71,8 +71,8 @@ describe("GenerationDialog", () => {
       />,
     );
 
-    expect(screen.getByText("生成失败")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "返回编辑" }));
+    expect(screen.getByText("Generation Failed")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Back to Edit" }));
 
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onRetry).not.toHaveBeenCalled();
@@ -81,6 +81,6 @@ describe("GenerationDialog", () => {
   it("does not render when closed", () => {
     render(<GenerationDialog {...defaultProps} open={false} />);
 
-    expect(screen.queryByRole("dialog", { name: "生成任务" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Generation Task" })).not.toBeInTheDocument();
   });
 });

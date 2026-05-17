@@ -8,17 +8,17 @@ describe("RetryButton", () => {
     vi.clearAllMocks();
   });
 
-  it('analysis 类型显示"重新分析"', () => {
+  it('analysis 类型显示"Analyze Again"', () => {
     render(<RetryButton type="analysis" onRetry={vi.fn()} />);
     expect(
-      screen.getByRole("button", { name: "重新分析" }),
+      screen.getByRole("button", { name: "Analyze Again" }),
     ).toBeInTheDocument();
   });
 
-  it('generation 类型显示"重新生成"', () => {
+  it('generation 类型显示"Regenerate"', () => {
     render(<RetryButton type="generation" onRetry={vi.fn()} />);
     expect(
-      screen.getByRole("button", { name: "重新生成" }),
+      screen.getByRole("button", { name: "Regenerate" }),
     ).toBeInTheDocument();
   });
 
@@ -28,7 +28,7 @@ describe("RetryButton", () => {
 
     render(<RetryButton type="analysis" onRetry={onRetry} />);
 
-    await user.click(screen.getByRole("button", { name: "重新分析" }));
+    await user.click(screen.getByRole("button", { name: "Analyze Again" }));
     expect(onRetry).toHaveBeenCalledOnce();
   });
 
@@ -45,7 +45,7 @@ describe("RetryButton", () => {
       />,
     );
 
-    const btn = screen.getByRole("button", { name: "重新分析" });
+    const btn = screen.getByRole("button", { name: "Analyze Again" });
     expect(btn).toBeDisabled();
 
     await user.click(btn);
@@ -85,7 +85,7 @@ describe("RetryButton", () => {
       />,
     );
 
-    const btn = screen.getByRole("button", { name: "重新分析" });
+    const btn = screen.getByRole("button", { name: "Analyze Again" });
     expect(btn.className).toContain("cursor-not-allowed");
     expect(btn.className).toContain("bg-[var(--surface-bright)]");
   });

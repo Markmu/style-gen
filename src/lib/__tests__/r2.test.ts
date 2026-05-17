@@ -158,7 +158,7 @@ describe("r2 — R2 storage utilities", () => {
     });
   });
 
-  // ---- 缺少环境变量 ----
+  // ---- 缺少环境Variable ----
 
   it("缺少 R2_ACCOUNT_ID 抛出异常 (P0)", async () => {
     const r2 = await loadR2({ R2_ACCOUNT_ID: undefined });

@@ -8,16 +8,16 @@ test.describe('FEAT-02 Precision Glass shell', () => {
 
     const header = page.getByRole('banner')
     await expect(header.getByRole('link', { name: /Visoryn/ })).toBeVisible()
-    await expect(header.getByRole('link', { name: /首页/ })).toBeVisible()
-    await expect(header.getByRole('link', { name: /工作台/ })).toBeVisible()
-    await expect(header.getByRole('link', { name: /模板库/ })).toBeVisible()
+    await expect(header.getByRole('link', { name: /Home/ })).toBeVisible()
+    await expect(header.getByRole('link', { name: /Workspace/ })).toBeVisible()
+    await expect(header.getByRole('link', { name: /Template Library/ })).toBeVisible()
     await expect(header.getByText('StyleGen')).toHaveCount(0)
   })
 
   test('workspace sidebar marks Library as current on templates page', async ({ page }) => {
     await page.goto('/workspace/templates')
 
-    const sidebar = page.getByRole('complementary', { name: /工作区导航/ })
+    const sidebar = page.getByRole('complementary', { name: /Workspace navigation/ })
     await expect(sidebar.getByRole('button', { name: /Library/ })).toHaveAttribute(
       'aria-current',
       'page',

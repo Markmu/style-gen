@@ -1,9 +1,9 @@
 import { getStatusCopy } from "@/lib/ui/status-copy";
 
 const statusItems = [
-  getStatusCopy("processing", { title: "分析中" }),
-  getStatusCopy("success", { title: "生成完成" }),
-  getStatusCopy("failedRecoverable", { title: "失败可恢复" }),
+  getStatusCopy("processing", { title: "Analyzing" }),
+  getStatusCopy("success", { title: "Generation Complete" }),
+  getStatusCopy("failedRecoverable", { title: "Recoverable Failure" }),
 ];
 
 export function StatsSection() {
@@ -12,10 +12,10 @@ export function StatsSection() {
       <div className="mx-auto max-w-5xl md:flex md:items-center md:gap-12">
         <div className="mb-10 md:mb-0 md:flex-1">
           <h2 className="text-2xl font-bold text-[var(--text-primary)] md:text-3xl">
-            状态始终可判断
+            Every State Stays Clear
           </h2>
           <p className="mt-4 max-w-lg text-base leading-relaxed text-[var(--text-secondary)]">
-            首页预览、工作台反馈和模板库空态共用同一套状态语气。
+            Landing previews, workspace feedback, and template empty states share one clear status voice.
           </p>
         </div>
 

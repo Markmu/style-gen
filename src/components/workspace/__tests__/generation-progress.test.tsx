@@ -3,14 +3,14 @@ import { render, screen } from "@testing-library/react";
 import { GenerationProgress } from "@/components/workspace/generation-progress";
 
 describe("GenerationProgress", () => {
-  it('生成中显示进度 - "正在生成图片..."', () => {
+  it('Generating显示进度 - "Generating image..."', () => {
     render(<GenerationProgress isGenerating={true} />);
-    expect(screen.getByText("正在生成图片...")).toBeInTheDocument();
+    expect(screen.getByText("Generating image...")).toBeInTheDocument();
   });
 
-  it('显示预估时间 - "预计需要 10-60 秒"', () => {
+  it('显示预估时间 - "usually takes 10-60s"', () => {
     render(<GenerationProgress isGenerating={true} />);
-    expect(screen.getByText(/预计需要 10-60 秒/)).toBeInTheDocument();
+    expect(screen.getByText(/usually takes 10-60s/)).toBeInTheDocument();
   });
 
   it("非生成态返回 null", () => {

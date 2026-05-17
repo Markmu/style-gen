@@ -65,8 +65,8 @@ describe("generateImage", () => {
     }
   });
 
-  // 3. P0: 超时 120 秒
-  it("超时 120 秒应抛出 ImageGenError", async () => {
+  // 3. P0: 超时 120s
+  it("超时 120s应抛出 ImageGenError", async () => {
     vi.useFakeTimers();
 
     // subscribe 永远不 resolve
@@ -74,7 +74,7 @@ describe("generateImage", () => {
 
     const promise = generateImage(defaultParams);
 
-    // 快进 120 秒
+    // 快进 120s
     vi.advanceTimersByTime(120_000);
 
     try {

@@ -48,7 +48,7 @@ interface JsonParseCandidate {
   text: string;
 }
 
-/** LLM 结构化整理阶段失败 */
+/** LLM Structuring整理阶段失败 */
 export class StructurerError extends Error {
   constructor(message: string) {
     super(message);

@@ -29,13 +29,13 @@ describe("UploadEntry", () => {
 
   it("渲染上传区域", () => {
     render(<UploadEntry />);
-    expect(screen.getByText("点击或拖拽上传参考图")).toBeInTheDocument();
+    expect(screen.getByText("Click or drag to upload a reference image")).toBeInTheDocument();
     expect(
-      screen.getByText("支持 JPG / PNG / WebP，不超过 10MB"),
+      screen.getByText("JPG, PNG, or WebP, up to 10MB"),
     ).toBeInTheDocument();
   });
 
-  it("合法文件 -> 跳转工作区", () => {
+  it("合法文件 -> 跳转Workspace", () => {
     const { container } = render(<UploadEntry />);
     const input = container.querySelector(
       'input[type="file"]',
@@ -59,9 +59,9 @@ describe("UploadEntry", () => {
 
     expect(
       screen.getByRole("alert"),
-    ).toHaveTextContent("仅支持 JPG、PNG、WebP 格式的图片");
+    ).toHaveTextContent("Only JPG, PNG, and WebP images are supported");
     expect(
-      screen.getByRole("button", { name: "重新选择" }),
+      screen.getByRole("button", { name: "Choose Again" }),
     ).toBeInTheDocument();
     expect(mockPush).not.toHaveBeenCalled();
     expect(mockSetFile).not.toHaveBeenCalled();
@@ -79,9 +79,9 @@ describe("UploadEntry", () => {
 
     expect(
       screen.getByRole("alert"),
-    ).toHaveTextContent("文件大小不能超过 10MB");
+    ).toHaveTextContent("File size must be 10MB or less");
     expect(
-      screen.getByRole("button", { name: "重新选择" }),
+      screen.getByRole("button", { name: "Choose Again" }),
     ).toBeInTheDocument();
     expect(mockPush).not.toHaveBeenCalled();
     expect(mockSetFile).not.toHaveBeenCalled();

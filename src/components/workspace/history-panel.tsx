@@ -18,11 +18,11 @@ function formatRelativeTime(dateStr: string): string {
   const diffHour = Math.floor(diffMin / 60);
   const diffDay = Math.floor(diffHour / 24);
 
-  if (diffSec < 60) return "刚刚";
-  if (diffMin < 60) return `${diffMin}分钟前`;
-  if (diffHour < 24) return `${diffHour}小时前`;
-  if (diffDay < 30) return `${diffDay}天前`;
-  return date.toLocaleDateString("zh-CN");
+  if (diffSec < 60) return "Just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffHour < 24) return `${diffHour}h ago`;
+  if (diffDay < 30) return `${diffDay}d ago`;
+  return date.toLocaleDateString("en");
 }
 
 /** 缩略图骨架屏 */
@@ -74,14 +74,14 @@ export function HistoryPanel({
   }, [isOpen, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const drawerId = "workspace-history-drawer";
-  const toggleLabel = isOpen ? "收起历史记录" : "展开历史记录";
+  const toggleLabel = isOpen ? "Collapse history" : "Expand history";
 
   return (
     <aside
       className={`flex h-full max-w-[calc(100vw-5rem)] flex-shrink-0 justify-end overflow-hidden bg-[var(--surface-base)] transition-[width] duration-150 ease-out ${
         isOpen ? "w-72" : "w-10"
       }`}
-      aria-label="历史记录"
+      aria-label="History"
     >
       {!isOpen && (
         <div className="flex h-full w-10 flex-col items-center bg-[var(--surface-mid)] ring-1 ring-inset ring-[var(--border-static)]">
@@ -117,8 +117,8 @@ export function HistoryPanel({
                   type="button"
                   onClick={() => refetch()}
                   className="rounded-md p-1 text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)]"
-                  aria-label="刷新历史记录"
-                  title="刷新历史记录"
+                  aria-label="Refresh history"
+                  title="Refresh history"
                 >
                   <span className="material-symbols-outlined text-lg">refresh</span>
                 </button>
@@ -153,14 +153,14 @@ export function HistoryPanel({
               {isError && !isLoading && (
                 <div className="flex flex-col items-center justify-center gap-2 px-4 py-8">
                   <p className="text-center text-sm text-[var(--text-secondary)]">
-                    加载失败，点击重试
+                    Loading failed. Click to retry.
                   </p>
                   <button
                     type="button"
                     onClick={() => refetch()}
                     className="rounded-md px-3 py-1.5 text-xs font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-bright)]"
                   >
-                    重试
+                    Retry
                   </button>
                 </div>
               )}
@@ -169,7 +169,7 @@ export function HistoryPanel({
               {!isLoading && !isError && (!data || data.length === 0) && (
                 <div className="flex flex-1 items-center justify-center py-8">
                   <p className="text-center text-sm text-[var(--text-secondary)]">
-                    还没有生成记录
+                    No generations yet
                   </p>
                 </div>
               )}
@@ -184,7 +184,7 @@ export function HistoryPanel({
                         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
                         <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" />
                       </span>
-                      <span className="text-xs text-[var(--text-secondary)]">生成中...</span>
+                      <span className="text-xs text-[var(--text-secondary)]">Generating...</span>
                     </div>
                   )}
 
@@ -217,7 +217,7 @@ export function HistoryPanel({
                   {/* Loading more indicator */}
                   {isFetchingNextPage && (
                     <div className="flex justify-center py-2">
-                      <span className="text-xs text-[var(--text-secondary)]">加载中...</span>
+                      <span className="text-xs text-[var(--text-secondary)]">Loading...</span>
                     </div>
                   )}
                 </>

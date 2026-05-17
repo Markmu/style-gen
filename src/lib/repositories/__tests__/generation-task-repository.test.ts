@@ -195,7 +195,7 @@ describe("generation-task-repository", () => {
       expect(setArg.updatedAt).toBeDefined();
     });
 
-    it("完成并关联 Asset", async () => {
+    it("Done并关联 Asset", async () => {
       const row = makeCamelCaseRow({
         status: "completed",
         resultAssetId: "RESULT_ASSET_001",

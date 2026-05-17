@@ -19,14 +19,14 @@ export function WorkspaceTwoPaneLayout({
       <section
         data-testid="workspace-primary-column"
         className="min-h-0 overflow-hidden"
-        aria-label="分析区"
+        aria-label="Analysis panel"
       >
         {analysis}
       </section>
       <section
         data-testid="workspace-primary-column"
         className="min-h-0 overflow-hidden"
-        aria-label="编辑区"
+        aria-label="Editing panel"
       >
         {editing}
       </section>

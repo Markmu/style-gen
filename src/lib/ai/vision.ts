@@ -4,7 +4,7 @@ import { VISION_SYSTEM_PROMPT } from "./prompts";
 const GEMINI_MODEL = "gemini-2.5-flash";
 const TIMEOUT_MS = 60_000;
 
-/** 视觉理解阶段失败 */
+/** Vision Understanding阶段失败 */
 export class VisionError extends Error {
   constructor(message: string) {
     super(message);

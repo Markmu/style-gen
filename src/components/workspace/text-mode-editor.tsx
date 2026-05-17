@@ -9,11 +9,11 @@ export function TextModeEditor({ promptText, onChange }: TextModeEditorProps) {
   return (
     <label className="flex min-h-0 flex-1 flex-col">
       <textarea
-        aria-label="完整生成提示"
+        aria-label="Full Generation Prompt"
         value={promptText}
         onChange={(event) => onChange(event.target.value)}
         className="input-precision min-h-[320px] flex-1 resize-none rounded-t-lg px-3 py-3 text-sm leading-6"
-        placeholder="分析完成后会生成完整提示，也可以直接在这里编辑。"
+        placeholder="A full prompt appears after analysis, and you can edit it here directly."
       />
     </label>
   );

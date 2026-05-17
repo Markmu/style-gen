@@ -60,10 +60,10 @@ export function WorkspaceCanvas({
       ? "comparison"
       : baseView;
 
-  // 全屏放大状态（结果图点击放大）
+  // 全屏放大状态（Result点击放大）
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // 全局 Esc 键关闭全屏
+  // 全局 Esc 键Close全屏
   useEffect(() => {
     if (!isExpanded) return;
 
@@ -119,13 +119,13 @@ export function WorkspaceCanvas({
         {/* Reference 视图 */}
         {canvasView === "reference" && referenceImageUrl && (
           <div className="relative">
-            {/* 分析中的视觉反馈 */}
+            {/* Analyzing的视觉反馈 */}
             {state === "analyzing" && (
               <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-black/30 backdrop-blur-[2px]">
                 <div className="flex flex-col items-center gap-3">
                   <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--accent-primary)] border-t-transparent" />
                   <p className="text-sm font-medium text-white">
-                    AI 正在分析风格特征...
+                    AI is analyzing style features...
                   </p>
                 </div>
               </div>
@@ -134,7 +134,7 @@ export function WorkspaceCanvas({
             <div className="overflow-hidden rounded-xl">
               <Image
                 src={referenceImageUrl}
-                alt="参考图"
+                alt="Reference"
                 width={1024}
                 height={1024}
                 className="h-auto max-h-[600px] w-full object-contain"
@@ -142,7 +142,7 @@ export function WorkspaceCanvas({
               />
             </div>
 
-            {/* StyleTagBar: 分析完成后展示 */}
+            {/* StyleTagBar: 分析Done后展示 */}
             {recipe && state !== "analyzing" && (
               <div className="px-4 py-3">
                 <StyleTagBar recipe={recipe} />
@@ -174,7 +174,7 @@ export function WorkspaceCanvas({
               >
                 <Image
                   src={resultImageUrl}
-                  alt="生成结果"
+                  alt="Generated Result"
                   width={1024}
                   height={1024}
                   className="h-auto max-h-[600px] w-full object-contain"
@@ -208,15 +208,15 @@ export function WorkspaceCanvas({
                       : "grid grid-cols-1 gap-3"
                   }
                 >
-                  {/* 参考图 */}
+                  {/* Reference */}
                   <div className="space-y-1">
                     <p className="text-xs font-medium text-[var(--text-secondary)]">
-                      参考图
+                      Reference
                     </p>
                     <div className="overflow-hidden rounded-lg ring-1 ring-[var(--border)]">
                       <Image
                         src={referenceImageUrl}
-                        alt="参考图"
+                        alt="Reference"
                         width={512}
                         height={512}
                         className="h-auto w-full object-contain"
@@ -225,15 +225,15 @@ export function WorkspaceCanvas({
                     </div>
                   </div>
 
-                  {/* 结果图 */}
+                  {/* Result */}
                   <div className="space-y-1">
                     <p className="text-xs font-medium text-[var(--text-secondary)]">
-                      生成结果
+                      Generated Result
                     </p>
                     <div className="overflow-hidden rounded-lg ring-1 ring-[var(--border)]">
                       <Image
                         src={resultImageUrl}
-                        alt="生成结果"
+                        alt="Generated Result"
                         width={512}
                         height={512}
                         className="h-auto w-full object-contain"
@@ -260,14 +260,14 @@ export function WorkspaceCanvas({
               setIsExpanded(false);
             }}
             className="absolute top-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm transition-colors hover:bg-white/20"
-            aria-label="关闭全屏查看"
+            aria-label="Close fullscreen preview"
           >
             <span className="material-symbols-outlined text-2xl">close</span>
           </button>
 
           <Image
             src={resultImageUrl}
-            alt="生成结果（放大）"
+            alt="Generated result enlarged"
             width={1024}
             height={1024}
             className="max-h-[90vh] max-w-[90vw] object-contain"

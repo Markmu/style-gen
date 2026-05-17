@@ -38,23 +38,23 @@ export function GenerationDialog({
         data-testid="generation-dialog"
         role="dialog"
         aria-modal="true"
-        aria-label="生成任务"
+        aria-label="Generation Task"
         className="glass-panel max-h-[86vh] w-full max-w-3xl overflow-y-auto rounded-xl p-6"
       >
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <p className="label-tech text-[var(--text-muted)]">Generation</p>
             <h2 className="mt-1 text-xl font-semibold text-[var(--text-primary)]">
-              生成任务
+              Generation Task
             </h2>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="btn-secondary rounded-md px-3 py-1.5 text-sm"
-            aria-label="关闭弹窗"
+            aria-label="Close Dialog"
           >
-            关闭
+            Close
           </button>
         </div>
 
@@ -63,7 +63,7 @@ export function GenerationDialog({
             <GenerationProgress isGenerating />
             {generationQueueing && (
               <p className="mt-3 text-sm text-[var(--text-secondary)]">
-                生成排队中，请耐心等待。
+                Generation is queued. Thanks for waiting。
               </p>
             )}
           </div>
@@ -72,12 +72,12 @@ export function GenerationDialog({
         {showResult && (
           <div className="space-y-4">
             <h3 className="text-base font-semibold text-[var(--text-primary)]">
-              生成结果
+              Generated Result
             </h3>
             <div className="media-lens relative mx-auto aspect-square max-h-[58vh] w-full max-w-[560px] rounded-lg">
               <Image
                 src={resultImageUrl}
-                alt="生成结果"
+                alt="Generated Result"
                 fill
                 className="object-contain"
                 unoptimized
@@ -89,14 +89,14 @@ export function GenerationDialog({
                 onClick={onRetry}
                 className="btn-secondary rounded-lg px-4 py-2 text-sm"
               >
-                重新生成
+                Regenerate
               </button>
               <button
                 type="button"
                 onClick={onClose}
                 className="btn-primary rounded-lg px-4 py-2 text-sm"
               >
-                关闭弹窗
+                Close Dialog
               </button>
             </div>
           </div>
@@ -105,7 +105,7 @@ export function GenerationDialog({
         {isFailed && (
           <div className="rounded-lg bg-[var(--color-error-soft)] p-5">
             <h3 className="text-base font-semibold text-[var(--color-error)]">
-              生成失败
+              Generation Failed
             </h3>
             <p className="mt-2 text-sm leading-6 text-[var(--color-error)]">
               {error.message}
@@ -116,14 +116,14 @@ export function GenerationDialog({
                 onClick={onClose}
                 className="btn-secondary rounded-lg px-4 py-2 text-sm"
               >
-                返回编辑
+                Back to Edit
               </button>
               <button
                 type="button"
                 onClick={onRetry}
                 className="btn-primary rounded-lg px-4 py-2 text-sm"
               >
-                重新生成
+                Regenerate
               </button>
             </div>
           </div>

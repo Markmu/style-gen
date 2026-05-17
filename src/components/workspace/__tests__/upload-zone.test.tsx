@@ -17,15 +17,15 @@ describe("UploadZone", () => {
   });
 
   // 1. 初始态渲染 dropzone - P0
-  it("初始态渲染 dropzone - 显示 '点击或拖拽上传参考图'", () => {
+  it("初始态渲染 dropzone - 显示 'Click or drag to upload a reference image'", () => {
     render(<UploadZone {...defaultProps} />);
 
-    expect(screen.getByText("点击或拖拽上传参考图")).toBeInTheDocument();
-    expect(screen.getByText(/支持 JPG \/ PNG \/ WebP/)).toBeInTheDocument();
+    expect(screen.getByText("Click or drag to upload a reference image")).toBeInTheDocument();
+    expect(screen.getByText(/JPG, PNG, or WebP/)).toBeInTheDocument();
   });
 
   // 2. 上传中显示进度条 - P0
-  it("上传中显示进度条 - 显示 '正在上传... 50%'", () => {
+  it("上传中显示进度条 - 显示 'Uploading... 50%'", () => {
     render(
       <UploadZone
         {...defaultProps}
@@ -34,11 +34,11 @@ describe("UploadZone", () => {
       />,
     );
 
-    expect(screen.getByText("正在上传... 50%")).toBeInTheDocument();
+    expect(screen.getByText("Uploading... 50%")).toBeInTheDocument();
   });
 
-  // 3. 上传完成显示预览图 - P0
-  it("上传完成显示预览图 - img alt '参考图预览' 和 '替换参考图' 按钮", () => {
+  // 3. 上传Done显示预览图 - P0
+  it("上传Done显示预览图 - img alt 'Reference preview' 和 'Replace Reference' 按钮", () => {
     render(
       <UploadZone
         {...defaultProps}
@@ -46,14 +46,14 @@ describe("UploadZone", () => {
       />,
     );
 
-    const img = screen.getByAltText("参考图预览");
+    const img = screen.getByAltText("Reference preview");
     expect(img).toBeInTheDocument();
     expect(img).toHaveAttribute("src", "https://cdn.example.com/img.png");
-    expect(screen.getByText("替换参考图")).toBeInTheDocument();
+    expect(screen.getByText("Replace Reference")).toBeInTheDocument();
   });
 
   // 4. 点击替换按钮 - P0
-  it("点击替换按钮 - 显示确认对话框，确认后 onReplace called", async () => {
+  it("点击替换按钮 - 显示Confirm对话框，Confirm后 onReplace called", async () => {
     const onReplace = vi.fn();
     const user = (await import("@testing-library/user-event")).default.setup();
     render(
@@ -65,11 +65,11 @@ describe("UploadZone", () => {
     );
 
     // First click shows confirmation
-    await user.click(screen.getByText("替换参考图"));
-    expect(screen.getByText("替换当前参考图？")).toBeInTheDocument();
+    await user.click(screen.getByText("Replace Reference"));
+    expect(screen.getByText("Replace the current reference?")).toBeInTheDocument();
 
     // Confirm the replace
-    await user.click(screen.getByText("确认替换"));
+    await user.click(screen.getByText("Replace Reference"));
     expect(onReplace).toHaveBeenCalledOnce();
   });
 
@@ -87,7 +87,7 @@ describe("UploadZone", () => {
 
     expect(onFileSelected).not.toHaveBeenCalled();
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "仅支持 JPG、PNG、WebP 格式的图片",
+      "Only JPG, PNG, and WebP images are supported",
     );
   });
 
@@ -107,7 +107,7 @@ describe("UploadZone", () => {
 
     expect(onFileSelected).not.toHaveBeenCalled();
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "文件大小不能超过 10MB",
+      "File size must be 10MB or less",
     );
   });
 

@@ -62,7 +62,7 @@ export function StyleBreakdownPanel({
         ) : (
           <div className="flex h-full min-h-[260px] flex-col justify-center rounded-lg bg-[var(--surface-low)] p-6">
             <p className="text-sm leading-6 text-[var(--text-secondary)]">
-              上传参考图后，视觉结构、光线、色彩和情绪会在这里展开。
+              After you upload a reference, visual structure, lighting, color, and mood will unfold here.
             </p>
           </div>
         )}

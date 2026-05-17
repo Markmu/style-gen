@@ -156,7 +156,7 @@ describe("GET /api/generation", () => {
     });
   });
 
-  it("未登录时返回 401 且不查询历史", async () => {
+  it("未Log in时返回 401 且不查询历史", async () => {
     mockAuth.mockResolvedValueOnce(null);
 
     const res = await GET(createGetRequest());
@@ -232,8 +232,8 @@ describe("POST /api/generation", () => {
   // ===== 同步模式 (fal.ai) 测试 =====
 
   describe("同步模式 (fal.ai)", () => {
-    // 1. P0: 正常创建生成任务
-    it("正常创建生成任务应返回 201 和 { id, status: processing }", async () => {
+    // 1. P0: 正常创建Generation Task
+    it("正常创建Generation Task应返回 201 和 { id, status: processing }", async () => {
       mockFindAnalysisTaskById.mockResolvedValueOnce(completedAnalysisTask);
       mockCreateGenerationTask.mockResolvedValueOnce(createdTask);
       mockFalProvider.generate.mockResolvedValueOnce({
@@ -280,7 +280,7 @@ describe("POST /api/generation", () => {
       mockFindAnalysisTaskById.mockResolvedValueOnce(completedAnalysisTask);
       mockCreateGenerationTask.mockResolvedValueOnce(createdTask);
 
-      // Provider.generate 立即返回结果，但后续处理（下载、上传）很慢
+      // Provider.generate 立即返回结果，但后续处理（Download、上传）很慢
       mockFalProvider.generate.mockResolvedValueOnce({
         mode: "sync" as const,
         imageUrl: "https://fal.ai/tmp/result.webp",
@@ -288,7 +288,7 @@ describe("POST /api/generation", () => {
         height: 1024,
       });
 
-      // Mock fetch 为永远不 resolve，模拟慢速下载
+      // Mock fetch 为永远不 resolve，模拟慢速Download
       let resolveFetch: (v: unknown) => void;
       mockFetch.mockReturnValueOnce(new Promise((resolve) => {
         resolveFetch = resolve;
@@ -296,7 +296,7 @@ describe("POST /api/generation", () => {
 
       const res = await POST(createRequest(validBody));
 
-      // POST 应立即返回 201，不等待下载完成
+      // POST 应立即返回 201，不等待DownloadDone
       expect(res.status).toBe(201);
 
       // 清理: resolve 以避免 hanging promise
@@ -342,7 +342,7 @@ describe("POST /api/generation", () => {
       const res = await POST(createRequest(validBody));
       expect(res.status).toBe(201);
 
-      // 等待后台任务完成
+      // 等待后台任务Done
       await vi.waitFor(() => {
         expect(mockUpdateGenerationTask).toHaveBeenCalledWith("gen-task-1", {
           status: "completed",
@@ -351,8 +351,8 @@ describe("POST /api/generation", () => {
       });
     });
 
-    // 5. P0: 后台生成失败 -> failed
-    it("后台生成失败应更新任务为 failed", async () => {
+    // 5. P0: 后台Generation Failed -> failed
+    it("后台Generation Failed应更新任务为 failed", async () => {
       mockFindAnalysisTaskById.mockResolvedValueOnce(completedAnalysisTask);
       mockCreateGenerationTask.mockResolvedValueOnce(createdTask);
       mockUpdateGenerationTask.mockResolvedValue(createdTask);
@@ -380,8 +380,8 @@ describe("POST /api/generation", () => {
       });
     });
 
-    // 6. P0: 后台图片下载失败
-    it("后台图片下载失败应更新任务为 failed", async () => {
+    // 6. P0: 后台图片Download失败
+    it("后台图片Download失败应更新任务为 failed", async () => {
       mockFindAnalysisTaskById.mockResolvedValueOnce(completedAnalysisTask);
       mockCreateGenerationTask.mockResolvedValueOnce(createdTask);
       mockUpdateGenerationTask.mockResolvedValue(createdTask);
@@ -522,7 +522,7 @@ describe("POST /api/generation", () => {
     });
 
     // 10. P0: 异步模式立即返回
-    it("异步模式应立即返回 201，不等待生成完成", async () => {
+    it("异步模式应立即返回 201，不等待Generation Complete", async () => {
       mockFindAnalysisTaskById.mockResolvedValueOnce(completedAnalysisTask);
       const replicateTask = {
         ...createdTask,
@@ -699,8 +699,8 @@ describe("POST /api/generation", () => {
       expect(json.code).toBe("NOT_FOUND");
     });
 
-    // 22. P0: 分析任务未完成 -> 400
-    it("分析任务未完成应返回 400", async () => {
+    // 22. P0: 分析任务未Done -> 400
+    it("分析任务未Done应返回 400", async () => {
       mockFindAnalysisTaskById.mockResolvedValueOnce({
         ...completedAnalysisTask,
         status: "processing",

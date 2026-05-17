@@ -18,17 +18,17 @@ describe("ErrorDisplay", () => {
 
   it("RATE_LIMITED 显示限流标题", () => {
     render(<ErrorDisplay {...defaultProps} />);
-    expect(screen.getByText("请求过于频繁")).toBeInTheDocument();
+    expect(screen.getByText("Too Many Requests")).toBeInTheDocument();
   });
 
   it("RATE_LIMITED 显示等待秒数", () => {
     render(<ErrorDisplay {...defaultProps} retryAfterSeconds={30} />);
-    expect(screen.getByText(/请等待 30 秒后重试/)).toBeInTheDocument();
+    expect(screen.getByText(/Please wait 30s before retrying/)).toBeInTheDocument();
   });
 
   it("RATE_LIMITED 不传等待秒数时不显示", () => {
     render(<ErrorDisplay {...defaultProps} />);
-    expect(screen.queryByText(/请等待.*秒后重试/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Please wait.*before retrying/)).not.toBeInTheDocument();
   });
 
   it("SERVICE_UNAVAILABLE 显示服务不可用", () => {
@@ -40,10 +40,10 @@ describe("ErrorDisplay", () => {
         onRetry={vi.fn()}
       />,
     );
-    expect(screen.getByText("服务暂时不可用")).toBeInTheDocument();
+    expect(screen.getByText("Service Temporarily Unavailable")).toBeInTheDocument();
   });
 
-  it("VISION_FAILED 显示重试+替换按钮", () => {
+  it("VISION_FAILED 显示Retry+替换按钮", () => {
     render(
       <ErrorDisplay
         code="VISION_FAILED"
@@ -53,13 +53,13 @@ describe("ErrorDisplay", () => {
         onReplace={vi.fn()}
       />,
     );
-    expect(screen.getByRole("button", { name: "重试" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "更换参考图" }),
+      screen.getByRole("button", { name: "Replace Reference" }),
     ).toBeInTheDocument();
   });
 
-  it("LLM_FAILED 显示结构化处理失败", () => {
+  it("LLM_FAILED 显示Structuring Failed", () => {
     render(
       <ErrorDisplay
         code="LLM_FAILED"
@@ -68,10 +68,10 @@ describe("ErrorDisplay", () => {
         onRetry={vi.fn()}
       />,
     );
-    expect(screen.getByText("结构化处理失败")).toBeInTheDocument();
+    expect(screen.getByText("Structuring Failed")).toBeInTheDocument();
   });
 
-  it("GENERATION_TIMEOUT 显示生成超时", () => {
+  it("GENERATION_TIMEOUT 显示Generation Timed Out", () => {
     render(
       <ErrorDisplay
         code="GENERATION_TIMEOUT"
@@ -80,10 +80,10 @@ describe("ErrorDisplay", () => {
         onRetry={vi.fn()}
       />,
     );
-    expect(screen.getByText("生成超时")).toBeInTheDocument();
+    expect(screen.getByText("Generation Timed Out")).toBeInTheDocument();
   });
 
-  it("ANALYSIS_TIMEOUT 显示分析超时", () => {
+  it("ANALYSIS_TIMEOUT 显示Analysis Timed Out", () => {
     render(
       <ErrorDisplay
         code="ANALYSIS_TIMEOUT"
@@ -92,10 +92,10 @@ describe("ErrorDisplay", () => {
         onRetry={vi.fn()}
       />,
     );
-    expect(screen.getByText("分析超时")).toBeInTheDocument();
+    expect(screen.getByText("Analysis Timed Out")).toBeInTheDocument();
   });
 
-  it("INVALID_REQUEST 不可重试", () => {
+  it("INVALID_REQUEST 不可Retry", () => {
     render(
       <ErrorDisplay
         code="INVALID_REQUEST"
@@ -107,15 +107,15 @@ describe("ErrorDisplay", () => {
     );
     // showRetry=false for INVALID_REQUEST, and retryable=false → canRetry=false
     expect(
-      screen.queryByRole("button", { name: "重试" }),
+      screen.queryByRole("button", { name: "Retry" }),
     ).not.toBeInTheDocument();
     // showReplace=true for INVALID_REQUEST
     expect(
-      screen.getByRole("button", { name: "更换参考图" }),
+      screen.getByRole("button", { name: "Replace Reference" }),
     ).toBeInTheDocument();
   });
 
-  it("NOT_FOUND 不显示重试按钮", () => {
+  it("NOT_FOUND 不显示Retry按钮", () => {
     render(
       <ErrorDisplay
         code="NOT_FOUND"
@@ -126,14 +126,14 @@ describe("ErrorDisplay", () => {
       />,
     );
     expect(
-      screen.queryByRole("button", { name: "重试" }),
+      screen.queryByRole("button", { name: "Retry" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "更换参考图" }),
+      screen.getByRole("button", { name: "Replace Reference" }),
     ).toBeInTheDocument();
   });
 
-  it("retryable=false 时不显示重试按钮", () => {
+  it("retryable=false 时不显示Retry按钮", () => {
     render(
       <ErrorDisplay
         code="RATE_LIMITED"
@@ -144,11 +144,11 @@ describe("ErrorDisplay", () => {
     );
     // RATE_LIMITED has showRetry=true, but retryable=false → canRetry=false
     expect(
-      screen.queryByRole("button", { name: "重试" }),
+      screen.queryByRole("button", { name: "Retry" }),
     ).not.toBeInTheDocument();
   });
 
-  it("点击重试按钮触发回调", async () => {
+  it("点击Retry按钮触发回调", async () => {
     const onRetry = vi.fn();
     const user = userEvent.setup();
 
@@ -161,7 +161,7 @@ describe("ErrorDisplay", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "重试" }));
+    await user.click(screen.getByRole("button", { name: "Retry" }));
     expect(onRetry).toHaveBeenCalledOnce();
   });
 
@@ -179,11 +179,11 @@ describe("ErrorDisplay", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "更换参考图" }));
+    await user.click(screen.getByRole("button", { name: "Replace Reference" }));
     expect(onReplace).toHaveBeenCalledOnce();
   });
 
-  it('未知 code 的 fallback 展示 "操作失败"', () => {
+  it('未知 code 的 fallback 展示 "Action Failed"', () => {
     render(
       <ErrorDisplay
         code={"UNKNOWN_CODE" as any}
@@ -192,6 +192,6 @@ describe("ErrorDisplay", () => {
         onRetry={vi.fn()}
       />,
     );
-    expect(screen.getByText("操作失败")).toBeInTheDocument();
+    expect(screen.getByText("Action Failed")).toBeInTheDocument();
   });
 });

@@ -219,7 +219,7 @@ export async function POST(request: NextRequest) {
  * 直接接收视觉分析结果文本（Gemini 模式）
  */
 async function executeSyncPipeline(taskId: string, rawAnalysis: string, imageUrl?: string, mimeType?: string) {
-  // 阶段 2：LLM 结构化整理
+  // 阶段 2：LLM Structuring整理
   try {
     log("structurer_call_started", { taskId });
     const structStartTime = Date.now();

@@ -18,8 +18,8 @@ const ASPECT_RATIOS: { label: string; value: AspectRatio }[] = [
 ];
 
 const QUALITY_OPTIONS: { label: string; value: Quality }[] = [
-  { label: "标准", value: "standard" },
-  { label: "高清", value: "hd" },
+  { label: "Standard", value: "standard" },
+  { label: "HD", value: "hd" },
 ];
 
 // localStorage 存储的数据结构
@@ -130,7 +130,7 @@ export function GeneratePanel({
       {/* Aspect ratio selector */}
       <div>
         <label className="mb-2 block text-xs font-medium text-[var(--text-secondary)]">
-          宽高比
+          Aspect Ratio
         </label>
         <div className="flex flex-wrap gap-2">
           {ASPECT_RATIOS.map((option) => (
@@ -154,7 +154,7 @@ export function GeneratePanel({
       {/* Quality selector */}
       <div>
         <label className="mb-2 block text-xs font-medium text-[var(--text-secondary)]">
-          画质
+          Quality
         </label>
         <div className="flex gap-2">
           {QUALITY_OPTIONS.map((option) => (

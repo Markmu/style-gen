@@ -13,7 +13,7 @@ import {
 const TEST_IMAGE_PATH = resolve(__dirname, 'fixtures/test-image.png')
 
 test.describe('Happy Path', () => {
-  test('首页上传参考图跳转工作区', async ({ page }) => {
+  test('Home上传Reference跳转工作区', async ({ page }) => {
     // Mock session so UploadEntry recognizes the user as logged in
     await mockAuthSession(page)
 
@@ -22,10 +22,10 @@ test.describe('Happy Path', () => {
 
     // Go to home page
     await page.goto('/')
-    await expect(page.locator('h1')).toContainText('参考图风格再创作')
+    await expect(page.locator('h1')).toContainText('Reference Image Style Recreation')
 
     // Wait for session to load (AuthHeader shows UserMenu instead of LoginButton)
-    await expect(page.getByRole('button', { name: '用户菜单' })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('button', { name: 'User menu' })).toBeVisible({ timeout: 10000 })
 
     // Upload via file input (first UploadEntry)
     const fileInput = page.locator('input[type="file"]').first()
@@ -51,14 +51,14 @@ test.describe('Happy Path', () => {
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
 
     // Wait for analysis to complete and show the current workspace editor
-    await expect(page.getByText('可生成')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText('Ready to Generate')).toBeVisible({ timeout: 15000 })
     await expect(page.getByTestId('style-breakdown-panel')).toContainText('Subject')
 
     // Verify prompt editor is shown
     await expect(page.getByTestId('unified-prompt-editor')).toBeVisible()
   })
 
-  test('确认 Prompt 后生成图片', async ({ page }) => {
+  test('Confirm Prompt 后生成图片', async ({ page }) => {
     const analysisTaskId = 'mock-analysis-task-id'
     const genTaskId = 'mock-generation-task-id'
     const analysisCompleted = loadFixture('analysis-completed.json')
@@ -75,7 +75,7 @@ test.describe('Happy Path', () => {
     await page.goto('/workspace')
     const fileInput = page.locator('input[type="file"]')
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
-    await expect(page.getByText('可生成')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText('Ready to Generate')).toBeVisible({ timeout: 15000 })
 
     // Click generate
     const generateBtn = page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' })
@@ -83,10 +83,10 @@ test.describe('Happy Path', () => {
     await generateBtn.click()
 
     // Wait for generation result - use locator filter for exact match
-    await expect(page.locator('h3').filter({ hasText: /^生成结果$/ })).toBeVisible({ timeout: 15000 })
+    await expect(page.locator('h3').filter({ hasText: /^Generated Result$/ })).toBeVisible({ timeout: 15000 })
   })
 
-  test('对比参考图和结果图', async ({ page }) => {
+  test('对比Reference和结果图', async ({ page }) => {
     const analysisTaskId = 'mock-analysis-task-id'
     const genTaskId = 'mock-generation-task-id'
     const analysisCompleted = loadFixture('analysis-completed.json')
@@ -103,12 +103,12 @@ test.describe('Happy Path', () => {
     await page.goto('/workspace')
     const fileInput = page.locator('input[type="file"]')
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
-    await expect(page.getByText('可生成')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText('Ready to Generate')).toBeVisible({ timeout: 15000 })
     await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
-    await expect(page.locator('h3').filter({ hasText: /^生成结果$/ })).toBeVisible({ timeout: 15000 })
+    await expect(page.locator('h3').filter({ hasText: /^Generated Result$/ })).toBeVisible({ timeout: 15000 })
 
     // Verify the result dialog can be closed without losing workspace context
-    await page.getByText('关闭弹窗', { exact: true }).click()
+    await page.getByText('Close Dialog', { exact: true }).click()
     await expect(page.getByTestId('workspace-two-pane-layout')).toBeVisible()
     await expect(page.getByTestId('unified-prompt-editor')).toBeVisible()
   })
@@ -144,12 +144,12 @@ test.describe('Happy Path', () => {
     await page.goto('/workspace')
     const fileInput = page.locator('input[type="file"]')
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
-    await expect(page.getByText('可生成')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText('Ready to Generate')).toBeVisible({ timeout: 15000 })
     await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
 
     // Wait for generation result - use text matcher since there are multiple elements
-    await expect(page.locator('h3').filter({ hasText: /^生成结果$/ })).toBeVisible({ timeout: 15000 })
-    await page.getByText('关闭弹窗', { exact: true }).click()
+    await expect(page.locator('h3').filter({ hasText: /^Generated Result$/ })).toBeVisible({ timeout: 15000 })
+    await page.getByText('Close Dialog', { exact: true }).click()
 
     // Verify the generate button remains available for iteration
     await expect(

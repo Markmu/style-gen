@@ -14,19 +14,19 @@ describe("ComparisonView", () => {
 
   it("并排展示两张图", () => {
     render(<ComparisonView {...defaultProps} />);
-    const refImg = screen.getByAltText("参考图");
-    const resultImg = screen.getByAltText("生成结果");
+    const refImg = screen.getByAltText("Reference");
+    const resultImg = screen.getByAltText("Generated Result");
     expect(refImg).toBeInTheDocument();
     expect(resultImg).toBeInTheDocument();
-    expect(screen.getByText("参考图 vs 生成结果")).toBeInTheDocument();
+    expect(screen.getByText("Reference vs Generated Result")).toBeInTheDocument();
   });
 
-  it("标签标注 - contains '参考图' and '生成结果' text labels", () => {
+  it("标签标注 - contains 'Reference' and 'Generated Result' text labels", () => {
     render(<ComparisonView {...defaultProps} />);
-    // The heading "参考图 vs 生成结果" contains both, but the label <p> also contain them separately
-    const labels = screen.getAllByText("参考图");
+    // The heading "Reference vs Generated Result" contains both, but the label <p> also contain them separately
+    const labels = screen.getAllByText("Reference");
     expect(labels.length).toBeGreaterThanOrEqual(1);
-    const resultLabels = screen.getAllByText("生成结果");
+    const resultLabels = screen.getAllByText("Generated Result");
     expect(resultLabels.length).toBeGreaterThanOrEqual(1);
   });
 

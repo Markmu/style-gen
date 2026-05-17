@@ -10,10 +10,10 @@ const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 
 function validateFile(file: File): string | null {
   if (!ACCEPTED_TYPES.includes(file.type)) {
-    return "仅支持 JPG、PNG、WebP 格式的图片";
+    return "Only JPG, PNG, and WebP images are supported";
   }
   if (file.size > MAX_SIZE_BYTES) {
-    return "文件大小不能超过 10MB";
+    return "File size must be 10MB or less";
   }
   return null;
 }
@@ -39,7 +39,7 @@ export function UploadEntry() {
         setFile(file);
         router.push("/workspace");
       } else {
-        // 未登录：触发 Google OAuth，登录成功后跳转工作区
+        // 未Log in：触发 Google OAuth，Log in成功后跳转Workspace
         signIn("google", { callbackUrl: "/workspace" });
       }
     },
@@ -50,7 +50,7 @@ export function UploadEntry() {
     if (session) {
       inputRef.current?.click();
     } else {
-      // 未登录：触发 Google OAuth，登录成功后跳转工作区
+      // 未Log in：触发 Google OAuth，Log in成功后跳转Workspace
       signIn("google", { callbackUrl: "/workspace" });
     }
   }, [session]);
@@ -114,10 +114,10 @@ export function UploadEntry() {
           <span className="icon text-[var(--accent-primary)]" aria-hidden="true">cloud_upload</span>
         </div>
         <p className="text-base font-medium text-[var(--text-primary)]">
-          点击或拖拽上传参考图
+          Click or drag to upload a reference image
         </p>
         <p className="mt-2 text-sm text-[var(--text-secondary)]">
-          支持 JPG / PNG / WebP，不超过 10MB
+          JPG, PNG, or WebP, up to 10MB
         </p>
       </div>
       {error && (
@@ -131,7 +131,7 @@ export function UploadEntry() {
             onClick={handleReset}
             type="button"
           >
-            重新选择
+            Choose Again
           </button>
         </div>
       )}

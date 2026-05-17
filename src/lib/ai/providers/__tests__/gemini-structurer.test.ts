@@ -60,7 +60,7 @@ describe("GeminiStructurerProvider", () => {
     );
   });
 
-  it("超时 30 秒后抛出错误", async () => {
+  it("超时 30s后抛出错误", async () => {
     vi.useFakeTimers();
     mockGenerateContent.mockReturnValue(new Promise(() => {}));
     const provider = createProvider();

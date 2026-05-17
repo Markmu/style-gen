@@ -212,7 +212,7 @@ export function UnifiedPromptEditor({
               }
               className="h-7 shrink-0 rounded-md border border-[var(--border-interactive)] px-2.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)]"
             >
-              保存为模板
+              Save as Template
             </button>
           )}
           <div className="flex h-7 rounded-md bg-[var(--surface-low)] p-0.5">
@@ -225,7 +225,7 @@ export function UnifiedPromptEditor({
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
-              模板模式
+              Template Mode
             </button>
             <button
               type="button"
@@ -236,7 +236,7 @@ export function UnifiedPromptEditor({
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
-              文本模式
+              Text Mode
             </button>
           </div>
         </div>
@@ -258,7 +258,7 @@ export function UnifiedPromptEditor({
             {templateStatus === "fallback" && (
               <div className="rounded-lg bg-[var(--surface-low)] p-3 text-sm text-[var(--text-secondary)]">
                 <p className="font-medium text-[var(--text-primary)]">
-                  本次没有识别到足够稳定的可替换变量
+                  No stable replaceable variables were detected this time.
                 </p>
                 {templateReason && <p className="mt-1 text-xs">{templateReason}</p>}
               </div>

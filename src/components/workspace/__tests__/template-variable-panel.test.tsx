@@ -16,7 +16,7 @@ describe("TemplateVariablePanel", () => {
 
     expect(screen.getByText("Subject")).toBeInTheDocument();
     expect(screen.getByText("subject")).toBeInTheDocument();
-    expect(screen.getByLabelText("变量 subject")).toHaveValue("glass fox");
+    expect(screen.getByLabelText("Variable subject")).toHaveValue("glass fox");
   });
 
   it("shows fallback reason when no trusted variables are available", () => {
@@ -30,7 +30,7 @@ describe("TemplateVariablePanel", () => {
       />,
     );
 
-    expect(screen.getByText("本次没有识别到足够稳定的可替换变量")).toBeInTheDocument();
+    expect(screen.getByText("No stable replaceable variables were detected this time.")).toBeInTheDocument();
     expect(screen.getByText("Not enough stable variable candidates.")).toBeInTheDocument();
   });
 });

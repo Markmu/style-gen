@@ -32,10 +32,10 @@ export function GenerationProgress({ isGenerating }: GenerationProgressProps) {
         <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--accent-primary)]/40 border-t-[var(--accent-primary)]" />
         <div>
           <p className="text-sm font-medium text-[var(--accent-primary)]">
-            正在生成图片...
+            Generating image...
           </p>
           <p className="text-xs text-[var(--accent-primary)]/70">
-            已等待 {elapsed} 秒 · 预计需要 10-60 秒
+            Waited {elapsed}s · usually takes 10-60s
           </p>
         </div>
       </div>

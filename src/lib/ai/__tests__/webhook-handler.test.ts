@@ -353,7 +353,7 @@ describe('webhook-handler', () => {
       expect(result.response.ok).toBe(false);
     });
 
-    it('应该在任务已为终态时跳过处理（幂等性）', async () => {
+    it('应该在任务已为终态时Skip处理（幂等性）', async () => {
       const body = JSON.stringify({
         id: 'pred-1',
         status: 'succeeded',
@@ -455,7 +455,7 @@ describe('webhook-handler', () => {
       });
     });
 
-    it('应该处理生成任务失败', async () => {
+    it('应该处理Generation Task失败', async () => {
       const body = JSON.stringify({
         id: 'pred-1',
         status: 'failed',
@@ -484,7 +484,7 @@ describe('webhook-handler', () => {
       });
     });
 
-    it('应该在任务已为终态时跳过处理（幂等性）', async () => {
+    it('应该在任务已为终态时Skip处理（幂等性）', async () => {
       const body = JSON.stringify({
         id: 'pred-1',
         status: 'succeeded',
@@ -539,7 +539,7 @@ describe('webhook-handler', () => {
     });
   });
 
-  describe('边界场景', () => {
+  describe('边界Scene', () => {
     it('应该处理空的 prediction output', async () => {
       const body = JSON.stringify({
         id: 'pred-1',

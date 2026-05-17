@@ -89,11 +89,11 @@ function TagList({ tags }: { tags: string[] }) {
 
 function RecipeSummaryView({ summary }: { summary: RecipeSummary }) {
   const fields: { label: string; value: string }[] = [
-    { label: "主体", value: summary.subject },
-    { label: "场景", value: summary.scene },
-    { label: "光线", value: summary.lighting },
-    { label: "色彩", value: summary.color },
-    { label: "情绪", value: summary.mood },
+    { label: "Subject", value: summary.subject },
+    { label: "Scene", value: summary.scene },
+    { label: "Light", value: summary.lighting },
+    { label: "Color", value: summary.color },
+    { label: "Mood", value: summary.mood },
   ];
 
   return (
@@ -110,31 +110,31 @@ function RecipeSummaryView({ summary }: { summary: RecipeSummary }) {
 function RecipeDetailView({ recipe }: { recipe: VisualRecipe }) {
   return (
     <div className="space-y-4 pt-4">
-      <RecipeSection title="构图与镜头">
-        <FieldValue label="构图" value={recipe.composition} />
-        <FieldValue label="镜头语言" value={recipe.cameraLanguage} />
+      <RecipeSection title="Composition & Camera">
+        <FieldValue label="Composition" value={recipe.composition} />
+        <FieldValue label="Camera Language" value={recipe.cameraLanguage} />
         <p className="mt-1 text-xs text-[var(--text-secondary)]/60">
-          镜头语言：描述拍摄角度、距离、运动方式等摄影技法
+          Camera Language: angle, distance, movement, and other photographic cues
         </p>
       </RecipeSection>
 
-      <RecipeSection title="质感与风格">
-        <FieldValue label="质感" value={recipe.texture} />
+      <RecipeSection title="Texture & Style">
+        <FieldValue label="Texture" value={recipe.texture} />
       </RecipeSection>
 
-      <RecipeSection title="关键词">
+      <RecipeSection title="Keywords">
         <TagList tags={recipe.visualKeywords} />
       </RecipeSection>
 
-      <RecipeSection title="保留 / 可替换">
+      <RecipeSection title="Keep / Replace">
         <div>
-          <span className="label-tech text-emerald-400">保留:</span>
+          <span className="label-tech text-emerald-400">Keep:</span>
           <div className="mt-1">
             <TagList tags={recipe.mustKeep} />
           </div>
         </div>
         <div>
-          <span className="label-tech text-amber-400">可替换:</span>
+          <span className="label-tech text-amber-400">Replaceable:</span>
           <div className="mt-1">
             <TagList tags={recipe.replaceable} />
           </div>
@@ -185,8 +185,8 @@ export function RecipeStep({
 }: RecipeStepProps) {
   const isGenerationReady = state === "generation_ready";
   const stepTitle = isGenerationReady
-    ? "Step 1 \u00B7 本次生成参数"
-    : "Step 1 \u00B7 风格拆解";
+    ? "Step 1 \u00B7 Generation Settings"
+    : "Step 1 \u00B7 Style Breakdown";
 
   // --- Determine which degradation/error to show ---
   // Error takes priority over degradation hints
@@ -238,8 +238,8 @@ export function RecipeStep({
           {stepTitle}
         </h3>
         <DegradationHint
-          title="分析排队中，请耐心等待"
-          description="当前请求较多，处理可能需要更长时间"
+          title="Analysis is queued. Thanks for waiting."
+          description="High demand may make processing take longer."
           showSpinner
         />
       </div>
@@ -265,16 +265,16 @@ export function RecipeStep({
       {/* L4: analysis unavailable hint */}
       {showL4Hint && (
         <DegradationHint
-          title="分析服务暂时不可用，请稍后重试"
-          description="已有分析结果仍可查看和编辑"
+          title="Analysis is temporarily unavailable. Please try again later."
+          description="Existing analysis results remain available to view and edit."
         />
       )}
 
       {/* L3: LLM failed, raw analysis fallback */}
       {showL3Hint && (
         <DegradationHint
-          title="AI 结构化处理失败，已降级为原始分析结果"
-          description="您可以基于以下原始分析结果手动编写或调整 Prompt"
+          title="AI structuring failed, so raw analysis is shown instead."
+          description="You can manually write or adjust the prompt from the raw analysis below."
         />
       )}
 
@@ -291,7 +291,7 @@ export function RecipeStep({
             type="button"
           >
             <span>
-              {isExpanded ? "收起完整配方" : "展开完整配方"}
+              {isExpanded ? "Collapse Full Recipe" : "Expand Full Recipe"}
             </span>
             <svg
               className={`h-4 w-4 transition-transform duration-300 ${isExpanded ? "rotate-180" : ""}`}

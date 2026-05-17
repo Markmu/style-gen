@@ -28,64 +28,64 @@ function getErrorDisplay(code: ApiErrorCode, message: string): {
   switch (code) {
     case "RATE_LIMITED":
       return {
-        title: "请求过于频繁",
-        description: "您的操作已触发限流，请稍后再试。",
+        title: "Too Many Requests",
+        description: "You have hit the rate limit. Please try again later.",
         showRetry: true,
         showReplace: false,
       };
     case "SERVICE_UNAVAILABLE":
       return {
-        title: "服务暂时不可用",
-        description: "服务暂时不可用，请稍后重试。",
+        title: "Service Temporarily Unavailable",
+        description: "The service is temporarily unavailable. Please try again later.",
         showRetry: true,
         showReplace: false,
       };
     case "VISION_FAILED":
       return {
-        title: "视觉分析失败",
-        description: message || "图片视觉分析失败，请重试或更换参考图。",
+        title: "Vision Analysis Failed",
+        description: message || "Image analysis failed. Please retry or replace the reference image.",
         showRetry: true,
         showReplace: true,
       };
     case "LLM_FAILED":
       return {
-        title: "结构化处理失败",
-        description: message || "AI 结构化处理失败，请重试。",
+        title: "Structuring Failed",
+        description: message || "AI structuring failed. Please try again.",
         showRetry: true,
         showReplace: false,
       };
     case "GENERATION_TIMEOUT":
       return {
-        title: "生成超时",
-        description: "图片生成超时，请稍后重试。",
+        title: "Generation Timed Out",
+        description: "Image generation timed out. Please try again later.",
         showRetry: true,
         showReplace: false,
       };
     case "ANALYSIS_TIMEOUT":
       return {
-        title: "分析超时",
-        description: "图片分析超时，请稍后重试。",
+        title: "Analysis Timed Out",
+        description: "Image analysis timed out. Please try again later.",
         showRetry: true,
         showReplace: true,
       };
     case "INVALID_REQUEST":
       return {
-        title: "请求无效",
-        description: message || "请求参数无效，请检查后重试。",
+        title: "Invalid Request",
+        description: message || "The request parameters are invalid. Please check and try again.",
         showRetry: false,
         showReplace: true,
       };
     case "NOT_FOUND":
       return {
-        title: "资源未找到",
-        description: message || "请求的资源不存在。",
+        title: "Resource Not Found",
+        description: message || "The requested resource does not exist.",
         showRetry: false,
         showReplace: true,
       };
     default:
       return {
-        title: "操作失败",
-        description: message || "发生未知错误，请重试。",
+        title: "Action Failed",
+        description: message || "Something went wrong. Please try again.",
         showRetry: true,
         showReplace: false,
       };
@@ -97,11 +97,11 @@ interface ErrorDisplayProps {
   code: ApiErrorCode;
   /** 原始错误信息 */
   message: string;
-  /** 是否可重试（来自 API 响应） */
+  /** 是否可Retry（来自 API 响应） */
   retryable: boolean;
-  /** 重试回调 */
+  /** Retry回调 */
   onRetry?: () => void;
-  /** 替换参考图回调 */
+  /** Replace Reference回调 */
   onReplace?: () => void;
   /** 限流剩余等待时间（秒），仅 RATE_LIMITED 时有效 */
   retryAfterSeconds?: number;
@@ -126,30 +126,30 @@ export function ErrorDisplay({
       {/* 限流：显示剩余等待时间 */}
       {code === "RATE_LIMITED" && retryAfterSeconds != null && retryAfterSeconds > 0 && (
         <p className="mt-2 text-sm font-medium text-amber-400">
-          请等待 {retryAfterSeconds} 秒后重试
+          Please wait {retryAfterSeconds}s before retrying
         </p>
       )}
 
       <div className="mt-4 flex gap-3">
-        {/* 可重试：显示重试按钮 */}
+        {/* 可Retry：显示Retry按钮 */}
         {canRetry && onRetry && (
           <button
             type="button"
             onClick={onRetry}
             className="rounded-lg bg-[var(--color-error)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--color-error)]/80"
           >
-            重试
+            Retry
           </button>
         )}
 
-        {/* 不可重试或允许替换图片：显示替换参考图入口 */}
+        {/* 不可Retry或允许替换图片：显示Replace Reference入口 */}
         {display.showReplace && onReplace && (
           <button
             type="button"
             onClick={onReplace}
             className="rounded-lg px-4 py-2 text-sm font-medium text-[var(--text-secondary)] ring-1 ring-[var(--border)] transition-colors hover:bg-[var(--surface-bright)]"
           >
-            更换参考图
+            Replace Reference
           </button>
         )}
       </div>

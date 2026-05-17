@@ -5,10 +5,10 @@ import { ValueSection } from "../value-section";
 describe("ValueSection", () => {
   it("渲染三个功能卡片", () => {
     render(<ValueSection />);
-    expect(screen.getByText("三步完成风格再创作")).toBeInTheDocument();
-    expect(screen.getByText("上传参考图")).toBeInTheDocument();
-    expect(screen.getByText("AI 提取视觉配方")).toBeInTheDocument();
-    expect(screen.getByText("生成同风格新图")).toBeInTheDocument();
+    expect(screen.getByText("Recreate a Style in Three Steps")).toBeInTheDocument();
+    expect(screen.getByText("Upload Reference")).toBeInTheDocument();
+    expect(screen.getByText("AI Extracts the Visual Recipe")).toBeInTheDocument();
+    expect(screen.getByText("Generate a New Image in the Same Style")).toBeInTheDocument();
   });
 
   it("每个卡片包含步骤编号", () => {

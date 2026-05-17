@@ -52,17 +52,17 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
   return (
     <div className="space-y-4 rounded-xl bg-[var(--surface-mid)] p-5 ring-1 ring-[var(--border)]">
       {/* 标题 */}
-      <h3 className="text-base font-bold text-[var(--text-primary)]">视觉配方</h3>
+      <h3 className="text-base font-bold text-[var(--text-primary)]">Visual Recipe</h3>
 
       {/* 默认展示区（折叠状态） */}
       <div className="space-y-3">
-        <RecipeSection title="核心摘要">
-          <FieldValue label="主体" value={recipe.subject} />
-          <FieldValue label="概述" value={recipe.imageSummary} />
+        <RecipeSection title="Core Summary">
+          <FieldValue label="Subject" value={recipe.subject} />
+          <FieldValue label="Summary" value={recipe.imageSummary} />
         </RecipeSection>
 
         <div>
-          <span className="label-tech text-[var(--text-secondary)]">风格标签:</span>
+          <span className="label-tech text-[var(--text-secondary)]">Style Tags:</span>
           <div className="mt-1">
             <TagList tags={recipe.styleTags} />
           </div>
@@ -75,7 +75,7 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
         className="flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--surface-bright)] px-3 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)]"
         type="button"
       >
-        <span>{isExpanded ? "收起详细信息" : "展开详细信息"}</span>
+        <span>{isExpanded ? "Hide Details" : "Show Details"}</span>
         <svg
           className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-180" : ""}`}
           fill="none"
@@ -94,38 +94,38 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
       >
         <div className="min-h-0">
           <div className="space-y-4 pt-4">
-          <RecipeSection title="构图与镜头">
-            <FieldValue label="场景" value={recipe.scene} />
-            <FieldValue label="构图" value={recipe.composition} />
-            <FieldValue label="镜头语言" value={recipe.cameraLanguage} />
+          <RecipeSection title="Composition & Camera">
+            <FieldValue label="Scene" value={recipe.scene} />
+            <FieldValue label="Composition" value={recipe.composition} />
+            <FieldValue label="Camera Language" value={recipe.cameraLanguage} />
             <p className="text-xs text-[var(--text-secondary)]/60 mt-1">
-              镜头语言：描述拍摄角度、距离、运动方式等摄影技法
+              Camera Language: angle, distance, movement, and other photographic cues
             </p>
           </RecipeSection>
 
-          <RecipeSection title="光照与色彩">
-            <FieldValue label="光照" value={recipe.lighting} />
-            <FieldValue label="色彩" value={recipe.color} />
+          <RecipeSection title="Lighting & Color">
+            <FieldValue label="Lighting" value={recipe.lighting} />
+            <FieldValue label="Color" value={recipe.color} />
           </RecipeSection>
 
-          <RecipeSection title="质感与风格">
-            <FieldValue label="质感" value={recipe.texture} />
-            <FieldValue label="情绪" value={recipe.mood} />
+          <RecipeSection title="Texture & Style">
+            <FieldValue label="Texture" value={recipe.texture} />
+            <FieldValue label="Mood" value={recipe.mood} />
           </RecipeSection>
 
-          <RecipeSection title="关键词">
+          <RecipeSection title="Keywords">
             <TagList tags={recipe.visualKeywords} />
           </RecipeSection>
 
-          <RecipeSection title="保留 / 可替换">
+          <RecipeSection title="Keep / Replace">
             <div>
-              <span className="label-tech text-emerald-400">保留:</span>
+              <span className="label-tech text-emerald-400">Keep:</span>
               <div className="mt-1">
                 <TagList tags={recipe.mustKeep} />
               </div>
             </div>
             <div>
-              <span className="label-tech text-amber-400">可替换:</span>
+              <span className="label-tech text-amber-400">Replaceable:</span>
               <div className="mt-1">
                 <TagList tags={recipe.replaceable} />
               </div>

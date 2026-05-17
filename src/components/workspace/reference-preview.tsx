@@ -31,7 +31,7 @@ export function ReferencePreview({
             onClick={onReplace}
             className="btn-secondary rounded-md px-3 py-1.5 text-xs"
           >
-            更换
+            Replace
           </button>
         )}
       </div>
@@ -40,7 +40,7 @@ export function ReferencePreview({
         <div className="media-lens relative min-h-0 flex-1 rounded-lg">
           <Image
             src={referenceImageUrl}
-            alt="参考图"
+            alt="Reference"
             fill
             className="object-contain"
             unoptimized

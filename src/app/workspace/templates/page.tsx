@@ -31,7 +31,7 @@ export default function TemplateLibraryPage() {
     setSearch,
   } = useTemplateSearch();
 
-  /** Use Template → 跳转到工作台并携带 templateId */
+  /** Use Template → 跳转到Workspace并携带 templateId */
   const handleUseTemplate = useCallback(
     (id: string) => {
       router.push(`/workspace?templateId=${id}`);
@@ -39,7 +39,7 @@ export default function TemplateLibraryPage() {
     [router],
   );
 
-  /** 复制模板 */
+  /** Duplicate模板 */
   const handleDuplicate = useCallback(
     async (id: string) => {
       const res = await fetch(`/api/templates/${id}/duplicate`, {
@@ -47,7 +47,7 @@ export default function TemplateLibraryPage() {
       });
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
-        throw new Error(data.error ?? "复制失败");
+        throw new Error(data.error ?? "Duplicate failed");
       }
       await queryClient.invalidateQueries({ queryKey: ["templates"] });
       router.refresh();
@@ -55,7 +55,7 @@ export default function TemplateLibraryPage() {
     [queryClient, router],
   );
 
-  /** 删除模板 */
+  /** Delete模板 */
   const handleDelete = useCallback(
     async (id: string) => {
       const res = await fetch(`/api/templates/${id}`, {
@@ -63,7 +63,7 @@ export default function TemplateLibraryPage() {
       });
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
-        throw new Error(data.error ?? "删除失败");
+        throw new Error(data.error ?? "Delete failed");
       }
       await queryClient.invalidateQueries({ queryKey: ["templates"] });
       router.refresh();
@@ -71,9 +71,9 @@ export default function TemplateLibraryPage() {
     [queryClient, router],
   );
 
-  /** 编辑模板（跳转或打开编辑器 — 暂用 console 提示） */
+  /** Edit模板（跳转或打开Edit器 — 暂用 console 提示） */
   const handleEdit = useCallback((id: string) => {
-    // TODO: 后续可接入模板编辑功能
+    // TODO: 后续可接入模板Edit功能
     console.log("[template-edit]", id);
   }, []);
 
@@ -107,7 +107,7 @@ export default function TemplateLibraryPage() {
               type="button"
               onClick={() => setSearch("")}
               className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-0.5 text-[var(--text-secondary)] hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)]"
-              aria-label="清除搜索"
+              aria-label="Clear Search"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -143,14 +143,14 @@ export default function TemplateLibraryPage() {
         {!isLoading && isError && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <p className="text-sm text-red-400">
-              {error?.message ?? "搜索失败，请重试"}
+              {error?.message ?? "Search failed. Please try again."}
             </p>
             <button
               type="button"
               onClick={() => router.refresh()}
               className="mt-3 rounded-lg px-4 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-mid)] hover:text-[var(--text-primary)]"
             >
-              重试
+              Retry
             </button>
           </div>
         )}
@@ -162,7 +162,7 @@ export default function TemplateLibraryPage() {
               library_books
             </span>
             <p className="text-sm text-[var(--text-secondary)]">
-              还没有模板，去创作一个吧！
+              No templates yet. Create one from a prompt.
             </p>
           </div>
         )}
@@ -174,14 +174,14 @@ export default function TemplateLibraryPage() {
               search_off
             </span>
             <p className="text-sm text-[var(--text-secondary)]">
-              没有找到匹配的模板
+              No matching templates found
             </p>
             <button
               type="button"
               onClick={() => setSearch("")}
               className="mt-3 rounded-lg px-4 py-2 text-sm text-[var(--accent-primary)] transition-colors hover:bg-[var(--accent-primary)]/10"
             >
-              清除搜索
+              Clear Search
             </button>
           </div>
         )}

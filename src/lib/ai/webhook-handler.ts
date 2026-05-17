@@ -279,7 +279,7 @@ async function handleAnalysisWebhook(
         templateFallbackReason: analysisTemplateReason,
       });
 
-      // 更新任务为完成状态
+      // 更新任务为Done状态
       await updateAnalysisTask(taskId, {
         status: 'completed',
         recipe: structured.recipe,
@@ -343,7 +343,7 @@ async function handleAnalysisWebhook(
 }
 
 /**
- * 处理生成任务 Webhook 回调
+ * 处理Generation Task Webhook 回调
  */
 async function handleGenerationWebhook(
   taskId: string,
@@ -395,7 +395,7 @@ async function handleGenerationWebhook(
     }
 
     try {
-      // 下载图片并上传到 R2
+      // Download Image并上传到 R2
       const imageBuffer = await downloadImage(imageUrl);
       const r2Key = `generated/${taskId}/result.webp`;
       await uploadBuffer(r2Key, imageBuffer, 'image/webp');
@@ -415,7 +415,7 @@ async function handleGenerationWebhook(
         mimeType: 'image/webp',
       });
 
-      // 更新任务为完成状态
+      // 更新任务为Done状态
       await updateGenerationTask(taskId, {
         status: 'completed',
         resultAssetId: asset.id,
@@ -505,7 +505,7 @@ function extractImageUrl(output: unknown): string | null {
 }
 
 /**
- * 下载图片到 Buffer
+ * Download Image到 Buffer
  */
 async function downloadImage(url: string): Promise<Buffer> {
   const response = await fetch(url);

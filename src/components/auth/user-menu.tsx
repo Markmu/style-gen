@@ -29,7 +29,7 @@ export function UserMenu() {
     try {
       await signOut({ callbackUrl: "/" });
     } catch {
-      // signOut 失败时仍清除本地状态，确保用户感知到"已退出"
+      // Clear local state even if signOut fails so the user sees the logged-out state.
       window.location.href = "/";
     }
   }
@@ -46,7 +46,7 @@ export function UserMenu() {
       <button
         onClick={() => setIsOpen((prev) => !prev)}
         className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface-bright)] transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:ring-offset-2 focus:ring-offset-[var(--surface-base)]"
-        aria-label="用户菜单"
+        aria-label="User menu"
         aria-expanded={isOpen}
       >
         {avatarUrl ? (
@@ -81,7 +81,7 @@ export function UserMenu() {
             onClick={handleSignOut}
             className="w-full px-4 py-2 text-left text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-mid)]"
           >
-            退出登录
+            Log out
           </button>
         </div>
       )}

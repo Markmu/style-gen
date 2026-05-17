@@ -98,7 +98,7 @@ function EditableRow({
           onClick={onEdit}
           className="ml-2 shrink-0 rounded-md p-1 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-[var(--surface-hover)]"
           type="button"
-          aria-label={`编辑 ${label}`}
+          aria-label={`Edit ${label}`}
         >
           <svg
             className="h-4 w-4 text-[var(--text-secondary)]"
@@ -162,7 +162,7 @@ function ExpandedRowEditor({
   return (
     <div className="space-y-2 rounded-lg bg-[var(--surface-bright)] p-3 ring-1 ring-[var(--border)]">
       <span className="label-tech block text-xs text-[var(--text-secondary)]">
-        {row.label} \u00B7 编辑
+        {row.label} \u00B7 Edit
       </span>
       {row.fields.map((field) => {
         const val = (recipe as unknown as Record<string, unknown>)[field];
@@ -197,7 +197,7 @@ function ExpandedRowEditor({
                 onChange={(e) => handleFieldChange(field, e.target.value)}
                 onKeyDown={handleKeyDown}
                 className="min-w-0 flex-1 rounded-md border border-[var(--border)] bg-[var(--surface-base)] px-2.5 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/30"
-                placeholder="用逗号分隔标签"
+                placeholder="Separate tags with commas"
               />
             ) : (
               <input
@@ -217,7 +217,7 @@ function ExpandedRowEditor({
         className="mt-1 rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity"
         type="button"
       >
-        完成
+        Done
       </button>
     </div>
   );
@@ -371,7 +371,7 @@ export function RecipeEditor({
     return (
       <div className="space-y-4">
         <p className="text-sm text-[var(--text-secondary)]">
-          上传参考图开始分析
+          Upload a reference image to start analysis.
         </p>
       </div>
     );
@@ -385,8 +385,8 @@ export function RecipeEditor({
       {/* Degraded overlay */}
       {degraded && (
         <DegradationHint
-          title="分析服务暂时不可用，请稍后重试"
-          description="已有分析结果仍可查看和编辑"
+          title="Analysis is temporarily unavailable. Please try again later."
+          description="Existing analysis results remain available to view and edit."
         />
       )}
 
@@ -500,8 +500,8 @@ export function RecipeEditorWithDegrade({
     return (
       <div className="space-y-4">
         <DegradationHint
-          title="分析排队中，请耐心等待"
-          description="当前请求较多，处理可能需要更长时间"
+          title="Analysis is queued. Thanks for waiting."
+          description="High demand may make processing take longer."
           showSpinner
         />
       </div>
@@ -520,16 +520,16 @@ export function RecipeEditorWithDegrade({
       {/* L4: analysis unavailable hint */}
       {showL4Hint && (
         <DegradationHint
-          title="分析服务暂时不可用，请稍后重试"
-          description="已有分析结果仍可查看和编辑"
+          title="Analysis is temporarily unavailable. Please try again later."
+          description="Existing analysis results remain available to view and edit."
         />
       )}
 
       {/* L3: LLM failed, raw analysis fallback */}
       {showL3Hint && (
         <DegradationHint
-          title="AI 结构化处理失败，已降级为原始分析结果"
-          description="您可以基于以下原始分析结果手动编写或调整 Prompt"
+          title="AI structuring failed, so raw analysis is shown instead."
+          description="You can manually write or adjust the prompt from the raw analysis below."
         />
       )}
 

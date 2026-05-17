@@ -22,7 +22,7 @@ function log(event: string, data: Record<string, unknown>) {
   console.log(JSON.stringify({ event, timestamp: new Date().toISOString(), ...data }));
 }
 
-// ─── POST /api/templates/:id/duplicate — 复制模板 ───
+// ─── POST /api/templates/:id/duplicate — Duplicate模板 ───
 
 export async function POST(
   request: NextRequest,
@@ -44,12 +44,12 @@ export async function POST(
     if (!existing) {
       log("template_not_found", { templateId: id, userId });
       return NextResponse.json(
-        { error: "模板不存在", code: "TEMPLATE_NOT_FOUND", retryable: false },
+        { error: "Template not found", code: "TEMPLATE_NOT_FOUND", retryable: false },
         { status: 404 }
       );
     }
 
-    // 4. 执行复制
+    // 4. 执行Duplicate
     const duplicated = await duplicateTemplate(id, userId);
 
     log("template_duplicated", {

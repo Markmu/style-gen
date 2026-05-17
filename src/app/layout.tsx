@@ -3,8 +3,8 @@ import { Providers } from "@/components/providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Style Gen - 参考图风格再创作",
-  description: "上传参考图，提取视觉风格配方，一键生成同风格新图",
+  title: "Style Gen - Reference Image Style Recreation",
+  description: "Upload a reference image, extract an editable visual style recipe, and generate a new image in the same style",
 };
 
 export default function RootLayout({
@@ -13,7 +13,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="zh-CN" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link

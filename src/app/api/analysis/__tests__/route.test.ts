@@ -247,7 +247,7 @@ describe("POST /api/analysis", () => {
 
   // --- 失败路径 ---
 
-  it("视觉理解失败时标记 failed 且 errorStage 为 vision", async () => {
+  it("Vision Understanding失败时标记 failed 且 errorStage 为 vision", async () => {
     mockVisionProvider.analyze.mockRejectedValue(
       new Error("Vision provider failed")
     );

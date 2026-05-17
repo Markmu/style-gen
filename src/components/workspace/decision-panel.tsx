@@ -37,15 +37,15 @@ interface DecisionPanelProps {
 /** Idle empty state: three-step guide preview */
 function EmptyStatePreview() {
   const steps = [
-    { number: "1", label: "AI 分析风格" },
-    { number: "2", label: "编辑生成指令" },
-    { number: "3", label: "设置参数生成" },
+    { number: "1", label: "AI Analyzes Style" },
+    { number: "2", label: "Edit Generation Prompt" },
+    { number: "3", label: "Set Parameters and Generate" },
   ];
 
   return (
     <div className="rounded-xl bg-[var(--surface-mid)] p-6 ring-1 ring-[var(--border)]">
       <h3 className="text-base font-bold text-[var(--text-primary)]">
-        创作流程
+        Creative Workflow
       </h3>
       <div className="mt-4 space-y-3">
         {steps.map((step) => (
@@ -112,8 +112,8 @@ export function DecisionPanel({
   }
 
   const promptEditorTitle = isGenerationReady
-    ? "继续调整指令"
-    : "生成指令";
+    ? "Keep Refining the Prompt"
+    : "Generation Prompt";
 
   return (
     <div className="space-y-6">

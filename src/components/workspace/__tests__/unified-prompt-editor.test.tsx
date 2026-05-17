@@ -12,7 +12,7 @@ describe("UnifiedPromptEditor", () => {
       />,
     );
 
-    expect(screen.getByLabelText("完整生成提示")).toHaveValue("initial prompt");
+    expect(screen.getByLabelText("Full Generation Prompt")).toHaveValue("initial prompt");
   });
 
   it("renders template variables outside the template body and resolves them", async () => {
@@ -29,15 +29,15 @@ describe("UnifiedPromptEditor", () => {
       />,
     );
 
-    expect(screen.getByLabelText("模板原文")).toHaveValue(
+    expect(screen.getByLabelText("Template Source")).toHaveValue(
       "Create {{subject}} in {{lighting}}.",
     );
 
-    await user.type(screen.getByLabelText("变量 subject"), "glass chair");
-    await user.type(screen.getByLabelText("变量 lighting"), "soft daylight");
-    await user.click(screen.getByRole("button", { name: "文本模式" }));
+    await user.type(screen.getByLabelText("Variable subject"), "glass chair");
+    await user.type(screen.getByLabelText("Variable lighting"), "soft daylight");
+    await user.click(screen.getByRole("button", { name: "Text Mode" }));
 
-    expect(screen.getByLabelText("完整生成提示")).toHaveValue(
+    expect(screen.getByLabelText("Full Generation Prompt")).toHaveValue(
       "Create glass chair in soft daylight.",
     );
     expect(onResolvedPromptChange).toHaveBeenLastCalledWith(
@@ -65,8 +65,8 @@ describe("UnifiedPromptEditor", () => {
       />,
     );
 
-    expect(screen.getByLabelText("变量 subject")).toHaveValue("glass fox");
-    expect(screen.getByLabelText("变量 scene")).toHaveValue("neon garden");
+    expect(screen.getByLabelText("Variable subject")).toHaveValue("glass fox");
+    expect(screen.getByLabelText("Variable scene")).toHaveValue("neon garden");
     expect(onTemplateVariablesChange).toHaveBeenLastCalledWith([
       { name: "subject", defaultValue: "glass fox", label: "Subject", sourceField: "subject" },
       { name: "scene", defaultValue: "neon garden", label: "Scene", sourceField: "scene" },
@@ -86,9 +86,9 @@ describe("UnifiedPromptEditor", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "文本模式" }));
-    await user.clear(screen.getByLabelText("完整生成提示"));
-    await user.type(screen.getByLabelText("完整生成提示"), "manual draft");
+    await user.click(screen.getByRole("button", { name: "Text Mode" }));
+    await user.clear(screen.getByLabelText("Full Generation Prompt"));
+    await user.type(screen.getByLabelText("Full Generation Prompt"), "manual draft");
 
     rerender(
       <UnifiedPromptEditor
@@ -101,7 +101,7 @@ describe("UnifiedPromptEditor", () => {
       />,
     );
 
-    expect(screen.getByLabelText("变量 subject")).toHaveValue("crystal heron");
+    expect(screen.getByLabelText("Variable subject")).toHaveValue("crystal heron");
   });
 
   it("preserves manual text draft when switching back from template mode", async () => {
@@ -114,14 +114,14 @@ describe("UnifiedPromptEditor", () => {
       />,
     );
 
-    await user.clear(screen.getByLabelText("完整生成提示"));
-    await user.type(screen.getByLabelText("完整生成提示"), "manual draft");
-    await user.click(screen.getByRole("button", { name: "模板模式" }));
-    await user.clear(screen.getByLabelText("模板原文"));
-    await user.type(screen.getByLabelText("模板原文"), "Template {{subject}}");
-    await user.click(screen.getByRole("button", { name: "文本模式" }));
+    await user.clear(screen.getByLabelText("Full Generation Prompt"));
+    await user.type(screen.getByLabelText("Full Generation Prompt"), "manual draft");
+    await user.click(screen.getByRole("button", { name: "Template Mode" }));
+    await user.clear(screen.getByLabelText("Template Source"));
+    await user.type(screen.getByLabelText("Template Source"), "Template {{subject}}");
+    await user.click(screen.getByRole("button", { name: "Text Mode" }));
 
-    expect(screen.getByLabelText("完整生成提示")).toHaveValue("manual draft");
+    expect(screen.getByLabelText("Full Generation Prompt")).toHaveValue("manual draft");
   });
 
   it("saves the current text draft when saving from text mode", async () => {
@@ -139,18 +139,18 @@ describe("UnifiedPromptEditor", () => {
       />,
     );
 
-    await user.type(screen.getByLabelText("变量 var1"), "glass chair");
-    await user.type(screen.getByLabelText("变量 var2"), "rim light");
-    await user.click(screen.getByRole("button", { name: "文本模式" }));
+    await user.type(screen.getByLabelText("Variable var1"), "glass chair");
+    await user.type(screen.getByLabelText("Variable var2"), "rim light");
+    await user.click(screen.getByRole("button", { name: "Text Mode" }));
 
-    expect(screen.getByLabelText("完整生成提示")).toHaveValue(
+    expect(screen.getByLabelText("Full Generation Prompt")).toHaveValue(
       "Create glass chair with rim light.",
     );
     expect(onTemplateContentChange).toHaveBeenLastCalledWith(
       "Create {{var1}} with {{var2}}.",
     );
 
-    await user.click(screen.getByRole("button", { name: "保存为模板" }));
+    await user.click(screen.getByRole("button", { name: "Save as Template" }));
 
     expect(onSaveTemplate).toHaveBeenCalledWith(
       "Create glass chair with rim light.",
@@ -170,10 +170,10 @@ describe("UnifiedPromptEditor", () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText("完整生成提示"), {
+    fireEvent.change(screen.getByLabelText("Full Generation Prompt"), {
       target: { value: "Edited fallback prompt" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "保存为模板" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save as Template" }));
 
     expect(onSaveTemplate).toHaveBeenCalledWith("Edited fallback prompt");
   });
@@ -189,9 +189,9 @@ describe("UnifiedPromptEditor", () => {
       />,
     );
 
-    expect(screen.getByLabelText("完整生成提示")).toHaveValue("Fallback full prompt");
-    expect(screen.queryByLabelText("模板原文")).not.toBeInTheDocument();
-    expect(screen.getByText("本次没有识别到足够稳定的可替换变量")).toBeVisible();
+    expect(screen.getByLabelText("Full Generation Prompt")).toHaveValue("Fallback full prompt");
+    expect(screen.queryByLabelText("Template Source")).not.toBeInTheDocument();
+    expect(screen.getByText("No stable replaceable variables were detected this time.")).toBeVisible();
   });
 
   it("refreshes text draft when an external prompt replaces the current workspace context", () => {
@@ -210,7 +210,7 @@ describe("UnifiedPromptEditor", () => {
       />,
     );
 
-    expect(screen.getByLabelText("完整生成提示")).toHaveValue(
+    expect(screen.getByLabelText("Full Generation Prompt")).toHaveValue(
       "history restored prompt",
     );
   });

@@ -87,8 +87,8 @@ describe("useUpload", () => {
     expect(result.current.isUploading).toBe(false);
   });
 
-  // 4. R2 上传失败 - P0
-  it("R2 上传失败", async () => {
+  // 4. R2 Upload failed - P0
+  it("R2 Upload failed", async () => {
     globalThis.fetch = vi.fn()
       .mockResolvedValueOnce({
         ok: true,

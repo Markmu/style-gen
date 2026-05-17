@@ -46,8 +46,8 @@ export function ComparisonView({
     return 1; // 默认方形
   };
 
-  // 根据宽高比决定布局模式
-  // 横版（宽高比 > 1.2）并排，竖版（< 0.8）堆叠，方形/接近方形并排
+  // 根据Aspect Ratio决定布局模式
+  // Landscape images sit side by side; portrait images stack.
   const determineLayout = (ratio: number): "side-by-side" | "stacked" => {
     if (ratio < 0.8) return "stacked";
     return "side-by-side";
@@ -56,16 +56,16 @@ export function ComparisonView({
   return (
     <div className="rounded-lg bg-[var(--surface-mid)] p-4 ring-1 ring-[var(--border)]">
       <h3 className="mb-3 text-sm font-semibold text-[var(--text-secondary)]">
-        参考图 vs 生成结果
+        Reference vs Generated Result
       </h3>
       <div className={layoutMode === "side-by-side" ? "grid grid-cols-2 gap-3" : "grid grid-cols-1 gap-3"}>
         {/* Reference image */}
         <div className="space-y-1">
-          <p className="text-xs font-medium text-[var(--text-secondary)]">参考图</p>
+          <p className="text-xs font-medium text-[var(--text-secondary)]">Reference</p>
           <div className="overflow-hidden rounded-lg ring-1 ring-[var(--border)]">
             <Image
               src={referenceImageUrl}
-              alt="参考图"
+              alt="Reference"
               width={512}
               height={512}
               className="h-auto w-full object-contain"
@@ -76,11 +76,11 @@ export function ComparisonView({
 
         {/* Result image */}
         <div className="space-y-1">
-          <p className="text-xs font-medium text-[var(--text-secondary)]">生成结果</p>
+          <p className="text-xs font-medium text-[var(--text-secondary)]">Generated Result</p>
           <div className="overflow-hidden rounded-lg ring-1 ring-[var(--border)]">
             <Image
               src={resultImageUrl}
-              alt="生成结果"
+              alt="Generated Result"
               width={512}
               height={512}
               className="h-auto w-full object-contain"

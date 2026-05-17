@@ -24,7 +24,7 @@ test.describe('Error Path', () => {
 
     // Should show error — the file validation in UploadZone rejects non-image types
     // .txt file has type 'text/plain' which is not in ACCEPTED_TYPES
-    await expect(page.getByText('仅支持 JPG、PNG、WebP 格式的图片')).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText('Only JPG, PNG, and WebP images are supported')).toBeVisible({ timeout: 5000 })
   })
 
   test('分析 API 失败展示错误', async ({ page }) => {
@@ -33,7 +33,7 @@ test.describe('Error Path', () => {
 
     // Mock analysis POST returning 500
     await mockApiError(page, '**/api/analysis', 500, {
-      error: '服务暂时不可用',
+      error: 'Service Temporarily Unavailable',
       code: 'SERVICE_UNAVAILABLE',
       retryable: true,
     })
@@ -43,10 +43,10 @@ test.describe('Error Path', () => {
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
 
     // Should show error display with title (in <p> not heading)
-    await expect(page.getByText('服务暂时不可用').first()).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText('Service Temporarily Unavailable').first()).toBeVisible({ timeout: 15000 })
   })
 
-  test('分析失败后重试', async ({ page }) => {
+  test('分析失败后Retry', async ({ page }) => {
     const taskId = 'mock-analysis-task-id'
     const analysisCompleted = loadFixture('analysis-completed.json')
 
@@ -81,7 +81,7 @@ test.describe('Error Path', () => {
             status: 500,
             contentType: 'application/json',
             body: JSON.stringify({
-              error: '服务暂时不可用',
+              error: 'Service Temporarily Unavailable',
               code: 'SERVICE_UNAVAILABLE',
               retryable: true,
             }),
@@ -111,15 +111,15 @@ test.describe('Error Path', () => {
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
 
     // Wait for error title
-    await expect(page.getByText('服务暂时不可用').first()).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText('Service Temporarily Unavailable').first()).toBeVisible({ timeout: 15000 })
 
     // Click retry
-    const retryBtn = page.getByRole('button', { name: '重试' })
+    const retryBtn = page.getByRole('button', { name: 'Retry' })
     await expect(retryBtn).toBeVisible()
     await retryBtn.click()
 
     // Should eventually show recipe step (analysis completes on retry)
-    await expect(page.getByText('可生成')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText('Ready to Generate')).toBeVisible({ timeout: 15000 })
   })
 
   test('生成 API 失败展示错误', async ({ page }) => {
@@ -133,7 +133,7 @@ test.describe('Error Path', () => {
 
     // Mock generation POST returning 500
     await mockApiError(page, '**/api/generation', 500, {
-      error: '服务暂时不可用',
+      error: 'Service Temporarily Unavailable',
       code: 'SERVICE_UNAVAILABLE',
       retryable: true,
     })
@@ -142,16 +142,16 @@ test.describe('Error Path', () => {
     await page.goto('/workspace')
     const fileInput = page.locator('input[type="file"]')
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
-    await expect(page.getByText('可生成')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText('Ready to Generate')).toBeVisible({ timeout: 15000 })
 
     // Click generate
     await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
 
     // Should show error title (in <p> not heading)
-    await expect(page.getByText('服务暂时不可用').first()).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText('Service Temporarily Unavailable').first()).toBeVisible({ timeout: 15000 })
   })
 
-  test('生成失败保留 Prompt 和重试入口', async ({ page }) => {
+  test('Generation Failed保留 Prompt 和Retry入口', async ({ page }) => {
     const analysisTaskId = 'mock-analysis-task-id'
     const analysisCompleted = loadFixture('analysis-completed.json')
 
@@ -159,7 +159,7 @@ test.describe('Error Path', () => {
     await mockAnalysisCreate(page, analysisTaskId)
     await mockAnalysisPolling(page, analysisTaskId, analysisCompleted)
     await mockApiError(page, '**/api/generation', 500, {
-      error: '服务暂时不可用',
+      error: 'Service Temporarily Unavailable',
       code: 'SERVICE_UNAVAILABLE',
       retryable: true,
     })
@@ -167,15 +167,15 @@ test.describe('Error Path', () => {
     await page.goto('/workspace')
     const fileInput = page.locator('input[type="file"]')
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
-    await expect(page.getByText('可生成')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText('Ready to Generate')).toBeVisible({ timeout: 15000 })
     await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
-    await expect(page.getByText('服务暂时不可用').first()).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText('Service Temporarily Unavailable').first()).toBeVisible({ timeout: 15000 })
 
     // Prompt editor should still be visible — use heading selector to avoid matching degradation message
     await expect(page.getByTestId('unified-prompt-editor')).toBeVisible()
 
     // Prompt text should be preserved
-    const promptTextarea = page.getByLabel('完整生成提示')
+    const promptTextarea = page.getByLabel('Full Generation Prompt')
     await expect(promptTextarea).not.toBeEmpty()
   })
 
@@ -206,6 +206,6 @@ test.describe('Error Path', () => {
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
 
     // Should show rate limit error title
-    await expect(page.getByText('请求过于频繁').first()).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText('Too Many Requests').first()).toBeVisible({ timeout: 15000 })
   })
 })

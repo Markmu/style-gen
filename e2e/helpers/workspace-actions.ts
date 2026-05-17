@@ -60,7 +60,7 @@ export async function uploadAndStartAnalysis(
 
   // Upload file through the visible drop-zone so React's click handler is active.
   const chooserPromise = page.waitForEvent('filechooser')
-  await page.getByText('点击或拖拽上传参考图').click()
+  await page.getByText('Click or drag to upload a reference image').click()
   const chooser = await chooserPromise
   await chooser.setFiles(TEST_IMAGE_PATH)
 
@@ -93,7 +93,7 @@ export async function uploadAndCompleteAnalysis(
   })
 
   // Wait for analysis to complete and generation to become available.
-  await page.getByText('可生成').waitFor({ timeout: 15000 })
+  await page.getByText('Ready to Generate').waitFor({ timeout: 15000 })
 
   return result
 }
@@ -124,7 +124,7 @@ export async function completeFullFlow(
   await generateBtn.click()
 
   // Wait for generation result
-  await page.waitForSelector('text=生成结果', { timeout: 15000 })
+  await page.waitForSelector('text=Generated Result', { timeout: 15000 })
 
   return { ...result, generationTaskId: genTaskId }
 }

@@ -110,7 +110,7 @@ describe("checkRateLimit", () => {
       checkRateLimit("1.1.1.1", "upload", DEFAULT_CONFIG);
     }
 
-    // 第 10 次请求应仍允许，remaining 为 0
+    // 第 10 times请求应仍允许，remaining 为 0
     const result = checkRateLimit("1.1.1.1", "upload", DEFAULT_CONFIG);
     expect(result.allowed).toBe(true);
     expect(result.remaining).toBe(0);

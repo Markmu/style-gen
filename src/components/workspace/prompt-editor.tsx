@@ -15,7 +15,7 @@ export function PromptEditor({
   onPromptChange,
   onNegativePromptChange,
   disabled = false,
-  title = "Prompt 编辑",
+  title = "Prompt Editor",
 }: PromptEditorProps) {
   return (
     <div className="space-y-4 rounded-xl bg-[var(--surface-mid)] p-5 ring-1 ring-[var(--border)]">
@@ -28,7 +28,7 @@ export function PromptEditor({
         >
           Prompt{" "}
           <span className="text-[var(--text-secondary)]/60 text-xs font-normal">
-            （AI 生成指令）
+            (AI generation instructions)
           </span>
         </label>
         <textarea
@@ -38,7 +38,7 @@ export function PromptEditor({
           disabled={disabled}
           rows={6}
           className="w-full resize-y rounded-lg border border-[var(--border)] bg-[var(--surface-low)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-secondary)]/50 transition-colors focus:border-[var(--accent-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)] disabled:cursor-not-allowed disabled:opacity-50"
-          placeholder="AI 生成的 Prompt 将在此处显示，你可以自由编辑..."
+          placeholder="The AI-generated prompt will appear here. You can edit it freely..."
         />
       </div>
 
@@ -49,7 +49,7 @@ export function PromptEditor({
         >
           Negative Prompt{" "}
           <span className="text-[var(--text-secondary)]/60 text-xs font-normal">
-            （排除的元素）
+            (elements to exclude)
           </span>
         </label>
         <textarea
@@ -59,7 +59,7 @@ export function PromptEditor({
           disabled={disabled}
           rows={3}
           className="w-full resize-y rounded-lg border border-[var(--border)] bg-[var(--surface-low)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-secondary)]/50 transition-colors focus:border-[var(--accent-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)] disabled:cursor-not-allowed disabled:opacity-50"
-          placeholder="负面提示词..."
+          placeholder="Negative prompt..."
         />
       </div>
     </div>

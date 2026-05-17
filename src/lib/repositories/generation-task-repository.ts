@@ -151,7 +151,7 @@ export interface GenerationTaskDetail {
 }
 
 /**
- * 列出用户已完成的生成任务（历史列表）
+ * 列出用户Done的Generation Task（历史列表）
  * cursor 分页：基于 created_at + id 组合游标
  */
 export async function listCompleted(
@@ -213,7 +213,7 @@ export async function listCompleted(
 }
 
 /**
- * 根据 ID 查询生成任务详情（含关联 Recipe）
+ * 根据 ID 查询Generation Task详情（含关联 Recipe）
  * LEFT JOIN analysis_tasks 获取 recipe
  */
 export async function findByIdWithRecipe(

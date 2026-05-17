@@ -53,7 +53,7 @@ describe("GeneratePanel", () => {
     });
   });
 
-  it("切换宽高比 - click '16:9' then generate", async () => {
+  it("切换Aspect Ratio - click '16:9' then generate", async () => {
     const onGenerate = vi.fn();
     const user = userEvent.setup();
 
@@ -70,7 +70,7 @@ describe("GeneratePanel", () => {
     });
   });
 
-  it("切换画质 - click '高清' then generate", async () => {
+  it("切换Quality - click 'HD' then generate", async () => {
     const onGenerate = vi.fn();
     const user = userEvent.setup();
 
@@ -78,7 +78,7 @@ describe("GeneratePanel", () => {
       <GeneratePanel workspaceState="analysis_ready" onGenerate={onGenerate} />,
     );
 
-    await user.click(screen.getByRole("button", { name: "高清" }));
+    await user.click(screen.getByRole("button", { name: "HD" }));
     await user.click(screen.getByRole("button", { name: "GENERATE" }));
 
     expect(onGenerate).toHaveBeenCalledWith({
@@ -87,7 +87,7 @@ describe("GeneratePanel", () => {
     });
   });
 
-  it("渲染所有宽高比选项 (5 buttons)", () => {
+  it("渲染所有Aspect Ratio选项 (5 buttons)", () => {
     render(
       <GeneratePanel workspaceState="analysis_ready" onGenerate={noop} />,
     );

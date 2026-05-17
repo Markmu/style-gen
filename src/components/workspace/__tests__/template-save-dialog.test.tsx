@@ -22,14 +22,14 @@ describe("TemplateSaveDialog", () => {
       />,
     );
 
-    const dialog = screen.getByRole("dialog", { name: "保存为模板" });
+    const dialog = screen.getByRole("dialog", { name: "Save as Template" });
     expect(dialog).toHaveClass("max-h-[calc(100vh-2rem)]", "overflow-hidden", "max-w-4xl");
 
     expect(screen.getByTestId("template-save-variable-grid")).toHaveClass("sm:grid-cols-2");
     expect(screen.getByText("Subject")).toBeInTheDocument();
     expect(screen.getByText("scene")).toBeInTheDocument();
-    expect(screen.getByLabelText("识别变量 subject")).toHaveValue("glass fox");
-    expect(screen.getByLabelText("识别变量 scene")).toHaveValue("neon garden");
+    expect(screen.getByLabelText("Detected variable subject")).toHaveValue("glass fox");
+    expect(screen.getByLabelText("Detected variable scene")).toHaveValue("neon garden");
   });
 
   it("submits initial variables and sourceAnalysisTaskId", async () => {
@@ -57,8 +57,8 @@ describe("TemplateSaveDialog", () => {
       />,
     );
 
-    await user.type(screen.getByLabelText("模板名称"), "Saved");
-    await user.click(screen.getByRole("button", { name: "保存模板" }));
+    await user.type(screen.getByLabelText("Template Name"), "Saved");
+    await user.click(screen.getByRole("button", { name: "Save Template" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
     const body = JSON.parse(fetchMock.mock.calls[0][1]?.body as string);

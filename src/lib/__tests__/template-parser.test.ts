@@ -8,12 +8,12 @@ import {
 
 describe("template-parser", () => {
   describe("extractVariables", () => {
-    it("提取单个变量", () => {
+    it("提取单个Variables", () => {
       const result = extractVariables("Hello {{name}}!");
       expect(result).toEqual([{ name: "name", defaultValue: "" }]);
     });
 
-    it("提取多个变量（按首次出现顺序）", () => {
+    it("提取多个Variables（按首次出现顺序）", () => {
       const result = extractVariables(
         "Hello {{name}}, welcome to {{place}}!"
       );
@@ -23,7 +23,7 @@ describe("template-parser", () => {
       ]);
     });
 
-    it("去重：重复出现的变量只返回一次", () => {
+    it("去重：重复出现的Variables只返回一次", () => {
       const result = extractVariables(
         "Hi {{name}}, {{name}} is here"
       );
@@ -35,17 +35,17 @@ describe("template-parser", () => {
       expect(result).toEqual([]);
     });
 
-    it("无变量的文本返回空数组", () => {
+    it("无Variables的文本返回空数组", () => {
       const result = extractVariables("No variables here");
       expect(result).toEqual([]);
     });
 
-    it("支持下划线开头的变量名", () => {
+    it("支持下划线开头的Variable name", () => {
       const result = extractVariables("Value: {{_private}}");
       expect(result).toEqual([{ name: "_private", defaultValue: "" }]);
     });
 
-    it("支持包含数字的变量名（非首字符）", () => {
+    it("支持包含数字的Variable name（非首字符）", () => {
       const result = extractVariables("Item: {{item1}}, Count: {{count2}}");
       expect(result).toEqual([
         { name: "item1", defaultValue: "" },
@@ -53,17 +53,17 @@ describe("template-parser", () => {
       ]);
     });
 
-    it("忽略非法格式的变量名（数字开头）", () => {
+    it("忽略非法格式的Variable name（数字开头）", () => {
       const result = extractVariables("Bad: {{123bad}}, Good: {{good}}");
       expect(result).toEqual([{ name: "good", defaultValue: "" }]);
     });
 
-    it("忽略非法格式的变量名（含特殊字符）", () => {
+    it("忽略非法格式的Variable name（含特殊字符）", () => {
       const result = extractVariables("Bad: {{bad-name}}, Good: {{good_name}}");
       expect(result).toEqual([{ name: "good_name", defaultValue: "" }]);
     });
 
-    it("处理大量变量 (>20)", () => {
+    it("处理大量Variable (>20)", () => {
       const parts: string[] = [];
       for (let i = 0; i < 25; i++) {
         parts.push(`{{var${i}}}`);
@@ -85,12 +85,12 @@ describe("template-parser", () => {
   });
 
   describe("replaceVariables", () => {
-    it("替换单个变量", () => {
+    it("替换单个Variables", () => {
       const result = replaceVariables("Hello {{name}}!", { name: "Alice" });
       expect(result).toBe("Hello Alice!");
     });
 
-    it("替换多个变量", () => {
+    it("替换多个Variables", () => {
       const result = replaceVariables(
         "{{greeting}} {{name}}, welcome to {{place}}!",
         { greeting: "Hi", name: "Bob", place: "Tokyo" }
@@ -106,7 +106,7 @@ describe("template-parser", () => {
       expect(result).toBe("Hi Alice, Alice is here");
     });
 
-    it("长变量名优先替换，避免短名误替换子串", () => {
+    it("长Variable name优先替换，避免短名误替换子串", () => {
       const result = replaceVariables(
         "{{long_name}} and {{name}}",
         { long_name: "LONG", name: "SHORT" }
@@ -114,7 +114,7 @@ describe("template-parser", () => {
       expect(result).toBe("LONG and SHORT");
     });
 
-    it("values 中缺少的变量不替换（保留原标记）", () => {
+    it("values 中缺少的Variables不替换（保留原标记）", () => {
       const result = replaceVariables("{{a}} and {{b}}", { a: "A" });
       expect(result).toBe("A and {{b}}");
     });
@@ -124,19 +124,19 @@ describe("template-parser", () => {
       expect(result).toBe("Hello {{name}}!");
     });
 
-    it("无变量文本原样返回", () => {
+    it("无Variables文本原样返回", () => {
       const result = replaceVariables("Plain text", { name: "x" });
       expect(result).toBe("Plain text");
     });
 
-    it("变量值含特殊正则字符不被转义影响", () => {
+    it("Variables值含特殊正则字符不被转义影响", () => {
       const result = replaceVariables("Price: {{price}}", {
         price: "$100.00",
       });
       expect(result).toBe("Price: $100.00");
     });
 
-    it("变量值含括号字符正常替换", () => {
+    it("Variables值含括号字符正常替换", () => {
       const result = replaceVariables("Expr: {{expr}}", {
         expr: "(a + b)",
       });
@@ -145,7 +145,7 @@ describe("template-parser", () => {
   });
 
   describe("mergeVariableValues", () => {
-    it("按模板首次出现顺序保留已有变量并新增空值", () => {
+    it("按模板首次出现顺序保留已有Variables并新增空值", () => {
       const result = mergeVariableValues("{{subject}} with {{lighting}} and {{subject}}", {
         subject: "glass chair",
         removed: "unused",
@@ -159,7 +159,7 @@ describe("template-parser", () => {
   });
 
   describe("mergeTemplateVariables", () => {
-    it("按正文变量顺序保留默认值和元信息", () => {
+    it("按正文Variables顺序保留默认值和元信息", () => {
       const result = mergeTemplateVariables("{{scene}} with {{subject}}", [
         { name: "subject", defaultValue: "glass chair", label: "Subject", sourceField: "subject" },
         { name: "scene", defaultValue: "white studio", label: "Scene", sourceField: "scene" },
@@ -171,7 +171,7 @@ describe("template-parser", () => {
       ]);
     });
 
-    it("丢弃正文外变量、重复变量和非法 sourceField", () => {
+    it("丢弃正文外Variables、重复Variables和非法 sourceField", () => {
       const result = mergeTemplateVariables("{{subject}}", [
         { name: "subject", defaultValue: "first", label: "Subject", sourceField: "subject" },
         { name: "subject", defaultValue: "second", label: "Duplicate", sourceField: "scene" },
@@ -184,7 +184,7 @@ describe("template-parser", () => {
       ]);
     });
 
-    it("未提供变量时按旧行为生成空默认值", () => {
+    it("未提供Variables时按旧行为生成Empty default", () => {
       const result = mergeTemplateVariables("{{subject}} and {{lighting}}");
 
       expect(result).toEqual([
@@ -195,11 +195,11 @@ describe("template-parser", () => {
   });
 
   describe("hasVariables", () => {
-    it("含变量时返回 true", () => {
+    it("含Variables时返回 true", () => {
       expect(hasVariables("Hello {{name}}!")).toBe(true);
     });
 
-    it("不含变量时返回 false", () => {
+    it("不含Variables时返回 false", () => {
       expect(hasVariables("No variables")).toBe(false);
     });
 

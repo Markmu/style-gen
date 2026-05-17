@@ -36,7 +36,7 @@ function getImageDimensions(
     };
     img.onerror = () => {
       URL.revokeObjectURL(img.src);
-      reject(new Error("无法加载图片"));
+      reject(new Error("Unable to load image"));
     };
     img.src = typeof file === "string" ? file : URL.createObjectURL(file);
   });
@@ -96,8 +96,8 @@ function WorkspacePageInner() {
         setResolvedPromptText(template.content);
         ws.setPromptText(template.content);
       } catch {
-        // 模板不存在或加载失败，静默处理（不阻塞用户）
-        console.error("加载模板失败:", templateId);
+        // Template not found或加载失败，静默处理（不阻塞用户）
+        console.error("Failed to load template:", templateId);
       } finally {
         if (!aborted) {
           router.replace("/workspace");
@@ -213,7 +213,7 @@ function WorkspacePageInner() {
       );
     } else if (analysisData.status === "failed") {
       ws.failAnalysis(
-        analysisData.errorMessage ?? "分析失败",
+        analysisData.errorMessage ?? "Analysis Failed",
         analysisData.errorStage ?? undefined,
       );
     }
@@ -230,10 +230,10 @@ function WorkspacePageInner() {
     if (generationData.status === "completed" && generationData.resultFileUrl) {
       ws.completeGeneration(generationData.resultFileUrl);
       setGenerationDialogOpen(true);
-      // FEAT-02: 生成完成后刷新历史列表
+      // FEAT-02: Generation Complete后刷新历史列表
       queryClient.invalidateQueries({ queryKey: ["generation-history"] });
     } else if (generationData.status === "failed") {
-      ws.failGeneration(generationData.errorMessage ?? "生成失败");
+      ws.failGeneration(generationData.errorMessage ?? "Generation Failed");
       setGenerationDialogOpen(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -250,12 +250,12 @@ function WorkspacePageInner() {
         retryable?: boolean;
       };
       return {
-        error: data.error ?? "请求失败",
+        error: data.error ?? "Request failed",
         code: data.code,
         retryable: data.retryable,
       };
     } catch {
-      return { error: "请求失败" };
+      return { error: "Request failed" };
     }
   };
 
@@ -292,7 +292,7 @@ function WorkspacePageInner() {
         ws.startAnalysis(analysisTask.id);
       } catch (err) {
         ws.failAnalysis(
-          err instanceof Error ? err.message : "上传失败",
+          err instanceof Error ? err.message : "Upload failed",
         );
       }
     },
@@ -339,7 +339,7 @@ function WorkspacePageInner() {
         ws.startAnalysis(analysisTask.id);
       } catch (err) {
         ws.failAnalysis(
-          err instanceof Error ? err.message : "重试失败",
+          err instanceof Error ? err.message : "Retry failed",
         );
       }
     })();
@@ -350,7 +350,7 @@ function WorkspacePageInner() {
     async (params: { aspectRatio: AspectRatio; quality: Quality }) => {
       if (!ws.analysisTaskId) {
         setGenerationDialogOpen(true);
-        ws.setError("缺少分析任务，请重新分析后再生成", "generation");
+        ws.setError("Missing analysis task. Please analyze again before generating.", "generation");
         return;
       }
       const prompt = (resolvedPromptText || ws.promptText).trim();
@@ -385,7 +385,7 @@ function WorkspacePageInner() {
         ws.startGeneration(task.id);
       } catch (err) {
         ws.failGeneration(
-          err instanceof Error ? err.message : "生成请求失败",
+          err instanceof Error ? err.message : "Generation request failed",
         );
       }
     },
@@ -444,7 +444,7 @@ function WorkspacePageInner() {
         );
       } catch (err) {
         // Toast 提示错误（简单 console.warn，后续可接入 toast 系统）
-        console.error("历史恢复失败:", err instanceof Error ? err.message : err);
+        console.error("Failed to restore history:", err instanceof Error ? err.message : err);
       }
     },
     [restoreHistory, ws]
@@ -452,9 +452,9 @@ function WorkspacePageInner() {
 
   return (
     <div className="flex h-full overflow-hidden">
-      {/* 中央工作区 */}
+      {/* 中央Workspace */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <h1 className="sr-only">工作区</h1>
+        <h1 className="sr-only">Workspace</h1>
 
         {/* Compact StatusBar */}
         <StatusBar
@@ -550,7 +550,7 @@ function WorkspacePageInner() {
 /** Suspense boundary for useSearchParams() (Next.js 15 requirement) */
 export default function WorkspacePage() {
   return (
-    <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-[var(--text-secondary)]">加载中...</div>}>
+    <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-[var(--text-secondary)]">Loading...</div>}>
       <WorkspacePageInner />
     </Suspense>
   );

@@ -49,9 +49,9 @@ export default auth((req) => {
   const session = req.auth;
 
   // 0. L3 降级：认证配置开关（架构 8.2 + 结论 5）
-  // AUTH_REQUIRED 默认 true；设为 "false" 时跳过所有认证检查，回退到 01 期匿名模式
+  // AUTH_REQUIRED defaults to true; "false" skips auth checks for anonymous mode.
   if (process.env.AUTH_REQUIRED === "false") {
-    // 仅保留限流逻辑，跳过认证
+    // 仅保留限流逻辑，Skip认证
     if (req.method === "POST") {
       const action = ROUTE_ACTION_MAP[pathname];
       if (action) {
@@ -113,7 +113,7 @@ export default auth((req) => {
     if (action) {
       const config = RATE_LIMIT_CONFIGS[action];
       if (config) {
-        // ADR-12: 已登录用 userId，未登录用 IP
+        // ADR-12: 已Log in用 userId，未Log in用 IP
         const identifier = session?.user?.id ?? getClientIp(req);
         const result = checkRateLimit(identifier, action, config);
         if (!result.allowed) {

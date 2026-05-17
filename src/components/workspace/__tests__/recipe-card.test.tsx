@@ -21,12 +21,12 @@ const mockRecipe: VisualRecipe = {
 };
 
 describe("RecipeCard", () => {
-  // 1. 渲染核心摘要区域 - P0
-  it("渲染核心摘要区域", () => {
+  // 1. 渲染Core Summary区域 - P0
+  it("渲染Core Summary区域", () => {
     render(<RecipeCard recipe={mockRecipe} />);
 
-    expect(screen.getByText("核心摘要")).toBeInTheDocument();
-    expect(screen.getByText("视觉配方")).toBeInTheDocument();
+    expect(screen.getByText("Core Summary")).toBeInTheDocument();
+    expect(screen.getByText("Visual Recipe")).toBeInTheDocument();
   });
 
   // 2. 渲染字段值 - P0
@@ -60,7 +60,7 @@ describe("RecipeCard", () => {
     }).not.toThrow();
 
     // Core sections still render
-    expect(screen.getByText("核心摘要")).toBeInTheDocument();
-    expect(screen.getByText("视觉配方")).toBeInTheDocument();
+    expect(screen.getByText("Core Summary")).toBeInTheDocument();
+    expect(screen.getByText("Visual Recipe")).toBeInTheDocument();
   });
 });

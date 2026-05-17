@@ -13,8 +13,8 @@ interface TemplateCardProps {
 
 /**
  * 模板卡片组件
- * - 固定宽高比（约 3:4），CSS Grid 自适应
- * - Hover 时浮现 "Use Template" 按钮
+ * - 固定Aspect Ratio（约 3:4），CSS Grid 自适应
+ * - Reveals the "Use Template" button on hover
  * - 右上角 overflow menu（Edit / Duplicate / Delete）
  */
 export function TemplateCard({
@@ -67,7 +67,7 @@ export function TemplateCard({
               setActionMenuId(actionMenuId === template.id ? null : template.id)
             }
             className="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--surface-base)]/80 text-[var(--text-secondary)] opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100 hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)]"
-            aria-label="更多操作"
+            aria-label="More actions"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -103,7 +103,7 @@ export function TemplateCard({
                     }}
                     className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-mid)]"
                   >
-                    编辑
+                    Edit
                   </button>
                 )}
                 {onDuplicate && (
@@ -113,7 +113,7 @@ export function TemplateCard({
                     disabled={duplicating}
                     className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-mid)] disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {duplicating ? "复制中..." : "复制"}
+                    {duplicating ? "Duplicating..." : "Duplicate"}
                   </button>
                 )}
                 {onDelete && (
@@ -124,7 +124,7 @@ export function TemplateCard({
                     }}
                     className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-red-400 transition-colors hover:bg-red-500/10"
                   >
-                    删除
+                    Delete
                   </button>
                 )}
               </div>
@@ -139,7 +139,7 @@ export function TemplateCard({
               description
             </span>
             <span className="text-xs text-[var(--text-secondary)]/40">
-              无预览图
+              No preview
             </span>
           </div>
 
@@ -166,24 +166,24 @@ export function TemplateCard({
           <div className="mt-auto flex flex-wrap gap-1">
             {template.variableCount > 0 && (
               <span className="inline-block rounded-full bg-[var(--surface-bright)] px-2 py-0.5 text-xs text-[var(--text-secondary)]">
-                {template.variableCount} 个变量
+                {template.variableCount} variables
               </span>
             )}
           </div>
         </div>
       </div>
 
-      {/* 删除确认 dialog */}
+      {/* DeleteConfirm dialog */}
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div
             className="w-full max-w-sm rounded-xl bg-[var(--surface-mid)] p-5 ring-1 ring-[var(--border)] shadow-xl"
             role="alertdialog"
             aria-modal="true"
-            aria-label="确认删除"
+            aria-label="Confirm Delete"
           >
             <p className="mb-4 text-sm text-[var(--text-primary)]">
-              确定删除模板&ldquo;{template.name}&rdquo;？删除后不可恢复。
+              Delete template &ldquo;{template.name}&rdquo;? This cannot be undone.
             </p>
             <div className="flex justify-end gap-2">
               <button
@@ -191,7 +191,7 @@ export function TemplateCard({
                 onClick={() => setDeleteTarget(false)}
                 className="rounded-lg px-3 py-1.5 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)]"
               >
-                取消
+                Cancel
               </button>
               <button
                 type="button"
@@ -199,7 +199,7 @@ export function TemplateCard({
                 disabled={deleting}
                 className="rounded-lg px-3 py-1.5 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {deleting ? "删除中..." : "删除"}
+                {deleting ? "Deleting..." : "Delete"}
               </button>
             </div>
           </div>

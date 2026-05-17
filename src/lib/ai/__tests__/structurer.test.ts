@@ -153,7 +153,7 @@ describe("structurer", () => {
       );
     });
 
-    it("超时 30 秒后抛出 StructurerError", async () => {
+    it("超时 30s后抛出 StructurerError", async () => {
       vi.useFakeTimers();
 
       mockGenerateContent.mockReturnValue(new Promise(() => {}));
@@ -401,7 +401,7 @@ describe("structurer", () => {
       expect(result.analysisTemplateReason).toContain("missing");
     });
 
-    it("过滤正文外变量并按模板正文首次出现顺序渲染默认值", async () => {
+    it("过滤正文外Variables并按模板正文首次出现顺序渲染默认值", async () => {
       mockValidResponse({
         promptText: "Provider prompt",
         analysisTemplateContent: "{{lighting}} around {{subject}}.",
@@ -423,7 +423,7 @@ describe("structurer", () => {
       expect(result.promptText).toBe("soft daylight around glass chair.");
     });
 
-    it("模板正文过长时 fallback 且不透传正文和变量", async () => {
+    it("模板正文过长时 fallback 且不透传正文和Variables", async () => {
       mockValidResponse({
         analysisTemplateContent: `{{subject}} ${"x".repeat(6001)}`,
         analysisTemplateVariables: [

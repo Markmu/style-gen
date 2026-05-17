@@ -32,10 +32,10 @@ export function AnalysisProgress({
   if (error) {
     return (
       <div className="rounded-xl border border-[var(--color-error)]/30 bg-[var(--color-error)]/10 p-6">
-        <p className="font-medium text-[var(--color-error)]">分析失败</p>
+        <p className="font-medium text-[var(--color-error)]">Analysis Failed</p>
         {error.stage && (
           <p className="mt-1 text-sm text-[var(--color-error)]/80">
-            阶段：{error.stage === "vision" ? "视觉理解" : "LLM 结构化"}
+            Stage: {error.stage === "vision" ? "Vision Understanding" : "LLM Structuring"}
           </p>
         )}
         <p className="mt-2 text-sm text-[var(--color-error)]/80">{error.message}</p>
@@ -44,7 +44,7 @@ export function AnalysisProgress({
           onClick={onRetry}
           className="mt-4 rounded-lg bg-[var(--color-error)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--color-error)]/80"
         >
-          重新分析
+          Analyze Again
         </button>
       </div>
     );
@@ -56,9 +56,9 @@ export function AnalysisProgress({
     <div className="flex flex-col items-center gap-4 rounded-xl border border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/5 p-6">
       <div className="flex items-center gap-3">
         <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--accent-primary)] border-t-transparent" />
-        <p className="font-medium text-[var(--accent-primary)]">AI 正在分析图片风格...</p>
+        <p className="font-medium text-[var(--accent-primary)]">AI is analyzing the image style...</p>
       </div>
-      <p className="text-sm text-[var(--accent-primary)]/70">已用时 {elapsed} 秒</p>
+      <p className="text-sm text-[var(--accent-primary)]/70">Elapsed {elapsed}s</p>
     </div>
   );
 }

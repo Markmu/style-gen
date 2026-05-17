@@ -3,9 +3,9 @@
 type RetryType = "analysis" | "generation";
 
 interface RetryButtonProps {
-  /** 重试类型：分析 or 生成 */
+  /** Retry类型：分析 or 生成 */
   type: RetryType;
-  /** 重试回调 */
+  /** Retry回调 */
   onRetry: () => void;
   /** 是否禁用（如降级状态下） */
   disabled?: boolean;
@@ -19,7 +19,7 @@ export function RetryButton({
   disabled = false,
   disabledReason,
 }: RetryButtonProps) {
-  const label = type === "analysis" ? "重新分析" : "重新生成";
+  const label = type === "analysis" ? "Analyze Again" : "Regenerate";
 
   return (
     <div className="flex flex-col gap-1">

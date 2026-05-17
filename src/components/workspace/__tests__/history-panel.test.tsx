@@ -45,18 +45,18 @@ describe("HistoryPanel", () => {
     vi.unstubAllGlobals();
   });
 
-  it("默认收起且不展示历史记录内容", () => {
+  it("默认收起且不展示History内容", () => {
     const { container } = render(<HistoryPanel />);
 
     expect(mockUseHistoryList).toHaveBeenCalledWith(false);
     expect(screen.queryByRole("heading", { name: "History" })).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "展开历史记录" }),
+      screen.getByRole("button", { name: "Expand history" }),
     ).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByText("刚刚")).not.toBeInTheDocument();
+    expect(screen.queryByText("Just now")).not.toBeInTheDocument();
     expect(container.firstElementChild).toHaveClass("w-10");
     expect(container.firstElementChild).not.toHaveClass("absolute");
-    expect(screen.getByRole("button", { name: "展开历史记录" })).not.toHaveClass(
+    expect(screen.getByRole("button", { name: "Expand history" })).not.toHaveClass(
       "rounded-r-none",
     );
     expect(container.querySelector(".h-full.w-10")).toBeInTheDocument();
@@ -66,17 +66,17 @@ describe("HistoryPanel", () => {
     const user = userEvent.setup();
     const { container } = render(<HistoryPanel />);
 
-    await user.click(screen.getByRole("button", { name: "展开历史记录" }));
+    await user.click(screen.getByRole("button", { name: "Expand history" }));
 
     expect(mockUseHistoryList).toHaveBeenLastCalledWith(true);
     expect(screen.getByRole("heading", { name: "History" })).toBeInTheDocument();
     expect(container.firstElementChild).toHaveClass("w-72");
 
-    await user.click(screen.getByRole("button", { name: "收起历史记录" }));
+    await user.click(screen.getByRole("button", { name: "Collapse history" }));
 
     expect(screen.queryByRole("heading", { name: "History" })).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "展开历史记录" }),
+      screen.getByRole("button", { name: "Expand history" }),
     ).toHaveAttribute("aria-expanded", "false");
     expect(container.firstElementChild).toHaveClass("w-10");
   });
@@ -86,8 +86,8 @@ describe("HistoryPanel", () => {
     const onRestore = vi.fn();
     render(<HistoryPanel onRestore={onRestore} />);
 
-    await user.click(screen.getByRole("button", { name: "展开历史记录" }));
-    await user.click(screen.getByRole("button", { name: /刚刚|分钟前/ }));
+    await user.click(screen.getByRole("button", { name: "Expand history" }));
+    await user.click(screen.getByRole("button", { name: /Just now|m ago/ }));
 
     expect(onRestore).toHaveBeenCalledWith("history-1");
   });

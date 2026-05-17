@@ -43,15 +43,15 @@ export interface WorkspaceError {
   stage?: string;
   /** T09 统一错误码 */
   code?: string;
-  /** 是否可重试 */
+  /** 是否可Retry */
   retryable?: boolean;
 }
 
 /** 降级状态 */
 export interface DegradationState {
-  /** L1: 轮询超过 60 秒，展示排队提示 */
+  /** L1: 轮询超过 60s，展示排队提示 */
   analysisQueueing: boolean;
-  /** L1: 生成轮询超过 60 秒，展示排队提示 */
+  /** L1: 生成轮询超过 60s，展示排队提示 */
   generationQueueing: boolean;
   /** L2: 生成服务不可用（SERVICE_UNAVAILABLE） */
   generationUnavailable: boolean;
@@ -86,7 +86,7 @@ interface WorkspaceAnalysisTemplatePayload {
   analysisTemplateReason: string | null;
 }
 
-const EMPTY_TEMPLATE_FALLBACK_REASON = "未识别到足够稳定的可替换变量";
+const EMPTY_TEMPLATE_FALLBACK_REASON = "No stable replaceable variables were detected";
 
 function normalizeAnalysisTemplatePayload(
   template: WorkspaceAnalysisTemplatePayload | undefined,
@@ -163,14 +163,14 @@ function loadPersistedState(): Partial<WorkspacePersistedState> | null {
 
     // 版本检查：未来可在此处处理数据迁移
     if (data.version !== STORAGE_VERSION) {
-      console.warn(`[workspace] 版本不匹配，清除旧数据: ${data.version} !== ${STORAGE_VERSION}`);
+      console.warn(`[workspace] Storage version mismatch, clearing stale data: ${data.version} !== ${STORAGE_VERSION}`);
       sessionStorage.removeItem(STORAGE_KEY);
       return null;
     }
 
     return data;
   } catch (err) {
-    console.error("[workspace] 读取 sessionStorage 失败:", err);
+    console.error("[workspace] Failed to read sessionStorage:", err);
     // 静默清理损坏的数据
     try {
       sessionStorage.removeItem(STORAGE_KEY);
@@ -201,7 +201,7 @@ function createPersistWriter() {
       try {
         sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       } catch (err) {
-        console.error("[workspace] 写入 sessionStorage 失败:", err);
+        console.error("[workspace] Failed to write sessionStorage:", err);
       }
       timeoutId = null;
     }, 300);
@@ -226,7 +226,7 @@ function clearPersistedState(): void {
     persistState.cancel();
     sessionStorage.removeItem(STORAGE_KEY);
   } catch (err) {
-    console.error("[workspace] 清除 sessionStorage 失败:", err);
+    console.error("[workspace] Failed to clear sessionStorage:", err);
   }
 }
 
@@ -240,7 +240,7 @@ function restoreFromPersistedState(
   }
 
   return {
-    state: "analysis_ready", // 恢复后直接进入分析完成状态
+    state: "analysis_ready", // Resume directly into the analysis-complete state.
     assetId: persisted.assetId,
     referenceImageUrl: persisted.referenceImageUrl,
     analysisTaskId: persisted.analysisTaskId ?? null,
@@ -302,7 +302,7 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
       if (persisted) {
         const restored = restoreFromPersistedState(persisted);
         if (restored) {
-          console.log("[workspace] 从 sessionStorage 恢复状态");
+          console.log("[workspace] Restored state from sessionStorage");
           return restored;
         }
       }
@@ -526,7 +526,7 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // 初次渲染只完成恢复/初始化，不立即回写，避免覆盖已恢复状态。
+    // 初次渲染只Done恢复/初始化，不立即回写，避免覆盖已恢复状态。
     if (!didSkipInitialPersistRef.current) {
       didSkipInitialPersistRef.current = true;
       return;

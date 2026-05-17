@@ -3,7 +3,7 @@
  *
  * 由于 middleware 使用 Auth.js 的 auth() 包裹器，且 next-auth 在 Vitest
  * 环境中无法正常加载 (依赖 next/server)，本测试通过设置
- * AUTH_REQUIRED=false 环境变量测试限流逻辑（降级模式）。
+ * AUTH_REQUIRED=false 环境Variables测试限流逻辑（降级模式）。
  *
  * Auth 相关行为由 E2E 测试 (e2e/auth.spec.ts) 覆盖。
  */
@@ -243,7 +243,7 @@ describe("middleware - 认证逻辑", () => {
     }
   });
 
-  it("AUTH_REQUIRED 默认时，未登录 API 请求返回 401", async () => {
+  it("AUTH_REQUIRED 默认时，未Log in API 请求返回 401", async () => {
     const request = makeRequest("/api/analysis", { auth: null });
     const response = middleware(request);
 
@@ -257,7 +257,7 @@ describe("middleware - 认证逻辑", () => {
     });
   });
 
-  it("AUTH_REQUIRED=false 时，未登录 API 请求放行", () => {
+  it("AUTH_REQUIRED=false 时，未Log in API 请求放行", () => {
     process.env.AUTH_REQUIRED = "false";
     const request = makeRequest("/api/analysis", { auth: null });
     const response = middleware(request);
@@ -265,7 +265,7 @@ describe("middleware - 认证逻辑", () => {
     expect(response?.status).not.toBe(401);
   });
 
-  it("已登录时 API 请求放行", () => {
+  it("已Log in时 API 请求放行", () => {
     const request = makeRequest("/api/analysis", {
       auth: { user: { id: "user-123" } },
     });
@@ -274,7 +274,7 @@ describe("middleware - 认证逻辑", () => {
     expect(response?.status).not.toBe(401);
   });
 
-  it("已登录时限流 key 使用 userId 而非 IP", () => {
+  it("已Log in时限流 key 使用 userId 而非 IP", () => {
     const request = makeRequest("/api/analysis", {
       auth: { user: { id: "user-123" } },
     });

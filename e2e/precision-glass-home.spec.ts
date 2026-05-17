@@ -9,14 +9,14 @@ test.describe('FEAT-03 Precision Glass home', () => {
     await page.goto('/')
 
     await expect(
-      page.getByRole('heading', { level: 1, name: /参考图风格再创作/ }),
+      page.getByRole('heading', { level: 1, name: /Reference Image Style Recreation/ }),
     ).toBeVisible()
-    await expect(page.getByRole('link', { name: /开始创作/ }).first()).toBeVisible()
-    await expect(page.getByRole('link', { name: /模板库/ }).first()).toBeVisible()
-    await expect(page.getByText('Reference')).toBeVisible()
-    await expect(page.getByText('Recipe')).toBeVisible()
-    await expect(page.getByText('Render')).toBeVisible()
-    await expect(page.getByText('点击或拖拽上传参考图')).toBeVisible()
+    await expect(page.getByRole('link', { name: /Start Creating/ }).first()).toBeVisible()
+    await expect(page.getByRole('link', { name: /Template Library/ }).first()).toBeVisible()
+    await expect(page.getByText('Reference', { exact: true })).toBeVisible()
+    await expect(page.getByText('Recipe', { exact: true })).toBeVisible()
+    await expect(page.getByText('Render', { exact: true })).toBeVisible()
+    await expect(page.getByText('Click or drag to upload a reference image')).toBeVisible()
   })
 
   test('invalid upload stays in place and offers recovery', async ({ page }) => {
@@ -29,8 +29,8 @@ test.describe('FEAT-03 Precision Glass home', () => {
       buffer: Buffer.from('not an image'),
     })
 
-    await expect(page.getByText('仅支持 JPG、PNG、WebP 格式的图片')).toBeVisible()
-    await expect(page.getByRole('button', { name: /重新选择/ })).toBeVisible()
+    await expect(page.getByText('Only JPG, PNG, and WebP images are supported')).toBeVisible()
+    await expect(page.getByRole('button', { name: /Choose Again/ })).toBeVisible()
     await expect(page).toHaveURL(/\/$/)
   })
 
@@ -44,7 +44,9 @@ test.describe('FEAT-03 Precision Glass home', () => {
       )
 
       expect(hasHorizontalOverflow).toBe(false)
-      await expect(page.getByText(/三步完成|Surface -> State -> Action/)).toBeVisible()
+      await expect(
+        page.getByRole('heading', { name: 'Recreate a Style in Three Steps' }),
+      ).toBeVisible()
     })
   }
 })

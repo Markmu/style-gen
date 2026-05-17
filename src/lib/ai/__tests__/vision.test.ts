@@ -140,7 +140,7 @@ describe("vision", () => {
       ).rejects.toThrow("Vision model returned empty response");
     });
 
-    it("超时 60 秒后抛出 VisionError", async () => {
+    it("超时 60s后抛出 VisionError", async () => {
       vi.useFakeTimers();
 
       try {

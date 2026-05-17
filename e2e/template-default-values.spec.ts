@@ -80,10 +80,10 @@ test.describe('template default values', () => {
       analysisResponse: autoTemplateResponse,
     })
 
-    await page.getByLabel('变量 subject').fill('brushed steel lily')
-    await page.getByRole('button', { name: '保存为模板' }).click()
-    await page.getByLabel('模板名称').fill('Auto template')
-    await page.getByRole('button', { name: '保存模板' }).click()
+    await page.getByLabel('Variable subject').fill('brushed steel lily')
+    await page.getByRole('button', { name: 'Save as Template' }).click()
+    await page.getByLabel('Template Name').fill('Auto template')
+    await page.getByRole('button', { name: 'Save Template' }).click()
 
     expect(savedBody.sourceAnalysisTaskId).toBe('template-default-analysis-task')
     expect(savedBody.variables).toEqual(
@@ -98,6 +98,6 @@ test.describe('template default values', () => {
     )
 
     await page.goto('/workspace?templateId=saved-template-with-defaults', { waitUntil: 'commit' })
-    await expect(page.getByLabel('变量 subject')).toHaveValue('brushed steel lily')
+    await expect(page.getByLabel('Variable subject')).toHaveValue('brushed steel lily')
   })
 })

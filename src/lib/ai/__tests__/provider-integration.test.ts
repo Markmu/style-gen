@@ -11,7 +11,7 @@ describe('Provider Integration', () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
-    // 重置环境变量
+    // 重置环境Variables
     process.env = { ...originalEnv };
     // Mock Replicate API Token 以避免构造函数抛出错误
     process.env.REPLICATE_API_TOKEN = 'test-token';
@@ -19,7 +19,7 @@ describe('Provider Integration', () => {
   });
 
   afterEach(() => {
-    // 恢复原始环境变量
+    // 恢复原始环境Variables
     process.env = originalEnv;
   });
 
@@ -38,7 +38,7 @@ describe('Provider Integration', () => {
       expect(provider.name).toBe('replicate');
     });
 
-    it('未设置环境变量时默认使用 replicate', () => {
+    it('未设置环境Variables时默认使用 replicate', () => {
       delete process.env.VISION_PROVIDER;
       const provider = getVisionProvider();
       expect(provider).toBeInstanceOf(ReplicateVisionProvider);
@@ -66,7 +66,7 @@ describe('Provider Integration', () => {
       expect(provider.name).toBe('replicate');
     });
 
-    it('未设置环境变量时默认使用 replicate', () => {
+    it('未设置环境Variables时默认使用 replicate', () => {
       delete process.env.IMAGE_GEN_PROVIDER;
       const provider = getImageGenProvider();
       expect(provider).toBeInstanceOf(ReplicateImageGenProvider);
@@ -94,7 +94,7 @@ describe('Provider Integration', () => {
       expect(provider.name).toBe('replicate');
     });
 
-    it('未设置环境变量时默认使用 replicate', () => {
+    it('未设置环境Variables时默认使用 replicate', () => {
       delete process.env.VISION_PROVIDER;
       const provider = getStructurerProvider();
       expect(provider).toBeInstanceOf(ReplicateStructurerProvider);

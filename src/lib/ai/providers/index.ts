@@ -8,7 +8,7 @@ import type { VisionProvider, StructurerProvider, ImageGenProvider } from './typ
 
 /**
  * 获取视觉分析 Provider 实例
- * 根据 VISION_PROVIDER 环境变量选择 Provider
+ * 根据 VISION_PROVIDER 环境Variables选择 Provider
  */
 export function getVisionProvider(): VisionProvider {
   const provider = process.env.VISION_PROVIDER || 'replicate';
@@ -40,7 +40,7 @@ export function getStructurerProvider(): StructurerProvider {
 
 /**
  * 获取图像生成 Provider 实例
- * 根据 IMAGE_GEN_PROVIDER 环境变量选择 Provider
+ * 根据 IMAGE_GEN_PROVIDER 环境Variables选择 Provider
  */
 export function getImageGenProvider(): ImageGenProvider {
   const provider = process.env.IMAGE_GEN_PROVIDER || 'replicate';

@@ -127,7 +127,7 @@ describe("useWorkspaceState", () => {
     expect(result.current.analysisTemplateReason).toBeNull();
   });
 
-  it("新会话分析完成后持久化自动模板字段", () => {
+  it("新会话分析Done后持久化自动模板字段", () => {
     const { result } = renderHook(() => useWorkspaceState());
 
     act(() => {
@@ -185,7 +185,7 @@ describe("useWorkspaceState", () => {
     expect(restored.result.current.analysisTaskId).toBe("analysis-task-123");
   });
 
-  it("fallback analysis 清空模板正文和变量但保留 prompt", () => {
+  it("fallback analysis 清空模板正文和Variables但保留 prompt", () => {
     const { result } = renderHook(() => useWorkspaceState());
 
     act(() => {
@@ -220,7 +220,7 @@ describe("useWorkspaceState", () => {
     expect(result.current.analysisTemplateContent).toBeNull();
     expect(result.current.analysisTemplateVariables).toEqual([]);
     expect(result.current.analysisTemplateStatus).toBe("fallback");
-    expect(result.current.analysisTemplateReason).toBe("未识别到足够稳定的可替换变量");
+    expect(result.current.analysisTemplateReason).toBe("No stable replaceable variables were detected");
   });
 
   it("partial analysis with empty variables falls back to text prompt", () => {
@@ -256,12 +256,12 @@ describe("useWorkspaceState", () => {
       result.current.startAnalysis("task-1");
     });
     act(() => {
-      result.current.failAnalysis("分析失败");
+      result.current.failAnalysis("Analysis Failed");
     });
 
     expect(result.current.state).toBe("idle");
     expect(result.current.error).toEqual({
-      message: "分析失败",
+      message: "Analysis Failed",
       stage: undefined,
       code: undefined,
       retryable: undefined,
@@ -282,7 +282,7 @@ describe("useWorkspaceState", () => {
       result.current.startAnalysis("task-1");
     });
     act(() => {
-      result.current.failAnalysis("分析失败");
+      result.current.failAnalysis("Analysis Failed");
     });
 
     expect(result.current.assetId).toBe("asset-123");
@@ -494,7 +494,7 @@ describe("useWorkspaceState", () => {
       result.current.startGeneration("gen-task-1");
     });
     act(() => {
-      result.current.failGeneration("生成失败");
+      result.current.failGeneration("Generation Failed");
     });
 
     expect(result.current.state).toBe("generation_ready");
@@ -502,7 +502,7 @@ describe("useWorkspaceState", () => {
     expect(result.current.promptText).toBe("prompt");
     expect(result.current.negativePromptText).toBe("neg");
     expect(result.current.error).toEqual({
-      message: "生成失败",
+      message: "Generation Failed",
       stage: "generation",
       code: undefined,
       retryable: undefined,
@@ -608,7 +608,7 @@ describe("useWorkspaceState", () => {
       result.current.startGeneration("gen-task-1");
     });
     act(() => {
-      result.current.failGeneration("生成失败");
+      result.current.failGeneration("Generation Failed");
     });
 
     expect(result.current.degradation.generationQueueing).toBe(false);
@@ -633,7 +633,7 @@ describe("useWorkspaceState", () => {
       result.current.startAnalysis("task-1");
     });
     act(() => {
-      result.current.failAnalysis("分析失败");
+      result.current.failAnalysis("Analysis Failed");
     });
 
     expect(result.current.degradation.analysisQueueing).toBe(false);

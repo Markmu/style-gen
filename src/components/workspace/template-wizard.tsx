@@ -21,7 +21,7 @@ export function TemplateWizard({
     Object.fromEntries(variables.map((v) => [v.name, v.defaultValue])),
   );
 
-  /** 统计每个变量在原文中的出现次数 */
+  /** 统计每个Variables在原文中的出现次数 */
   function countOccurrences(name: string): number {
     const pattern = new RegExp(`\\{\\{${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\}\\}`, "g");
     const matches = originalContent.match(pattern);
@@ -38,19 +38,19 @@ export function TemplateWizard({
     <div className="flex flex-col gap-4 rounded-xl bg-[var(--surface-mid)] p-4 ring-1 ring-[var(--border)]">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold text-[var(--text-primary)]">变量填值</h3>
+        <h3 className="text-sm font-bold text-[var(--text-primary)]">Variable Values</h3>
         <button
           type="button"
           onClick={onSkip}
           className="rounded-lg px-3 py-1 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)]"
         >
-          跳过
+          Skip
         </button>
       </div>
 
       {/* Description */}
       <p className="text-xs text-[var(--text-secondary)]">
-        该模板包含 {variables.length} 个变量，填写后自动替换
+        This template has {variables.length} variables. Fill them to replace automatically.
       </p>
 
       {/* Variable cards */}
@@ -76,11 +76,11 @@ export function TemplateWizard({
                   [variable.name]: e.target.value,
                 }))
               }
-              placeholder="输入值..."
+              placeholder="Enter a value..."
               className="w-full rounded-md border border-[var(--border)] bg-[var(--surface-base)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/50 focus:border-[var(--accent-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]"
             />
             <p className="mt-1 text-xs text-[var(--text-secondary)]/70">
-              出现 {countOccurrences(variable.name)} 次
+              Appears {countOccurrences(variable.name)} times
             </p>
           </div>
         ))}
@@ -93,14 +93,14 @@ export function TemplateWizard({
           onClick={onSkip}
           className="rounded-lg px-4 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)]"
         >
-          取消
+          Cancel
         </button>
         <button
           type="button"
           onClick={handleApply}
           className="rounded-lg bg-[var(--accent-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
         >
-          应用并生成
+          Apply and Generate
         </button>
       </div>
     </div>

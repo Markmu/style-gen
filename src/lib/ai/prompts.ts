@@ -1,8 +1,8 @@
 /**
- * System Prompt 模板：视觉理解 + 结构化整理两套 prompt
+ * System Prompt 模板：Vision Understanding + 结构化整理两套 prompt
  */
 
-/** 视觉理解阶段 System Prompt —— 引导视觉模型从参考图中提取原始视觉信息 */
+/** Vision Understanding阶段 System Prompt —— 引导视觉模型从Reference中提取原始视觉信息 */
 export const VISION_SYSTEM_PROMPT = `You are an expert visual analyst specializing in image style analysis for creative reproduction. Your task is to analyze a reference image and extract detailed visual information.
 
 Describe the following aspects of the image in thorough detail:

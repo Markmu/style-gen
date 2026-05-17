@@ -17,7 +17,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   callbacks: {
     async signIn({ account, profile }) {
-      // 仅允许 Google 登录
+      // 仅允许 Google Log in
       if (account?.provider !== "google" || !profile?.sub) {
         console.log(
           JSON.stringify({
@@ -47,7 +47,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return true;
     },
     async jwt({ token, account, profile }) {
-      // 首次登录时把 userId 写入 JWT
+      // 首次Log in时把 userId 写入 JWT
       if (account?.provider === "google" && profile?.sub) {
         const findOrCreateUser = await getFindOrCreateUser();
         const user = await findOrCreateUser({

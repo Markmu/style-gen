@@ -6,13 +6,13 @@ describe("Hero", () => {
   it("渲染标题", () => {
     render(<Hero />);
     const heading = screen.getByRole("heading", { level: 1 });
-    expect(heading).toHaveTextContent("参考图风格再创作");
+    expect(heading).toHaveTextContent("Reference Image Style Recreation");
   });
 
   it("渲染副标题", () => {
     render(<Hero />);
     expect(
-      screen.getByText(/上传一张参考图，获得可编辑的视觉配方/),
+      screen.getByText(/Upload a reference image to get an editable visual recipe/),
     ).toBeInTheDocument();
   });
 
@@ -21,7 +21,7 @@ describe("Hero", () => {
     expect(screen.getByText("Reference")).toBeInTheDocument();
     expect(screen.getByText("Recipe")).toBeInTheDocument();
     expect(screen.getByText("Render")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "模板库" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Template Library" })).toHaveAttribute(
       "href",
       "/workspace/templates",
     );

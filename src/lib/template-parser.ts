@@ -3,7 +3,7 @@ import type {
   TemplateVariable,
 } from "@/types/models";
 
-/** 变量名正则：匹配 {{variableName}} 格式 */
+/** Variable name正则：匹配 {{variableName}} 格式 */
 const VARIABLE_PATTERN = /{{([a-zA-Z_]\w*)}}/g;
 const VARIABLE_NAME_RE = /^[a-zA-Z_]\w*$/;
 const VALID_SOURCE_FIELDS = new Set<AnalysisTemplateSourceField>([
@@ -21,8 +21,8 @@ export const TEMPLATE_VARIABLE_DEFAULT_MAX_LENGTH = 500;
 export const TEMPLATE_VARIABLE_LABEL_MAX_LENGTH = 80;
 
 /**
- * 从模板正文中提取所有变量标记
- * 返回去重的变量定义列表（按首次出现顺序）
+ * 从模板正文中提取所有Variables标记
+ * 返回去重的Variables定义列表（按首次出现顺序）
  */
 export function extractVariables(content: string): TemplateVariable[] {
   const variables: TemplateVariable[] = [];
@@ -43,8 +43,8 @@ export function extractVariables(content: string): TemplateVariable[] {
 }
 
 /**
- * 用变量值替换模板正文中的 {{var}} 标记
- * 按变量名长度降序执行，避免短变量名误替换长变量名的子串
+ * 用Variables值替换模板正文中的 {{var}} 标记
+ * 按Variable name长度降序执行，避免短Variable name误替换长Variable name的子串
  */
 export function replaceVariables(
   content: string,
@@ -66,8 +66,8 @@ export function replaceVariables(
 }
 
 /**
- * 根据模板正文重新合并变量值。
- * 保留仍存在的变量值，新增变量为空，已删除变量被移除。
+ * 根据模板正文重新合并Variables值。
+ * 保留仍存在的Variables值，新增Variables为空，已DeleteVariables被移除。
  */
 export function mergeVariableValues(
   content: string,
@@ -81,14 +81,14 @@ export function mergeVariableValues(
 }
 
 /**
- * 检测模板正文是否包含变量标记
+ * 检测模板正文是否包含Variables标记
  */
 export function hasVariables(content: string): boolean {
   VARIABLE_PATTERN.lastIndex = 0;
   return VARIABLE_PATTERN.test(content);
 }
 
-/** 检测文本是否仍包含合法变量标记 */
+/** 检测文本是否仍包含合法Variables标记 */
 export function hasUnresolvedVariables(content: string): boolean {
   return hasVariables(content);
 }
@@ -126,8 +126,8 @@ function normalizeProvidedVariable(
 }
 
 /**
- * 按模板正文变量名合并变量元信息。
- * 正文变量名是 source of truth；请求中的正文外、重复和非法元信息会被丢弃。
+ * 按模板正文Variable name合并Variables元信息。
+ * 正文Variable name是 source of truth；请求中的正文外、重复和非法元信息会被丢弃。
  */
 export function mergeTemplateVariables(
   content: string,

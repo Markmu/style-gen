@@ -43,7 +43,7 @@ export function ResultDisplay({
 
   return (
     <div className="space-y-3 rounded-lg bg-[var(--surface-mid)] p-4 ring-1 ring-[var(--border-static)]">
-      <h3 className="text-sm font-semibold text-[var(--text-secondary)]">生成结果</h3>
+      <h3 className="text-sm font-semibold text-[var(--text-secondary)]">Generated Result</h3>
 
       {/* Result image */}
       <div className="relative">
@@ -54,7 +54,7 @@ export function ResultDisplay({
         >
           <Image
             src={resultImageUrl}
-            alt="生成结果"
+            alt="Generated Result"
             width={512}
             height={512}
             className="h-auto w-full object-contain"
@@ -66,20 +66,20 @@ export function ResultDisplay({
       {/* Generation params info */}
       <div className="space-y-2 text-xs text-[var(--text-secondary)]">
         <div className="flex gap-3">
-          <span>宽高比: {params.aspectRatio}</span>
-          <span>画质: {params.quality === "hd" ? "高清" : "标准"}</span>
+          <span>Aspect Ratio: {params.aspectRatio}</span>
+          <span>Quality: {params.quality === "hd" ? "HD" : "Standard"}</span>
         </div>
         <details className="cursor-pointer">
           <summary className="text-xs font-medium text-[var(--text-secondary)]">
-            查看使用的 Prompt
+            View Prompt Used
           </summary>
           <div className="mt-2 space-y-1 rounded bg-[var(--surface-low)] p-2 text-xs text-[var(--text-secondary)]">
             <p>
-              <span className="font-medium">正向:</span> {promptSnapshot}
+              <span className="font-medium">Positive:</span> {promptSnapshot}
             </p>
             {negativePromptSnapshot && (
               <p>
-                <span className="font-medium">反向:</span>{" "}
+                <span className="font-medium">Negative:</span>{" "}
                 {negativePromptSnapshot}
               </p>
             )}
@@ -94,7 +94,7 @@ export function ResultDisplay({
           download
           className="flex-1 rounded-lg bg-[var(--accent-primary)] px-4 py-2 text-center text-sm font-medium text-white ring-1 ring-[var(--border-interactive)] transition-colors hover:bg-[var(--accent-primary-dim)]"
         >
-          下载图片
+          Download Image
         </a>
         {onReset && (
           <button
@@ -102,7 +102,7 @@ export function ResultDisplay({
             onClick={onReset}
             className="flex-1 rounded-lg px-4 py-2 text-sm font-medium text-[var(--text-secondary)] ring-1 ring-[var(--border-static)] transition-colors hover:bg-[var(--surface-bright)]"
           >
-            上传新图
+            Upload New Image
           </button>
         )}
       </div>
@@ -121,14 +121,14 @@ export function ResultDisplay({
               setIsExpanded(false);
             }}
             className="absolute top-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm transition-colors hover:bg-white/20"
-            aria-label="关闭全屏查看"
+            aria-label="Close fullscreen preview"
           >
             <span className="material-symbols-outlined text-2xl">close</span>
           </button>
 
           <Image
             src={resultImageUrl}
-            alt="生成结果（放大）"
+            alt="Generated result enlarged"
             width={1024}
             height={1024}
             className="max-h-[90vh] max-w-[90vw] object-contain"
@@ -148,14 +148,14 @@ interface ResultErrorProps {
 export function ResultError({ errorMessage, onRetry }: ResultErrorProps) {
   return (
     <div className="rounded-lg border border-[var(--color-error)]/30 bg-[var(--color-error)]/10 p-4">
-      <p className="text-sm font-medium text-[var(--color-error)]">生成失败</p>
+      <p className="text-sm font-medium text-[var(--color-error)]">Generation Failed</p>
       <p className="mt-1 text-xs text-[var(--color-error)]/80">{errorMessage}</p>
       <button
         type="button"
         onClick={onRetry}
         className="mt-3 rounded-md bg-[var(--color-error)] px-4 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[var(--color-error)]/80"
       >
-        重试
+        Retry
       </button>
     </div>
   );

@@ -11,7 +11,7 @@ import { auth } from "@/auth";
 import { getImageGenProvider } from "@/lib/ai/providers";
 import { buildWebhookUrl, startTimeoutTimer } from "@/lib/ai/webhook-utils";
 
-/** fal.ai 同步模式超时 120 秒 */
+/** fal.ai 同步模式超时 120s */
 const SYNC_GENERATION_TIMEOUT_MS = 120_000;
 
 // ─── GET /api/generation：历史列表 ─────────────────────────────────────
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// ─── POST /api/generation：创建生成任务 ────────────────────────────────
+// ─── POST /api/generation：创建Generation Task ────────────────────────────────
 
 interface GenerationRequestBody {
   analysisTaskId: string;
@@ -124,7 +124,7 @@ function logError(event: string, error: unknown, data: Record<string, unknown> =
   }));
 }
 
-/** fal.ai 同步模式：后台异步执行生成任务（含 120s 超时） */
+/** fal.ai 同步模式：后台异步执行Generation Task（含 120s 超时） */
 async function executeSyncGeneration(
   taskId: string,
   userId: string,
@@ -155,7 +155,7 @@ async function executeSyncGenerationCore(
   providerResult: { imageUrl: string; width: number; height: number },
   isAborted: () => boolean
 ): Promise<void> {
-  // 下载临时图片，上传到 R2
+  // Download临时图片，上传到 R2
   const r2Key = `generated/${taskId}/result.webp`;
   const imageResponse = await fetch(providerResult.imageUrl);
   if (!imageResponse.ok) {

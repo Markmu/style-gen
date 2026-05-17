@@ -93,7 +93,7 @@ async function mockTemplateApi(page: Page, initialTemplates: MockTemplate[] = []
         await route.fulfill({
           status: 409,
           contentType: 'application/json',
-          body: JSON.stringify({ error: '已存在同名模板' }),
+          body: JSON.stringify({ error: 'A template with this name already exists' }),
         })
         return
       }
@@ -121,7 +121,7 @@ async function mockTemplateApi(page: Page, initialTemplates: MockTemplate[] = []
         await route.fulfill({
           status: 404,
           contentType: 'application/json',
-          body: JSON.stringify({ error: '模板不存在' }),
+          body: JSON.stringify({ error: 'Template not found' }),
         })
         return
       }
@@ -148,7 +148,7 @@ async function mockTemplateApi(page: Page, initialTemplates: MockTemplate[] = []
       await route.fulfill({
         status: template ? 200 : 404,
         contentType: 'application/json',
-        body: JSON.stringify(template ?? { error: '模板不存在' }),
+        body: JSON.stringify(template ?? { error: 'Template not found' }),
       })
       return
     }
@@ -159,7 +159,7 @@ async function mockTemplateApi(page: Page, initialTemplates: MockTemplate[] = []
         await route.fulfill({
           status: 404,
           contentType: 'application/json',
-          body: JSON.stringify({ error: '模板不存在' }),
+          body: JSON.stringify({ error: 'Template not found' }),
         })
         return
       }
@@ -180,7 +180,7 @@ async function mockTemplateApi(page: Page, initialTemplates: MockTemplate[] = []
 
 async function reachPromptEditor(page: Page, analysisTaskId = 'template-analysis-task') {
   await uploadAndCompleteAnalysis(page, { analysisTaskId })
-  await expect(page.getByRole('button', { name: '保存为模板' })).toBeVisible({ timeout: 15000 })
+  await expect(page.getByRole('button', { name: 'Save as Template' })).toBeVisible({ timeout: 15000 })
 }
 
 test.describe('模板功能', () => {
@@ -188,12 +188,12 @@ test.describe('模板功能', () => {
     const api = await mockTemplateApi(page)
     await reachPromptEditor(page, 'template-save-source-task')
 
-    await page.getByRole('button', { name: '保存为模板' }).click()
-    await expect(page.getByRole('dialog', { name: '保存为模板' })).toBeVisible()
-    await page.getByLabel('模板名称').fill('Saved prompt template')
-    await page.getByRole('button', { name: '保存模板' }).click()
+    await page.getByRole('button', { name: 'Save as Template' }).click()
+    await expect(page.getByRole('dialog', { name: 'Save as Template' })).toBeVisible()
+    await page.getByLabel('Template Name').fill('Saved prompt template')
+    await page.getByRole('button', { name: 'Save Template' }).click()
 
-    await expect(page.getByRole('dialog', { name: '保存为模板' })).not.toBeVisible()
+    await expect(page.getByRole('dialog', { name: 'Save as Template' })).not.toBeVisible()
     expect(api.createdBodies[0]).toEqual(
       expect.objectContaining({
         name: 'Saved prompt template',
@@ -207,17 +207,17 @@ test.describe('模板功能', () => {
     const api = await mockTemplateApi(page)
     await reachPromptEditor(page)
 
-    await page.getByRole('button', { name: '保存为模板' }).click()
-    await page.getByLabel('模板名称').fill('Variable template')
-    await page.getByRole('button', { name: /\{\{\}\} 插入变量/ }).click()
-    await page.getByPlaceholder('变量名').fill('subject')
-    await page.getByRole('button', { name: '确认' }).click()
+    await page.getByRole('button', { name: 'Save as Template' }).click()
+    await page.getByLabel('Template Name').fill('Variable template')
+    await page.getByRole('button', { name: /\{\{\}\} Insert Variable/ }).click()
+    await page.getByPlaceholder('Variable name').fill('subject')
+    await page.getByRole('button', { name: 'Confirm' }).click()
 
-    await expect(page.getByText(/已识别变量/)).toBeVisible()
-    await expect(page.locator('li').filter({ hasText: '{{subject}}' })).toBeVisible()
-    await page.getByRole('button', { name: '保存模板' }).click()
+    await expect(page.getByText(/Detected Variables/)).toBeVisible()
+    await expect(page.getByLabel('Detected variable subject')).toBeVisible()
+    await page.getByRole('button', { name: 'Save Template' }).click()
 
-    await expect(page.getByRole('dialog', { name: '保存为模板' })).not.toBeVisible()
+    await expect(page.getByRole('dialog', { name: 'Save as Template' })).not.toBeVisible()
     expect(api.createdBodies[0].variables).toEqual(
       expect.arrayContaining([expect.objectContaining({ name: 'subject' })]),
     )
@@ -227,24 +227,24 @@ test.describe('模板功能', () => {
     await mockTemplateApi(page)
     await reachPromptEditor(page)
 
-    await page.getByRole('button', { name: '保存为模板' }).click()
-    await page.getByRole('button', { name: '保存模板' }).click()
+    await page.getByRole('button', { name: 'Save as Template' }).click()
+    await page.getByRole('button', { name: 'Save Template' }).click()
 
-    await expect(page.getByText('请输入模板名称')).toBeVisible()
+    await expect(page.getByText('Enter a template name')).toBeVisible()
   })
 
-  test('同名模板展示冲突错误', async ({ page }) => {
+  test('template with this name展示冲突错误', async ({ page }) => {
     await mockTemplateApi(page, [templateRecord({ id: 'existing-template', name: 'Duplicate name' })])
     await reachPromptEditor(page)
 
-    await page.getByRole('button', { name: '保存为模板' }).click()
-    await page.getByLabel('模板名称').fill('Duplicate name')
-    await page.getByRole('button', { name: '保存模板' }).click()
+    await page.getByRole('button', { name: 'Save as Template' }).click()
+    await page.getByLabel('Template Name').fill('Duplicate name')
+    await page.getByRole('button', { name: 'Save Template' }).click()
 
-    await expect(page.getByText('已存在同名模板')).toBeVisible()
+    await expect(page.getByText('A template with this name already exists')).toBeVisible()
   })
 
-  test('模板库展示列表并支持搜索', async ({ page }) => {
+  test('Template Library展示列表并支持搜索', async ({ page }) => {
     await mockTemplateApi(page, [
       templateRecord({ id: 'library-template-1', name: 'Editorial Glass Poster' }),
       templateRecord({ id: 'library-template-2', name: 'Soft Product Macro', variables: [] }),
@@ -261,7 +261,7 @@ test.describe('模板功能', () => {
     await expect(page.getByText('Soft Product Macro')).not.toBeVisible()
   })
 
-  test('Use Template 跳转工作台并按默认值加载变量', async ({ page }) => {
+  test('Use Template 跳转Workspace并按默认值加载变量', async ({ page }) => {
     const template = templateRecord({ id: 'library-template-use', name: 'Default Value Template' })
     await mockTemplateApi(page, [template])
 
@@ -271,39 +271,39 @@ test.describe('模板功能', () => {
 
     await expect(page).toHaveURL(/\/workspace/)
     await expect(page.getByTestId('unified-prompt-editor')).toBeVisible({ timeout: 15000 })
-    await expect(page.getByLabel('变量 subject')).toHaveValue('glass sculpture')
-    await expect(page.getByLabel('变量 scene')).toHaveValue('white studio')
-    await page.getByRole('button', { name: '文本模式' }).click()
-    await expect(page.getByLabel('完整生成提示')).toHaveValue(
+    await expect(page.getByLabel('Variable subject')).toHaveValue('glass sculpture')
+    await expect(page.getByLabel('Variable scene')).toHaveValue('white studio')
+    await page.getByRole('button', { name: 'Text Mode' }).click()
+    await expect(page.getByLabel('Full Generation Prompt')).toHaveValue(
       'Create glass sculpture in white studio with hard rim light.',
     )
   })
 
-  test('模板库支持复制模板', async ({ page }) => {
+  test('Template Library支持Duplicate模板', async ({ page }) => {
     const template = templateRecord({ id: 'library-template-copy', name: 'Copy Source Template' })
     await mockTemplateApi(page, [template])
 
     await page.goto('/workspace/templates', { waitUntil: 'commit' })
     await page.getByRole('heading', { name: template.name }).hover()
-    await page.getByRole('button', { name: '更多操作' }).click()
-    await page.getByRole('button', { name: '复制' }).click()
+    await page.getByRole('button', { name: 'More actions' }).click()
+    await page.getByRole('button', { name: 'Duplicate' }).click()
 
     await expect(page.getByText('Copy Source Template (copy)')).toBeVisible({ timeout: 5000 })
   })
 
-  test('模板库支持删除模板', async ({ page }) => {
+  test('Template Library支持Delete模板', async ({ page }) => {
     const template = templateRecord({ id: 'library-template-delete', name: 'Delete Target Template' })
     await mockTemplateApi(page, [template])
 
     await page.goto('/workspace/templates', { waitUntil: 'commit' })
     await page.getByRole('heading', { name: template.name }).hover()
-    await page.getByRole('button', { name: '更多操作' }).click()
-    await page.getByRole('button', { name: '删除' }).click()
+    await page.getByRole('button', { name: 'More actions' }).click()
+    await page.getByRole('button', { name: 'Delete' }).click()
 
-    await expect(page.getByRole('alertdialog', { name: '确认删除' })).toBeVisible()
-    await page.getByRole('alertdialog', { name: '确认删除' }).getByRole('button', { name: '删除' }).click()
+    await expect(page.getByRole('alertdialog', { name: 'Confirm Delete' })).toBeVisible()
+    await page.getByRole('alertdialog', { name: 'Confirm Delete' }).getByRole('button', { name: 'Delete' }).click()
 
-    await expect(page.getByRole('alertdialog', { name: '确认删除' })).not.toBeVisible()
+    await expect(page.getByRole('alertdialog', { name: 'Confirm Delete' })).not.toBeVisible()
     await expect(page.getByText(template.name)).not.toBeVisible({ timeout: 5000 })
   })
 })

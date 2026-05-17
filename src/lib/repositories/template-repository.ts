@@ -45,7 +45,7 @@ export async function createTemplate(
   return rowToTemplate(row);
 }
 
-/** 查询某用户下是否已存在同名模板 */
+/** 查询某用户下是否A template with this name already exists */
 export async function findByName(
   userId: string,
   name: string
@@ -62,7 +62,7 @@ export async function findByName(
 export interface TemplatePaginationParams {
   cursor?: string;
   limit?: number;
-  /** 模板名称模糊搜索关键词（ILIKE） */
+  /** Template Name模糊搜索Keywords（ILIKE） */
   search?: string;
 }
 
@@ -134,7 +134,7 @@ export async function findById(
   return rowToTemplate(rows[0]);
 }
 
-/** 删除模板（物理删除） */
+/** Delete模板（物理Delete） */
 export async function deleteTemplate(
   id: string,
   userId: string
@@ -175,7 +175,7 @@ export async function updateTemplate(
   return rowToTemplate(rows[0]);
 }
 
-/** 复制模板（生成新 ID，名称追加 " (copy)"） */
+/** Duplicate模板（生成新 ID，名称追加 " (copy)"） */
 export async function duplicateTemplate(
   id: string,
   userId: string

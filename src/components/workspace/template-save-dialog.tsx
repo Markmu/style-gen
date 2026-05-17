@@ -13,7 +13,7 @@ interface TemplateSaveDialogProps {
   onClose: () => void;
 }
 
-/** 变量名合法格式：[a-zA-Z_]\w* */
+/** Variable name合法格式：[a-zA-Z_]\w* */
 const VARIABLE_NAME_RE = /^[a-zA-Z_]\w*$/;
 
 const MAX_CONTENT_LENGTH = 10_000;
@@ -31,14 +31,14 @@ export function TemplateSaveDialog({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 变量插入工具栏状态
+  // Variables插入工具栏状态
   const [showVarInput, setShowVarInput] = useState(false);
   const [varNameInput, setVarNameInput] = useState("");
   const [varNameError, setVarNameError] = useState<string | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // 同步 initialContent 变更（编辑器内容更新时）
+  // 同步 initialContent 变更（Edit器内容更新时）
   useEffect(() => {
     if (open) {
       setContent(initialContent);
@@ -79,33 +79,33 @@ export function TemplateSaveDialog({
     [content],
   );
 
-  /** 确认变量名并插入 */
+  /** ConfirmVariable name并插入 */
   const handleConfirmVariable = useCallback(() => {
     const trimmed = varNameInput.trim();
     if (!trimmed) {
-      setVarNameError("请输入变量名");
+      setVarNameError("Enter a variable name");
       return;
     }
     if (!VARIABLE_NAME_RE.test(trimmed)) {
-      setVarNameError("变量名格式不正确，需以字母或下划线开头");
+      setVarNameError("Variable names must start with a letter or underscore");
       return;
     }
     insertVariable(trimmed);
   }, [varNameInput, insertVariable]);
 
-  /** 保存模板 */
+  /** Save Template */
   const handleSave = async () => {
     // 校验
     if (!name.trim()) {
-      setError("请输入模板名称");
+      setError("Enter a template name");
       return;
     }
     if (!content.trim()) {
-      setError("Prompt 内容不能为空");
+      setError("Prompt content cannot be empty");
       return;
     }
     if (content.length > MAX_CONTENT_LENGTH) {
-      setError(`Prompt 内容过长（最大 ${MAX_CONTENT_LENGTH} 字符）`);
+      setError(`Prompt content is too long (max ${MAX_CONTENT_LENGTH} characters)`);
       return;
     }
 
@@ -131,19 +131,19 @@ export function TemplateSaveDialog({
         onClose();
       } else if (res.status === 409) {
         const data = (await res.json()) as { error?: string };
-        setError(data.error ?? "已存在同名模板");
+        setError(data.error ?? "A template with this name already exists");
       } else {
         const data = (await res.json()) as { error?: string };
-        setError(data.error ?? "保存失败，请重试");
+        setError(data.error ?? "Save failed. Please try again.");
       }
     } catch {
-      setError("网络异常，请检查连接后重试");
+      setError("Network error. Please check your connection and try again.");
     } finally {
       setIsSaving(false);
     }
   };
 
-  // 键盘事件：Escape 关闭
+  // 键盘事件：Escape Close
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -162,24 +162,24 @@ export function TemplateSaveDialog({
       onKeyDown={handleKeyDown}
       tabIndex={-1}
     >
-      {/* 对话框主体 */}
+      {/* 对话框Subject */}
       <div
         className="flex max-h-[calc(100vh-2rem)] w-full max-w-4xl flex-col overflow-hidden rounded-lg bg-[var(--surface-bright)] ring-1 ring-[var(--border-static)] shadow-[var(--shadow-ambient)]"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-label="保存为模板"
+        aria-label="Save as Template"
       >
         {/* 标题栏 */}
         <div className="flex shrink-0 items-center justify-between gap-4 px-6 pt-6">
           <h2 className="text-lg font-bold text-[var(--text-primary)]">
-            保存为模板
+            Save as Template
           </h2>
           <button
             type="button"
             onClick={onClose}
             className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)]"
-            aria-label="关闭"
+            aria-label="Close"
           >
             <span className="material-symbols-outlined text-base" aria-hidden="true">
               close
@@ -188,13 +188,13 @@ export function TemplateSaveDialog({
         </div>
 
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
-          {/* 模板名称 */}
+          {/* Template Name */}
           <div className="space-y-1.5">
             <label
               htmlFor="template-name"
               className="block text-sm font-medium text-[var(--text-secondary)]"
             >
-              模板名称
+              Template Name
             </label>
             <input
               id="template-name"
@@ -204,20 +204,20 @@ export function TemplateSaveDialog({
                 setName(e.target.value);
                 setError(null);
               }}
-              placeholder="例如：赛博朋克风格"
+              placeholder="Example: Cyberpunk style"
               maxLength={50}
               className="input-precision w-full rounded-t-md px-3 py-2 text-sm"
             />
           </div>
 
-          {/* Prompt 内容 + 变量插入工具栏 */}
+          {/* Prompt Content + Variables插入工具栏 */}
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <label
                 htmlFor="template-content"
                 className="block text-sm font-medium text-[var(--text-secondary)]"
               >
-                Prompt 内容
+                Prompt Content
               </label>
               {!showVarInput ? (
                 <button
@@ -225,10 +225,10 @@ export function TemplateSaveDialog({
                   onClick={() => setShowVarInput(true)}
                   className="h-8 rounded-md border border-[var(--border-interactive)] px-2.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-low)] hover:text-[var(--accent-primary)]"
                 >
-                  {"{{}} 插入变量"}
+                  {"{{}} Insert Variable"}
                 </button>
               ) : (
-                /* 内联变量名输入 */
+                /* 内联Variable name输入 */
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className="text-xs text-[var(--text-secondary)]">{"{{"}</span>
                   <input
@@ -248,7 +248,7 @@ export function TemplateSaveDialog({
                         setVarNameError(null);
                       }
                     }}
-                    placeholder="变量名"
+                    placeholder="Variable name"
                     autoFocus
                     className="input-precision h-8 w-28 rounded-t-md px-2 text-xs"
                   />
@@ -258,7 +258,7 @@ export function TemplateSaveDialog({
                     onClick={handleConfirmVariable}
                     className="h-8 rounded-md px-2 text-xs font-medium text-[var(--accent-primary)] transition-colors hover:bg-[var(--accent-primary-soft)]"
                   >
-                    确认
+                    Confirm
                   </button>
                   <button
                     type="button"
@@ -269,7 +269,7 @@ export function TemplateSaveDialog({
                     }}
                     className="h-8 rounded-md px-2 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
                   >
-                    取消
+                    Cancel
                   </button>
                 </div>
               )}
@@ -285,19 +285,19 @@ export function TemplateSaveDialog({
               rows={8}
               maxLength={MAX_CONTENT_LENGTH}
               className="input-precision min-h-[220px] w-full resize-y rounded-t-lg px-3 py-3 text-sm leading-6"
-              placeholder="输入或编辑 Prompt 模板内容..."
+              placeholder="Enter or edit prompt template content..."
             />
             <p className="text-right text-xs text-[var(--text-secondary)]/60">
               {content.length} / {MAX_CONTENT_LENGTH.toLocaleString()}
             </p>
           </div>
 
-          {/* 变量预览 */}
+          {/* Variables预览 */}
           {variables.length > 0 && (
             <div className="space-y-3">
               <div>
                 <h4 className="text-sm font-semibold text-[var(--text-primary)]">
-                  已识别变量 ({variables.length})
+                  Detected Variables ({variables.length})
                 </h4>
               </div>
               <div
@@ -317,9 +317,9 @@ export function TemplateSaveDialog({
                       )}
                     </span>
                     <input
-                      aria-label={`识别变量 ${variable.name}`}
+                      aria-label={`Detected variable ${variable.name}`}
                       readOnly
-                      value={variable.defaultValue || "空默认值"}
+                      value={variable.defaultValue || "Empty default"}
                       className="input-precision w-full rounded-t-md px-3 py-2 text-sm"
                     />
                   </label>
@@ -344,7 +344,7 @@ export function TemplateSaveDialog({
             disabled={isSaving}
             className="rounded-lg px-4 py-2 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            取消
+            Cancel
           </button>
           <button
             type="button"
@@ -352,7 +352,7 @@ export function TemplateSaveDialog({
             disabled={isSaving}
             className="btn-primary rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
           >
-            {isSaving ? "保存中..." : "保存模板"}
+            {isSaving ? "Saving..." : "Save Template"}
           </button>
         </div>
       </div>

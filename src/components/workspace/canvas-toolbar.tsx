@@ -14,7 +14,7 @@ export function CanvasToolbar({
 }: CanvasToolbarProps) {
   return (
     <div className="flex items-center gap-2 rounded-lg bg-[var(--surface-base)]/80 px-3 py-2 backdrop-blur-sm">
-      {/* 结果图按钮 */}
+      {/* Result按钮 */}
       <button
         type="button"
         onClick={() => onViewChange("result")}
@@ -24,10 +24,10 @@ export function CanvasToolbar({
             : "text-[var(--text-secondary)] hover:bg-[var(--surface-bright)]"
         }`}
       >
-        结果图
+        Result
       </button>
 
-      {/* 对比查看按钮 */}
+      {/* Compare按钮 */}
       <button
         type="button"
         onClick={() => onViewChange("comparison")}
@@ -37,19 +37,19 @@ export function CanvasToolbar({
             : "text-[var(--text-secondary)] hover:bg-[var(--surface-bright)]"
         }`}
       >
-        对比查看
+        Compare
       </button>
 
       {/* 分隔线 */}
       <div className="mx-1 h-4 w-px bg-[var(--border)]" />
 
-      {/* 下载按钮 */}
+      {/* Download按钮 */}
       <a
         href={resultImageUrl}
         download
         className="rounded-md px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-bright)]"
       >
-        下载
+        Download
       </a>
     </div>
   );
