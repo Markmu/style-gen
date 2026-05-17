@@ -8,6 +8,30 @@ describe("TemplateSaveDialog", () => {
     vi.restoreAllMocks();
   });
 
+  it("constrains the dialog height and renders variables in the editor-style grid", () => {
+    render(
+      <TemplateSaveDialog
+        open
+        initialContent="Create {{subject}} inside {{scene}}."
+        initialVariables={[
+          { name: "subject", defaultValue: "glass fox", label: "Subject", sourceField: "subject" },
+          { name: "scene", defaultValue: "neon garden", label: "Scene", sourceField: "scene" },
+        ]}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const dialog = screen.getByRole("dialog", { name: "保存为模板" });
+    expect(dialog).toHaveClass("max-h-[calc(100vh-2rem)]", "overflow-hidden", "max-w-4xl");
+
+    expect(screen.getByTestId("template-save-variable-grid")).toHaveClass("sm:grid-cols-2");
+    expect(screen.getByText("Subject")).toBeInTheDocument();
+    expect(screen.getByText("scene")).toBeInTheDocument();
+    expect(screen.getByLabelText("识别变量 subject")).toHaveValue("glass fox");
+    expect(screen.getByLabelText("识别变量 scene")).toHaveValue("neon garden");
+  });
+
   it("submits initial variables and sourceAnalysisTaskId", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.spyOn(global, "fetch").mockResolvedValue({

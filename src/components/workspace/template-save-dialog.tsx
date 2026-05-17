@@ -157,21 +157,21 @@ export function TemplateSaveDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(25,28,30,0.32)] p-4 backdrop-blur-sm"
       onClick={onClose}
       onKeyDown={handleKeyDown}
       tabIndex={-1}
     >
       {/* 对话框主体 */}
       <div
-        className="flex w-full max-w-lg flex-col gap-5 rounded-xl bg-[var(--surface-mid)] p-6 ring-1 ring-[var(--border)] shadow-xl"
+        className="flex max-h-[calc(100vh-2rem)] w-full max-w-4xl flex-col overflow-hidden rounded-lg bg-[var(--surface-bright)] ring-1 ring-[var(--border-static)] shadow-[var(--shadow-ambient)]"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-label="保存为模板"
       >
         {/* 标题栏 */}
-        <div className="flex items-center justify-between">
+        <div className="flex shrink-0 items-center justify-between gap-4 px-6 pt-6">
           <h2 className="text-lg font-bold text-[var(--text-primary)]">
             保存为模板
           </h2>
@@ -181,158 +181,163 @@ export function TemplateSaveDialog({
             className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)]"
             aria-label="关闭"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <span className="material-symbols-outlined text-base" aria-hidden="true">
+              close
+            </span>
           </button>
         </div>
 
-        {/* 模板名称 */}
-        <div className="space-y-1.5">
-          <label
-            htmlFor="template-name"
-            className="block text-sm font-medium text-[var(--text-secondary)]"
-          >
-            模板名称
-          </label>
-          <input
-            id="template-name"
-            type="text"
-            value={name}
-            onChange={(e) => {
-              setName(e.target.value);
-              setError(null);
-            }}
-            placeholder="例如：赛博朋克风格"
-            maxLength={50}
-            className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-bright)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-secondary)]/50 transition-colors focus:border-[var(--accent-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]"
-          />
-        </div>
-
-        {/* Prompt 内容 + 变量插入工具栏 */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+          {/* 模板名称 */}
+          <div className="space-y-1.5">
             <label
-              htmlFor="template-content"
+              htmlFor="template-name"
               className="block text-sm font-medium text-[var(--text-secondary)]"
             >
-              Prompt 内容
+              模板名称
             </label>
-            {!showVarInput ? (
-              <button
-                type="button"
-                onClick={() => setShowVarInput(true)}
-                className="rounded-md border border-[var(--border)] px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)]"
+            <input
+              id="template-name"
+              type="text"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                setError(null);
+              }}
+              placeholder="例如：赛博朋克风格"
+              maxLength={50}
+              className="input-precision w-full rounded-t-md px-3 py-2 text-sm"
+            />
+          </div>
+
+          {/* Prompt 内容 + 变量插入工具栏 */}
+          <div className="space-y-1.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label
+                htmlFor="template-content"
+                className="block text-sm font-medium text-[var(--text-secondary)]"
               >
-                {"{{}} 插入变量"}
-              </button>
-            ) : (
-              /* 内联变量名输入 */
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-[var(--text-secondary)]">{"{{"}</span>
-                <input
-                  type="text"
-                  value={varNameInput}
-                  onChange={(e) => {
-                    setVarNameInput(e.target.value);
-                    setVarNameError(null);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleConfirmVariable();
-                    } else if (e.key === "Escape") {
+                Prompt 内容
+              </label>
+              {!showVarInput ? (
+                <button
+                  type="button"
+                  onClick={() => setShowVarInput(true)}
+                  className="h-8 rounded-md border border-[var(--border-interactive)] px-2.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-low)] hover:text-[var(--accent-primary)]"
+                >
+                  {"{{}} 插入变量"}
+                </button>
+              ) : (
+                /* 内联变量名输入 */
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-xs text-[var(--text-secondary)]">{"{{"}</span>
+                  <input
+                    type="text"
+                    value={varNameInput}
+                    onChange={(e) => {
+                      setVarNameInput(e.target.value);
+                      setVarNameError(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleConfirmVariable();
+                      } else if (e.key === "Escape") {
+                        setShowVarInput(false);
+                        setVarNameInput("");
+                        setVarNameError(null);
+                      }
+                    }}
+                    placeholder="变量名"
+                    autoFocus
+                    className="input-precision h-8 w-28 rounded-t-md px-2 text-xs"
+                  />
+                  <span className="text-xs text-[var(--text-secondary)]">{"}}"}</span>
+                  <button
+                    type="button"
+                    onClick={handleConfirmVariable}
+                    className="h-8 rounded-md px-2 text-xs font-medium text-[var(--accent-primary)] transition-colors hover:bg-[var(--accent-primary-soft)]"
+                  >
+                    确认
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
                       setShowVarInput(false);
                       setVarNameInput("");
                       setVarNameError(null);
-                    }
-                  }}
-                  placeholder="变量名"
-                  autoFocus
-                  className="w-24 rounded border border-[var(--border)] bg-[var(--surface-bright)] px-1.5 py-0.5 text-xs text-[var(--text-primary)] placeholder-[var(--text-secondary)]/50 focus:border-[var(--accent-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]"
-                />
-                <span className="text-xs text-[var(--text-secondary)]">{"}}"}</span>
-                <button
-                  type="button"
-                  onClick={handleConfirmVariable}
-                  className="rounded px-1.5 py-0.5 text-xs font-medium text-[var(--accent-primary)] transition-colors hover:bg-[var(--accent-primary)]/10"
-                >
-                  确认
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowVarInput(false);
-                    setVarNameInput("");
-                    setVarNameError(null);
-                  }}
-                  className="rounded px-1.5 py-0.5 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-                >
-                  取消
-                </button>
-              </div>
+                    }}
+                    className="h-8 rounded-md px-2 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+                  >
+                    取消
+                  </button>
+                </div>
+              )}
+            </div>
+            {varNameError && (
+              <p className="text-xs text-[var(--color-error)]">{varNameError}</p>
             )}
+            <textarea
+              ref={textareaRef}
+              id="template-content"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              rows={8}
+              maxLength={MAX_CONTENT_LENGTH}
+              className="input-precision min-h-[220px] w-full resize-y rounded-t-lg px-3 py-3 text-sm leading-6"
+              placeholder="输入或编辑 Prompt 模板内容..."
+            />
+            <p className="text-right text-xs text-[var(--text-secondary)]/60">
+              {content.length} / {MAX_CONTENT_LENGTH.toLocaleString()}
+            </p>
           </div>
-          {varNameError && (
-            <p className="text-xs text-red-400">{varNameError}</p>
+
+          {/* 变量预览 */}
+          {variables.length > 0 && (
+            <div className="space-y-3">
+              <div>
+                <h4 className="text-sm font-semibold text-[var(--text-primary)]">
+                  已识别变量 ({variables.length})
+                </h4>
+              </div>
+              <div
+                data-testid="template-save-variable-grid"
+                className="grid gap-3 sm:grid-cols-2"
+              >
+                {variables.map((variable) => (
+                  <label key={variable.name} className="block space-y-1.5">
+                    <span className="flex items-center gap-2">
+                      <span className="label-tech text-[var(--text-muted)]">
+                        {variable.label || variable.name}
+                      </span>
+                      {variable.sourceField && (
+                        <span className="rounded-full bg-[var(--surface-low)] px-2 py-0.5 text-[10px] text-[var(--text-muted)]">
+                          {variable.sourceField}
+                        </span>
+                      )}
+                    </span>
+                    <input
+                      aria-label={`识别变量 ${variable.name}`}
+                      readOnly
+                      value={variable.defaultValue || "空默认值"}
+                      className="input-precision w-full rounded-t-md px-3 py-2 text-sm"
+                    />
+                  </label>
+                ))}
+              </div>
+            </div>
           )}
-          <textarea
-            ref={textareaRef}
-            id="template-content"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows={8}
-            maxLength={MAX_CONTENT_LENGTH}
-            className="w-full resize-y rounded-lg border border-[var(--border)] bg-[var(--surface-low)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-secondary)]/50 transition-colors focus:border-[var(--accent-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]"
-            placeholder="输入或编辑 Prompt 模板内容..."
-          />
-          <p className="text-right text-xs text-[var(--text-secondary)]/60">
-            {content.length} / {MAX_CONTENT_LENGTH.toLocaleString()}
-          </p>
+
+          {/* 错误提示 */}
+          {error && (
+            <p className="rounded-lg bg-[var(--color-error-soft)] px-3 py-2 text-sm text-[var(--color-error)]">
+              {error}
+            </p>
+          )}
         </div>
 
-        {/* 变量预览 */}
-        {variables.length > 0 && (
-          <div className="space-y-1.5">
-            <p className="text-xs font-medium text-[var(--text-secondary)]">
-              已识别变量 ({variables.length})
-            </p>
-            <ul className="flex flex-wrap gap-2">
-              {variables.map((v) => (
-                <li
-                  key={v.name}
-                  className="rounded-md bg-[var(--surface-bright)] px-2 py-0.5 text-xs font-mono text-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)]/20"
-                >
-                  <span>{`{{${v.name}}}`}</span>
-                  <span className="ml-1 text-[var(--text-secondary)]">
-                    {v.defaultValue || "空默认值"}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* 错误提示 */}
-        {error && (
-          <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">
-            {error}
-          </p>
-        )}
-
         {/* 操作按钮 */}
-        <div className="flex items-center justify-end gap-3">
+        <div className="flex shrink-0 items-center justify-end gap-3 px-6 pb-6">
           <button
             type="button"
             onClick={onClose}
@@ -345,7 +350,7 @@ export function TemplateSaveDialog({
             type="button"
             onClick={handleSave}
             disabled={isSaving}
-            className="rounded-lg bg-[var(--accent-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            className="btn-primary rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
           >
             {isSaving ? "保存中..." : "保存模板"}
           </button>
