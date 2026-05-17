@@ -103,7 +103,7 @@ test.describe('analysis template autofill', () => {
       analysisResponse: readyTemplateResponse,
     })
 
-    await page.getByRole('button', { name: '生成图片' }).click()
+    await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
 
     expect(requestBody.promptText).toContain('glass fox')
     expect(requestBody.promptText).toContain('neon rain garden')
@@ -139,7 +139,7 @@ test.describe('analysis template autofill', () => {
     })
 
     await page.getByLabel('变量 subject').fill('crystal heron')
-    await page.getByRole('button', { name: '生成图片' }).click()
+    await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
 
     expect(requestBody.promptText).toContain('crystal heron')
     expect(requestBody.promptText).not.toContain('glass fox')
@@ -177,7 +177,7 @@ test.describe('analysis template autofill', () => {
     await page.getByRole('button', { name: '模板模式' }).click()
     await page.getByLabel('变量 subject').fill('changed subject')
     await page.getByRole('button', { name: '文本模式' }).click()
-    await page.getByRole('button', { name: '生成图片' }).click()
+    await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
 
     expect(requestBody.promptText).toBe('Manual protected prompt')
   })
@@ -193,7 +193,7 @@ test.describe('analysis template autofill', () => {
     )
     await expect(page.getByText('本次没有识别到足够稳定的可替换变量')).toBeVisible()
     await expect(page.getByLabel(/变量 subject/)).toHaveCount(0)
-    await expect(page.getByRole('button', { name: '生成图片' })).toBeEnabled()
+    await expect(page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' })).toBeEnabled()
   })
 
   test('treats ready templates with no variables as text fallback', async ({ page }) => {

@@ -154,7 +154,7 @@ export function LightGeneratePanel({
             disabled={!canGenerate}
             className="btn-primary w-full rounded-lg px-5 py-3 text-sm font-medium"
           >
-            {isGenerating ? "正在生成..." : state === "generation_ready" ? "重新生成" : "生成图片"}
+            {isGenerating ? "GENERATING..." : "GENERATE"}
           </button>
         </div>
       </div>

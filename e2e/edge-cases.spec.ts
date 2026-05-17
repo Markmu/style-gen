@@ -30,7 +30,7 @@ test.describe('Edge Cases', () => {
     const fileInput = page.locator('input[type="file"]')
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
     await expect(page.getByText('可生成')).toBeVisible({ timeout: 15000 })
-    await page.getByRole('button', { name: '生成图片' }).click()
+    await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
     await expect(page.locator('h3').filter({ hasText: /^生成结果$/ })).toBeVisible({ timeout: 15000 })
     await page.getByText('关闭弹窗', { exact: true }).click()
 
@@ -123,11 +123,11 @@ test.describe('Edge Cases', () => {
     await expect(page.getByText('可生成')).toBeVisible({ timeout: 15000 })
 
     // Click generate button rapidly
-    const generateBtn = page.getByRole('button', { name: '生成图片' })
+    const generateBtn = page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' })
     await generateBtn.click()
-    // After first click, button changes to "正在生成..." and is disabled
+    // After first click, button changes to "GENERATING..." and is disabled
     // So subsequent clicks should not go through
-    await expect(page.getByRole('button', { name: '正在生成...' })).toBeDisabled()
+    await expect(page.getByRole('button', { name: 'GENERATING...' })).toBeDisabled()
 
     // Only 1 POST request should have been made
     expect(generationPostCount).toBe(1)

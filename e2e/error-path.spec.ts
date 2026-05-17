@@ -145,7 +145,7 @@ test.describe('Error Path', () => {
     await expect(page.getByText('可生成')).toBeVisible({ timeout: 15000 })
 
     // Click generate
-    await page.getByRole('button', { name: '生成图片' }).click()
+    await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
 
     // Should show error title (in <p> not heading)
     await expect(page.getByText('服务暂时不可用').first()).toBeVisible({ timeout: 15000 })
@@ -168,7 +168,7 @@ test.describe('Error Path', () => {
     const fileInput = page.locator('input[type="file"]')
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
     await expect(page.getByText('可生成')).toBeVisible({ timeout: 15000 })
-    await page.getByRole('button', { name: '生成图片' }).click()
+    await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
     await expect(page.getByText('服务暂时不可用').first()).toBeVisible({ timeout: 15000 })
 
     // Prompt editor should still be visible — use heading selector to avoid matching degradation message

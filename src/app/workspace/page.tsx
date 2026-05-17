@@ -93,6 +93,7 @@ function WorkspacePageInner() {
         setTemplateContent(template.content);
         setTemplateVariables(template.variables ?? []);
         setCurrentTemplateVariables(template.variables ?? []);
+        setResolvedPromptText(template.content);
         ws.setPromptText(template.content);
       } catch {
         // 模板不存在或加载失败，静默处理（不阻塞用户）
@@ -197,9 +198,11 @@ function WorkspacePageInner() {
       setCurrentTemplateVariables(
         hasAnalysisTemplate ? analysisTemplateVariables : [],
       );
+      const nextPromptText = analysisData.promptText ?? "";
+      setResolvedPromptText(nextPromptText);
       ws.completeAnalysis(
         analysisData.recipe,
-        analysisData.promptText ?? "",
+        nextPromptText,
         analysisData.negativePromptText ?? "",
         {
           analysisTemplateContent: analysisData.analysisTemplateContent,
@@ -298,6 +301,7 @@ function WorkspacePageInner() {
   );
 
   const handleReplace = useCallback(() => {
+    setResolvedPromptText("");
     ws.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -344,8 +348,12 @@ function WorkspacePageInner() {
 
   const handleGenerate = useCallback(
     async (params: { aspectRatio: AspectRatio; quality: Quality }) => {
-      if (!ws.analysisTaskId) return;
-      const prompt = resolvedPromptText.trim();
+      if (!ws.analysisTaskId) {
+        setGenerationDialogOpen(true);
+        ws.setError("缺少分析任务，请重新分析后再生成", "generation");
+        return;
+      }
+      const prompt = (resolvedPromptText || ws.promptText).trim();
       if (!prompt || hasUnresolvedVariables(prompt)) return;
 
       // L2: block when generation service unavailable
@@ -382,7 +390,12 @@ function WorkspacePageInner() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ws.analysisTaskId, resolvedPromptText, ws.degradation.generationUnavailable],
+    [
+      ws.analysisTaskId,
+      resolvedPromptText,
+      ws.promptText,
+      ws.degradation.generationUnavailable,
+    ],
   );
 
   const handleGenerateRetry = useCallback(() => {
@@ -421,6 +434,7 @@ function WorkspacePageInner() {
     async (id: string) => {
       try {
         const restoredData = await restoreHistory(id);
+        setResolvedPromptText(restoredData.promptSnapshot);
         ws.enterHistoryRestored(
           restoredData.resultFileUrl,
           restoredData.recipe,
@@ -482,7 +496,7 @@ function WorkspacePageInner() {
                 generatePanel={
                   <LightGeneratePanel
                     state={ws.state}
-                    promptText={resolvedPromptText || ws.promptText}
+                    promptText={ws.promptText}
                     params={generationParams}
                     generationUnavailable={ws.degradation.generationUnavailable}
                     error={ws.error}

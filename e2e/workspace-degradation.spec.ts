@@ -75,7 +75,7 @@ test.describe('Workspace Degradation Scenarios', () => {
     await expect(page.getByText('可生成')).toBeVisible({ timeout: 15000 })
 
     // Click generate to trigger L2
-    await page.getByRole('button', { name: '生成图片' }).click()
+    await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
 
     // Verify OutputSettings area shows error display (SERVICE_UNAVAILABLE triggers ErrorDisplay)
     await expect(page.getByText('服务暂时不可用').first()).toBeVisible({ timeout: 15000 })
@@ -83,7 +83,7 @@ test.describe('Workspace Degradation Scenarios', () => {
     // Verify generate button is disabled (generationUnavailable blocks it)
     const genBtn = page
       .getByTestId('light-generate-panel')
-      .getByRole('button', { name: '重新生成' })
+      .getByRole('button', { name: 'GENERATE' })
     await expect(genBtn).toBeDisabled()
 
     // Verify Prompt editor is still usable
@@ -225,7 +225,7 @@ test.describe('Workspace Degradation Scenarios', () => {
     await expect(page.getByText('可生成')).toBeVisible({ timeout: 15000 })
 
     // Click generate
-    await page.getByRole('button', { name: '生成图片' }).click()
+    await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
 
     // Verify OutputSettings area shows ErrorDisplay
     await expect(page.getByText('服务暂时不可用').first()).toBeVisible({ timeout: 15000 })

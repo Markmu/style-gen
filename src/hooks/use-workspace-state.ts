@@ -11,13 +11,14 @@ import type {
 const STORAGE_KEY = "style-gen-workspace-state";
 
 /** 当前持久化数据版本号 */
-const STORAGE_VERSION = 2;
+const STORAGE_VERSION = 3;
 
 /** 持久化状态结构（仅包含需要跨页面恢复的关键数据） */
 export interface WorkspacePersistedState {
   version: number;
   assetId: string | null;
   referenceImageUrl: string | null;
+  analysisTaskId: string | null;
   recipe: VisualRecipe | null;
   promptText: string;
   negativePromptText: string;
@@ -242,6 +243,7 @@ function restoreFromPersistedState(
     state: "analysis_ready", // 恢复后直接进入分析完成状态
     assetId: persisted.assetId,
     referenceImageUrl: persisted.referenceImageUrl,
+    analysisTaskId: persisted.analysisTaskId ?? null,
     recipe: persisted.recipe ?? null,
     promptText: persisted.promptText ?? "",
     negativePromptText: persisted.negativePromptText ?? "",
@@ -250,7 +252,6 @@ function restoreFromPersistedState(
     analysisTemplateStatus: persisted.analysisTemplateStatus ?? null,
     analysisTemplateReason: persisted.analysisTemplateReason ?? null,
     generationTaskId: persisted.generationTaskId ?? null,
-    analysisTaskId: null, // 不恢复 analysisTaskId，因为任务可能已过期
     resultImageUrl: null, // 不恢复 resultImageUrl，因为 URL 可能已失效
     mimeType: null,
     error: null,
@@ -540,6 +541,7 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
       version: STORAGE_VERSION,
       assetId: ctx.assetId,
       referenceImageUrl: ctx.referenceImageUrl,
+      analysisTaskId: ctx.analysisTaskId,
       recipe: ctx.recipe,
       promptText: ctx.promptText,
       negativePromptText: ctx.negativePromptText,
@@ -554,6 +556,7 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
   }, [
     ctx.assetId,
     ctx.referenceImageUrl,
+    ctx.analysisTaskId,
     ctx.recipe,
     ctx.promptText,
     ctx.negativePromptText,

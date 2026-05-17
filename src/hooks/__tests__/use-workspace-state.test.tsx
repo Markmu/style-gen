@@ -157,6 +157,34 @@ describe("useWorkspaceState", () => {
     expect(persisted.analysisTemplateStatus).toBe("ready");
   });
 
+  it("持久化并恢复 analysisTaskId 以支持刷新后生成", () => {
+    const { result, unmount } = renderHook(() => useWorkspaceState());
+
+    act(() => {
+      result.current.completeUpload("asset-123", "https://example.com/img.png");
+    });
+    act(() => {
+      result.current.startAnalysis("analysis-task-123");
+    });
+    act(() => {
+      result.current.completeAnalysis(mockRecipe, "rendered prompt", "");
+    });
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+
+    const persisted = JSON.parse(
+      sessionStorage.getItem("style-gen-workspace-state") ?? "{}",
+    );
+    expect(persisted.analysisTaskId).toBe("analysis-task-123");
+
+    unmount();
+    const restored = renderHook(() => useWorkspaceState());
+
+    expect(restored.result.current.state).toBe("analysis_ready");
+    expect(restored.result.current.analysisTaskId).toBe("analysis-task-123");
+  });
+
   it("fallback analysis 清空模板正文和变量但保留 prompt", () => {
     const { result } = renderHook(() => useWorkspaceState());
 

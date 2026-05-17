@@ -27,8 +27,13 @@ export class ReplicateVisionProvider implements VisionProvider {
     const prediction = await this.client.predictions.create({
       model: MODEL,
       input: {
-        image: params.imageUrl,
+        top_p: 0.95,
+        images: [params.imageUrl],
         prompt: VISION_SYSTEM_PROMPT,
+        videos: [],
+        temperature: 1,
+        dynamic_thinking: false,
+        max_output_tokens: 65535,
       },
       webhook: params.webhookUrl,
       webhook_events_filter: ['completed'],

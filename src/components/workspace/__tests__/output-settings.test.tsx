@@ -29,24 +29,24 @@ describe("OutputSettings", () => {
 
   // --- Button label changes with state ---
 
-  it("analysis_ready 状态按钮文案 '生成首版'", () => {
+  it("analysis_ready 状态按钮文案 'GENERATE'", () => {
     render(<OutputSettings {...defaultProps} />);
     expect(
-      screen.getByRole("button", { name: "生成首版" }),
+      screen.getByRole("button", { name: "GENERATE" }),
     ).toBeInTheDocument();
   });
 
-  it("generating 状态按钮文案 '正在生成...' 且禁用", () => {
+  it("generating 状态按钮文案 'GENERATING...' 且禁用", () => {
     render(<OutputSettings {...defaultProps} state="generating" />);
-    const btn = screen.getByRole("button", { name: "正在生成..." });
+    const btn = screen.getByRole("button", { name: "GENERATING..." });
     expect(btn).toBeInTheDocument();
     expect(btn).toBeDisabled();
   });
 
-  it("generation_ready 状态按钮文案 '重新生成'", () => {
+  it("generation_ready 状态按钮文案 'GENERATE'", () => {
     render(<OutputSettings {...defaultProps} state="generation_ready" />);
     expect(
-      screen.getByRole("button", { name: "重新生成" }),
+      screen.getByRole("button", { name: "GENERATE" }),
     ).toBeInTheDocument();
   });
 
@@ -56,7 +56,7 @@ describe("OutputSettings", () => {
     render(
       <OutputSettings {...defaultProps} generationUnavailable={true} />,
     );
-    const btn = screen.getByRole("button", { name: "生成首版" });
+    const btn = screen.getByRole("button", { name: "GENERATE" });
     expect(btn).toBeDisabled();
   });
 
@@ -103,7 +103,7 @@ describe("OutputSettings", () => {
 
     render(<OutputSettings {...defaultProps} onGenerate={onGenerate} />);
 
-    await user.click(screen.getByRole("button", { name: "生成首版" }));
+    await user.click(screen.getByRole("button", { name: "GENERATE" }));
     expect(onGenerate).toHaveBeenCalledWith({
       aspectRatio: "1:1",
       quality: "standard",
@@ -117,7 +117,7 @@ describe("OutputSettings", () => {
     render(<OutputSettings {...defaultProps} onGenerate={onGenerate} />);
 
     await user.click(screen.getByRole("button", { name: "16:9" }));
-    await user.click(screen.getByRole("button", { name: "生成首版" }));
+    await user.click(screen.getByRole("button", { name: "GENERATE" }));
 
     expect(onGenerate).toHaveBeenCalledWith({
       aspectRatio: "16:9",
@@ -132,7 +132,7 @@ describe("OutputSettings", () => {
     render(<OutputSettings {...defaultProps} onGenerate={onGenerate} />);
 
     await user.click(screen.getByRole("button", { name: "高清" }));
-    await user.click(screen.getByRole("button", { name: "生成首版" }));
+    await user.click(screen.getByRole("button", { name: "GENERATE" }));
 
     expect(onGenerate).toHaveBeenCalledWith({
       aspectRatio: "1:1",

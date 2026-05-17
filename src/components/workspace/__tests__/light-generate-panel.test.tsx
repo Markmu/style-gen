@@ -31,7 +31,7 @@ describe("LightGeneratePanel", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "生成图片" }));
+    await user.click(screen.getByRole("button", { name: "GENERATE" }));
 
     expect(onGenerate).toHaveBeenCalledWith({
       aspectRatio: "16:9",
@@ -66,21 +66,21 @@ describe("LightGeneratePanel", () => {
   it("disables generation and explains why when the prompt is empty", () => {
     render(<LightGeneratePanel {...defaultProps} promptText="" />);
 
-    expect(screen.getByRole("button", { name: "生成图片" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "GENERATE" })).toBeDisabled();
     expect(screen.getByText("需要先获得或填写完整生成提示")).toBeInTheDocument();
   });
 
   it("keeps editing available while generation service is unavailable", () => {
     render(<LightGeneratePanel {...defaultProps} generationUnavailable />);
 
-    expect(screen.getByRole("button", { name: "生成图片" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "GENERATE" })).toBeDisabled();
     expect(screen.getByText("图片生成服务暂时不可用")).toBeInTheDocument();
   });
 
   it("disables generation when prompt still contains unresolved variables", () => {
     render(<LightGeneratePanel {...defaultProps} promptText="Create {{subject}}" />);
 
-    expect(screen.getByRole("button", { name: "生成图片" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "GENERATE" })).toBeDisabled();
     expect(screen.getByText("请先填写所有模板变量")).toBeInTheDocument();
   });
 });

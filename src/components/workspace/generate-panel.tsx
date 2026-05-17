@@ -121,10 +121,8 @@ export function GeneratePanel({
   }, [aspectRatio]);
 
   const buttonLabel = isGenerating
-    ? "生成中..."
-    : isGenerationReady
-      ? "重新生成"
-      : "生成图片";
+    ? "GENERATING..."
+    : "GENERATE";
 
   return (
     <div className="space-y-4 rounded-lg bg-[var(--surface-mid)] p-4 ring-1 ring-[var(--border)]/15">

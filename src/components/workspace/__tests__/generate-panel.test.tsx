@@ -10,29 +10,29 @@ describe("GeneratePanel", () => {
     vi.clearAllMocks();
   });
 
-  it('analysis_ready 状态按钮文案 "生成图片"', () => {
+  it('analysis_ready 状态按钮文案 "GENERATE"', () => {
     render(
       <GeneratePanel workspaceState="analysis_ready" onGenerate={noop} />,
     );
     expect(
-      screen.getByRole("button", { name: "生成图片" }),
+      screen.getByRole("button", { name: "GENERATE" }),
     ).toBeInTheDocument();
   });
 
-  it('generation_ready 状态按钮文案 "重新生成"', () => {
+  it('generation_ready 状态按钮文案 "GENERATE"', () => {
     render(
       <GeneratePanel workspaceState="generation_ready" onGenerate={noop} />,
     );
     expect(
-      screen.getByRole("button", { name: "重新生成" }),
+      screen.getByRole("button", { name: "GENERATE" }),
     ).toBeInTheDocument();
   });
 
-  it('generating 状态按钮禁用，文案 "生成中..."', () => {
+  it('generating 状态按钮禁用，文案 "GENERATING..."', () => {
     render(
       <GeneratePanel workspaceState="generating" onGenerate={noop} />,
     );
-    const btn = screen.getByRole("button", { name: "生成中..." });
+    const btn = screen.getByRole("button", { name: "GENERATING..." });
     expect(btn).toBeInTheDocument();
     expect(btn).toBeDisabled();
   });
@@ -45,7 +45,7 @@ describe("GeneratePanel", () => {
       <GeneratePanel workspaceState="analysis_ready" onGenerate={onGenerate} />,
     );
 
-    await user.click(screen.getByRole("button", { name: "生成图片" }));
+    await user.click(screen.getByRole("button", { name: "GENERATE" }));
 
     expect(onGenerate).toHaveBeenCalledWith({
       aspectRatio: "1:1",
@@ -62,7 +62,7 @@ describe("GeneratePanel", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "16:9" }));
-    await user.click(screen.getByRole("button", { name: "生成图片" }));
+    await user.click(screen.getByRole("button", { name: "GENERATE" }));
 
     expect(onGenerate).toHaveBeenCalledWith({
       aspectRatio: "16:9",
@@ -79,7 +79,7 @@ describe("GeneratePanel", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "高清" }));
-    await user.click(screen.getByRole("button", { name: "生成图片" }));
+    await user.click(screen.getByRole("button", { name: "GENERATE" }));
 
     expect(onGenerate).toHaveBeenCalledWith({
       aspectRatio: "1:1",
@@ -112,7 +112,7 @@ describe("GeneratePanel", () => {
       />,
     );
 
-    const btn = screen.getByRole("button", { name: "生成图片" });
+    const btn = screen.getByRole("button", { name: "GENERATE" });
     expect(btn).toBeDisabled();
 
     await user.click(btn);

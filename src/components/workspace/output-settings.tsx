@@ -134,12 +134,8 @@ export function OutputSettings({
 
   // Button label changes with state
   const buttonLabel = isGenerating
-    ? "正在生成..."
-    : isGenerationReady
-      ? "重新生成"
-      : isHistoryRestored
-        ? "生成"
-        : "生成首版";
+    ? "GENERATING..."
+    : "GENERATE";
 
   const panelTitle = isGenerationReady ? "再次生成" : "输出设置";
 

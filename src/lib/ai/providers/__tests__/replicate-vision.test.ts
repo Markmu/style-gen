@@ -44,8 +44,13 @@ describe('ReplicateVisionProvider', () => {
     expect(mockCreate).toHaveBeenCalledWith({
       model: 'google/gemini-2.5-flash',
       input: {
-        image: 'https://example.com/image.jpg',
+        top_p: 0.95,
+        images: ['https://example.com/image.jpg'],
         prompt: VISION_SYSTEM_PROMPT,
+        videos: [],
+        temperature: 1,
+        dynamic_thinking: false,
+        max_output_tokens: 65535,
       },
       webhook: 'https://example.com/webhook',
       webhook_events_filter: ['completed'],
