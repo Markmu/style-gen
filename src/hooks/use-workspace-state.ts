@@ -219,8 +219,8 @@ function createPersistWriter() {
 
 const persistState = createPersistWriter();
 
-/** 清除 sessionStorage */
-function clearPersistedState(): void {
+/** 清除 workspace 的 sessionStorage 快照 */
+export function clearWorkspacePersistedState(): void {
   if (typeof window === "undefined") return;
   try {
     persistState.cancel();
@@ -449,7 +449,7 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
   }, []);
 
   const reset = useCallback(() => {
-    clearPersistedState();
+    clearWorkspacePersistedState();
     setCtx(initialContext);
   }, []);
 
@@ -533,7 +533,7 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
     }
 
     if (!ctx.assetId || !ctx.referenceImageUrl) {
-      clearPersistedState();
+      clearWorkspacePersistedState();
       return;
     }
 

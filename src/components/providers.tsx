@@ -2,8 +2,22 @@
 
 import { SessionProvider } from "next-auth/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { FileStoreProvider } from "@/components/landing/use-file-store";
+import { clearWorkspacePersistedState } from "@/hooks/use-workspace-state";
+
+function WorkspacePersistenceGuard() {
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (pathname && pathname !== "/workspace") {
+      clearWorkspacePersistedState();
+    }
+  }, [pathname]);
+
+  return null;
+}
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
@@ -20,6 +34,7 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <SessionProvider>
       <QueryClientProvider client={queryClient}>
+        <WorkspacePersistenceGuard />
         <FileStoreProvider>{children}</FileStoreProvider>
       </QueryClientProvider>
     </SessionProvider>
