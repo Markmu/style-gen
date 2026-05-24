@@ -13,7 +13,7 @@ import { StatusBar } from "@/components/workspace/status-bar";
 import { WorkspaceTwoPaneLayout } from "@/components/workspace/workspace-two-pane-layout";
 import { AnalysisPane } from "@/components/workspace/analysis-pane";
 import { EditingPane } from "@/components/workspace/editing-pane";
-import { LightGeneratePanel } from "@/components/workspace/light-generate-panel";
+import { FloatingGenerateWindow } from "@/components/workspace/floating-generate-window";
 import { GenerationDialog } from "@/components/workspace/generation-dialog";
 import type { AspectRatio, Quality } from "@/components/workspace/output-settings";
 import { TemplateSaveDialog } from "@/components/workspace/template-save-dialog";
@@ -464,22 +464,22 @@ function WorkspacePageInner() {
           onReplace={handleReplace}
         />
 
-        <div className="min-h-0 flex-1 overflow-hidden">
+        <div className="relative min-h-0 flex-1 overflow-hidden">
           <WorkspaceTwoPaneLayout
             analysis={
               <AnalysisPane
-              state={ws.state}
-              referenceImageUrl={ws.referenceImageUrl}
-              recipe={ws.recipe}
-              isUploading={isUploading || ws.state === "uploading"}
-              uploadProgress={progress}
+                state={ws.state}
+                referenceImageUrl={ws.referenceImageUrl}
+                recipe={ws.recipe}
+                isUploading={isUploading || ws.state === "uploading"}
+                uploadProgress={progress}
                 degradation={ws.degradation}
                 promptText={ws.promptText}
                 error={ws.error}
-              onFileSelected={handleFileSelected}
-              onReplace={handleReplace}
+                onFileSelected={handleFileSelected}
+                onReplace={handleReplace}
                 onRetry={handleRetry}
-            />
+              />
             }
             editing={
               <EditingPane
@@ -493,21 +493,21 @@ function WorkspacePageInner() {
                 onTemplateContentChange={setTemplateSaveContent}
                 onTemplateVariablesChange={setCurrentTemplateVariables}
                 onSaveTemplate={handleOpenTemplateSave}
-                generatePanel={
-                  <LightGeneratePanel
-                    state={ws.state}
-                    promptText={ws.promptText}
-                    params={generationParams}
-                    generationUnavailable={ws.degradation.generationUnavailable}
-                    error={ws.error}
-                    onParamsChange={setGenerationParams}
-                    onGenerate={handleGenerate}
-                    onRetry={handleGenerateRetry}
-                  />
-                }
               />
             }
           />
+          <div className="pointer-events-none absolute inset-x-0 bottom-4 z-30 flex justify-center px-4">
+            <FloatingGenerateWindow
+              state={ws.state}
+              promptText={ws.promptText}
+              params={generationParams}
+              generationUnavailable={ws.degradation.generationUnavailable}
+              error={ws.error}
+              onParamsChange={setGenerationParams}
+              onGenerate={handleGenerate}
+              onRetry={handleGenerateRetry}
+            />
+          </div>
         </div>
 
         <GenerationDialog
@@ -523,7 +523,7 @@ function WorkspacePageInner() {
               void handleGenerate(generationParams);
             }
           }}
-                />
+        />
 
         {/* Template Save Dialog */}
         <TemplateSaveDialog

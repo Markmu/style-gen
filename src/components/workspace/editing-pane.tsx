@@ -1,6 +1,5 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { UnifiedPromptEditor } from "@/components/workspace/unified-prompt-editor";
 import type {
   AnalysisTemplateStatus,
@@ -18,7 +17,6 @@ interface EditingPaneProps {
   onTemplateContentChange?: (value: string) => void;
   onTemplateVariablesChange?: (variables: TemplateVariable[]) => void;
   onSaveTemplate?: (templateContent: string) => void;
-  generatePanel: ReactNode;
 }
 
 export function EditingPane({
@@ -32,12 +30,11 @@ export function EditingPane({
   onTemplateContentChange,
   onTemplateVariablesChange,
   onSaveTemplate,
-  generatePanel,
 }: EditingPaneProps) {
   return (
     <div
       data-testid="editing-pane"
-      className="flex h-full min-h-0 min-w-0 flex-col gap-2 overflow-hidden"
+      className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden"
     >
       <UnifiedPromptEditor
         initialPromptText={promptText}
@@ -51,7 +48,6 @@ export function EditingPane({
         onTemplateVariablesChange={onTemplateVariablesChange}
         onSaveTemplate={onSaveTemplate}
       />
-      {generatePanel}
     </div>
   );
 }

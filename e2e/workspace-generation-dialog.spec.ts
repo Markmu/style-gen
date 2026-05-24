@@ -29,7 +29,7 @@ test.describe('workspace 09 generation dialog', () => {
     await uploadAndCompleteAnalysis(page, { analysisTaskId: 'dialog-progress-analysis-task' })
 
     await expect(page.getByLabel(/Negative Prompt/i)).toHaveCount(0)
-    await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
+    await page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' }).click()
 
     await expect(page.getByRole('dialog', { name: 'Generation Task' })).toBeVisible()
     await expect(page.getByTestId('generation-dialog')).toContainText(/Generation|queued/)
@@ -44,7 +44,7 @@ test.describe('workspace 09 generation dialog', () => {
     ])
 
     await uploadAndCompleteAnalysis(page, { analysisTaskId: 'dialog-completed-analysis-task' })
-    await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
+    await page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' }).click()
 
     await expect(page.getByRole('dialog', { name: 'Generation Task' })).toBeVisible()
     await expect(page.getByTestId('generation-dialog')).toContainText('Generated Result')
@@ -66,7 +66,7 @@ test.describe('workspace 09 generation dialog', () => {
     })
 
     await uploadAndCompleteAnalysis(page, { analysisTaskId: 'dialog-failed-analysis-task' })
-    await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
+    await page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' }).click()
 
     await expect(page.getByRole('dialog', { name: 'Generation Task' })).toBeVisible()
     await expect(page.getByTestId('generation-dialog')).toContainText('Generation Failed')

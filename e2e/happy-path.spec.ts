@@ -78,7 +78,7 @@ test.describe('Happy Path', () => {
     await expect(page.getByText('Ready to Generate')).toBeVisible({ timeout: 15000 })
 
     // Click generate
-    const generateBtn = page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' })
+    const generateBtn = page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' })
     await expect(generateBtn).toBeEnabled()
     await generateBtn.click()
 
@@ -104,7 +104,7 @@ test.describe('Happy Path', () => {
     const fileInput = page.locator('input[type="file"]')
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
     await expect(page.getByText('Ready to Generate')).toBeVisible({ timeout: 15000 })
-    await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
+    await page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' }).click()
     await expect(page.locator('h3').filter({ hasText: /^Generated Result$/ })).toBeVisible({ timeout: 15000 })
 
     // Verify the result dialog can be closed without losing workspace context
@@ -145,7 +145,7 @@ test.describe('Happy Path', () => {
     const fileInput = page.locator('input[type="file"]')
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
     await expect(page.getByText('Ready to Generate')).toBeVisible({ timeout: 15000 })
-    await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
+    await page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' }).click()
 
     // Wait for generation result - use text matcher since there are multiple elements
     await expect(page.locator('h3').filter({ hasText: /^Generated Result$/ })).toBeVisible({ timeout: 15000 })
@@ -153,7 +153,7 @@ test.describe('Happy Path', () => {
 
     // Verify the generate button remains available for iteration
     await expect(
-      page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }),
+      page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' }),
     ).toBeVisible()
   })
 })

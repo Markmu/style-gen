@@ -145,7 +145,7 @@ test.describe('Error Path', () => {
     await expect(page.getByText('Ready to Generate')).toBeVisible({ timeout: 15000 })
 
     // Click generate
-    await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
+    await page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' }).click()
 
     // Should show error title (in <p> not heading)
     await expect(page.getByText('Service Temporarily Unavailable').first()).toBeVisible({ timeout: 15000 })
@@ -168,7 +168,7 @@ test.describe('Error Path', () => {
     const fileInput = page.locator('input[type="file"]')
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
     await expect(page.getByText('Ready to Generate')).toBeVisible({ timeout: 15000 })
-    await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
+    await page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' }).click()
     await expect(page.getByText('Service Temporarily Unavailable').first()).toBeVisible({ timeout: 15000 })
 
     // Prompt editor should still be visible — use heading selector to avoid matching degradation message

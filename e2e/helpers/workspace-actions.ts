@@ -120,7 +120,7 @@ export async function completeFullFlow(
   const result = await uploadAndCompleteAnalysis(page)
 
   // Click generate button
-  const generateBtn = page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' })
+  const generateBtn = page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' })
   await generateBtn.click()
 
   // Wait for generation result

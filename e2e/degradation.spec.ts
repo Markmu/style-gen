@@ -82,7 +82,7 @@ test.describe('Degradation', () => {
     await page.clock.install()
 
     // Click generate
-    await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
+    await page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' }).click()
 
     // Wait for generation progress
     await expect(page.getByText('Generating image...')).toBeVisible({ timeout: 15000 })
@@ -115,7 +115,7 @@ test.describe('Degradation', () => {
     await expect(page.getByText('Ready to Generate')).toBeVisible({ timeout: 15000 })
 
     // Click generate
-    await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
+    await page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' }).click()
 
     // Should show L2 degradation message
     await expect(page.getByText('Service Temporarily Unavailable').first()).toBeVisible({ timeout: 15000 })
@@ -138,7 +138,7 @@ test.describe('Degradation', () => {
     const fileInput = page.locator('input[type="file"]')
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
     await expect(page.getByText('Ready to Generate')).toBeVisible({ timeout: 15000 })
-    await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
+    await page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' }).click()
     await expect(page.getByText('Service Temporarily Unavailable').first()).toBeVisible({ timeout: 15000 })
 
     // Recipe step should still be visible
@@ -201,7 +201,7 @@ test.describe('Degradation', () => {
     await promptTextarea.fill('Manually edited prompt for generation')
 
     // Click generate
-    await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
+    await page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' }).click()
 
     // Should successfully generate
     await expect(page.locator('h3').filter({ hasText: /^Generated Result$/ })).toBeVisible({ timeout: 15000 })

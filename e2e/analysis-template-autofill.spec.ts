@@ -103,7 +103,7 @@ test.describe('analysis template autofill', () => {
       analysisResponse: readyTemplateResponse,
     })
 
-    await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
+    await page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' }).click()
 
     expect(requestBody.promptText).toContain('glass fox')
     expect(requestBody.promptText).toContain('neon rain garden')
@@ -139,7 +139,7 @@ test.describe('analysis template autofill', () => {
     })
 
     await page.getByLabel('Variable subject').fill('crystal heron')
-    await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
+    await page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' }).click()
 
     expect(requestBody.promptText).toContain('crystal heron')
     expect(requestBody.promptText).not.toContain('glass fox')
@@ -177,7 +177,7 @@ test.describe('analysis template autofill', () => {
     await page.getByRole('button', { name: 'Template Mode' }).click()
     await page.getByLabel('Variable subject').fill('changed subject')
     await page.getByRole('button', { name: 'Text Mode' }).click()
-    await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
+    await page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' }).click()
 
     expect(requestBody.promptText).toBe('Manual protected prompt')
   })
@@ -193,7 +193,7 @@ test.describe('analysis template autofill', () => {
     )
     await expect(page.getByText('No stable replaceable variables were detected this time.')).toBeVisible()
     await expect(page.getByLabel(/Variable subject/)).toHaveCount(0)
-    await expect(page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' })).toBeEnabled()
+    await expect(page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' })).toBeEnabled()
   })
 
   test('treats ready templates with no variables as text fallback', async ({ page }) => {

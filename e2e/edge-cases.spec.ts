@@ -30,7 +30,7 @@ test.describe('Edge Cases', () => {
     const fileInput = page.locator('input[type="file"]')
     await fileInput.setInputFiles(TEST_IMAGE_PATH)
     await expect(page.getByText('Ready to Generate')).toBeVisible({ timeout: 15000 })
-    await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
+    await page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' }).click()
     await expect(page.locator('h3').filter({ hasText: /^Generated Result$/ })).toBeVisible({ timeout: 15000 })
     await page.getByText('Close Dialog', { exact: true }).click()
 
@@ -123,7 +123,7 @@ test.describe('Edge Cases', () => {
     await expect(page.getByText('Ready to Generate')).toBeVisible({ timeout: 15000 })
 
     // Click generate button rapidly
-    const generateBtn = page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' })
+    const generateBtn = page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' })
     await generateBtn.click()
     // After first click, button changes to "GENERATING..." and is disabled
     // So subsequent clicks should not go through

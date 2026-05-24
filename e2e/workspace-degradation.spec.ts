@@ -75,14 +75,14 @@ test.describe('Workspace Degradation Scenarios', () => {
     await expect(page.getByText('Ready to Generate')).toBeVisible({ timeout: 15000 })
 
     // Click generate to trigger L2
-    await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
+    await page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' }).click()
 
     // Verify OutputSettings area shows error display (SERVICE_UNAVAILABLE triggers ErrorDisplay)
     await expect(page.getByText('Service Temporarily Unavailable').first()).toBeVisible({ timeout: 15000 })
 
     // Verify generate button is disabled (generationUnavailable blocks it)
     const genBtn = page
-      .getByTestId('light-generate-panel')
+      .getByTestId('floating-generate-window')
       .getByRole('button', { name: 'GENERATE' })
     await expect(genBtn).toBeDisabled()
 
@@ -225,7 +225,7 @@ test.describe('Workspace Degradation Scenarios', () => {
     await expect(page.getByText('Ready to Generate')).toBeVisible({ timeout: 15000 })
 
     // Click generate
-    await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
+    await page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' }).click()
 
     // Verify OutputSettings area shows ErrorDisplay
     await expect(page.getByText('Service Temporarily Unavailable').first()).toBeVisible({ timeout: 15000 })

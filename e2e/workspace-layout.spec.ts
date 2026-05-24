@@ -44,7 +44,20 @@ test.describe('Workspace Layout & State Flow', () => {
     await expect(page.getByText('Click or drag to upload a reference image')).toBeVisible()
     await expect(page.getByTestId('reference-preview')).toContainText('Image')
     await expect(page.getByTestId('style-breakdown-panel')).toContainText('Analyze')
-    await expect(page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' })).toBeDisabled()
+    const floatingGenerate = page.getByTestId('floating-generate-window')
+    await expect(floatingGenerate).toBeVisible()
+    await expect(floatingGenerate.getByRole('button', { name: 'GENERATE' })).toBeDisabled()
+
+    const layoutBox = await page.getByTestId('workspace-two-pane-layout').boundingBox()
+    const floatingBox = await floatingGenerate.boundingBox()
+    expect(layoutBox).not.toBeNull()
+    expect(floatingBox).not.toBeNull()
+    if (layoutBox && floatingBox) {
+      const layoutCenter = layoutBox.x + layoutBox.width / 2
+      const floatingCenter = floatingBox.x + floatingBox.width / 2
+      expect(Math.abs(layoutCenter - floatingCenter)).toBeLessThan(24)
+      expect(floatingBox.y + floatingBox.height).toBeGreaterThan(layoutBox.y + layoutBox.height - 150)
+    }
   })
 
   test('Analyzing状态展示进度', async ({ page }) => {
@@ -69,7 +82,8 @@ test.describe('Workspace Layout & State Flow', () => {
     await expect(page.getByTestId('style-breakdown-panel')).toContainText('Replaceable')
     await expect(page.getByTestId('unified-prompt-editor')).toBeVisible()
     await expect(page.getByLabel('Full Generation Prompt')).not.toBeEmpty()
-    await expect(page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' })).toBeEnabled()
+    await expect(page.getByTestId('editing-pane').getByTestId('floating-generate-window')).toHaveCount(0)
+    await expect(page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' })).toBeEnabled()
   })
 
   test('生成图片：弹窗进度、结果图、关闭后保留上下文', async ({ page }) => {
@@ -91,7 +105,7 @@ test.describe('Workspace Layout & State Flow', () => {
     ])
 
     await uploadAndCompleteAnalysis(page, { analysisTaskId: 'layout-generation-analysis-task' })
-    await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
+    await page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' }).click()
 
     await expect(page.getByRole('dialog', { name: 'Generation Task' })).toBeVisible()
     await expect(page.getByText('Generating image...')).toBeVisible({ timeout: 10000 })
@@ -101,7 +115,7 @@ test.describe('Workspace Layout & State Flow', () => {
     await expect(page.getByText('Done')).toBeVisible()
     await expect(page.getByTestId('workspace-two-pane-layout')).toBeVisible()
     await expect(page.getByTestId('unified-prompt-editor')).toBeVisible()
-    await expect(page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' })).toBeVisible()
+    await expect(page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' })).toBeVisible()
   })
 
   test('迭代重新生成会发送修改后的 Prompt', async ({ page }) => {
@@ -139,12 +153,12 @@ test.describe('Workspace Layout & State Flow', () => {
     })
 
     await uploadAndCompleteAnalysis(page, { analysisTaskId: 'layout-iteration-analysis-task' })
-    await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
+    await page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' }).click()
     await expect(page.getByTestId('generation-dialog')).toContainText('Generated Result', { timeout: 15000 })
     await page.getByText('Close Dialog', { exact: true }).click()
 
     await page.getByLabel('Full Generation Prompt').fill('A vibrant sunrise over the mountains with mist')
-    await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
+    await page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' }).click()
 
     await expect(page.getByTestId('generation-dialog')).toContainText('Generated Result', { timeout: 15000 })
     expect(capturedPrompt).toBe('A vibrant sunrise over the mountains with mist')
@@ -218,7 +232,7 @@ test.describe('Workspace Layout & State Flow', () => {
     })
 
     await uploadAndCompleteAnalysis(page, { analysisTaskId: 'layout-generation-error-analysis-task' })
-    await page.getByTestId('light-generate-panel').getByRole('button', { name: 'GENERATE' }).click()
+    await page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' }).click()
 
     await expect(page.getByRole('dialog', { name: 'Generation Task' })).toContainText('Generation Failed', { timeout: 15000 })
     await expect(page.getByText('Service Temporarily Unavailable').first()).toBeVisible()
