@@ -18,10 +18,12 @@ export function ReferencePreview({
   onFileSelected,
   onReplace,
 }: ReferencePreviewProps) {
+  const hasReference = !!referenceImageUrl;
+
   return (
     <div
       data-testid="reference-preview"
-      className="surface-panel flex h-[230px] min-w-0 shrink-0 flex-col overflow-hidden rounded-xl p-4"
+      className="flex min-h-[180px] min-w-0 basis-[33%] shrink-0 flex-col overflow-hidden"
     >
       <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
         <h2 className="label-tech text-[var(--accent-primary)]">Image</h2>
@@ -36,7 +38,7 @@ export function ReferencePreview({
         )}
       </div>
 
-      {referenceImageUrl ? (
+      {hasReference ? (
         <div className="media-lens relative min-h-0 flex-1 rounded-lg">
           <Image
             src={referenceImageUrl}

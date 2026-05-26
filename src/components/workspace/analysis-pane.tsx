@@ -37,7 +37,10 @@ export function AnalysisPane({
   onRetry,
 }: AnalysisPaneProps) {
   return (
-    <div data-testid="analysis-pane" className="flex h-full min-h-0 flex-col gap-2">
+    <div
+      data-testid="analysis-pane"
+      className="surface-panel flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl p-4"
+    >
       <ReferencePreview
         referenceImageUrl={referenceImageUrl}
         isUploading={isUploading || state === "uploading"}
@@ -45,6 +48,7 @@ export function AnalysisPane({
         onFileSelected={onFileSelected}
         onReplace={onReplace}
       />
+      <div className="h-4 shrink-0" aria-hidden="true" />
       <StyleBreakdownPanel
         recipe={recipe}
         state={state}

@@ -34,11 +34,14 @@ async function mockCdnImages(page: Page) {
 }
 
 test.describe('Workspace Layout & State Flow', () => {
-  test('空态进入：两栏布局 + 状态栏 + 上传入口', async ({ page }) => {
+  test('空态进入：两栏布局 + 状态栏 + 统一分析卡上传入口', async ({ page }) => {
     await gotoWorkspace(page)
 
     await expect(page.getByTestId('workspace-two-pane-layout')).toBeVisible()
     await expect(page.getByTestId('analysis-pane')).toBeVisible()
+    await expect(page.getByTestId('analysis-pane')).toHaveClass(/surface-panel/)
+    await expect(page.getByTestId('reference-preview')).not.toHaveClass(/surface-panel/)
+    await expect(page.getByTestId('style-breakdown-panel')).not.toHaveClass(/surface-panel/)
     await expect(page.getByTestId('editing-pane')).toBeVisible()
     await expect(page.getByText('Not Started')).toBeVisible()
     await expect(page.getByText('Click or drag to upload a reference image')).toBeVisible()
@@ -71,6 +74,9 @@ test.describe('Workspace Layout & State Flow', () => {
     await uploadAndCompleteAnalysis(page, { analysisTaskId: 'layout-ready-task' })
 
     await expect(page.getByText('Ready to Generate')).toBeVisible()
+    await expect(page.getByTestId('analysis-pane')).toHaveClass(/surface-panel/)
+    await expect(page.getByTestId('reference-preview')).not.toHaveClass(/surface-panel/)
+    await expect(page.getByTestId('style-breakdown-panel')).not.toHaveClass(/surface-panel/)
     await expect(page.getByAltText('Reference')).toBeVisible()
     await expect(page.getByTestId('style-breakdown-panel')).toContainText('Subject')
     await expect(page.getByTestId('style-breakdown-panel')).toContainText('Style')
@@ -114,6 +120,8 @@ test.describe('Workspace Layout & State Flow', () => {
 
     await expect(page.getByText('Done')).toBeVisible()
     await expect(page.getByTestId('workspace-two-pane-layout')).toBeVisible()
+    await expect(page.getByTestId('analysis-pane')).toContainText('Image')
+    await expect(page.getByTestId('analysis-pane')).toContainText('Subject')
     await expect(page.getByTestId('unified-prompt-editor')).toBeVisible()
     await expect(page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' })).toBeVisible()
   })
@@ -174,6 +182,7 @@ test.describe('Workspace Layout & State Flow', () => {
     await expect(page.getByText('Click or drag to upload a reference image')).toBeVisible({ timeout: 5000 })
     await expect(page.getByText('Not Started')).toBeVisible()
     await expect(page.getByText('Ready to Generate', { exact: true })).not.toBeVisible()
+    await expect(page.getByTestId('analysis-pane')).toHaveClass(/surface-panel/)
     await expect(page.getByTestId('style-breakdown-panel')).not.toContainText('Subject')
   })
 

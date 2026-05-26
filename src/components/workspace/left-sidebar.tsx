@@ -12,8 +12,9 @@ const navItems = [
   {
     label: "Generate",
     href: "/workspace",
+    tone: "generate",
     icon: (
-      <span className="material-symbols-outlined text-lg" aria-hidden="true">
+      <span className="material-symbols-outlined workspace-sidebar-nav-icon text-lg" aria-hidden="true">
         auto_awesome
       </span>
     ),
@@ -22,8 +23,9 @@ const navItems = [
   {
     label: "Library",
     href: "/workspace/templates",
+    tone: "library",
     icon: (
-      <span className="material-symbols-outlined text-lg" aria-hidden="true">
+      <span className="material-symbols-outlined workspace-sidebar-nav-icon text-lg" aria-hidden="true">
         library_books
       </span>
     ),
@@ -101,7 +103,7 @@ export function LeftSidebar() {
     <aside
       aria-label="Workspace navigation"
       data-collapsed={isCollapsed}
-      className={`surface-panel flex h-full flex-shrink-0 flex-col transition-[width] duration-200 ease-out ${
+      className={`workspace-sidebar surface-panel flex h-full flex-shrink-0 flex-col transition-[width] duration-200 ease-out ${
         isCollapsed ? "w-[4.25rem]" : "w-48"
       }`}
     >
@@ -120,7 +122,7 @@ export function LeftSidebar() {
           }`}
         >
           <span
-            className="material-symbols-outlined text-2xl text-[var(--accent-primary)]"
+            className="workspace-sidebar-brand-mark material-symbols-outlined text-2xl"
             aria-hidden="true"
           >
             palette
@@ -139,7 +141,7 @@ export function LeftSidebar() {
           }}
           aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="interactive-lift flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          className="workspace-sidebar-collapse interactive-lift flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
         >
           <span className="material-symbols-outlined text-lg" aria-hidden="true">
             {isCollapsed ? "chevron_right" : "chevron_left"}
@@ -159,11 +161,13 @@ export function LeftSidebar() {
               aria-current={active ? "page" : undefined}
               aria-label={isCollapsed ? item.label : undefined}
               title={isCollapsed ? item.label : undefined}
-              className={`interactive-lift flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium ${
+              data-tone={item.tone}
+              data-active={active}
+              className={`workspace-sidebar-nav-item interactive-lift flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium ${
                 isCollapsed ? "justify-center px-0" : ""
               } ${
                 active
-                  ? "bg-[var(--accent-primary-soft)] text-[var(--accent-primary)]"
+                  ? "is-active"
                   : "text-[var(--text-secondary)] hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)]"
               }`}
             >
@@ -175,7 +179,7 @@ export function LeftSidebar() {
       </nav>
 
       {/* Signed-in user */}
-      <div className="relative border-t border-[var(--border-static)] px-2.5 pt-3 pb-4">
+      <div className="workspace-sidebar-account relative px-2.5 pt-3 pb-4">
         {status === "loading" ? (
           <div
             className={`flex items-center gap-3 rounded-lg px-3 py-2 ${
@@ -194,7 +198,7 @@ export function LeftSidebar() {
           <div ref={userMenuRef} className="relative">
             {isUserMenuOpen && (
               <div
-                className={`absolute z-20 rounded-lg border border-[var(--border)] bg-[var(--surface-bright)] py-2 shadow-lg backdrop-blur-sm ${
+                className={`workspace-sidebar-menu absolute z-20 rounded-lg py-2 ${
                   isCollapsed
                     ? "bottom-0 left-full ml-2 w-44"
                     : "right-0 bottom-full left-0 mb-2"
@@ -203,7 +207,7 @@ export function LeftSidebar() {
                 <button
                   type="button"
                   onClick={handleSignOut}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-mid)] hover:text-[var(--text-primary)]"
+                  className="workspace-sidebar-menu-item flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
                 >
                   <span className="material-symbols-outlined text-base" aria-hidden="true">
                     logout
@@ -222,11 +226,11 @@ export function LeftSidebar() {
               }
               aria-expanded={isUserMenuOpen}
               title={isCollapsed ? userName || userEmail || "User menu" : undefined}
-              className={`interactive-lift flex w-full min-w-0 items-center gap-3 rounded-lg px-3 py-2 text-left ${
+              className={`workspace-sidebar-user interactive-lift flex w-full min-w-0 items-center gap-3 rounded-lg px-3 py-2 text-left ${
                 isCollapsed ? "justify-center gap-0 px-0" : ""
               }`}
             >
-              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface-bright)]">
+              <span className="workspace-sidebar-avatar flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-full">
                 {avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img

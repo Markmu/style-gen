@@ -51,8 +51,8 @@ test.describe('workspace 09 generation dialog', () => {
     await page.getByText('Close Dialog', { exact: true }).click()
 
     await expect(page.getByTestId('workspace-two-pane-layout')).toBeVisible()
-    await expect(page.getByTestId('reference-preview')).toContainText('Image')
-    await expect(page.getByTestId('style-breakdown-panel')).toContainText('Subject')
+    await expect(page.getByTestId('analysis-pane')).toContainText('Image')
+    await expect(page.getByTestId('analysis-pane')).toContainText('Subject')
     await expect(page.getByTestId('unified-prompt-editor')).toBeVisible()
   })
 
@@ -73,7 +73,7 @@ test.describe('workspace 09 generation dialog', () => {
     await page.getByRole('button', { name: 'Back to Edit' }).click()
 
     await expect(page.getByRole('dialog', { name: 'Generation Task' })).toHaveCount(0)
-    await expect(page.getByTestId('reference-preview')).toContainText('Image')
+    await expect(page.getByTestId('analysis-pane')).toContainText('Image')
     await expect(page.getByTestId('unified-prompt-editor')).toBeVisible()
   })
 })

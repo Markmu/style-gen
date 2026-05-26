@@ -244,6 +244,130 @@ h1, h2, h3, h4, h5, h6 {
   opacity: 0.56;
 }
 
+.workspace-sidebar {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in oklch, var(--surface-panel) 88%, var(--accent-primary-soft) 12%),
+      color-mix(in oklch, var(--surface-panel) 91%, var(--accent-warm-soft) 9%)
+    );
+  border-color: color-mix(in oklch, var(--border-static) 74%, var(--accent-primary) 26%);
+  box-shadow:
+    inset -1px 0 0 color-mix(in oklch, var(--border-static) 70%, var(--accent-primary) 30%),
+    inset 0 1px 0 oklch(99.5% 0.006 245 / 0.5);
+  backdrop-filter: blur(30px) saturate(140%);
+  -webkit-backdrop-filter: blur(30px) saturate(140%);
+}
+
+.workspace-sidebar-brand-mark {
+  display: inline-flex;
+  width: 2.125rem;
+  height: 2.125rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.625rem;
+  color: var(--accent-primary);
+  background: color-mix(in oklch, var(--surface-bright) 72%, var(--accent-primary-soft) 28%);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklch, var(--accent-primary) 18%, transparent),
+    inset 0 1px 0 oklch(99.5% 0.006 245 / 0.58);
+}
+
+.workspace-sidebar-collapse {
+  background: color-mix(in oklch, var(--surface-control) 82%, var(--accent-secondary-soft) 18%);
+}
+
+.workspace-sidebar-collapse:hover {
+  background: color-mix(in oklch, var(--surface-bright) 76%, var(--accent-secondary-soft) 24%);
+}
+
+.workspace-sidebar-nav-item {
+  --sidebar-nav-accent: var(--accent-primary);
+  --sidebar-nav-soft: var(--accent-primary-soft);
+  --sidebar-nav-ink: var(--accent-primary-dim);
+  min-height: 2.375rem;
+  border: 1px solid transparent;
+}
+
+.workspace-sidebar-nav-item[data-tone="library"] {
+  --sidebar-nav-accent: var(--accent-secondary);
+  --sidebar-nav-soft: var(--accent-secondary-soft);
+  --sidebar-nav-ink: var(--accent-secondary-ink);
+}
+
+.workspace-sidebar-nav-icon {
+  color: color-mix(in oklch, var(--sidebar-nav-accent) 58%, var(--text-secondary) 42%);
+  transition: color 0.16s ease, transform 0.16s ease;
+}
+
+.workspace-sidebar-nav-item:hover {
+  background: color-mix(in oklch, var(--surface-bright) 78%, var(--sidebar-nav-soft) 22%);
+  border-color: color-mix(in oklch, var(--sidebar-nav-accent) 16%, transparent);
+  color: var(--sidebar-nav-ink);
+}
+
+.workspace-sidebar-nav-item:hover .workspace-sidebar-nav-icon {
+  color: var(--sidebar-nav-accent);
+}
+
+.workspace-sidebar-nav-item.is-active {
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in oklch, var(--surface-bright) 58%, var(--sidebar-nav-soft) 42%),
+      color-mix(in oklch, var(--surface-control) 74%, var(--sidebar-nav-soft) 26%)
+    );
+  border-color: color-mix(in oklch, var(--sidebar-nav-accent) 24%, transparent);
+  color: var(--sidebar-nav-ink);
+  box-shadow:
+    inset 0 1px 0 oklch(99.5% 0.006 245 / 0.56),
+    0 10px 24px color-mix(in oklch, var(--sidebar-nav-accent) 9%, transparent);
+}
+
+.workspace-sidebar-nav-item.is-active .workspace-sidebar-nav-icon {
+  color: var(--sidebar-nav-accent);
+  transform: translateY(-0.5px);
+}
+
+.workspace-sidebar-account {
+  background:
+    linear-gradient(
+      180deg,
+      transparent,
+      color-mix(in oklch, var(--surface-low) 82%, var(--accent-warm-soft) 18%)
+    );
+  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--border-static) 72%, var(--accent-warm) 28%);
+}
+
+.workspace-sidebar-user {
+  border: 1px solid transparent;
+  background: color-mix(in oklch, var(--surface-control) 84%, var(--accent-warm-soft) 16%);
+}
+
+.workspace-sidebar-user:hover {
+  background: color-mix(in oklch, var(--surface-bright) 78%, var(--accent-warm-soft) 22%);
+  border-color: color-mix(in oklch, var(--accent-warm) 18%, transparent);
+}
+
+.workspace-sidebar-avatar {
+  border: 1px solid color-mix(in oklch, var(--accent-warm) 20%, var(--border) 80%);
+  background: color-mix(in oklch, var(--surface-bright) 72%, var(--accent-warm-soft) 28%);
+  box-shadow: inset 0 1px 0 oklch(99.5% 0.006 245 / 0.5);
+  color: var(--accent-warm);
+}
+
+.workspace-sidebar-menu {
+  border: 1px solid color-mix(in oklch, var(--border) 78%, var(--accent-warm) 22%);
+  background: color-mix(in oklch, var(--surface-bright) 88%, var(--accent-warm-soft) 12%);
+  box-shadow: var(--shadow-ambient);
+  backdrop-filter: blur(26px) saturate(135%);
+  -webkit-backdrop-filter: blur(26px) saturate(135%);
+}
+
+.workspace-sidebar-menu-item:hover {
+  background: color-mix(in oklch, var(--surface-mid) 76%, var(--accent-warm-soft) 24%);
+}
+
 .media-lens {
   overflow: hidden;
   background: var(--surface-media);
