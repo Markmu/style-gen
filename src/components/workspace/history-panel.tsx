@@ -71,7 +71,12 @@ export function HistoryPanel({
           aria-label="Refresh history"
           title="Refresh history"
         >
-          <span className="material-symbols-outlined text-sm leading-none">refresh</span>
+          <span
+            className="material-symbols-outlined leading-none"
+            style={{ fontSize: 20, lineHeight: "20px" }}
+          >
+            refresh
+          </span>
         </button>
       </div>
 
