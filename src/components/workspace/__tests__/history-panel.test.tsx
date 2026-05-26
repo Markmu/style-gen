@@ -45,50 +45,57 @@ describe("HistoryPanel", () => {
     vi.unstubAllGlobals();
   });
 
-  it("默认收起且不展示History内容", () => {
+  it("renders as an inline history strip instead of a right drawer", () => {
     const { container } = render(<HistoryPanel />);
 
-    expect(mockUseHistoryList).toHaveBeenCalledWith(false);
-    expect(screen.queryByRole("heading", { name: "History" })).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Expand history" }),
-    ).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByText("Just now")).not.toBeInTheDocument();
-    expect(container.firstElementChild).toHaveClass("w-10");
-    expect(container.firstElementChild).not.toHaveClass("absolute");
-    expect(screen.getByRole("button", { name: "Expand history" })).not.toHaveClass(
-      "rounded-r-none",
-    );
-    expect(container.querySelector(".h-full.w-10")).toBeInTheDocument();
-  });
-
-  it("支持抽屉式收起和展开", async () => {
-    const user = userEvent.setup();
-    const { container } = render(<HistoryPanel />);
-
-    await user.click(screen.getByRole("button", { name: "Expand history" }));
-
-    expect(mockUseHistoryList).toHaveBeenLastCalledWith(true);
+    expect(mockUseHistoryList).toHaveBeenCalledWith(true);
     expect(screen.getByRole("heading", { name: "History" })).toBeInTheDocument();
-    expect(container.firstElementChild).toHaveClass("w-72");
-
-    await user.click(screen.getByRole("button", { name: "Collapse history" }));
-
-    expect(screen.queryByRole("heading", { name: "History" })).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Expand history" }),
-    ).toHaveAttribute("aria-expanded", "false");
-    expect(container.firstElementChild).toHaveClass("w-10");
+    expect(screen.getByTestId("generation-history-strip")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Expand history" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Collapse history" })).not.toBeInTheDocument();
+    expect(container.firstElementChild).not.toHaveClass("w-10");
+    expect(container.firstElementChild).not.toHaveClass("w-72");
   });
 
-  it("点击历史缩略图触发恢复回调", async () => {
+  it("shows empty and error states inside the strip", () => {
+    const refetch = vi.fn();
+
+    mockUseHistoryList.mockReturnValueOnce({
+      ...defaultHistoryResult,
+      data: [],
+      refetch,
+    });
+    const { rerender } = render(<HistoryPanel />);
+    expect(screen.getByText("No generations yet")).toBeInTheDocument();
+
+    mockUseHistoryList.mockReturnValueOnce({
+      ...defaultHistoryResult,
+      data: undefined,
+      isError: true,
+      refetch,
+    });
+    rerender(<HistoryPanel />);
+    expect(screen.getByText("Loading failed")).toBeInTheDocument();
+  });
+
+  it("clicking a thumbnail restores that generation", async () => {
     const user = userEvent.setup();
     const onRestore = vi.fn();
+
     render(<HistoryPanel onRestore={onRestore} />);
 
-    await user.click(screen.getByRole("button", { name: "Expand history" }));
-    await user.click(screen.getByRole("button", { name: /Just now|m ago/ }));
+    expect(screen.queryByText(/Just now|m ago|h ago|d ago/)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Restore generation" }));
 
     expect(onRestore).toHaveBeenCalledWith("history-1");
+  });
+
+  it("shows the current generation marker while generating", () => {
+    render(<HistoryPanel currentGenerationTaskId="generating-task" />);
+
+    expect(screen.getByTestId("history-current-generation")).toHaveTextContent(
+      "Generating",
+    );
   });
 });

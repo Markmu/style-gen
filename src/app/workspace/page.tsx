@@ -13,11 +13,10 @@ import { StatusBar } from "@/components/workspace/status-bar";
 import { WorkspaceTwoPaneLayout } from "@/components/workspace/workspace-two-pane-layout";
 import { AnalysisPane } from "@/components/workspace/analysis-pane";
 import { EditingPane } from "@/components/workspace/editing-pane";
-import { FloatingGenerateWindow } from "@/components/workspace/floating-generate-window";
+import { GenerateHistoryBar } from "@/components/workspace/generate-history-bar";
 import { GenerationDialog } from "@/components/workspace/generation-dialog";
 import type { AspectRatio, Quality } from "@/components/workspace/output-settings";
 import { TemplateSaveDialog } from "@/components/workspace/template-save-dialog";
-import { HistoryPanel } from "@/components/workspace/history-panel";
 import { hasUnresolvedVariables } from "@/lib/template-parser";
 import type { TemplateVariable } from "@/types/models";
 
@@ -451,9 +450,9 @@ function WorkspacePageInner() {
   );
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <div className="h-full overflow-hidden">
       {/* 中央Workspace */}
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="flex h-full min-w-0 flex-col overflow-hidden">
         <h1 className="sr-only">Workspace</h1>
 
         {/* Compact StatusBar */}
@@ -464,7 +463,7 @@ function WorkspacePageInner() {
           onReplace={handleReplace}
         />
 
-        <div className="relative min-h-0 flex-1 overflow-hidden">
+        <div className="min-h-0 flex-1 overflow-hidden">
           <WorkspaceTwoPaneLayout
             analysis={
               <AnalysisPane
@@ -496,19 +495,22 @@ function WorkspacePageInner() {
               />
             }
           />
-          <div className="pointer-events-none absolute inset-x-0 bottom-4 z-30 flex justify-center px-4">
-            <FloatingGenerateWindow
-              state={ws.state}
-              promptText={ws.promptText}
-              params={generationParams}
-              generationUnavailable={ws.degradation.generationUnavailable}
-              error={ws.error}
-              onParamsChange={setGenerationParams}
-              onGenerate={handleGenerate}
-              onRetry={handleGenerateRetry}
-            />
-          </div>
         </div>
+
+        <GenerateHistoryBar
+          state={ws.state}
+          promptText={ws.promptText}
+          params={generationParams}
+          generationUnavailable={ws.degradation.generationUnavailable}
+          error={ws.error}
+          currentGenerationTaskId={
+            ws.state === "generating" ? ws.generationTaskId ?? undefined : undefined
+          }
+          onParamsChange={setGenerationParams}
+          onGenerate={handleGenerate}
+          onRetry={handleGenerateRetry}
+          onRestore={handleHistoryRestore}
+        />
 
         <GenerationDialog
           open={generationDialogOpen}
@@ -537,12 +539,6 @@ function WorkspacePageInner() {
           onClose={() => setShowTemplateSaveDialog(false)}
         />
       </div>
-
-      {/* 右侧历史面板 */}
-      <HistoryPanel
-        currentGenerationTaskId={ws.generationTaskId ?? undefined}
-        onRestore={handleHistoryRestore}
-      />
     </div>
   );
 }

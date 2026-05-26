@@ -209,6 +209,14 @@ h1, h2, h3, h4, h5, h6 {
   -webkit-backdrop-filter: blur(38px) saturate(165%);
 }
 
+.workspace-generate-history-bar {
+  background: color-mix(in oklch, var(--surface-floating) 82%, var(--surface-panel) 18%);
+  border-color: color-mix(in oklch, var(--border-static) 82%, var(--accent-primary) 18%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    0 18px 38px rgba(25, 28, 30, 0.04);
+}
+
 .surface-panel {
   background: var(--surface-panel);
   border: 1px solid var(--border-static);

@@ -21,7 +21,7 @@ export interface FloatingGenerateWindowProps {
   onGenerate: (params: { aspectRatio: AspectRatio; quality: Quality }) => void;
   onRetry: () => void;
   testId?: string;
-  variant?: "floating" | "embedded";
+  variant?: "floating" | "embedded" | "bar";
 }
 
 export function FloatingGenerateWindow({
@@ -34,7 +34,7 @@ export function FloatingGenerateWindow({
   onGenerate,
   onRetry,
   testId = "floating-generate-window",
-  variant = "floating",
+  variant = "bar",
 }: FloatingGenerateWindowProps) {
   const isGenerating = state === "generating";
   const promptReady = promptText.trim().length > 0;
@@ -82,11 +82,13 @@ export function FloatingGenerateWindow({
   const containerClass =
     variant === "floating"
       ? "glass-panel floating-generate-glass pointer-events-auto w-full max-w-[640px] rounded-xl px-4 py-3"
-      : "surface-panel min-w-0 shrink-0 overflow-hidden rounded-xl p-4";
+      : variant === "embedded"
+        ? "surface-panel min-w-0 shrink-0 overflow-hidden rounded-xl p-4"
+        : "min-w-0 shrink-0";
 
   return (
     <div data-testid={testId} className={containerClass}>
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-3">
           <div
             className="flex min-w-0 flex-wrap items-center gap-2"
@@ -143,18 +145,18 @@ export function FloatingGenerateWindow({
           </div>
         </div>
 
-        <div className="flex min-w-0 flex-col gap-2 md:min-w-[180px] md:items-end">
+        <div className="flex min-w-0 flex-col gap-2 xl:min-w-[180px] xl:items-end">
           {error?.stage === "generation" && (
             <button
               type="button"
               onClick={onRetry}
-              className="btn-secondary self-start rounded-md px-3 py-1.5 text-xs md:self-end"
+              className="btn-secondary self-start rounded-md px-3 py-1.5 text-xs xl:self-end"
             >
               Resume Generation
             </button>
           )}
           {unavailableReason && (
-            <p className="max-w-[280px] text-xs leading-5 text-[var(--text-secondary)] md:text-right">
+            <p className="max-w-[280px] text-xs leading-5 text-[var(--text-secondary)] xl:text-right">
               {unavailableReason}
             </p>
           )}
@@ -162,7 +164,7 @@ export function FloatingGenerateWindow({
             type="button"
             onClick={handleGenerate}
             disabled={!canGenerate}
-            className="btn-primary h-10 w-full rounded-lg px-5 text-sm font-medium md:w-[180px]"
+            className="btn-primary h-10 w-full rounded-lg px-5 text-sm font-medium xl:w-[180px]"
           >
             {isGenerating ? "GENERATING..." : "GENERATE"}
           </button>

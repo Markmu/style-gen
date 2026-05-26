@@ -19,12 +19,15 @@ describe("FloatingGenerateWindow", () => {
     vi.clearAllMocks();
   });
 
-  it("renders as the floating glass generate surface", () => {
+  it("renders as bottom bar generate controls", () => {
     render(<FloatingGenerateWindow {...defaultProps} />);
 
     expect(screen.getByTestId("floating-generate-window")).toHaveClass(
+      "min-w-0",
+      "shrink-0",
+    );
+    expect(screen.getByTestId("floating-generate-window")).not.toHaveClass(
       "glass-panel",
-      "floating-generate-glass",
       "max-w-[640px]",
     );
     expect(screen.queryByText(/^Generate$/)).not.toBeInTheDocument();

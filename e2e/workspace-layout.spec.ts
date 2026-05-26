@@ -47,19 +47,23 @@ test.describe('Workspace Layout & State Flow', () => {
     await expect(page.getByText('Click or drag to upload a reference image')).toBeVisible()
     await expect(page.getByTestId('reference-preview')).toContainText('Image')
     await expect(page.getByTestId('style-breakdown-panel')).toContainText('Analyze')
-    const floatingGenerate = page.getByTestId('floating-generate-window')
+    const generateBar = page.getByTestId('generate-history-bar')
+    const floatingGenerate = generateBar.getByTestId('floating-generate-window')
+    await expect(generateBar).toBeVisible()
+    await expect(generateBar.getByTestId('history-panel')).toBeVisible()
+    await expect(generateBar.getByRole('heading', { name: 'Generate' })).toBeVisible()
     await expect(floatingGenerate).toBeVisible()
     await expect(floatingGenerate.getByRole('button', { name: 'GENERATE' })).toBeDisabled()
+    await expect(page.getByRole('button', { name: 'Expand history' })).toHaveCount(0)
 
     const layoutBox = await page.getByTestId('workspace-two-pane-layout').boundingBox()
-    const floatingBox = await floatingGenerate.boundingBox()
+    const barBox = await generateBar.boundingBox()
     expect(layoutBox).not.toBeNull()
-    expect(floatingBox).not.toBeNull()
-    if (layoutBox && floatingBox) {
-      const layoutCenter = layoutBox.x + layoutBox.width / 2
-      const floatingCenter = floatingBox.x + floatingBox.width / 2
-      expect(Math.abs(layoutCenter - floatingCenter)).toBeLessThan(24)
-      expect(floatingBox.y + floatingBox.height).toBeGreaterThan(layoutBox.y + layoutBox.height - 150)
+    expect(barBox).not.toBeNull()
+    if (layoutBox && barBox) {
+      expect(Math.abs(layoutBox.x - barBox.x)).toBeLessThanOrEqual(16)
+      expect(Math.abs(layoutBox.width - barBox.width)).toBeLessThanOrEqual(32)
+      expect(barBox.y).toBeGreaterThanOrEqual(layoutBox.y + layoutBox.height - 4)
     }
   })
 
@@ -71,6 +75,7 @@ test.describe('Workspace Layout & State Flow', () => {
   })
 
   test('上传并分析后展示风格拆解、统一 Prompt 编辑器和生成按钮', async ({ page }) => {
+    await mockCdnImages(page)
     await uploadAndCompleteAnalysis(page, { analysisTaskId: 'layout-ready-task' })
 
     await expect(page.getByText('Ready to Generate')).toBeVisible()
@@ -89,6 +94,7 @@ test.describe('Workspace Layout & State Flow', () => {
     await expect(page.getByTestId('unified-prompt-editor')).toBeVisible()
     await expect(page.getByLabel('Full Generation Prompt')).not.toBeEmpty()
     await expect(page.getByTestId('editing-pane').getByTestId('floating-generate-window')).toHaveCount(0)
+    await expect(page.getByTestId('generate-history-bar').getByTestId('history-panel')).toBeVisible()
     await expect(page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' })).toBeEnabled()
   })
 
@@ -123,6 +129,7 @@ test.describe('Workspace Layout & State Flow', () => {
     await expect(page.getByTestId('analysis-pane')).toContainText('Image')
     await expect(page.getByTestId('analysis-pane')).toContainText('Subject')
     await expect(page.getByTestId('unified-prompt-editor')).toBeVisible()
+    await expect(page.getByTestId('generate-history-bar')).toBeVisible()
     await expect(page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' })).toBeVisible()
   })
 

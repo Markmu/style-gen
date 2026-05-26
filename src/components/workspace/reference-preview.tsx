@@ -23,7 +23,7 @@ export function ReferencePreview({
   return (
     <div
       data-testid="reference-preview"
-      className="flex min-h-[180px] min-w-0 basis-[33%] shrink-0 flex-col overflow-hidden"
+      className="flex min-h-44 min-w-0 basis-1/3 shrink-0 flex-col overflow-hidden"
     >
       <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
         <h2 className="label-tech text-[var(--accent-primary)]">Image</h2>
@@ -39,7 +39,7 @@ export function ReferencePreview({
       </div>
 
       {hasReference ? (
-        <div className="media-lens relative min-h-0 flex-1 rounded-lg">
+        <div className="media-lens relative min-h-32 flex-1 rounded-lg">
           <Image
             src={referenceImageUrl}
             alt="Reference"
