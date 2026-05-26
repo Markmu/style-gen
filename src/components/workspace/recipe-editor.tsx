@@ -214,7 +214,7 @@ function ExpandedRowEditor({
       })}
       <button
         onClick={onFinish}
-        className="mt-1 rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity"
+        className="mt-1 rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-[var(--text-on-primary)] transition-opacity hover:opacity-90"
         type="button"
       >
         Done
@@ -255,7 +255,7 @@ function FieldValue({ label, value }: { label: string; value: string }) {
 /** Extra fields detail view (read-only) */
 function ExtraFieldsDetail({ recipe }: { recipe: VisualRecipe }) {
   return (
-    <div className="space-y-4 pt-4 border-t border-[var(--border)] mt-4">
+    <div className="mt-4 space-y-4 rounded-lg bg-[var(--surface-low)] p-3">
       <FieldValue label="Image Summary" value={recipe.imageSummary} />
 
       <div className="flex gap-2">
@@ -266,14 +266,14 @@ function ExtraFieldsDetail({ recipe }: { recipe: VisualRecipe }) {
       </div>
 
       <div>
-        <span className="label-tech text-emerald-400">Must Keep</span>
+        <span className="label-tech text-[var(--color-success)]">Must Keep</span>
         <div className="mt-1">
           <TagList tags={recipe.mustKeep} />
         </div>
       </div>
 
       <div>
-        <span className="label-tech text-amber-400">Replaceable</span>
+        <span className="label-tech text-[var(--color-warning)]">Replaceable</span>
         <div className="mt-1">
           <TagList tags={recipe.replaceable} />
         </div>
@@ -293,14 +293,14 @@ function DegradationHint({
   showSpinner?: boolean;
 }) {
   return (
-    <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
+    <div className="rounded-lg border border-[var(--color-warning)]/30 bg-[var(--color-warning-soft)] p-4">
       <div className={showSpinner ? "flex items-center gap-3" : ""}>
         {showSpinner && (
-          <div className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-amber-400 border-t-transparent" />
+          <div className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-[var(--color-warning)] border-t-transparent" />
         )}
         <div>
-          <p className="text-sm font-medium text-amber-400">{title}</p>
-          <p className="mt-1 text-xs text-amber-400/70">{description}</p>
+          <p className="text-sm font-medium text-[var(--color-warning)]">{title}</p>
+          <p className="mt-1 text-xs text-[var(--color-warning)]/80">{description}</p>
         </div>
       </div>
     </div>

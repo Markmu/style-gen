@@ -24,7 +24,7 @@ export function ReferencePreview({
       className="surface-panel flex h-[230px] min-w-0 shrink-0 flex-col overflow-hidden rounded-xl p-4"
     >
       <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
-        <h2 className="label-tech text-[var(--text-muted)]">Image</h2>
+        <h2 className="label-tech text-[var(--accent-primary)]">Image</h2>
         {referenceImageUrl && (
           <button
             type="button"

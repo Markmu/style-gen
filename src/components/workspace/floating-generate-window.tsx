@@ -105,7 +105,7 @@ export function FloatingGenerateWindow({
                   onClick={() => handleAspectRatioChange(value)}
                   className={`h-8 rounded-md px-2.5 text-xs transition-colors ${
                     params.aspectRatio === value
-                      ? "bg-[var(--accent-primary)] text-white"
+                      ? "bg-[var(--accent-primary)] text-[var(--text-on-primary)]"
                       : "bg-[var(--surface-bright)] text-[var(--text-secondary)]"
                   }`}
                 >
@@ -132,7 +132,7 @@ export function FloatingGenerateWindow({
                   onClick={() => handleQualityChange(option.value)}
                   className={`h-8 rounded-md px-2.5 text-xs transition-colors ${
                     params.quality === option.value
-                      ? "bg-[var(--accent-primary)] text-white"
+                      ? "bg-[var(--accent-primary)] text-[var(--text-on-primary)]"
                       : "bg-[var(--surface-bright)] text-[var(--text-secondary)]"
                   }`}
                 >

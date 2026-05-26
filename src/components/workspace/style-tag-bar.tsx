@@ -61,7 +61,7 @@ export function StyleTagBar({ recipe }: StyleTagBarProps) {
       {tags.map((tag) => (
         <span
           key={`${tag.sourceField}-${tag.label}`}
-          className="rounded-full bg-[var(--surface-bright)] px-2.5 py-0.5 text-xs text-[var(--text-secondary)]"
+          className="rounded-full bg-[var(--accent-secondary-soft)] px-2.5 py-0.5 text-xs text-[var(--accent-secondary-ink)]"
         >
           {tag.label}
         </span>

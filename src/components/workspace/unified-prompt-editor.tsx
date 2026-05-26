@@ -202,7 +202,7 @@ export function UnifiedPromptEditor({
       className="surface-panel flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl p-5"
     >
       <div className="mb-4 flex shrink-0 items-center justify-between gap-3">
-        <p className="label-tech text-[var(--text-muted)]">Edit</p>
+        <p className="label-tech text-[var(--accent-primary)]">Edit</p>
         <div className="flex items-center gap-2">
           {onSaveTemplate && (
             <button
@@ -221,7 +221,7 @@ export function UnifiedPromptEditor({
               onClick={() => setMode("template")}
               className={`h-6 rounded-[5px] px-2.5 text-xs transition-colors ${
                 mode === "template"
-                  ? "bg-[var(--surface-bright)] text-[var(--text-primary)]"
+                  ? "bg-[var(--accent-primary-soft)] text-[var(--accent-primary)]"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
@@ -232,7 +232,7 @@ export function UnifiedPromptEditor({
               onClick={switchToText}
               className={`h-6 rounded-[5px] px-2.5 text-xs transition-colors ${
                 mode === "text"
-                  ? "bg-[var(--surface-bright)] text-[var(--text-primary)]"
+                  ? "bg-[var(--accent-primary-soft)] text-[var(--accent-primary)]"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >

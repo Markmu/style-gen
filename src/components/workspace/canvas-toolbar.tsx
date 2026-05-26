@@ -20,7 +20,7 @@ export function CanvasToolbar({
         onClick={() => onViewChange("result")}
         className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
           activeView === "result"
-            ? "bg-[var(--accent-primary)] text-white"
+            ? "bg-[var(--accent-primary)] text-[var(--text-on-primary)]"
             : "text-[var(--text-secondary)] hover:bg-[var(--surface-bright)]"
         }`}
       >
@@ -33,7 +33,7 @@ export function CanvasToolbar({
         onClick={() => onViewChange("comparison")}
         className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
           activeView === "comparison"
-            ? "bg-[var(--accent-primary)] text-white"
+            ? "bg-[var(--accent-primary)] text-[var(--text-on-primary)]"
             : "text-[var(--text-secondary)] hover:bg-[var(--surface-bright)]"
         }`}
       >

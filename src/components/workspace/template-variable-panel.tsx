@@ -51,7 +51,7 @@ export function TemplateVariablePanel({
                   {variable.label || variable.name}
                 </span>
                 {variable.sourceField && (
-                  <span className="rounded-full bg-[var(--surface-low)] px-2 py-0.5 text-[10px] text-[var(--text-muted)]">
+                  <span className="rounded-full bg-[var(--accent-primary-soft)] px-2 py-0.5 text-[10px] text-[var(--accent-primary)]">
                     {variable.sourceField}
                   </span>
                 )}

@@ -181,8 +181,8 @@ export function HistoryPanel({
                   {currentGenerationTaskId && (
                     <div className="mx-2 mt-2 flex items-center gap-2 rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface-bright)] px-3 py-2">
                       <span className="relative flex h-2 w-2 shrink-0">
-                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
-                        <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" />
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--color-info)] opacity-75" />
+                        <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--color-info)]" />
                       </span>
                       <span className="text-xs text-[var(--text-secondary)]">Generating...</span>
                     </div>

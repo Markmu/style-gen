@@ -42,7 +42,7 @@ export function AnalysisProgress({
         <button
           type="button"
           onClick={onRetry}
-          className="mt-4 rounded-lg bg-[var(--color-error)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--color-error)]/80"
+          className="mt-4 rounded-lg bg-[var(--color-error)] px-4 py-2 text-sm font-medium text-[var(--text-on-primary)] transition-colors hover:bg-[var(--color-error)]/80"
         >
           Analyze Again
         </button>
@@ -53,12 +53,12 @@ export function AnalysisProgress({
   if (!isAnalyzing) return null;
 
   return (
-    <div className="flex flex-col items-center gap-4 rounded-xl border border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/5 p-6">
+    <div className="flex flex-col items-center gap-4 rounded-xl border border-[var(--color-info)]/30 bg-[var(--color-info-soft)] p-6">
       <div className="flex items-center gap-3">
-        <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--accent-primary)] border-t-transparent" />
-        <p className="font-medium text-[var(--accent-primary)]">AI is analyzing the image style...</p>
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--color-info)] border-t-transparent" />
+        <p className="font-medium text-[var(--color-info)]">AI is analyzing the image style...</p>
       </div>
-      <p className="text-sm text-[var(--accent-primary)]/70">Elapsed {elapsed}s</p>
+      <p className="text-sm text-[var(--color-info)]/80">Elapsed {elapsed}s</p>
     </div>
   );
 }

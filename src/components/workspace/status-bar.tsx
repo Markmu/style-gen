@@ -57,7 +57,7 @@ export function StatusBar({ state, onReplace }: StatusBarProps) {
   const config = STATUS_BAR_CONFIG[state];
 
   return (
-    <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-2">
+    <div className="workspace-status-bar flex items-center justify-between px-6 py-2">
       {/* Left: title + description */}
       <div className="flex min-w-0 items-center gap-3">
         <h2 className="shrink-0 text-sm font-bold text-[var(--text-primary)]">
@@ -110,13 +110,13 @@ function getStatusColor(state: WorkspaceState): string {
     case "uploading":
       return "bg-[var(--surface-bright)] text-[var(--text-secondary)]";
     case "analyzing":
+      return "bg-[var(--color-info-soft)] text-[var(--color-info)]";
     case "generating":
-      return "bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]";
+      return "bg-[var(--color-warning-soft)] text-[var(--color-warning)]";
     case "analysis_ready":
-      return "bg-emerald-500/10 text-emerald-400";
     case "generation_ready":
-      return "bg-emerald-500/10 text-emerald-400";
+      return "bg-[var(--color-success-soft)] text-[var(--color-success)]";
     case "history_restored":
-      return "bg-blue-500/10 text-blue-400";
+      return "bg-[var(--color-info-soft)] text-[var(--color-info)]";
   }
 }

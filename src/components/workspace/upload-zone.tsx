@@ -110,11 +110,11 @@ export function UploadZone({
       <div className="flex flex-col items-center gap-4">
         {/* 内联替换Confirm */}
         {showReplaceConfirm ? (
-          <div className="w-full rounded-xl border-2 border-amber-500/30 bg-amber-500/10 p-6">
-            <p className="text-center text-sm font-medium text-amber-400">
+          <div className="w-full rounded-xl border border-[var(--color-warning)]/30 bg-[var(--color-warning-soft)] p-6">
+            <p className="text-center text-sm font-medium text-[var(--color-warning)]">
               Replace the current reference?
             </p>
-            <p className="mt-2 text-center text-xs text-amber-400/70">
+            <p className="mt-2 text-center text-xs text-[var(--color-warning)]/80">
               This will clear the current analysis and generated result
             </p>
             <div className="mt-4 flex items-center justify-center gap-3">
@@ -128,7 +128,7 @@ export function UploadZone({
               <button
                 type="button"
                 onClick={handleConfirmReplace}
-                className="rounded-lg px-4 py-2 text-sm text-white bg-[var(--accent-primary)] transition-colors hover:bg-[var(--accent-primary)]/80"
+                className="rounded-lg bg-[var(--accent-primary)] px-4 py-2 text-sm text-[var(--text-on-primary)] transition-colors hover:bg-[var(--accent-primary)]/80"
               >
                 Replace Reference
               </button>
@@ -160,7 +160,7 @@ export function UploadZone({
   // Show upload progress
   if (isUploading) {
     return (
-      <div className="flex h-full min-h-0 flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/5 p-4">
+      <div className="flex h-full min-h-0 flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-[var(--accent-primary)]/30 bg-[var(--accent-primary-soft)] p-4">
         <div className="h-2 w-full max-w-xs overflow-hidden rounded-full bg-[var(--surface-bright)]">
           <div
             className="h-full rounded-full bg-[var(--accent-primary)] transition-all duration-300"
@@ -185,7 +185,7 @@ export function UploadZone({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`flex h-full min-h-0 w-full cursor-pointer flex-col justify-center rounded-2xl border-2 border-dashed p-4 text-center transition-colors md:p-5 ${
+        className={`flex h-full min-h-0 w-full cursor-pointer flex-col justify-center rounded-2xl border border-dashed p-4 text-center transition-colors md:p-5 ${
           isDragOver
             ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/10"
             : "border-[var(--border)]/15 bg-[var(--surface-low)] hover:border-[var(--accent-primary)]/30 hover:bg-[var(--surface-mid)]"

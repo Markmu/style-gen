@@ -39,7 +39,7 @@ export function StyleBreakdownPanel({
       className="surface-panel flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl p-4"
     >
       <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
-        <h2 className="label-tech text-[var(--text-muted)]">Analyze</h2>
+        <h2 className="label-tech text-[var(--accent-primary)]">Analyze</h2>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">

@@ -125,7 +125,7 @@ export function ErrorDisplay({
 
       {/* 限流：显示剩余等待时间 */}
       {code === "RATE_LIMITED" && retryAfterSeconds != null && retryAfterSeconds > 0 && (
-        <p className="mt-2 text-sm font-medium text-amber-400">
+        <p className="mt-2 text-sm font-medium text-[var(--color-warning)]">
           Please wait {retryAfterSeconds}s before retrying
         </p>
       )}
@@ -136,7 +136,7 @@ export function ErrorDisplay({
           <button
             type="button"
             onClick={onRetry}
-            className="rounded-lg bg-[var(--color-error)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--color-error)]/80"
+            className="rounded-lg bg-[var(--color-error)] px-4 py-2 text-sm font-medium text-[var(--text-on-primary)] transition-colors hover:bg-[var(--color-error)]/80"
           >
             Retry
           </button>
