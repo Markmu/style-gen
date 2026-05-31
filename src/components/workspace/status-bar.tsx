@@ -1,122 +1,88 @@
 "use client";
 
 import type { WorkspaceState, WorkspaceError } from "@/hooks/use-workspace-state";
-
-interface StatusBarConfig {
-  label: string;
-  description: string;
-  showReplaceButton: boolean;
-}
-
-const STATUS_BAR_CONFIG: Record<WorkspaceState, StatusBarConfig> = {
-  idle: {
-    label: "Not Started",
-    description: "Upload a reference, extract style traits, then generate an image you can keep iterating",
-    showReplaceButton: false,
-  },
-  uploading: {
-    label: "Not Started",
-    description: "Upload a reference, extract style traits, then generate an image you can keep iterating",
-    showReplaceButton: false,
-  },
-  analyzing: {
-    label: "Analyzing",
-    description: "AI is analyzing the reference image style traits",
-    showReplaceButton: false,
-  },
-  analysis_ready: {
-    label: "Ready to Generate",
-    description: "AI has extracted the reference style traits. You can refine the generation intent.",
-    showReplaceButton: true,
-  },
-  generating: {
-    label: "Generating",
-    description: "Generating image. Please wait.",
-    showReplaceButton: true,
-  },
-  generation_ready: {
-    label: "Done",
-    description: "First result is ready. Compare, download, or keep iterating.",
-    showReplaceButton: true,
-  },
-  history_restored: {
-    label: "History Restored",
-    description: "Restored from history. Adjust settings and generate again.",
-    showReplaceButton: true,
-  },
-};
+import {
+  TopModeSwitcher,
+  type ManualModeOverride,
+  type TopMode,
+} from "@/components/workspace/top-mode-switcher";
 
 interface StatusBarProps {
   state: WorkspaceState;
   error: WorkspaceError | null;
   resultImageUrl: string | null;
+  promptText: string;
+  manualModeOverride: ManualModeOverride;
+  onModeChange: (mode: TopMode) => void;
   onReplace: () => void;
 }
 
-export function StatusBar({ state, onReplace }: StatusBarProps) {
-  const config = STATUS_BAR_CONFIG[state];
+export function StatusBar({
+  state,
+  resultImageUrl,
+  promptText,
+  manualModeOverride,
+  onModeChange,
+  onReplace,
+}: StatusBarProps) {
+  const canReplace =
+    state === "analysis_ready" ||
+    state === "generating" ||
+    state === "generation_ready" ||
+    state === "history_restored" ||
+    !!resultImageUrl;
 
   return (
-    <div className="workspace-status-bar flex items-center justify-between px-6 py-2">
-      {/* Left: title + description */}
+    <div
+      data-testid="workspace-status-bar"
+      className="workspace-status-bar grid min-h-14 grid-cols-[minmax(160px,1fr)_auto_minmax(160px,1fr)] items-center gap-4 px-6 py-2"
+    >
       <div className="flex min-w-0 items-center gap-3">
-        <h2 className="shrink-0 text-sm font-bold text-[var(--text-primary)]">
-          Create From Reference
-        </h2>
-        <span className="truncate text-xs text-[var(--text-secondary)]">
-          {config.description}
-        </span>
+        <div className="min-w-0">
+          <h2 className="truncate text-sm font-bold text-[var(--text-primary)]">
+            Workspace
+          </h2>
+          <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
+            Style Gen
+          </p>
+        </div>
       </div>
 
-      {/* Right: status badge + replace button */}
-      <div className="flex shrink-0 items-center gap-3">
-        <StatusBadge label={config.label} state={state} />
-        {config.showReplaceButton && (
+      <div className="flex min-w-0 justify-center">
+        <TopModeSwitcher
+          state={state}
+          promptText={promptText}
+          manualModeOverride={manualModeOverride}
+          onModeChange={onModeChange}
+        />
+      </div>
+
+      <div className="flex min-w-0 items-center justify-end gap-2">
+        {canReplace && (
           <button
             type="button"
             onClick={onReplace}
-            className="rounded-md px-2.5 py-1 text-xs text-[var(--text-secondary)] ring-1 ring-[var(--border)] transition-colors hover:bg-[var(--surface-bright)]"
+            className="rounded-md px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] ring-1 ring-[var(--border-static)] transition-colors hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)]"
           >
             Replace Reference
           </button>
         )}
+        <button
+          type="button"
+          aria-label="Workspace help"
+          className="flex h-8 w-8 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)]"
+        >
+          <span className="icon text-[18px]" aria-hidden="true">
+            help
+          </span>
+        </button>
+        <div
+          aria-label="User avatar"
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--surface-bright)] text-[10px] font-semibold text-[var(--text-secondary)] ring-1 ring-[var(--border-static)]"
+        >
+          SG
+        </div>
       </div>
     </div>
   );
-}
-
-function StatusBadge({
-  label,
-  state,
-}: {
-  label: string;
-  state: WorkspaceState;
-}) {
-  const colorClass = getStatusColor(state);
-
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${colorClass}`}
-    >
-      <span className="h-1.5 w-1.5 rounded-full bg-current" />
-      {label}
-    </span>
-  );
-}
-
-function getStatusColor(state: WorkspaceState): string {
-  switch (state) {
-    case "idle":
-    case "uploading":
-      return "bg-[var(--surface-bright)] text-[var(--text-secondary)]";
-    case "analyzing":
-      return "bg-[var(--color-info-soft)] text-[var(--color-info)]";
-    case "generating":
-      return "bg-[var(--color-warning-soft)] text-[var(--color-warning)]";
-    case "analysis_ready":
-    case "generation_ready":
-      return "bg-[var(--color-success-soft)] text-[var(--color-success)]";
-    case "history_restored":
-      return "bg-[var(--color-info-soft)] text-[var(--color-info)]";
-  }
 }

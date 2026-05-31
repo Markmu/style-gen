@@ -1,33 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import type { VisualRecipe } from "@/types/models";
+import type { WorkspaceState } from "@/hooks/use-workspace-state";
+import { extractRecipeCategories } from "@/lib/recipe-categories";
 
 interface RecipeCardProps {
-  recipe: VisualRecipe;
-}
-
-interface RecipeSectionProps {
-  title: string;
-  children: React.ReactNode;
-}
-
-function RecipeSection({ title, children }: RecipeSectionProps) {
-  return (
-    <div className="space-y-2">
-      <h4 className="label-tech text-[var(--text-secondary)]">{title}</h4>
-      {children}
-    </div>
-  );
-}
-
-function FieldValue({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex gap-2">
-      <span className="shrink-0 label-tech text-[var(--text-secondary)]">{label}</span>
-      <span className="text-sm text-[var(--text-primary)]">{value}</span>
-    </div>
-  );
+  state: WorkspaceState;
+  recipe: VisualRecipe | null;
 }
 
 function TagList({ tags }: { tags: string[] }) {
@@ -46,93 +25,117 @@ function TagList({ tags }: { tags: string[] }) {
   );
 }
 
-export function RecipeCard({ recipe }: RecipeCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+export function RecipeCard({ state, recipe }: RecipeCardProps) {
+  const isAnalyzing = state === "analyzing";
+  const categories = extractRecipeCategories(recipe);
 
   return (
-    <div className="space-y-4 rounded-xl bg-[var(--surface-mid)] p-5 ring-1 ring-[var(--border)]">
-      {/* 标题 */}
-      <h3 className="text-base font-bold text-[var(--text-primary)]">Visual Recipe</h3>
-
-      {/* 默认展示区（折叠状态） */}
-      <div className="space-y-3">
-        <RecipeSection title="Core Summary">
-          <FieldValue label="Subject" value={recipe.subject} />
-          <FieldValue label="Summary" value={recipe.imageSummary} />
-        </RecipeSection>
-
-        <div>
-          <span className="label-tech text-[var(--text-secondary)]">Style Tags:</span>
-          <div className="mt-1">
-            <TagList tags={recipe.styleTags} />
-          </div>
+    <article
+      id="visual-recipe"
+      data-testid="recipe-card"
+      className="surface-panel flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl p-4"
+    >
+      <div className="mb-4 flex shrink-0 items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-sm font-bold text-[var(--text-primary)]">
+            Visual Recipe
+          </h2>
+          <p className="mt-1 text-xs text-[var(--text-secondary)]">
+            Style structure
+          </p>
         </div>
+        <button
+          type="button"
+          aria-label="Visual Recipe help"
+          className="flex h-8 w-8 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)]"
+        >
+          <span className="icon text-[18px]" aria-hidden="true">
+            help
+          </span>
+        </button>
       </div>
 
-      {/* 展开切换按钮 */}
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--surface-bright)] px-3 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)]"
-        type="button"
-      >
-        <span>{isExpanded ? "Hide Details" : "Show Details"}</span>
-        <svg
-          className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-180" : ""}`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-
-      {/* 展开详细区（带动画） */}
-      <div
-        className={`grid overflow-hidden transition-all duration-300 ease-out ${
-          isExpanded ? "grid-rows-\[1fr\]" : "grid-rows-\[0fr\]"
-        }`}
-      >
-        <div className="min-h-0">
-          <div className="space-y-4 pt-4">
-          <RecipeSection title="Composition & Camera">
-            <FieldValue label="Scene" value={recipe.scene} />
-            <FieldValue label="Composition" value={recipe.composition} />
-            <FieldValue label="Camera Language" value={recipe.cameraLanguage} />
-            <p className="text-xs text-[var(--text-secondary)]/60 mt-1">
-              Camera Language: angle, distance, movement, and other photographic cues
-            </p>
-          </RecipeSection>
-
-          <RecipeSection title="Lighting & Color">
-            <FieldValue label="Lighting" value={recipe.lighting} />
-            <FieldValue label="Color" value={recipe.color} />
-          </RecipeSection>
-
-          <RecipeSection title="Texture & Style">
-            <FieldValue label="Texture" value={recipe.texture} />
-            <FieldValue label="Mood" value={recipe.mood} />
-          </RecipeSection>
-
-          <RecipeSection title="Keywords">
-            <TagList tags={recipe.visualKeywords} />
-          </RecipeSection>
-
-          <RecipeSection title="Keep / Replace">
-            <div>
-              <span className="label-tech text-emerald-400">Keep:</span>
-              <div className="mt-1">
-                <TagList tags={recipe.mustKeep} />
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {isAnalyzing ? (
+          <RecipeSkeleton />
+        ) : recipe ? (
+          <div className="space-y-4">
+            <div className="rounded-lg bg-[var(--surface-low)] p-4">
+              <p className="label-tech text-[var(--text-muted)]">Core summary</p>
+              <p className="mt-3 text-sm font-medium leading-6 text-[var(--text-primary)]">
+                {recipe.subject}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
+                {recipe.imageSummary}
+              </p>
+              <div className="mt-3">
+                <TagList tags={recipe.styleTags} />
               </div>
             </div>
-            <div>
-              <span className="label-tech text-amber-400">Replaceable:</span>
-              <div className="mt-1">
-                <TagList tags={recipe.replaceable} />
-              </div>
+
+            <div className="space-y-2.5">
+              {categories.map((category) => (
+                <section
+                  key={category.category}
+                  className="rounded-lg bg-[var(--surface-low)] p-4"
+                >
+                  <div className="flex items-start gap-3">
+                    <span
+                      className="icon mt-0.5 text-[19px]"
+                      style={{ color: category.iconColor }}
+                      aria-hidden="true"
+                    >
+                      {category.iconName}
+                    </span>
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+                        {category.label}
+                      </h3>
+                      <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">
+                        {category.description}
+                      </p>
+                    </div>
+                  </div>
+                </section>
+              ))}
             </div>
-          </RecipeSection>
+
+            <div>
+              <button
+                type="button"
+                className="btn-secondary w-full rounded-lg px-4 py-2 text-sm"
+              >
+                Copy recipe to prompt
+              </button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex h-full min-h-[260px] flex-col justify-center rounded-lg bg-[var(--surface-low)] p-6">
+            <span className="icon mb-4 text-[var(--accent-primary)]" aria-hidden="true">
+              data_object
+            </span>
+            <p className="text-sm leading-6 text-[var(--text-secondary)]">
+              Upload a reference image to generate a visual recipe.
+            </p>
+          </div>
+        )}
+      </div>
+    </article>
+  );
+}
+
+function RecipeSkeleton() {
+  return (
+    <div className="space-y-4 rounded-lg bg-[var(--surface-low)] p-4" aria-label="Visual Recipe loading">
+      <div className="h-3 w-28 animate-pulse rounded-full bg-[var(--surface-bright)]" />
+      <div className="space-y-2">
+        <div className="h-3 w-full animate-pulse rounded-full bg-[var(--surface-bright)]" />
+        <div className="h-3 w-10/12 animate-pulse rounded-full bg-[var(--surface-bright)]" />
+        <div className="h-3 w-7/12 animate-pulse rounded-full bg-[var(--surface-bright)]" />
+      </div>
+      <div className="flex gap-2 pt-2">
+        <div className="h-6 w-20 animate-pulse rounded-full bg-[var(--surface-bright)]" />
+        <div className="h-6 w-24 animate-pulse rounded-full bg-[var(--surface-bright)]" />
       </div>
     </div>
   );

@@ -21,32 +21,31 @@ const mockRecipe: VisualRecipe = {
 };
 
 describe("RecipeCard", () => {
-  // 1. 渲染Core Summary区域 - P0
-  it("渲染Core Summary区域", () => {
-    render(<RecipeCard recipe={mockRecipe} />);
+  it("renders the empty guide state", () => {
+    render(<RecipeCard state="idle" recipe={null} />);
 
-    expect(screen.getByText("Core Summary")).toBeInTheDocument();
     expect(screen.getByText("Visual Recipe")).toBeInTheDocument();
+    expect(
+      screen.getByText("Upload a reference image to generate a visual recipe."),
+    ).toBeInTheDocument();
   });
 
-  // 2. 渲染字段值 - P0
-  it("渲染字段值 - subject, imageSummary 等值可见", () => {
-    render(<RecipeCard recipe={mockRecipe} />);
+  it("renders the analyzing skeleton", () => {
+    render(<RecipeCard state="analyzing" recipe={null} />);
+
+    expect(screen.getByLabelText("Visual Recipe loading")).toBeInTheDocument();
+  });
+
+  it("renders the basic recipe shell after analysis", () => {
+    render(<RecipeCard state="analysis_ready" recipe={mockRecipe} />);
 
     expect(screen.getByText("Mountain range")).toBeInTheDocument();
     expect(screen.getByText("A serene landscape")).toBeInTheDocument();
-  });
-
-  // 3. 渲染标签列表 - P1
-  it("渲染标签列表 - styleTags rendered", () => {
-    render(<RecipeCard recipe={mockRecipe} />);
-
     expect(screen.getByText("landscape")).toBeInTheDocument();
     expect(screen.getByText("nature")).toBeInTheDocument();
   });
 
-  // 4. 空标签列表不渲染 - P2
-  it("空标签列表不崩溃", () => {
+  it("does not crash when recipe tags are empty", () => {
     const recipeWithEmptyTags: VisualRecipe = {
       ...mockRecipe,
       styleTags: [],
@@ -56,11 +55,9 @@ describe("RecipeCard", () => {
     };
 
     expect(() => {
-      render(<RecipeCard recipe={recipeWithEmptyTags} />);
+      render(<RecipeCard state="analysis_ready" recipe={recipeWithEmptyTags} />);
     }).not.toThrow();
 
-    // Core sections still render
-    expect(screen.getByText("Core Summary")).toBeInTheDocument();
     expect(screen.getByText("Visual Recipe")).toBeInTheDocument();
   });
 });

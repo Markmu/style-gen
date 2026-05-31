@@ -8,12 +8,20 @@ import { useWorkspaceState } from "@/hooks/use-workspace-state";
 import { useUpload } from "@/hooks/use-upload";
 import { useAnalysis } from "@/hooks/use-analysis";
 import { useGeneration } from "@/hooks/use-generation";
-import { useHistoryRestore } from "@/hooks/use-history-restore";
+import { useHistoryList } from "@/hooks/use-history-list";
+import { useHistoryRestore, type RestoredData } from "@/hooks/use-history-restore";
 import { StatusBar } from "@/components/workspace/status-bar";
-import { WorkspaceTwoPaneLayout } from "@/components/workspace/workspace-two-pane-layout";
-import { AnalysisPane } from "@/components/workspace/analysis-pane";
-import { EditingPane } from "@/components/workspace/editing-pane";
-import { GenerateHistoryBar } from "@/components/workspace/generate-history-bar";
+import { WorkspaceThreeColumnLayout } from "@/components/workspace/workspace-three-column-layout";
+import { ReferenceCard } from "@/components/workspace/reference-card";
+import { RecipeCard } from "@/components/workspace/recipe-card";
+import { PromptCard } from "@/components/workspace/prompt-card";
+import type { TopMode } from "@/components/workspace/top-mode-switcher";
+import { FloatingGenerateButton } from "@/components/workspace/floating-generate-button";
+import { HistoryStrip } from "@/components/workspace/history-strip";
+import {
+  HistoryDetailDialog,
+  type HistoryDetail,
+} from "@/components/workspace/history-detail-dialog";
 import { GenerationDialog } from "@/components/workspace/generation-dialog";
 import type { AspectRatio, Quality } from "@/components/workspace/output-settings";
 import { TemplateSaveDialog } from "@/components/workspace/template-save-dialog";
@@ -47,6 +55,7 @@ function WorkspacePageInner() {
   const { upload, progress, isUploading } = useUpload();
   const { data: analysisData } = useAnalysis(ws.analysisTaskId);
   const { data: generationData } = useGeneration(ws.generationTaskId);
+  const { data: historyData } = useHistoryList(true);
   const { restore: restoreHistory } = useHistoryRestore();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
@@ -54,12 +63,15 @@ function WorkspacePageInner() {
   const hasConsumedFile = useRef(false);
   const analysisStartTime = useRef<number | null>(null);
   const generationStartTime = useRef<number | null>(null);
+  const previousWorkspaceState = useRef(ws.state);
   const [generationDialogOpen, setGenerationDialogOpen] = useState(false);
   const [resolvedPromptText, setResolvedPromptText] = useState("");
   const [templateSaveContent, setTemplateSaveContent] = useState("");
-  const [templateContent, setTemplateContent] = useState<string | null>(null);
-  const [templateVariables, setTemplateVariables] = useState<TemplateVariable[]>([]);
   const [currentTemplateVariables, setCurrentTemplateVariables] = useState<TemplateVariable[]>([]);
+  const [manualModeOverride, setManualModeOverride] = useState<TopMode | null>(null);
+  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
+  const [historyDetailOpen, setHistoryDetailOpen] = useState(false);
+  const [historyDetail, setHistoryDetail] = useState<HistoryDetail | null>(null);
   const [generationParams, setGenerationParams] = useState<{
     aspectRatio: AspectRatio;
     quality: Quality;
@@ -67,12 +79,30 @@ function WorkspacePageInner() {
 
   // Template UI state
   const [showTemplateSaveDialog, setShowTemplateSaveDialog] = useState(false);
-  const handleOpenTemplateSave = useCallback((content?: string) => {
-    if (content !== undefined) {
-      setTemplateSaveContent(content);
-    }
+  const setWorkspacePromptText = ws.setPromptText;
+
+  const handleOpenTemplateSave = useCallback((content: string) => {
+    setTemplateSaveContent(content);
     setShowTemplateSaveDialog(true);
   }, []);
+
+  const handleModeChange = useCallback((mode: TopMode) => {
+    setManualModeOverride(mode);
+  }, []);
+
+  const handleResolvedPromptChange = useCallback(
+    (value: string) => {
+      setResolvedPromptText(value);
+      setWorkspacePromptText(value);
+    },
+    [setWorkspacePromptText],
+  );
+
+  useEffect(() => {
+    if (previousWorkspaceState.current === ws.state) return;
+    previousWorkspaceState.current = ws.state;
+    setManualModeOverride(null);
+  }, [ws.state]);
 
   // FEAT-04: templateId query 参数加载逻辑
   useEffect(() => {
@@ -89,8 +119,6 @@ function WorkspacePageInner() {
 
         if (aborted) return;
 
-        setTemplateContent(template.content);
-        setTemplateVariables(template.variables ?? []);
         setCurrentTemplateVariables(template.variables ?? []);
         setResolvedPromptText(template.content);
         ws.setPromptText(template.content);
@@ -192,8 +220,6 @@ function WorkspacePageInner() {
         (templateStatus === "ready" || templateStatus === "partial") &&
         !!analysisData.analysisTemplateContent &&
         analysisTemplateVariables.length > 0;
-      setTemplateContent(null);
-      setTemplateVariables([]);
       setCurrentTemplateVariables(
         hasAnalysisTemplate ? analysisTemplateVariables : [],
       );
@@ -299,51 +325,47 @@ function WorkspacePageInner() {
     [upload],
   );
 
+  const handleAnalysisRetry = useCallback(async () => {
+    if (!ws.assetId || !ws.referenceImageUrl) return;
+
+    ws.clearError();
+    ws.setAnalysisUnavailable(false);
+
+    try {
+      const dimensions = await getImageDimensions(ws.referenceImageUrl);
+      const analysisRes = await fetch("/api/analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          assetId: ws.assetId,
+          fileUrl: ws.referenceImageUrl,
+          width: dimensions.width,
+          height: dimensions.height,
+          mimeType: ws.mimeType ?? "image/png",
+        }),
+      });
+
+      if (!analysisRes.ok) {
+        const errData = await parseApiError(analysisRes);
+        ws.failAnalysis(errData.error, undefined, errData.code, errData.retryable);
+        return;
+      }
+
+      const analysisTask = (await analysisRes.json()) as { id: string };
+      ws.startAnalysis(analysisTask.id);
+    } catch (err) {
+      ws.failAnalysis(
+        err instanceof Error ? err.message : "Analysis retry failed",
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ws.assetId, ws.referenceImageUrl, ws.mimeType]);
+
   const handleReplace = useCallback(() => {
     setResolvedPromptText("");
     ws.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const handleRetry = useCallback(() => {
-    if (!ws.assetId || !ws.referenceImageUrl) return;
-    ws.clearError();
-    // Clear degradation state
-    ws.setAnalysisUnavailable(false);
-    void (async () => {
-      try {
-        ws.startUpload();
-        ws.completeUpload(ws.assetId!, ws.referenceImageUrl!);
-
-        const dimensions = await getImageDimensions(ws.referenceImageUrl!);
-        const analysisRes = await fetch("/api/analysis", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            assetId: ws.assetId,
-            fileUrl: ws.referenceImageUrl,
-            width: dimensions.width,
-            height: dimensions.height,
-            mimeType: ws.mimeType ?? "image/jpeg",
-          }),
-        });
-
-        if (!analysisRes.ok) {
-          const errData = await parseApiError(analysisRes);
-          ws.failAnalysis(errData.error, undefined, errData.code, errData.retryable);
-          return;
-        }
-
-        const analysisTask = (await analysisRes.json()) as { id: string };
-        ws.startAnalysis(analysisTask.id);
-      } catch (err) {
-        ws.failAnalysis(
-          err instanceof Error ? err.message : "Retry failed",
-        );
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ws.assetId, ws.referenceImageUrl, ws.mimeType]);
 
   const handleGenerate = useCallback(
     async (params: { aspectRatio: AspectRatio; quality: Quality }) => {
@@ -366,7 +388,7 @@ function WorkspacePageInner() {
           body: JSON.stringify({
             analysisTaskId: ws.analysisTaskId,
             promptText: prompt,
-            negativePromptText: "",
+            negativePromptText: ws.negativePromptText,
             params: {
               aspectRatio: params.aspectRatio,
               quality: params.quality,
@@ -394,6 +416,7 @@ function WorkspacePageInner() {
       resolvedPromptText,
       ws.promptText,
       ws.degradation.generationUnavailable,
+      ws.negativePromptText,
     ],
   );
 
@@ -404,50 +427,116 @@ function WorkspacePageInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleResolvedPromptChange = useCallback((value: string) => {
-    setResolvedPromptText(value);
-    ws.setPromptText(value);
+  const applyHistoryRestore = useCallback(
+    (restoredData: RestoredData) => {
+      setResolvedPromptText(restoredData.promptSnapshot);
+      setGenerationParams({
+        aspectRatio: restoredData.params.aspectRatio as AspectRatio,
+        quality: restoredData.params.quality as Quality,
+      });
+      ws.enterHistoryRestored(
+        restoredData.resultFileUrl,
+        restoredData.recipe,
+        restoredData.promptSnapshot,
+        restoredData.negativePromptSnapshot,
+        restoredData.analysisTaskId,
+      );
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    [],
+  );
 
-  const activeTemplateContent =
-    templateContent ??
-    (ws.analysisTemplateStatus === "ready" || ws.analysisTemplateStatus === "partial"
-      ? ws.analysisTemplateContent
-      : null);
-  const activeTemplateVariables =
-    templateContent !== null ? templateVariables : ws.analysisTemplateVariables;
-  const activeTemplateStatus =
-    templateContent !== null ? null : ws.analysisTemplateStatus;
-  const activeTemplateReason =
-    templateContent !== null ? null : ws.analysisTemplateReason;
-  const activeTemplateKey =
-    templateContent !== null
-      ? `template:${searchParams.get("templateId") ?? "loaded"}:${templateContent}`
-      : ws.analysisTaskId
-        ? `analysis:${ws.analysisTaskId}:${ws.analysisTemplateStatus ?? "none"}`
-        : null;
-
-  // FEAT-02: 历史恢复回调
-  const handleHistoryRestore = useCallback(
+  const handleHistorySelect = useCallback(
     async (id: string) => {
+      setSelectedHistoryId(id);
       try {
         const restoredData = await restoreHistory(id);
-        setResolvedPromptText(restoredData.promptSnapshot);
-        ws.enterHistoryRestored(
-          restoredData.resultFileUrl,
-          restoredData.recipe,
-          restoredData.promptSnapshot,
-          restoredData.negativePromptSnapshot,
-          restoredData.analysisTaskId
-        );
+        setHistoryDetail({
+          id,
+          resultFileUrl: restoredData.resultFileUrl,
+          recipe: restoredData.recipe,
+          promptSnapshot: restoredData.promptSnapshot,
+          negativePromptSnapshot: restoredData.negativePromptSnapshot,
+          params: restoredData.params,
+          analysisTaskId: restoredData.analysisTaskId,
+        });
+        setHistoryDetailOpen(true);
       } catch (err) {
-        // Toast 提示错误（简单 console.warn，后续可接入 toast 系统）
-        console.error("Failed to restore history:", err instanceof Error ? err.message : err);
+        console.error("Failed to load history detail:", err instanceof Error ? err.message : err);
       }
     },
-    [restoreHistory, ws]
+    [restoreHistory],
   );
+
+  const handleHistoryRestore = useCallback(
+    (id: string) => {
+      if (historyDetail?.id === id) {
+        applyHistoryRestore(historyDetail);
+        setHistoryDetailOpen(false);
+        return;
+      }
+
+      void restoreHistory(id)
+        .then((restoredData) => {
+          applyHistoryRestore(restoredData);
+          setHistoryDetailOpen(false);
+        })
+        .catch((err) => {
+          console.error("Failed to restore history:", err instanceof Error ? err.message : err);
+        });
+    },
+    [applyHistoryRestore, historyDetail, restoreHistory],
+  );
+
+  const activePromptText = (resolvedPromptText || ws.promptText).trim();
+  const isWorkspaceBusy =
+    ws.state === "uploading" ||
+    ws.state === "analyzing" ||
+    ws.state === "generating";
+  const canGenerate =
+    !!activePromptText &&
+    !hasUnresolvedVariables(activePromptText) &&
+    !isWorkspaceBusy &&
+    !ws.degradation.generationUnavailable;
+  const generateDisabledReason = !activePromptText
+    ? "Analyze or write a prompt before generating"
+    : hasUnresolvedVariables(activePromptText)
+      ? "Resolve template variables before generating"
+      : ws.degradation.generationUnavailable
+        ? "Generation is temporarily unavailable"
+        : isWorkspaceBusy
+          ? "Wait for the current workspace task to finish"
+          : "Generate image";
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Enter" || event.metaKey || event.ctrlKey || event.altKey) {
+        return;
+      }
+
+      const target = event.target as HTMLElement | null;
+      const tagName = target?.tagName.toLowerCase();
+      const isTypingTarget =
+        tagName === "textarea" ||
+        tagName === "input" ||
+        tagName === "select" ||
+        target?.isContentEditable;
+
+      if (isTypingTarget || !canGenerate) return;
+
+      event.preventDefault();
+      void handleGenerate(generationParams);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [canGenerate, generationParams, handleGenerate]);
+
+  const historyItems = (historyData ?? []).slice(0, 20).map((item) => ({
+    id: item.id,
+    resultFileUrl: item.resultFileUrl,
+    createdAt: item.createdAt,
+  }));
 
   return (
     <div className="h-full overflow-hidden">
@@ -460,56 +549,63 @@ function WorkspacePageInner() {
           state={ws.state}
           error={ws.error}
           resultImageUrl={ws.resultImageUrl}
+          promptText={ws.promptText}
+          manualModeOverride={manualModeOverride}
+          onModeChange={handleModeChange}
           onReplace={handleReplace}
         />
 
         <div className="min-h-0 flex-1 overflow-hidden">
-          <WorkspaceTwoPaneLayout
-            analysis={
-              <AnalysisPane
+          <WorkspaceThreeColumnLayout
+            reference={
+              <ReferenceCard
                 state={ws.state}
                 referenceImageUrl={ws.referenceImageUrl}
-                recipe={ws.recipe}
                 isUploading={isUploading || ws.state === "uploading"}
                 uploadProgress={progress}
-                degradation={ws.degradation}
-                promptText={ws.promptText}
+                recipe={ws.recipe}
                 error={ws.error}
+                degradation={ws.degradation}
                 onFileSelected={handleFileSelected}
                 onReplace={handleReplace}
-                onRetry={handleRetry}
+                onRetry={handleAnalysisRetry}
               />
             }
-            editing={
-              <EditingPane
+            recipe={<RecipeCard state={ws.state} recipe={ws.recipe} />}
+            prompt={
+              <PromptCard
+                state={ws.state}
                 promptText={ws.promptText}
-                templateContent={activeTemplateContent}
-                templateVariables={activeTemplateVariables}
-                templateStatus={activeTemplateStatus}
-                templateReason={activeTemplateReason}
-                templateKey={activeTemplateKey}
+                negativePromptText={ws.negativePromptText}
+                templateContent={ws.analysisTemplateContent}
+                templateVariables={ws.analysisTemplateVariables}
+                templateStatus={ws.analysisTemplateStatus}
+                templateReason={ws.analysisTemplateReason}
+                templateKey={ws.analysisTaskId}
+                params={generationParams}
                 onResolvedPromptChange={handleResolvedPromptChange}
                 onTemplateContentChange={setTemplateSaveContent}
                 onTemplateVariablesChange={setCurrentTemplateVariables}
+                onNegativePromptChange={ws.setNegativePromptText}
+                onParamsChange={setGenerationParams}
                 onSaveTemplate={handleOpenTemplateSave}
               />
             }
           />
         </div>
 
-        <GenerateHistoryBar
+        <FloatingGenerateButton
           state={ws.state}
-          promptText={ws.promptText}
-          params={generationParams}
-          generationUnavailable={ws.degradation.generationUnavailable}
-          error={ws.error}
-          currentGenerationTaskId={
-            ws.state === "generating" ? ws.generationTaskId ?? undefined : undefined
-          }
-          onParamsChange={setGenerationParams}
-          onGenerate={handleGenerate}
-          onRetry={handleGenerateRetry}
-          onRestore={handleHistoryRestore}
+          canGenerate={canGenerate}
+          disabledReason={generateDisabledReason}
+          onGenerate={() => void handleGenerate(generationParams)}
+        />
+
+        <HistoryStrip
+          historyItems={historyItems}
+          selectedId={selectedHistoryId}
+          onSelect={handleHistorySelect}
+          onViewAll={() => router.push("/history")}
         />
 
         <GenerationDialog
@@ -527,10 +623,17 @@ function WorkspacePageInner() {
           }}
         />
 
+        <HistoryDetailDialog
+          open={historyDetailOpen}
+          detail={historyDetail}
+          onRestore={handleHistoryRestore}
+          onClose={() => setHistoryDetailOpen(false)}
+        />
+
         {/* Template Save Dialog */}
         <TemplateSaveDialog
           open={showTemplateSaveDialog}
-          initialContent={templateSaveContent || activeTemplateContent || ws.promptText}
+          initialContent={templateSaveContent || ws.promptText}
           initialVariables={currentTemplateVariables}
           sourceAnalysisTaskId={ws.analysisTaskId ?? undefined}
           onSave={() => {

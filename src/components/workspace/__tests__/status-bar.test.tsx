@@ -8,6 +8,9 @@ describe("StatusBar", () => {
   const defaultProps = {
     error: null,
     resultImageUrl: null,
+    promptText: "",
+    manualModeOverride: null,
+    onModeChange: vi.fn(),
     onReplace: vi.fn(),
   };
 
@@ -15,24 +18,16 @@ describe("StatusBar", () => {
     vi.clearAllMocks();
   });
 
-  // --- Status label text ---
+  it("renders the workspace title and top mode switcher", () => {
+    render(<StatusBar {...defaultProps} state="idle" />);
 
-  it.each<{ state: WorkspaceState; expectedLabel: string }>([
-    { state: "idle", expectedLabel: "Not Started" },
-    { state: "uploading", expectedLabel: "Not Started" },
-    { state: "analyzing", expectedLabel: "Analyzing" },
-    { state: "analysis_ready", expectedLabel: "Ready to Generate" },
-    { state: "generating", expectedLabel: "Generating" },
-    { state: "generation_ready", expectedLabel: "Done" },
-  ])(
-    "状态 $state 下标签文案为 $expectedLabel",
-    ({ state, expectedLabel }) => {
-      render(<StatusBar {...defaultProps} state={state} />);
-      expect(screen.getByText(expectedLabel)).toBeInTheDocument();
-    },
-  );
-
-  // --- showReplaceButton conditions ---
+    expect(screen.getByText("Workspace")).toBeInTheDocument();
+    expect(screen.getByTestId("top-mode-switcher")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Analyze" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
 
   it.each<WorkspaceState>(["idle", "uploading", "analyzing"])(
     "状态 %s 不显示Replace Reference按钮",
@@ -46,6 +41,7 @@ describe("StatusBar", () => {
     "analysis_ready",
     "generating",
     "generation_ready",
+    "history_restored",
   ])("状态 %s 显示Replace Reference按钮", (state) => {
     render(<StatusBar {...defaultProps} state={state} />);
     expect(screen.getByText("Replace Reference")).toBeInTheDocument();
@@ -65,10 +61,20 @@ describe("StatusBar", () => {
     expect(onReplace).toHaveBeenCalledOnce();
   });
 
-  // --- Title always renders ---
+  it("模式按钮点击触发 onModeChange", async () => {
+    const onModeChange = vi.fn();
+    const user = userEvent.setup();
 
-  it("始终展示标题 'Create From Reference'", () => {
-    render(<StatusBar {...defaultProps} state="idle" />);
-    expect(screen.getByText("Create From Reference")).toBeInTheDocument();
+    render(
+      <StatusBar
+        {...defaultProps}
+        state="analysis_ready"
+        promptText="ready prompt"
+        onModeChange={onModeChange}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Generate" }));
+    expect(onModeChange).toHaveBeenCalledWith("generate");
   });
 });

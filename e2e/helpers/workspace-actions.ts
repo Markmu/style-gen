@@ -22,7 +22,12 @@ export async function gotoWorkspace(page: Page) {
       throw error
     }
   }
-  await page.getByTestId('workspace-two-pane-layout').waitFor({ timeout: 15000 })
+  await page
+    .locator(
+      '[data-testid="workspace-two-pane-layout"], [data-testid="workspace-three-column-layout"]',
+    )
+    .first()
+    .waitFor({ timeout: 15000 })
 }
 
 /** Upload a test image in the workspace and wait for analysis to start */
@@ -92,8 +97,12 @@ export async function uploadAndCompleteAnalysis(
     mockPolling: false,
   })
 
-  // Wait for analysis to complete and generation to become available.
-  await page.getByText('Ready to Generate').waitFor({ timeout: 15000 })
+  // Wait for analysis to complete in either the legacy editor or the three-column shell.
+  await page
+    .getByText('Ready to Generate')
+    .or(page.getByRole('button', { name: 'Save as Template' }))
+    .first()
+    .waitFor({ timeout: 15000 })
 
   return result
 }
