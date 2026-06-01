@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { UnifiedPromptEditor } from "@/components/workspace/unified-prompt-editor";
 
@@ -124,10 +124,10 @@ describe("UnifiedPromptEditor", () => {
     expect(screen.getByLabelText("Full Generation Prompt")).toHaveValue("manual draft");
   });
 
-  it("saves the current text draft when saving from text mode", async () => {
+  it("emits the current text draft as save content from text mode", async () => {
     const user = userEvent.setup();
     const onTemplateContentChange = vi.fn();
-    const onSaveTemplate = vi.fn();
+    const onSaveContentChange = vi.fn();
 
     render(
       <UnifiedPromptEditor
@@ -135,7 +135,7 @@ describe("UnifiedPromptEditor", () => {
         initialTemplateContent="Create {{var1}} with {{var2}}."
         onResolvedPromptChange={vi.fn()}
         onTemplateContentChange={onTemplateContentChange}
-        onSaveTemplate={onSaveTemplate}
+        onSaveContentChange={onSaveContentChange}
       />,
     );
 
@@ -150,15 +150,18 @@ describe("UnifiedPromptEditor", () => {
       "Create {{var1}} with {{var2}}.",
     );
 
-    await user.click(screen.getByRole("button", { name: "Save as Template" }));
-
-    expect(onSaveTemplate).toHaveBeenCalledWith(
-      "Create glass chair with rim light.",
+    await waitFor(() =>
+      expect(onSaveContentChange).toHaveBeenLastCalledWith(
+        "Create glass chair with rim light.",
+      ),
     );
+    expect(
+      screen.queryByRole("button", { name: "Save as Template" }),
+    ).not.toBeInTheDocument();
   });
 
-  it("saves edited fallback text instead of stale template source", () => {
-    const onSaveTemplate = vi.fn();
+  it("emits edited fallback text instead of stale template source", async () => {
+    const onSaveContentChange = vi.fn();
 
     render(
       <UnifiedPromptEditor
@@ -166,16 +169,19 @@ describe("UnifiedPromptEditor", () => {
         templateStatus="fallback"
         templateReason="No stable variables"
         onResolvedPromptChange={vi.fn()}
-        onSaveTemplate={onSaveTemplate}
+        onSaveContentChange={onSaveContentChange}
       />,
     );
 
     fireEvent.change(screen.getByLabelText("Full Generation Prompt"), {
       target: { value: "Edited fallback prompt" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save as Template" }));
 
-    expect(onSaveTemplate).toHaveBeenCalledWith("Edited fallback prompt");
+    await waitFor(() =>
+      expect(onSaveContentChange).toHaveBeenLastCalledWith(
+        "Edited fallback prompt",
+      ),
+    );
   });
 
   it("renders fallback text mode even if a stale template body is present", () => {

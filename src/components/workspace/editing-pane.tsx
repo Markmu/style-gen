@@ -16,7 +16,6 @@ interface EditingPaneProps {
   onResolvedPromptChange: (value: string) => void;
   onTemplateContentChange?: (value: string) => void;
   onTemplateVariablesChange?: (variables: TemplateVariable[]) => void;
-  onSaveTemplate?: (templateContent: string) => void;
 }
 
 export function EditingPane({
@@ -29,7 +28,6 @@ export function EditingPane({
   onResolvedPromptChange,
   onTemplateContentChange,
   onTemplateVariablesChange,
-  onSaveTemplate,
 }: EditingPaneProps) {
   return (
     <div
@@ -46,7 +44,6 @@ export function EditingPane({
         onResolvedPromptChange={onResolvedPromptChange}
         onTemplateContentChange={onTemplateContentChange}
         onTemplateVariablesChange={onTemplateVariablesChange}
-        onSaveTemplate={onSaveTemplate}
       />
     </div>
   );

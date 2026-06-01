@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { WorkspaceState } from "@/hooks/use-workspace-state";
 import { UnifiedPromptEditor } from "@/components/workspace/unified-prompt-editor";
 import type { AspectRatio, Quality } from "@/components/workspace/output-settings";
@@ -53,6 +53,21 @@ export function PromptCard({
   const prompt = promptText.trim();
   const isLoading = state === "analyzing";
   const [guidance, setGuidance] = useState(7);
+  const [saveTemplateContent, setSaveTemplateContent] = useState(
+    templateContent || promptText,
+  );
+  const lastSaveResetKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const resetKey = templateKey ?? templateContent ?? null;
+    if (resetKey === lastSaveResetKeyRef.current) return;
+    lastSaveResetKeyRef.current = resetKey;
+    setSaveTemplateContent(templateContent || promptText);
+  }, [promptText, templateContent, templateKey]);
+
+  const handleSaveContentChange = useCallback((value: string) => {
+    setSaveTemplateContent(value);
+  }, []);
 
   const handleAspectRatioChange = (value: AspectRatio) => {
     onParamsChange?.({ ...params, aspectRatio: value });
@@ -80,7 +95,7 @@ export function PromptCard({
           {prompt && onSaveTemplate && (
             <button
               type="button"
-              onClick={() => onSaveTemplate(promptText)}
+              onClick={() => onSaveTemplate(saveTemplateContent || promptText)}
               className="h-8 rounded-md border border-[var(--border-interactive)] px-2.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)]"
             >
               Save as Template
@@ -114,7 +129,7 @@ export function PromptCard({
                 onResolvedPromptChange={onResolvedPromptChange ?? (() => undefined)}
                 onTemplateContentChange={onTemplateContentChange}
                 onTemplateVariablesChange={onTemplateVariablesChange}
-                onSaveTemplate={onSaveTemplate}
+                onSaveContentChange={handleSaveContentChange}
               />
             </div>
 

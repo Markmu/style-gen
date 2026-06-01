@@ -584,7 +584,6 @@ function WorkspacePageInner() {
                 templateKey={ws.analysisTaskId}
                 params={generationParams}
                 onResolvedPromptChange={handleResolvedPromptChange}
-                onTemplateContentChange={setTemplateSaveContent}
                 onTemplateVariablesChange={setCurrentTemplateVariables}
                 onNegativePromptChange={ws.setNegativePromptText}
                 onParamsChange={setGenerationParams}

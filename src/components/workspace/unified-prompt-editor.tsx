@@ -25,7 +25,7 @@ interface UnifiedPromptEditorProps {
   onResolvedPromptChange: (value: string) => void;
   onTemplateContentChange?: (value: string) => void;
   onTemplateVariablesChange?: (variables: TemplateVariable[]) => void;
-  onSaveTemplate?: (templateContent: string) => void;
+  onSaveContentChange?: (value: string) => void;
 }
 
 function variablesByName(variables: TemplateVariable[] = []) {
@@ -55,7 +55,7 @@ export function UnifiedPromptEditor({
   onResolvedPromptChange,
   onTemplateContentChange,
   onTemplateVariablesChange,
-  onSaveTemplate,
+  onSaveContentChange,
 }: UnifiedPromptEditorProps) {
   const normalizedTemplateContent = initialTemplateContent ?? null;
   const hasUsableTemplate =
@@ -151,6 +151,7 @@ export function UnifiedPromptEditor({
     [templateSource, variableValues],
   );
   const resolvedPrompt = mode === "template" ? resolvedTemplatePrompt : textPrompt;
+  const saveContent = mode === "template" ? templateSource : textPrompt;
 
   useEffect(() => {
     lastEmittedPromptRef.current = resolvedPrompt;
@@ -164,6 +165,10 @@ export function UnifiedPromptEditor({
   useEffect(() => {
     onTemplateVariablesChange?.(variables);
   }, [onTemplateVariablesChange, variables]);
+
+  useEffect(() => {
+    onSaveContentChange?.(saveContent);
+  }, [onSaveContentChange, saveContent]);
 
   const handleTemplateChange = useCallback((value: string) => {
     setTemplateSource(value);
@@ -204,17 +209,6 @@ export function UnifiedPromptEditor({
       <div className="mb-4 flex shrink-0 items-center justify-between gap-3">
         <p className="label-tech text-[var(--accent-primary)]">Edit</p>
         <div className="flex items-center gap-2">
-          {onSaveTemplate && (
-            <button
-              type="button"
-              onClick={() =>
-                onSaveTemplate(mode === "template" ? templateSource : textPrompt)
-              }
-              className="h-7 shrink-0 rounded-md border border-[var(--border-interactive)] px-2.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)]"
-            >
-              Save as Template
-            </button>
-          )}
           <div className="flex h-7 rounded-md bg-[var(--surface-low)] p-0.5">
             <button
               type="button"

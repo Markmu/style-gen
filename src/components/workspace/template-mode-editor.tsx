@@ -25,10 +25,7 @@ export function TemplateModeEditor({
 }: TemplateModeEditorProps) {
   return (
     <div className="flex min-h-full flex-col gap-4">
-      <label className="flex min-h-[220px] flex-1 flex-col gap-2">
-        <span className="text-sm font-medium text-[var(--text-secondary)]">
-          Template Source
-        </span>
+      <div className="flex min-h-[220px] flex-1 flex-col">
         <textarea
           aria-label="Template Source"
           value={templateSource}
@@ -36,7 +33,7 @@ export function TemplateModeEditor({
           className="input-precision min-h-0 flex-1 resize-none rounded-t-lg px-3 py-3 text-sm leading-6"
           placeholder="Enter a template, e.g. Create {{subject}} with {{lighting}}."
         />
-      </label>
+      </div>
       <TemplateVariablePanel
         variables={variables}
         values={variableValues}
