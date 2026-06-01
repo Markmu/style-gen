@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import Image from "next/image";
 import type { TemplateListItem } from "@/hooks/use-template-search";
 
 interface TemplateCardProps {
@@ -132,23 +133,34 @@ export function TemplateCard({
           )}
         </div>
 
-        {/* 预览区域（占位图） */}
-        <div className="relative aspect-[3/4] w-full bg-[var(--surface-base)]">
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-            <span className="material-symbols-outlined text-4xl text-[var(--text-secondary)]/30">
-              description
-            </span>
-            <span className="text-xs text-[var(--text-secondary)]/40">
-              No preview
-            </span>
-          </div>
+        {/* 预览区域 */}
+        <div className="media-lens relative aspect-[3/4] w-full bg-[var(--surface-base)]">
+          {template.sourceImageUrl ? (
+            <Image
+              src={template.sourceImageUrl}
+              alt={`Reference image for ${template.name}`}
+              fill
+              className="object-cover transition-transform duration-150 group-hover:scale-[1.02]"
+              sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+              unoptimized
+            />
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+              <span className="material-symbols-outlined text-4xl text-[var(--text-secondary)]/30">
+                description
+              </span>
+              <span className="text-xs text-[var(--text-secondary)]/40">
+                No preview
+              </span>
+            </div>
+          )}
 
           {/* Hover overlay + Use Template button */}
-          <div className="absolute inset-0 flex items-end justify-center bg-black/0 p-4 pb-6 transition-colors group-hover:bg-black/50">
+          <div className="absolute inset-0 flex items-end justify-center bg-[rgba(25,28,30,0)] p-4 pb-6 transition-colors group-hover:bg-[rgba(25,28,30,0.48)]">
             <button
               type="button"
               onClick={handleUse}
-              className="translate-y-2 rounded-lg bg-white px-5 py-2 text-sm font-medium text-gray-900 opacity-0 shadow transition-all hover:bg-gray-100 group-hover:translate-y-0 group-hover:opacity-100"
+              className="translate-y-2 rounded-lg bg-[var(--surface-bright)] px-5 py-2 text-sm font-medium text-[var(--text-primary)] opacity-0 shadow-[var(--shadow-ambient)] transition-all hover:bg-[var(--surface-low)] group-hover:translate-y-0 group-hover:opacity-100"
             >
               Use Template
             </button>

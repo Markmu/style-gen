@@ -132,6 +132,8 @@ export interface PromptTemplate {
   name: string;                      // Template Name，1-50 字符
   content: string;                   // 模板正文（含 {{var}} 标记的 prompt 文本）
   variables: TemplateVariable[];     // Variables定义列表（从 content 自动提取）
+  sourceAssetId: string | null;       // 关联的引用图Asset ID
+  sourceImageUrl: string | null;      // 模板库预览用引用图URL快照
   userId: string;
   createdAt: Date;
   updatedAt: Date;

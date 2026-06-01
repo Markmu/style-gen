@@ -67,6 +67,8 @@ function makeTemplateRow(overrides: Partial<Record<string, unknown>> = {}) {
     name: "My Template",
     content: "Hello {{name}}!",
     variables: [{ name: "name", defaultValue: "" }],
+    sourceAssetId: null,
+    sourceImageUrl: null,
     userId: "USER_001",
     createdAt: NOW,
     updatedAt: NOW,
@@ -105,11 +107,36 @@ describe("template-repository", () => {
         name: "My Template",
         content: "Hello {{name}}!",
         variables: [{ name: "name", defaultValue: "" }],
+        sourceAssetId: null,
+        sourceImageUrl: null,
         userId: "USER_001",
         createdAt: NOW,
         updatedAt: NOW,
       });
       expect(mockValues.mock.calls[0][0]).not.toHaveProperty("sourceAnalysisTaskId");
+    });
+
+    it("保存模板时写入关联引用图", async () => {
+      const row = makeTemplateRow({
+        sourceAssetId: "ASSET_001",
+        sourceImageUrl: "https://cdn.example.com/reference.png",
+      });
+      mockReturning.mockResolvedValueOnce([row]);
+
+      const template = await createTemplate("USER_001", {
+        name: "My Template",
+        content: "Hello {{name}}!",
+        sourceAssetId: "ASSET_001",
+        sourceImageUrl: "https://cdn.example.com/reference.png",
+      });
+
+      expect(mockValues).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sourceAssetId: "ASSET_001",
+          sourceImageUrl: "https://cdn.example.com/reference.png",
+        })
+      );
+      expect(template.sourceImageUrl).toBe("https://cdn.example.com/reference.png");
     });
 
     it("保存请求提供 variables 时保留默认值", async () => {
@@ -167,6 +194,12 @@ describe("template-repository", () => {
       const result = await findAllByUserId("USER_001", { limit: 10 });
 
       expect(result.items).toHaveLength(2);
+      expect(result.items[0]).toEqual(
+        expect.objectContaining({
+          sourceAssetId: null,
+          sourceImageUrl: null,
+        })
+      );
       expect(result.hasMore).toBe(false);
       expect(result.nextCursor).toBeNull();
     });
@@ -256,6 +289,26 @@ describe("template-repository", () => {
       expect(result.variables).toEqual(variables);
       const setArg = mockUpdateSet.mock.calls[0][0];
       expect(setArg.variables).toEqual(variables);
+    });
+
+    it("可更新模板关联引用图", async () => {
+      mockWhere.mockResolvedValueOnce([makeTemplateRow()]);
+      mockReturning.mockResolvedValueOnce([
+        makeTemplateRow({
+          sourceAssetId: "ASSET_002",
+          sourceImageUrl: "https://cdn.example.com/updated.png",
+        }),
+      ]);
+
+      const result = await updateTemplate("TPL_001", "USER_001", {
+        sourceAssetId: "ASSET_002",
+        sourceImageUrl: "https://cdn.example.com/updated.png",
+      });
+
+      const setArg = mockUpdateSet.mock.calls[0][0];
+      expect(setArg.sourceAssetId).toBe("ASSET_002");
+      expect(setArg.sourceImageUrl).toBe("https://cdn.example.com/updated.png");
+      expect(result.sourceImageUrl).toBe("https://cdn.example.com/updated.png");
     });
   });
 });

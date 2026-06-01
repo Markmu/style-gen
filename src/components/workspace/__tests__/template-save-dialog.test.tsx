@@ -32,7 +32,7 @@ describe("TemplateSaveDialog", () => {
     expect(screen.getByLabelText("Detected variable scene")).toHaveValue("neon garden");
   });
 
-  it("submits initial variables and sourceAnalysisTaskId", async () => {
+  it("submits initial variables and source image metadata", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.spyOn(global, "fetch").mockResolvedValue({
       status: 201,
@@ -52,6 +52,8 @@ describe("TemplateSaveDialog", () => {
           { name: "subject", defaultValue: "glass fox", label: "Subject", sourceField: "subject" },
         ]}
         sourceAnalysisTaskId="analysis-1"
+        sourceAssetId="asset-1"
+        sourceImageUrl="https://cdn.example.com/reference.png"
         onSave={vi.fn()}
         onClose={vi.fn()}
       />,
@@ -63,6 +65,8 @@ describe("TemplateSaveDialog", () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
     const body = JSON.parse(fetchMock.mock.calls[0][1]?.body as string);
     expect(body.sourceAnalysisTaskId).toBe("analysis-1");
+    expect(body.sourceAssetId).toBe("asset-1");
+    expect(body.sourceImageUrl).toBe("https://cdn.example.com/reference.png");
     expect(body.variables).toEqual([
       { name: "subject", defaultValue: "glass fox", label: "Subject", sourceField: "subject" },
     ]);

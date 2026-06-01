@@ -9,6 +9,8 @@ interface TemplateSaveDialogProps {
   initialContent: string;
   initialVariables?: TemplateVariable[];
   sourceAnalysisTaskId?: string;
+  sourceAssetId?: string | null;
+  sourceImageUrl?: string | null;
   onSave: (template: PromptTemplate) => void;
   onClose: () => void;
 }
@@ -23,6 +25,8 @@ export function TemplateSaveDialog({
   initialContent,
   initialVariables = [],
   sourceAnalysisTaskId,
+  sourceAssetId,
+  sourceImageUrl,
   onSave,
   onClose,
 }: TemplateSaveDialogProps) {
@@ -121,6 +125,8 @@ export function TemplateSaveDialog({
           content,
           variables,
           sourceAnalysisTaskId: sourceAnalysisTaskId ?? undefined,
+          sourceAssetId: sourceAssetId ?? undefined,
+          sourceImageUrl: sourceImageUrl ?? undefined,
         }),
       });
 

@@ -173,6 +173,8 @@ export const templates = pgTable(
     name: varchar("name", { length: 50 }).notNull(),
     content: text("content").notNull(),
     variables: jsonb("variables").$type<TemplateVariable[]>().notNull().default([]),
+    sourceAssetId: varchar("source_asset_id", { length: 26 }).references(() => assets.id),
+    sourceImageUrl: text("source_image_url"),
     userId: varchar("user_id", { length: 26 }).references(() => users.id).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -184,5 +186,6 @@ export const templates = pgTable(
   (table) => [
     index("idx_templates_user_id").on(table.userId),
     index("idx_templates_user_name").on(table.userId, table.name),
+    index("idx_templates_source_asset").on(table.sourceAssetId),
   ]
 );

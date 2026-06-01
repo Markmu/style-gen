@@ -13,6 +13,8 @@ function rowToTemplate(row: TemplateRow): PromptTemplate {
     name: row.name,
     content: row.content,
     variables: row.variables ?? [],
+    sourceAssetId: row.sourceAssetId,
+    sourceImageUrl: row.sourceImageUrl,
     userId: row.userId,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -26,6 +28,8 @@ export async function createTemplate(
     name: string;
     content: string;
     variables?: TemplateVariable[];
+    sourceAssetId?: string | null;
+    sourceImageUrl?: string | null;
   }
 ): Promise<PromptTemplate> {
   const id = generateId();
@@ -38,6 +42,8 @@ export async function createTemplate(
       name: data.name,
       content: data.content,
       variables,
+      sourceAssetId: data.sourceAssetId ?? null,
+      sourceImageUrl: data.sourceImageUrl ?? null,
       userId,
     })
     .returning();
@@ -81,7 +87,14 @@ export interface TemplatePaginatedResult<T> {
 export async function findAllByUserId(
   userId: string,
   params: TemplatePaginationParams = {}
-): Promise<TemplatePaginatedResult<{ id: string; name: string; variableCount: number; createdAt: Date }>> {
+): Promise<TemplatePaginatedResult<{
+  id: string;
+  name: string;
+  variableCount: number;
+  sourceAssetId: string | null;
+  sourceImageUrl: string | null;
+  createdAt: Date;
+}>> {
   const limit = Math.min(params.limit ?? 10, 50);
 
   // 构建基础 WHERE 条件：userId + 可选 cursor
@@ -99,6 +112,8 @@ export async function findAllByUserId(
       id: templates.id,
       name: templates.name,
       variableCount: sql<number>`COALESCE(jsonb_array_length(${templates.variables}), 0)`,
+      sourceAssetId: templates.sourceAssetId,
+      sourceImageUrl: templates.sourceImageUrl,
       createdAt: templates.createdAt,
     })
     .from(templates)
@@ -111,6 +126,8 @@ export async function findAllByUserId(
     id: row.id,
     name: row.name,
     variableCount: row.variableCount ?? 0,
+    sourceAssetId: row.sourceAssetId,
+    sourceImageUrl: row.sourceImageUrl,
     createdAt: row.createdAt,
   }));
 
@@ -152,7 +169,13 @@ export async function deleteTemplate(
 export async function updateTemplate(
   id: string,
   userId: string,
-  data: { name?: string; content?: string; variables?: TemplateVariable[] }
+  data: {
+    name?: string;
+    content?: string;
+    variables?: TemplateVariable[];
+    sourceAssetId?: string | null;
+    sourceImageUrl?: string | null;
+  }
 ): Promise<PromptTemplate> {
   const existing = await findById(id, userId);
   if (!existing) throw new Error(`Template not found: ${id}`);
@@ -165,6 +188,8 @@ export async function updateTemplate(
   } else if (data.variables !== undefined) {
     updates.variables = mergeTemplateVariables(existing.content, data.variables);
   }
+  if (data.sourceAssetId !== undefined) updates.sourceAssetId = data.sourceAssetId;
+  if (data.sourceImageUrl !== undefined) updates.sourceImageUrl = data.sourceImageUrl;
 
   const rows = await db
     .update(templates)
@@ -200,6 +225,8 @@ export async function duplicateTemplate(
       name: newName,
       content: existing.content,
       variables: existing.variables,
+      sourceAssetId: existing.sourceAssetId,
+      sourceImageUrl: existing.sourceImageUrl,
       userId,
     })
     .returning();

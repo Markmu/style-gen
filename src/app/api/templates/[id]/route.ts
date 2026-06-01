@@ -6,6 +6,7 @@ import {
   updateTemplate,
   findByName,
 } from "@/lib/repositories/template-repository";
+import { findAssetById } from "@/lib/repositories/asset-repository";
 import type { TemplateVariable } from "@/types/models";
 
 /** 从 session 获取 userId，未认证返回 401 */
@@ -62,6 +63,33 @@ function validateVariables(value: unknown): TemplateVariable[] | undefined | nul
     });
   }
   return variables;
+}
+
+function validateSourceAssetId(value: unknown): string | undefined | null {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.length > 26) return null;
+  return trimmed;
+}
+
+function validateSourceImageUrl(value: unknown): string | undefined | null {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.length > 4096) return null;
+
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+    return trimmed;
+  } catch {
+    return null;
+  }
 }
 
 // ─── GET /api/templates/:id — 模板详情 ───
@@ -196,6 +224,8 @@ export async function PUT(
       content?: string;
       variables?: unknown;
       sourceAnalysisTaskId?: unknown;
+      sourceAssetId?: unknown;
+      sourceImageUrl?: unknown;
     };
     try {
       body = (await request.json()) as { name?: string; content?: string };
@@ -207,9 +237,15 @@ export async function PUT(
     }
 
     // 4. 校验至少提供一个字段
-    if (!body.name && !body.content && body.variables === undefined) {
+    if (
+      !body.name &&
+      !body.content &&
+      body.variables === undefined &&
+      body.sourceAssetId === undefined &&
+      body.sourceImageUrl === undefined
+    ) {
       return NextResponse.json(
-        { error: "Provide at least one of name, content, or variables", code: "INVALID_REQUEST", retryable: false },
+        { error: "Provide at least one updatable field", code: "INVALID_REQUEST", retryable: false },
         { status: 400 }
       );
     }
@@ -248,6 +284,22 @@ export async function PUT(
       );
     }
 
+    const sourceAssetId = validateSourceAssetId(body.sourceAssetId);
+    if (sourceAssetId === null) {
+      return NextResponse.json(
+        { error: "Invalid sourceAssetId parameter", code: "INVALID_REQUEST", retryable: false },
+        { status: 400 }
+      );
+    }
+
+    const sourceImageUrl = validateSourceImageUrl(body.sourceImageUrl);
+    if (sourceImageUrl === null) {
+      return NextResponse.json(
+        { error: "Invalid sourceImageUrl parameter", code: "INVALID_REQUEST", retryable: false },
+        { status: 400 }
+      );
+    }
+
     // 7. 检查模板是否存在
     const existing = await findById(id, userId);
     if (!existing) {
@@ -270,11 +322,29 @@ export async function PUT(
       }
     }
 
+    let nextSourceImageUrl = sourceImageUrl;
+    if (sourceAssetId) {
+      const sourceAsset = await findAssetById(sourceAssetId);
+      if (
+        !sourceAsset ||
+        sourceAsset.userId !== userId ||
+        sourceAsset.type !== "reference"
+      ) {
+        return NextResponse.json(
+          { error: "Invalid source asset", code: "INVALID_REQUEST", retryable: false },
+          { status: 400 }
+        );
+      }
+      nextSourceImageUrl = sourceAsset.fileUrl;
+    }
+
     // 9. 执行更新
     const updated = await updateTemplate(id, userId, {
       name: body.name,
       content: body.content,
       ...(variables !== undefined ? { variables } : {}),
+      ...(sourceAssetId !== undefined ? { sourceAssetId } : {}),
+      ...(nextSourceImageUrl !== undefined ? { sourceImageUrl: nextSourceImageUrl } : {}),
     });
 
     log("template_updated", {
@@ -284,6 +354,8 @@ export async function PUT(
       variableCount: updated.variables.length,
       defaultValueCount: updated.variables.filter((variable) => variable.defaultValue).length,
       sourceAnalysisTaskIdPresent: typeof body.sourceAnalysisTaskId === "string",
+      sourceAssetIdPresent: Boolean(updated.sourceAssetId),
+      sourceImageUrlPresent: Boolean(updated.sourceImageUrl),
       duration: Date.now() - startTime,
     });
 

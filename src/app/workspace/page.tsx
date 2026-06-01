@@ -635,6 +635,8 @@ function WorkspacePageInner() {
           initialContent={templateSaveContent || ws.promptText}
           initialVariables={currentTemplateVariables}
           sourceAnalysisTaskId={ws.analysisTaskId ?? undefined}
+          sourceAssetId={ws.assetId}
+          sourceImageUrl={ws.referenceImageUrl}
           onSave={() => {
             setShowTemplateSaveDialog(false);
           }}

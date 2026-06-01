@@ -8,6 +8,8 @@ export interface TemplateListItem {
   id: string;
   name: string;
   variableCount: number;
+  sourceAssetId: string | null;
+  sourceImageUrl: string | null;
   createdAt: string;
 }
 

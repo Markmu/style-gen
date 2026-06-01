@@ -5,6 +5,7 @@ import {
   findByName,
   findAllByUserId,
 } from "@/lib/repositories/template-repository";
+import { findAssetById } from "@/lib/repositories/asset-repository";
 import type { TemplateVariable } from "@/types/models";
 
 /** 从 session 获取 userId，未认证返回 401 */
@@ -55,6 +56,8 @@ interface CreateTemplateRequest {
   content: string;
   variables?: TemplateVariable[];
   sourceAnalysisTaskId?: string;
+  sourceAssetId?: string;
+  sourceImageUrl?: string;
 }
 
 const VARIABLE_NAME_RE = /^[a-zA-Z_]\w*$/;
@@ -98,6 +101,33 @@ function validateVariables(value: unknown): TemplateVariable[] | undefined | nul
   return variables;
 }
 
+function validateSourceAssetId(value: unknown): string | undefined | null {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.length > 26) return null;
+  return trimmed;
+}
+
+function validateSourceImageUrl(value: unknown): string | undefined | null {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.length > 4096) return null;
+
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+    return trimmed;
+  } catch {
+    return null;
+  }
+}
+
 function validateCreateBody(body: unknown): CreateTemplateRequest | null {
   if (!body || typeof body !== "object") return null;
   const obj = body as Record<string, unknown>;
@@ -107,12 +137,18 @@ function validateCreateBody(body: unknown): CreateTemplateRequest | null {
   if (obj.sourceAnalysisTaskId !== undefined && typeof obj.sourceAnalysisTaskId !== "string") return null;
   const variables = validateVariables(obj.variables);
   if (variables === null) return null;
+  const sourceAssetId = validateSourceAssetId(obj.sourceAssetId);
+  if (sourceAssetId === null) return null;
+  const sourceImageUrl = validateSourceImageUrl(obj.sourceImageUrl);
+  if (sourceImageUrl === null) return null;
 
   return {
     name: obj.name.trim(),
     content: obj.content,
     ...(variables !== undefined ? { variables } : {}),
     sourceAnalysisTaskId: obj.sourceAnalysisTaskId as string | undefined,
+    ...(sourceAssetId !== undefined ? { sourceAssetId } : {}),
+    ...(sourceImageUrl !== undefined ? { sourceImageUrl } : {}),
   };
 }
 
@@ -153,11 +189,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 5. 创建模板（sourceAnalysisTaskId 仅用于日志，不写入 templates 表）
+    let sourceImageUrl = validated.sourceImageUrl;
+    if (validated.sourceAssetId) {
+      const sourceAsset = await findAssetById(validated.sourceAssetId);
+      if (
+        !sourceAsset ||
+        sourceAsset.userId !== userId ||
+        sourceAsset.type !== "reference"
+      ) {
+        return NextResponse.json(
+          { error: "Invalid source asset", code: "INVALID_REQUEST", retryable: false },
+          { status: 400 }
+        );
+      }
+      sourceImageUrl = sourceAsset.fileUrl;
+    }
+
+    // 5. 创建模板
     const template = await createTemplate(userId, {
       name: validated.name,
       content: validated.content,
       ...(validated.variables !== undefined ? { variables: validated.variables } : {}),
+      ...(validated.sourceAssetId !== undefined ? { sourceAssetId: validated.sourceAssetId } : {}),
+      ...(sourceImageUrl !== undefined ? { sourceImageUrl } : {}),
     });
 
     log("template_created", {
@@ -166,6 +220,8 @@ export async function POST(request: NextRequest) {
       variableCount: template.variables.length,
       defaultValueCount: template.variables.filter((variable) => variable.defaultValue).length,
       sourceAnalysisTaskIdPresent: Boolean(validated.sourceAnalysisTaskId),
+      sourceAssetIdPresent: Boolean(validated.sourceAssetId),
+      sourceImageUrlPresent: Boolean(template.sourceImageUrl),
       duration: Date.now() - startTime,
     });
 
