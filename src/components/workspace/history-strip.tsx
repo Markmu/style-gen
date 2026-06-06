@@ -10,14 +10,12 @@ export interface HistoryStripItem {
 
 interface HistoryStripProps {
   historyItems: HistoryStripItem[];
-  selectedId?: string | null;
   onSelect: (id: string) => void;
   onViewAll: () => void;
 }
 
 export function HistoryStrip({
   historyItems,
-  selectedId = null,
   onSelect,
   onViewAll,
 }: HistoryStripProps) {
@@ -41,43 +39,28 @@ export function HistoryStrip({
 
         <div
           data-testid="history-strip-items"
-          className="flex min-h-12 min-w-0 flex-1 items-center gap-2 overflow-x-auto"
+          className="flex min-h-14 min-w-0 flex-1 items-center gap-2 overflow-x-auto py-1"
         >
-          {visibleItems.map((item) => {
-            const selected = selectedId === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => onSelect(item.id)}
-                className={`interactive-lift group relative h-12 w-12 shrink-0 rounded-lg p-1 ${
-                  selected
-                    ? "bg-[var(--accent-primary-soft)] ring-1 ring-[var(--accent-primary)]"
-                    : "bg-[var(--surface-control)] ring-1 ring-[var(--border-static)]"
-                }`}
-                aria-label="Open history item"
-                aria-pressed={selected}
-              >
-                <span className="media-lens relative block h-full w-full rounded-md">
-                  <Image
-                    src={item.resultFileUrl}
-                    alt=""
-                    fill
-                    className="object-cover transition-transform duration-150 group-hover:scale-[1.03]"
-                    sizes="48px"
-                    unoptimized
-                  />
-                </span>
-                {selected && (
-                  <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--accent-primary)] text-[10px] text-[var(--text-on-primary)]">
-                    <span className="icon text-[13px]" aria-hidden="true">
-                      check
-                    </span>
-                  </span>
-                )}
-              </button>
-            );
-          })}
+          {visibleItems.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onSelect(item.id)}
+              className="interactive-lift group relative h-12 w-12 shrink-0 rounded-lg border border-[var(--border-static)] bg-[var(--surface-control)] p-1"
+              aria-label="Open history item"
+            >
+              <span className="media-lens relative block h-full w-full rounded-md">
+                <Image
+                  src={item.resultFileUrl}
+                  alt=""
+                  fill
+                  className="object-cover transition-transform duration-150 group-hover:scale-[1.03]"
+                  sizes="48px"
+                  unoptimized
+                />
+              </span>
+            </button>
+          ))}
         </div>
 
         <button

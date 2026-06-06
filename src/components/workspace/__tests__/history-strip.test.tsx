@@ -24,7 +24,7 @@ describe("HistoryStrip", () => {
     expect(screen.getAllByRole("button", { name: "Open history item" })).toHaveLength(20);
   });
 
-  it("selects a thumbnail and view all callback", async () => {
+  it("opens a thumbnail without marking it selected and calls view all", async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
     const onViewAll = vi.fn();
@@ -32,7 +32,6 @@ describe("HistoryStrip", () => {
     render(
       <HistoryStrip
         historyItems={items.slice(0, 2)}
-        selectedId="history-2"
         onSelect={onSelect}
         onViewAll={onViewAll}
       />,
@@ -43,9 +42,8 @@ describe("HistoryStrip", () => {
 
     expect(onSelect).toHaveBeenCalledWith("history-1");
     expect(onViewAll).toHaveBeenCalledTimes(1);
-    expect(screen.getAllByRole("button", { name: "Open history item" })[1]).toHaveAttribute(
+    expect(screen.getAllByRole("button", { name: "Open history item" })[1]).not.toHaveAttribute(
       "aria-pressed",
-      "true",
     );
   });
 });

@@ -22,6 +22,9 @@ describe("StatusBar", () => {
     render(<StatusBar {...defaultProps} state="idle" />);
 
     expect(screen.getByText("Workspace")).toBeInTheDocument();
+    expect(screen.queryByText("Style Gen")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Workspace help")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("User avatar")).not.toBeInTheDocument();
     expect(screen.getByTestId("top-mode-switcher")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Analyze" })).toHaveAttribute(
       "aria-pressed",

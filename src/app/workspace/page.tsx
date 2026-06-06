@@ -69,7 +69,6 @@ function WorkspacePageInner() {
   const [templateSaveContent, setTemplateSaveContent] = useState("");
   const [currentTemplateVariables, setCurrentTemplateVariables] = useState<TemplateVariable[]>([]);
   const [manualModeOverride, setManualModeOverride] = useState<TopMode | null>(null);
-  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
   const [historyDetailOpen, setHistoryDetailOpen] = useState(false);
   const [historyDetail, setHistoryDetail] = useState<HistoryDetail | null>(null);
   const [generationParams, setGenerationParams] = useState<{
@@ -448,7 +447,6 @@ function WorkspacePageInner() {
 
   const handleHistorySelect = useCallback(
     async (id: string) => {
-      setSelectedHistoryId(id);
       try {
         const restoredData = await restoreHistory(id);
         setHistoryDetail({
@@ -602,7 +600,6 @@ function WorkspacePageInner() {
 
         <HistoryStrip
           historyItems={historyItems}
-          selectedId={selectedHistoryId}
           onSelect={handleHistorySelect}
           onViewAll={() => router.push("/history")}
         />

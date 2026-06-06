@@ -88,7 +88,7 @@ export function ReferenceCard({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         {hasReference ? (
           <div className="space-y-4">
             <div className="media-lens relative aspect-[4/3] min-h-[260px] overflow-hidden rounded-lg ring-1 ring-[var(--border-static)]">
@@ -193,14 +193,16 @@ export function ReferenceCard({
             )}
           </div>
         ) : (
-          <div className="space-y-4">
-            <UploadZone
-              referenceImageUrl={null}
-              isUploading={uploading}
-              uploadProgress={uploadProgress}
-              onFileSelected={onFileSelected}
-              onReplace={onReplace}
-            />
+          <div className="flex min-h-0 flex-1 flex-col gap-4">
+            <div data-testid="reference-upload-panel" className="min-h-0 flex-1">
+              <UploadZone
+                referenceImageUrl={null}
+                isUploading={uploading}
+                uploadProgress={uploadProgress}
+                onFileSelected={onFileSelected}
+                onReplace={onReplace}
+              />
+            </div>
             {analysisError && (
               <div className="rounded-lg bg-[var(--color-error-soft)] p-4">
                 <p className="text-sm font-semibold text-[var(--color-error)]">

@@ -42,9 +42,6 @@ export function StatusBar({
           <h2 className="truncate text-sm font-bold text-[var(--text-primary)]">
             Workspace
           </h2>
-          <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
-            Style Gen
-          </p>
         </div>
       </div>
 
@@ -67,21 +64,6 @@ export function StatusBar({
             Replace Reference
           </button>
         )}
-        <button
-          type="button"
-          aria-label="Workspace help"
-          className="flex h-8 w-8 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)]"
-        >
-          <span className="icon text-[18px]" aria-hidden="true">
-            help
-          </span>
-        </button>
-        <div
-          aria-label="User avatar"
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--surface-bright)] text-[10px] font-semibold text-[var(--text-secondary)] ring-1 ring-[var(--border-static)]"
-        >
-          SG
-        </div>
       </div>
     </div>
   );
