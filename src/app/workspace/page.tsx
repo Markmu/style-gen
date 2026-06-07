@@ -16,8 +16,9 @@ import { ReferenceCard } from "@/components/workspace/reference-card";
 import { RecipeCard } from "@/components/workspace/recipe-card";
 import { PromptCard } from "@/components/workspace/prompt-card";
 import type { TopMode } from "@/components/workspace/top-mode-switcher";
-import { FloatingGenerateButton } from "@/components/workspace/floating-generate-button";
 import { HistoryStrip } from "@/components/workspace/history-strip";
+import { OutputCard } from "@/components/workspace/output-card";
+import { WorkspaceBottomBar } from "@/components/workspace/workspace-bottom-bar";
 import {
   HistoryDetailDialog,
   type HistoryDetail,
@@ -580,28 +581,36 @@ function WorkspacePageInner() {
                 templateStatus={ws.analysisTemplateStatus}
                 templateReason={ws.analysisTemplateReason}
                 templateKey={ws.analysisTaskId}
-                params={generationParams}
                 onResolvedPromptChange={handleResolvedPromptChange}
                 onTemplateVariablesChange={setCurrentTemplateVariables}
                 onNegativePromptChange={ws.setNegativePromptText}
-                onParamsChange={setGenerationParams}
                 onSaveTemplate={handleOpenTemplateSave}
               />
             }
           />
         </div>
 
-        <FloatingGenerateButton
-          state={ws.state}
-          canGenerate={canGenerate}
-          disabledReason={generateDisabledReason}
-          onGenerate={() => void handleGenerate(generationParams)}
-        />
-
-        <HistoryStrip
-          historyItems={historyItems}
-          onSelect={handleHistorySelect}
-          onViewAll={() => router.push("/history")}
+        <WorkspaceBottomBar
+          history={
+            <HistoryStrip
+              historyItems={historyItems}
+              onSelect={handleHistorySelect}
+              onViewAll={() => router.push("/history")}
+            />
+          }
+          output={
+            <OutputCard
+              state={ws.state}
+              params={generationParams}
+              canGenerate={canGenerate}
+              disabledReason={generateDisabledReason}
+              generationUnavailable={ws.degradation.generationUnavailable}
+              error={ws.error}
+              onParamsChange={setGenerationParams}
+              onGenerate={(params) => void handleGenerate(params)}
+              onRetry={handleGenerateRetry}
+            />
+          }
         />
 
         <GenerationDialog

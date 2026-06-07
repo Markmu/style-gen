@@ -25,6 +25,7 @@ describe("RecipeCard", () => {
     render(<RecipeCard state="idle" recipe={null} />);
 
     expect(screen.getByText("Visual Recipe")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Visual Recipe help")).not.toBeInTheDocument();
     expect(
       screen.getByText("Upload a reference image to generate a visual recipe."),
     ).toBeInTheDocument();

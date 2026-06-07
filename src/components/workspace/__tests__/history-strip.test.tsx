@@ -14,6 +14,7 @@ describe("HistoryStrip", () => {
   it("renders the history heading without thumbnails in empty state", () => {
     render(<HistoryStrip historyItems={[]} onSelect={vi.fn()} onViewAll={vi.fn()} />);
 
+    expect(screen.getByTestId("history-strip")).toHaveClass("h-full");
     expect(screen.getByRole("heading", { name: "History" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Open history item" })).not.toBeInTheDocument();
   });

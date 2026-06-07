@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { PromptCard } from "@/components/workspace/prompt-card";
 
 describe("PromptCard", () => {
@@ -38,6 +39,10 @@ describe("PromptCard", () => {
     expect(
       screen.getAllByRole("button", { name: "Save as Template" }),
     ).toHaveLength(1);
+    expect(screen.queryByLabelText("Prompt help")).toBeNull();
+    expect(screen.queryByText("Output")).toBeNull();
+    expect(screen.queryByText("Use recipe guidance")).toBeNull();
+    expect(screen.getByLabelText("Variable negative_prompt")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Save as Template" }));
 
@@ -58,8 +63,50 @@ describe("PromptCard", () => {
           label: "Scene",
           sourceField: "scene",
         },
+        {
+          name: "negative_prompt",
+          defaultValue: "",
+          label: "Negative Prompt",
+        },
       ]),
     );
+  });
+
+  it("treats Negative Prompt as a template variable", async () => {
+    const user = userEvent.setup();
+    const onNegativePromptChange = vi.fn();
+
+    function PromptCardHarness() {
+      const [negativePromptText, setNegativePromptText] = useState("blurry, text");
+
+      return (
+        <PromptCard
+          state="analysis_ready"
+          promptText="Create glass fox."
+          negativePromptText={negativePromptText}
+          templateContent="Create {{subject}}."
+          templateVariables={[{ name: "subject", defaultValue: "glass fox" }]}
+          templateStatus="ready"
+          onResolvedPromptChange={vi.fn()}
+          onNegativePromptChange={(value) => {
+            setNegativePromptText(value);
+            onNegativePromptChange(value);
+          }}
+        />
+      );
+    }
+
+    render(<PromptCardHarness />);
+
+    const negativeVariable = screen.getByLabelText("Variable negative_prompt");
+
+    expect(negativeVariable.tagName).toBe("TEXTAREA");
+    expect(negativeVariable).toHaveValue("blurry, text");
+
+    await user.clear(negativeVariable);
+    await user.type(negativeVariable, "low quality");
+
+    expect(onNegativePromptChange).toHaveBeenLastCalledWith("low quality");
   });
 
   it("uses the outer save button for the current text mode draft", async () => {
@@ -75,6 +122,7 @@ describe("PromptCard", () => {
       />,
     );
 
+    expect(screen.getByLabelText("Variable negative_prompt")).toBeInTheDocument();
     await user.clear(screen.getByLabelText("Full Generation Prompt"));
     await user.type(screen.getByLabelText("Full Generation Prompt"), "Manual draft prompt");
     await user.click(screen.getByRole("button", { name: "Save as Template" }));

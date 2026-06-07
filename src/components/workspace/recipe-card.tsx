@@ -44,15 +44,6 @@ export function RecipeCard({ state, recipe }: RecipeCardProps) {
             Style structure
           </p>
         </div>
-        <button
-          type="button"
-          aria-label="Visual Recipe help"
-          className="flex h-8 w-8 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)]"
-        >
-          <span className="icon text-[18px]" aria-hidden="true">
-            help
-          </span>
-        </button>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">

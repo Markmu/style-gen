@@ -56,15 +56,6 @@ export function ReferenceCard({
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <button
-            type="button"
-            aria-label="Reference help"
-            className="flex h-8 w-8 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)]"
-          >
-            <span className="icon text-[18px]" aria-hidden="true">
-              help
-            </span>
-          </button>
           {hasReference && (
             <button
               type="button"

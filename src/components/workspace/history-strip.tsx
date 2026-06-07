@@ -24,10 +24,10 @@ export function HistoryStrip({
   return (
     <section
       data-testid="history-strip"
-      className="glass-panel mx-4 mb-3 shrink-0 rounded-xl px-4 py-3"
+      className="glass-panel h-full min-w-0 rounded-xl px-4 py-3"
       aria-label="History"
     >
-      <div className="flex min-w-0 items-center gap-4">
+      <div className="flex h-full min-w-0 items-center gap-4">
         <div className="flex shrink-0 items-center gap-2">
           <span className="icon text-[18px] text-[var(--accent-primary)]" aria-hidden="true">
             history

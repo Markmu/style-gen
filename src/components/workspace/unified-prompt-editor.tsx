@@ -7,6 +7,7 @@ import {
   replaceVariables,
 } from "@/lib/template-parser";
 import { TemplateModeEditor } from "@/components/workspace/template-mode-editor";
+import { TemplateVariablePanel } from "@/components/workspace/template-variable-panel";
 import { TextModeEditor } from "@/components/workspace/text-mode-editor";
 import type {
   AnalysisTemplateStatus,
@@ -19,12 +20,15 @@ interface UnifiedPromptEditorProps {
   initialPromptText: string;
   initialTemplateContent?: string | null;
   initialTemplateVariables?: TemplateVariable[];
+  auxiliaryVariables?: TemplateVariable[];
+  auxiliaryVariableValues?: Record<string, string>;
   templateStatus?: AnalysisTemplateStatus | null;
   templateReason?: string | null;
   templateKey?: string | null;
   onResolvedPromptChange: (value: string) => void;
   onTemplateContentChange?: (value: string) => void;
   onTemplateVariablesChange?: (variables: TemplateVariable[]) => void;
+  onAuxiliaryVariableChange?: (name: string, value: string) => void;
   onSaveContentChange?: (value: string) => void;
 }
 
@@ -49,12 +53,15 @@ export function UnifiedPromptEditor({
   initialPromptText,
   initialTemplateContent,
   initialTemplateVariables = [],
+  auxiliaryVariables = [],
+  auxiliaryVariableValues = {},
   templateStatus = null,
   templateReason = null,
   templateKey = null,
   onResolvedPromptChange,
   onTemplateContentChange,
   onTemplateVariablesChange,
+  onAuxiliaryVariableChange,
   onSaveContentChange,
 }: UnifiedPromptEditorProps) {
   const normalizedTemplateContent = initialTemplateContent ?? null;
@@ -134,7 +141,7 @@ export function UnifiedPromptEditor({
     templateStatus,
   ]);
 
-  const variables = useMemo(() => {
+  const templateVariables = useMemo(() => {
     const metadata = variableMetadata;
     return extractVariables(templateSource).map((variable) => {
       const meta = metadata.get(variable.name);
@@ -146,9 +153,27 @@ export function UnifiedPromptEditor({
       };
     });
   }, [templateSource, variableMetadata, variableValues]);
+
+  const variables = useMemo(() => {
+    const templateNames = new Set(templateVariables.map((variable) => variable.name));
+    const extras = auxiliaryVariables
+      .filter((variable) => !templateNames.has(variable.name))
+      .map((variable) => ({
+        ...variable,
+        defaultValue: auxiliaryVariableValues[variable.name] ?? variable.defaultValue ?? "",
+      }));
+
+    return [...templateVariables, ...extras];
+  }, [auxiliaryVariableValues, auxiliaryVariables, templateVariables]);
+
+  const combinedVariableValues = useMemo(
+    () => ({ ...variableValues, ...auxiliaryVariableValues }),
+    [auxiliaryVariableValues, variableValues],
+  );
+
   const resolvedTemplatePrompt = useMemo(
-    () => replaceVariables(templateSource, variableValues),
-    [templateSource, variableValues],
+    () => replaceVariables(templateSource, combinedVariableValues),
+    [combinedVariableValues, templateSource],
   );
   const resolvedPrompt = mode === "template" ? resolvedTemplatePrompt : textPrompt;
   const saveContent = mode === "template" ? templateSource : textPrompt;
@@ -185,9 +210,19 @@ export function UnifiedPromptEditor({
     });
   }, []);
 
+  const auxiliaryVariableNames = useMemo(
+    () => new Set(auxiliaryVariables.map((variable) => variable.name)),
+    [auxiliaryVariables],
+  );
+
   const handleVariableChange = useCallback((name: string, value: string) => {
+    if (auxiliaryVariableNames.has(name)) {
+      onAuxiliaryVariableChange?.(name, value);
+      return;
+    }
+
     setVariableValues((previous) => ({ ...previous, [name]: value }));
-  }, []);
+  }, [auxiliaryVariableNames, onAuxiliaryVariableChange]);
 
   const handleTextChange = useCallback((value: string) => {
     textTouchedRef.current = true;
@@ -241,7 +276,7 @@ export function UnifiedPromptEditor({
           <TemplateModeEditor
             templateSource={templateSource}
             variables={variables}
-            variableValues={variableValues}
+            variableValues={combinedVariableValues}
             templateStatus={templateStatus}
             templateReason={templateReason}
             onTemplateChange={handleTemplateChange}
@@ -258,6 +293,13 @@ export function UnifiedPromptEditor({
               </div>
             )}
             <TextModeEditor promptText={textPrompt} onChange={handleTextChange} />
+            {auxiliaryVariables.length > 0 && (
+              <TemplateVariablePanel
+                variables={auxiliaryVariables}
+                values={auxiliaryVariableValues}
+                onChange={handleVariableChange}
+              />
+            )}
           </div>
         )}
       </div>

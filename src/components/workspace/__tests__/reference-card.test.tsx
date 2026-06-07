@@ -21,6 +21,7 @@ describe("ReferenceCard", () => {
     render(<ReferenceCard {...defaultProps} />);
 
     expect(screen.getByText("Click or drag to upload a reference image")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Reference help")).not.toBeInTheDocument();
     expect(screen.getByTestId("reference-upload-panel")).toHaveClass("min-h-0", "flex-1");
   });
 });

@@ -3,6 +3,8 @@
 import type { TemplateVariable } from "@/types/models";
 import type { AnalysisTemplateStatus } from "@/types/models";
 
+const MULTILINE_VARIABLE_NAMES = new Set(["negative_prompt"]);
+
 interface TemplateVariablePanelProps {
   variables: TemplateVariable[];
   values: Record<string, string>;
@@ -25,7 +27,7 @@ export function TemplateVariablePanel({
           Variables
         </h4>
         <p className="mt-1 text-xs text-[var(--text-secondary)]">
-          Variable values render into the full prompt without changing the source template.
+          Variable values update the prompt or related generation fields without changing the source template.
         </p>
       </div>
 
@@ -56,13 +58,23 @@ export function TemplateVariablePanel({
                   </span>
                 )}
               </span>
-              <input
-                aria-label={`Variable ${variable.name}`}
-                value={values[variable.name] ?? ""}
-                onChange={(event) => onChange(variable.name, event.target.value)}
-                className="input-precision w-full rounded-t-md px-3 py-2 text-sm"
-                placeholder={`Fill ${variable.name}`}
-              />
+              {MULTILINE_VARIABLE_NAMES.has(variable.name) ? (
+                <textarea
+                  aria-label={`Variable ${variable.name}`}
+                  value={values[variable.name] ?? ""}
+                  onChange={(event) => onChange(variable.name, event.target.value)}
+                  className="input-precision min-h-[84px] w-full resize-none rounded-t-md px-3 py-2 text-sm leading-6"
+                  placeholder={`Fill ${variable.name}`}
+                />
+              ) : (
+                <input
+                  aria-label={`Variable ${variable.name}`}
+                  value={values[variable.name] ?? ""}
+                  onChange={(event) => onChange(variable.name, event.target.value)}
+                  className="input-precision w-full rounded-t-md px-3 py-2 text-sm"
+                  placeholder={`Fill ${variable.name}`}
+                />
+              )}
             </label>
           ))}
         </div>
