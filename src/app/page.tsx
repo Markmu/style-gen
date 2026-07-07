@@ -15,7 +15,7 @@ export default function Home() {
       </Suspense>
       <main className="min-h-screen bg-[var(--surface-page)]">
         <Hero />
-        <div className="-mt-14 pb-12">
+        <div className="relative z-10 -mt-12 pb-8">
           <UploadEntry />
         </div>
         <ValueSection />

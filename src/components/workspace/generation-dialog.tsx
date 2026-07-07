@@ -14,6 +14,31 @@ interface GenerationDialogProps {
   onRetry: () => void;
 }
 
+function getSafeGenerationMessage(error: WorkspaceError | null): string {
+  const fallback =
+    "Generation did not complete. Your workspace context is safe, and you can retry when ready.";
+  const rawMessage = error?.message?.trim();
+
+  if (!rawMessage) return fallback;
+
+  const unsafePatterns = [
+    /stack/i,
+    /\bat\s+\S+\s*\(/,
+    /node_modules/i,
+    /\/Users\//i,
+    /api[_-]?key/i,
+    /bearer\s+[a-z0-9._-]+/i,
+    /secret/i,
+  ];
+
+  if (unsafePatterns.some((pattern) => pattern.test(rawMessage))) {
+    return fallback;
+  }
+
+  const firstLine = rawMessage.split(/\r?\n/)[0] ?? fallback;
+  return firstLine.length > 180 ? `${firstLine.slice(0, 177)}...` : firstLine;
+}
+
 export function GenerationDialog({
   open,
   state,
@@ -28,6 +53,7 @@ export function GenerationDialog({
   const isGenerating = state === "generating";
   const isFailed = error?.stage === "generation";
   const showResult = state === "generation_ready" && resultImageUrl && !isFailed;
+  const safeErrorMessage = getSafeGenerationMessage(error);
 
   return (
     <div
@@ -74,6 +100,10 @@ export function GenerationDialog({
             <h3 className="text-base font-semibold text-[var(--text-primary)]">
               Generated Result
             </h3>
+            <p className="text-sm leading-6 text-[var(--text-secondary)]">
+              Context preserved: your reference, prompt, and params are still available
+              for editing, another render, or saving as Style Memory.
+            </p>
             <div className="media-lens relative mx-auto aspect-square max-h-[58vh] w-full max-w-[560px] rounded-lg">
               <Image
                 src={resultImageUrl}
@@ -108,7 +138,11 @@ export function GenerationDialog({
               Generation Failed
             </h3>
             <p className="mt-2 text-sm leading-6 text-[var(--color-error)]">
-              {error.message}
+              {safeErrorMessage}
+            </p>
+            <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
+              Your reference, prompt, variables, and params are preserved. Retry render
+              or go back to edit without losing the current direction.
             </p>
             <div className="mt-5 flex justify-end gap-2">
               <button

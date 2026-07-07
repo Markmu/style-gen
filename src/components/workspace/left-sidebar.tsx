@@ -21,7 +21,7 @@ const navItems = [
     match: (pathname: string) => pathname === "/workspace",
   },
   {
-    label: "Library",
+    label: "Style Memory",
     href: "/workspace/templates",
     tone: "library",
     icon: (
@@ -150,7 +150,10 @@ export function LeftSidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className={`flex-1 space-y-1 ${isCollapsed ? "px-2" : "px-2.5"}`}>
+      <nav
+        className={`flex-1 space-y-1 ${isCollapsed ? "px-2" : "px-2.5"}`}
+        aria-label="Workspace primary navigation"
+      >
         {navItems.map((item) => {
           const active = item.match(pathname);
           return (
@@ -159,7 +162,7 @@ export function LeftSidebar() {
               type="button"
               onClick={() => router.push(item.href)}
               aria-current={active ? "page" : undefined}
-              aria-label={isCollapsed ? item.label : undefined}
+              aria-label={item.label}
               title={isCollapsed ? item.label : undefined}
               data-tone={item.tone}
               data-active={active}
@@ -172,7 +175,11 @@ export function LeftSidebar() {
               }`}
             >
               {item.icon}
-              {!isCollapsed && <span>{item.label}</span>}
+              {!isCollapsed && (
+                <span aria-hidden="true" className="min-w-0 truncate leading-tight">
+                  {item.label}
+                </span>
+              )}
             </button>
           );
         })}

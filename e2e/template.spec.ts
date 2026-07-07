@@ -9,6 +9,8 @@ interface MockTemplate {
   content: string
   variables: TemplateVariable[]
   userId: string
+  sourceAssetId?: string | null
+  sourceImageUrl?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -24,6 +26,8 @@ function templateRecord(overrides: Partial<MockTemplate> = {}): MockTemplate {
       { name: 'scene', label: 'Scene', defaultValue: 'white studio', sourceField: 'scene' },
     ],
     userId: 'mock-user-id',
+    sourceAssetId: overrides.sourceAssetId ?? null,
+    sourceImageUrl: overrides.sourceImageUrl ?? null,
     createdAt: overrides.createdAt ?? now,
     updatedAt: overrides.updatedAt ?? now,
   }
@@ -60,7 +64,17 @@ async function mockTemplateApi(page: Page, initialTemplates: MockTemplate[] = []
     if (pathname === '/api/templates' && method === 'GET') {
       const search = url.searchParams.get('search')?.trim().toLowerCase() ?? ''
       const filtered = search
-        ? templates.filter((template) => template.name.toLowerCase().includes(search))
+        ? templates.filter((template) =>
+            [
+              template.name,
+              template.content,
+              template.sourceAssetId ?? '',
+              template.sourceImageUrl ?? '',
+            ]
+              .join(' ')
+              .toLowerCase()
+              .includes(search),
+          )
         : templates
 
       await route.fulfill({
@@ -71,6 +85,8 @@ async function mockTemplateApi(page: Page, initialTemplates: MockTemplate[] = []
             id: template.id,
             name: template.name,
             variableCount: template.variables.length,
+            sourceAssetId: template.sourceAssetId ?? null,
+            sourceImageUrl: template.sourceImageUrl ?? null,
             createdAt: template.createdAt,
           })),
           hasMore: false,
@@ -86,6 +102,8 @@ async function mockTemplateApi(page: Page, initialTemplates: MockTemplate[] = []
         content: string
         variables?: TemplateVariable[]
         sourceAnalysisTaskId?: string
+        sourceAssetId?: string | null
+        sourceImageUrl?: string | null
       }
       createdBodies.push(body)
 
@@ -103,6 +121,10 @@ async function mockTemplateApi(page: Page, initialTemplates: MockTemplate[] = []
         name: body.name,
         content: body.content,
         variables: body.variables ?? [],
+        sourceAssetId:
+          typeof body.sourceAssetId === 'string' ? body.sourceAssetId : null,
+        sourceImageUrl:
+          typeof body.sourceImageUrl === 'string' ? body.sourceImageUrl : null,
       })
       templates.unshift(created)
 
@@ -131,6 +153,8 @@ async function mockTemplateApi(page: Page, initialTemplates: MockTemplate[] = []
         name: `${source.name} (copy)`,
         content: source.content,
         variables: source.variables,
+        sourceAssetId: source.sourceAssetId,
+        sourceImageUrl: source.sourceImageUrl,
       })
       templates.unshift(copy)
 
@@ -244,30 +268,39 @@ test.describe('模板功能', () => {
     await expect(page.getByText('A template with this name already exists')).toBeVisible()
   })
 
-  test('Template Library展示列表并支持搜索', async ({ page }) => {
+  test('Style Memory展示列表并支持搜索', async ({ page }) => {
     await mockTemplateApi(page, [
-      templateRecord({ id: 'library-template-1', name: 'Editorial Glass Poster' }),
+      templateRecord({
+        id: 'library-template-1',
+        name: 'Editorial Glass Poster',
+        sourceAssetId: 'source-asset-1',
+        sourceImageUrl: 'https://cdn.example.com/references/source-asset-1/original.png',
+      }),
       templateRecord({ id: 'library-template-2', name: 'Soft Product Macro', variables: [] }),
     ])
 
     await page.goto('/workspace/templates', { waitUntil: 'commit' })
 
-    await expect(page.getByRole('heading', { name: 'Template Library' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Style Memory' })).toBeVisible()
+    await expect(page.getByText(/Template Library/i)).toHaveCount(0)
     await expect(page.getByText('Editorial Glass Poster')).toBeVisible()
     await expect(page.getByText('Soft Product Macro')).toBeVisible()
+    await expect(page.getByTestId('style-memory-card').first()).toBeVisible()
+    await expect(page.getByText(/Style tags/i).first()).toBeVisible()
+    await expect(page.getByText(/Reuse intent/i).first()).toBeVisible()
 
-    await page.getByPlaceholder('Search templates...').fill('glass')
+    await page.getByPlaceholder(/Search Style Memories/i).fill('glass')
     await expect(page.getByText('Editorial Glass Poster')).toBeVisible()
     await expect(page.getByText('Soft Product Macro')).not.toBeVisible()
   })
 
-  test('Use Template 跳转Workspace并按默认值加载变量', async ({ page }) => {
+  test('Use memory 跳转Workspace并按默认值加载变量', async ({ page }) => {
     const template = templateRecord({ id: 'library-template-use', name: 'Default Value Template' })
     await mockTemplateApi(page, [template])
 
     await page.goto('/workspace/templates', { waitUntil: 'commit' })
     await page.getByRole('heading', { name: template.name }).hover()
-    await page.getByRole('button', { name: 'Use Template' }).click({ force: true })
+    await page.getByRole('button', { name: 'Use memory' }).click({ force: true })
 
     await expect(page).toHaveURL(/\/workspace/)
     await expect(page.getByTestId('unified-prompt-editor')).toBeVisible({ timeout: 15000 })
@@ -279,7 +312,7 @@ test.describe('模板功能', () => {
     )
   })
 
-  test('Template Library支持Duplicate模板', async ({ page }) => {
+  test('Style Memory支持Duplicate模板', async ({ page }) => {
     const template = templateRecord({ id: 'library-template-copy', name: 'Copy Source Template' })
     await mockTemplateApi(page, [template])
 
@@ -291,7 +324,7 @@ test.describe('模板功能', () => {
     await expect(page.getByText('Copy Source Template (copy)')).toBeVisible({ timeout: 5000 })
   })
 
-  test('Template Library支持Delete模板', async ({ page }) => {
+  test('Style Memory支持Delete模板', async ({ page }) => {
     const template = templateRecord({ id: 'library-template-delete', name: 'Delete Target Template' })
     await mockTemplateApi(page, [template])
 

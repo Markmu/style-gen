@@ -41,6 +41,7 @@ vi.mock("@/components/auth/auth-tracking", () => ({
 describe("LeftSidebar", () => {
   beforeEach(() => {
     storage = {};
+    navigationMocks.pathname = "/workspace";
     navigationMocks.push.mockClear();
     localStorageMock.getItem.mockClear();
     localStorageMock.setItem.mockClear();
@@ -58,12 +59,15 @@ describe("LeftSidebar", () => {
     const sidebar = screen.getByLabelText("Workspace navigation");
     expect(sidebar).toHaveAttribute("data-collapsed", "false");
     expect(screen.getByText("Generate")).toBeInTheDocument();
+    expect(screen.getByText("Style Memory")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Collapse sidebar" }));
 
     expect(sidebar).toHaveAttribute("data-collapsed", "true");
     expect(screen.queryByText("Generate")).not.toBeInTheDocument();
+    expect(screen.queryByText("Style Memory")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Style Memory" })).toBeInTheDocument();
     await waitFor(() =>
       expect(window.localStorage.getItem("style-gen:workspace-sidebar-collapsed")).toBe("true"),
     );
@@ -72,5 +76,19 @@ describe("LeftSidebar", () => {
 
     expect(sidebar).toHaveAttribute("data-collapsed", "false");
     expect(screen.getByText("Generate")).toBeInTheDocument();
+  });
+
+  it("marks Style Memory active on the template route without changing the route", async () => {
+    const user = userEvent.setup();
+    navigationMocks.pathname = "/workspace/templates";
+
+    render(<LeftSidebar />);
+
+    const styleMemory = screen.getByRole("button", { name: "Style Memory" });
+    expect(styleMemory).toHaveAttribute("aria-current", "page");
+    expect(styleMemory).toHaveAttribute("data-active", "true");
+
+    await user.click(styleMemory);
+    expect(navigationMocks.push).toHaveBeenCalledWith("/workspace/templates");
   });
 });

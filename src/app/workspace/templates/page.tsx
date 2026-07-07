@@ -1,53 +1,161 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { useTemplateSearch, type TemplateListItem } from "@/hooks/use-template-search";
+import { StatePresenter } from "@/components/ui/state-presenter";
 import { TemplateCard } from "@/components/workspace/template-card";
+import { useTemplateSearch } from "@/hooks/use-template-search";
+import type { TemplateVariable } from "@/types/models";
 
-/** Skeleton 卡片占位 */
+const WORKSPACE_STORAGE_KEY = "style-gen-workspace-state";
+const WORKSPACE_STORAGE_VERSION = 3;
+
+interface TemplateDetailForWorkspace {
+  content?: string;
+  variables?: TemplateVariable[];
+  sourceAssetId?: string | null;
+  sourceImageUrl?: string | null;
+}
+
 function SkeletonCard() {
   return (
-    <div className="flex flex-col overflow-hidden rounded-xl bg-[var(--surface-mid)] ring-1 ring-[var(--border)]">
-      <div className="aspect-[3/4] w-full animate-pulse bg-[var(--surface-base)]" />
-      <div className="flex flex-col gap-2 p-3">
-        <div className="h-4 w-3/4 animate-pulse rounded bg-[var(--surface-bright)]" />
-        <div className="h-3 w-1/3 animate-pulse rounded bg-[var(--surface-bright)]" />
+    <div className="style-memory-card flex min-h-[28rem] flex-col">
+      <div className="style-memory-source aspect-[4/3] w-full animate-pulse" />
+      <div className="flex flex-1 flex-col gap-4 p-4">
+        <div className="h-4 w-3/4 animate-pulse rounded bg-[var(--surface-low)]" />
+        <div className="h-7 w-28 animate-pulse rounded-full bg-[var(--surface-low)]" />
+        <div className="flex gap-2">
+          <div className="h-7 w-24 animate-pulse rounded-full bg-[var(--surface-low)]" />
+          <div className="h-7 w-20 animate-pulse rounded-full bg-[var(--surface-low)]" />
+        </div>
+        <div className="mt-auto h-16 animate-pulse rounded-lg bg-[var(--surface-low)]" />
       </div>
     </div>
   );
 }
 
-export default function TemplateLibraryPage() {
+async function readActionError(res: Response, fallback: string) {
+  try {
+    const data = (await res.json()) as { error?: string };
+    return data.error ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+async function primeWorkspaceSnapshotFromTemplate(id: string) {
+  if (typeof window === "undefined") return;
+
+  try {
+    const res = await fetch(`/api/templates/${id}`);
+    if (!res.ok) return;
+
+    const template = (await res.json()) as TemplateDetailForWorkspace;
+    if (!template.sourceAssetId || !template.sourceImageUrl || !template.content) {
+      return;
+    }
+
+    window.sessionStorage.setItem(
+      WORKSPACE_STORAGE_KEY,
+      JSON.stringify({
+        version: WORKSPACE_STORAGE_VERSION,
+        assetId: template.sourceAssetId,
+        referenceImageUrl: template.sourceImageUrl,
+        analysisTaskId: null,
+        recipe: null,
+        promptText: template.content,
+        negativePromptText: "",
+        analysisTemplateContent: template.content,
+        analysisTemplateVariables: template.variables ?? [],
+        analysisTemplateStatus:
+          template.variables && template.variables.length > 0 ? "ready" : null,
+        analysisTemplateReason: null,
+        generationTaskId: null,
+      }),
+    );
+  } catch {
+    // The workspace still falls back to its existing templateId load path.
+  }
+}
+
+export default function StyleMemoryPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [actionError, setActionError] = useState<string | null>(null);
   const {
     templates,
     isLoading,
     isError,
     error,
+    isAuthRequired,
     search,
     setSearch,
+    isSearching,
   } = useTemplateSearch();
 
-  /** Use Template → 跳转到Workspace并携带 templateId */
+  const hasSearched = search.trim().length > 0;
+  const memories = useMemo(() => templates ?? [], [templates]);
+  const visibleMemories = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+    if (!keyword) return memories;
+
+    return memories.filter((template) =>
+      [
+        template.name,
+        template.sourceAssetId ?? "",
+        template.sourceImageUrl ?? "",
+        `${template.variableCount} variables`,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(keyword),
+    );
+  }, [memories, search]);
+  const hasMemories = visibleMemories.length > 0;
+  const isFetchFailure = !isLoading && isError;
+  const showAuthRequired = isFetchFailure && isAuthRequired;
+  const showFailedRecoverable = isFetchFailure && !isAuthRequired;
+  const showEmpty =
+    !isLoading && !isFetchFailure && !hasSearched && visibleMemories.length === 0;
+  const showNoResults =
+    !isLoading && !isFetchFailure && hasSearched && visibleMemories.length === 0;
+  const showGrid = !isLoading && !isFetchFailure && hasMemories;
+
+  const goToWorkspace = useCallback(() => {
+    router.push("/workspace");
+  }, [router]);
+
   const handleUseTemplate = useCallback(
-    (id: string) => {
+    async (id: string) => {
+      setActionError(null);
+      await primeWorkspaceSnapshotFromTemplate(id);
       router.push(`/workspace?templateId=${id}`);
     },
     [router],
   );
 
-  /** Duplicate模板 */
+  const handleRetry = useCallback(async () => {
+    setActionError(null);
+    await queryClient.invalidateQueries({ queryKey: ["templates"] });
+    router.refresh();
+  }, [queryClient, router]);
+
+  const handleLogin = useCallback(() => {
+    router.push("/api/auth/signin?callbackUrl=/workspace/templates");
+  }, [router]);
+
   const handleDuplicate = useCallback(
     async (id: string) => {
+      setActionError(null);
       const res = await fetch(`/api/templates/${id}/duplicate`, {
         method: "POST",
       });
       if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
-        throw new Error(data.error ?? "Duplicate failed");
+        setActionError(
+          await readActionError(res, "Duplicate failed. Your memories remain available."),
+        );
+        return;
       }
       await queryClient.invalidateQueries({ queryKey: ["templates"] });
       router.refresh();
@@ -55,15 +163,17 @@ export default function TemplateLibraryPage() {
     [queryClient, router],
   );
 
-  /** Delete模板 */
   const handleDelete = useCallback(
     async (id: string) => {
+      setActionError(null);
       const res = await fetch(`/api/templates/${id}`, {
         method: "DELETE",
       });
       if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
-        throw new Error(data.error ?? "Delete failed");
+        setActionError(
+          await readActionError(res, "Delete failed. Your memories remain available."),
+        );
+        return;
       }
       await queryClient.invalidateQueries({ queryKey: ["templates"] });
       router.refresh();
@@ -71,130 +181,143 @@ export default function TemplateLibraryPage() {
     [queryClient, router],
   );
 
-  /** Edit模板（跳转或打开Edit器 — 暂用 console 提示） */
-  const handleEdit = useCallback((id: string) => {
-    // TODO: 后续可接入模板Edit功能
-    console.log("[template-edit]", id);
-  }, []);
-
-  const hasSearched = search.trim().length > 0;
-  const isEmpty = !isLoading && templates && templates.length === 0;
-
   return (
-    <div className="flex h-full flex-col">
-      {/* 页面标题 */}
-      <div className="shrink-0 px-6 pt-6 pb-2">
-        <h1 className="text-lg font-bold text-[var(--text-primary)]">
-          Template Library
-        </h1>
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="shrink-0 px-6 pb-4 pt-6">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-3xl">
+            <p className="text-sm font-medium text-[var(--accent-primary)]">
+              Reference {"->"} Evidence {"->"} Render
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold text-[var(--text-primary)]">
+              Style Memory
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
+              Saved style directions and prompt structure stay here so you can
+              reuse source-backed visual evidence without changing the template
+              API contract.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={goToWorkspace}
+            className="btn-secondary w-fit rounded-md px-4 py-2 text-sm font-medium"
+          >
+            Back to Workspace
+          </button>
+        </div>
       </div>
 
-      {/* 搜索框 */}
       <div className="shrink-0 px-6 pb-4">
-        <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-lg text-[var(--text-secondary)]">
+        <div className="surface-panel flex min-h-12 items-center gap-3 rounded-lg px-4 py-2">
+          <span className="material-symbols-outlined text-lg text-[var(--text-secondary)]">
             search
           </span>
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search templates..."
-            className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-mid)] py-2.5 pl-10 pr-4 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/50 focus:border-[var(--accent-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]"
+            onChange={(event) => setSearch(event.currentTarget.value)}
+            onInput={(event) => setSearch(event.currentTarget.value)}
+            placeholder="Search Style Memories by direction, source, or prompt structure..."
+            className="input-precision min-w-0 flex-1 rounded-t-md px-0 py-2 text-sm"
           />
+          {isSearching && (
+            <span className="text-xs text-[var(--text-muted)]">
+              Refining
+            </span>
+          )}
           {hasSearched && (
             <button
               type="button"
               onClick={() => setSearch("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-0.5 text-[var(--text-secondary)] hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)]"
+              className="btn-secondary rounded-md px-3 py-1.5 text-xs"
               aria-label="Clear Search"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
+              Clear Search
             </button>
           )}
         </div>
       </div>
 
-      {/* 主内容区：卡片网格 */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6">
-        {/* 加载中：skeleton 占位 */}
+      <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
         {isLoading && (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <SkeletonCard key={`skeleton-${i}`} />
+            {Array.from({ length: 8 }).map((_, index) => (
+              <SkeletonCard key={`style-memory-skeleton-${index}`} />
             ))}
           </div>
         )}
 
-        {/* 错误态 */}
-        {!isLoading && isError && (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <p className="text-sm text-red-400">
-              {error?.message ?? "Search failed. Please try again."}
-            </p>
-            <button
-              type="button"
-              onClick={() => router.refresh()}
-              className="mt-3 rounded-lg px-4 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-mid)] hover:text-[var(--text-primary)]"
-            >
-              Retry
-            </button>
+        {showAuthRequired && (
+          <StatePresenter
+            status="authRequired"
+            title="Log in to view Style Memory"
+            description="Log in to view saved Style Memories. Your workspace snapshot stays preserved, so you can return to the same reference and prompt after signing in."
+            primaryActionLabel="Log in"
+            secondaryActionLabel="Back to Workspace"
+            onPrimaryAction={handleLogin}
+            onSecondaryAction={goToWorkspace}
+          />
+        )}
+
+        {showFailedRecoverable && (
+          <StatePresenter
+            status="failedRecoverable"
+            title="Style Memory service is temporarily unavailable"
+            description={`${error?.message ?? "The Style Memory service could not load."} Your workspace context remains preserved. Retry or return to Workspace before the next attempt.`}
+            primaryActionLabel="Retry"
+            secondaryActionLabel="Back to Workspace"
+            onPrimaryAction={handleRetry}
+            onSecondaryAction={goToWorkspace}
+          />
+        )}
+
+        {showEmpty && (
+          <StatePresenter
+            status="empty"
+            title="No Style Memory saved yet"
+            description="A Style Memory will keep source images, variable structure, and reuse intent. Start from a reference in the workspace, then save a direction when the prompt feels reusable."
+            primaryActionLabel="Create from Reference"
+            secondaryActionLabel="Open Workspace"
+            onPrimaryAction={goToWorkspace}
+            onSecondaryAction={goToWorkspace}
+          />
+        )}
+
+        {showNoResults && (
+          <StatePresenter
+            status="noResults"
+            title="No Style Memories found"
+            description="No saved memory matches this search. The Style Memory context is still here; clear the search or return to Workspace to create a new reusable direction."
+            primaryActionLabel="Clear Search"
+            secondaryActionLabel="Back to Workspace"
+            onPrimaryAction={() => setSearch("")}
+            onSecondaryAction={goToWorkspace}
+          />
+        )}
+
+        {actionError && showGrid && (
+          <div className="mb-4">
+            <StatePresenter
+              compact
+              status="failedRecoverable"
+              title="Style Memory action did not complete"
+              description={`${actionError} Your Style Memory list remains available, and no workspace context was removed.`}
+              primaryActionLabel="Retry"
+              secondaryActionLabel="Back to Workspace"
+              onPrimaryAction={handleRetry}
+              onSecondaryAction={goToWorkspace}
+            />
           </div>
         )}
 
-        {/* 空态：无模板 + 未搜索 */}
-        {isEmpty && !hasSearched && (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <span className="material-symbols-outlined mb-3 text-4xl text-[var(--text-secondary)]/30">
-              library_books
-            </span>
-            <p className="text-sm text-[var(--text-secondary)]">
-              No templates yet. Create one from a prompt.
-            </p>
-          </div>
-        )}
-
-        {/* 空态：搜索无结果 */}
-        {isEmpty && hasSearched && (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <span className="material-symbols-outlined mb-3 text-4xl text-[var(--text-secondary)]/30">
-              search_off
-            </span>
-            <p className="text-sm text-[var(--text-secondary)]">
-              No matching templates found
-            </p>
-            <button
-              type="button"
-              onClick={() => setSearch("")}
-              className="mt-3 rounded-lg px-4 py-2 text-sm text-[var(--accent-primary)] transition-colors hover:bg-[var(--accent-primary)]/10"
-            >
-              Clear Search
-            </button>
-          </div>
-        )}
-
-        {/* 卡片网格 */}
-        {!isLoading && !isError && templates && templates.length > 0 && (
+        {showGrid && (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {templates.map((template: TemplateListItem) => (
+            {visibleMemories.map((template) => (
               <TemplateCard
                 key={template.id}
                 template={template}
                 onUse={handleUseTemplate}
-                onEdit={handleEdit}
                 onDuplicate={handleDuplicate}
                 onDelete={handleDelete}
               />

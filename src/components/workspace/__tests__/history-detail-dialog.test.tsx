@@ -12,6 +12,9 @@ const detail: HistoryDetail = {
   negativePromptSnapshot: "low quality",
   params: { aspectRatio: "16:9", quality: "hd" },
   analysisTaskId: "analysis-1",
+  sourceAssetId: "asset-1",
+  sourceImageUrl: "https://cdn.example.com/reference.png",
+  variables: [{ name: "subject", defaultValue: "Glass flower", label: "Subject" }],
 };
 
 describe("HistoryDetailDialog", () => {
@@ -42,11 +45,16 @@ describe("HistoryDetailDialog", () => {
     expect(screen.getByText("A restored prompt snapshot")).toBeInTheDocument();
     expect(screen.getByText("16:9")).toBeInTheDocument();
     expect(screen.getByText("hd")).toBeInTheDocument();
+    expect(screen.getByText("analysis-1")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save as Style Memory" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Generate variation" })).toBeInTheDocument();
   });
 
-  it("restores and closes through callbacks", async () => {
+  it("restores, continues editing, saves, and closes through callbacks", async () => {
     const user = userEvent.setup();
     const onRestore = vi.fn();
+    const onContinueEditing = vi.fn();
+    const onSaveStyleMemory = vi.fn();
     const onClose = vi.fn();
 
     render(
@@ -54,14 +62,37 @@ describe("HistoryDetailDialog", () => {
         open
         detail={detail}
         onRestore={onRestore}
+        onContinueEditing={onContinueEditing}
+        onSaveStyleMemory={onSaveStyleMemory}
         onClose={onClose}
       />,
     );
 
+    await user.click(screen.getByRole("button", { name: "Save as Style Memory" }));
+    await user.click(screen.getByRole("button", { name: "Generate variation" }));
     await user.click(screen.getByRole("button", { name: "Restore to workspace" }));
     await user.click(screen.getByRole("button", { name: "Close history detail" }));
 
+    expect(onSaveStyleMemory).toHaveBeenCalledWith(detail);
+    expect(onContinueEditing).toHaveBeenCalledWith(detail);
     expect(onRestore).toHaveBeenCalledWith("history-1");
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows restore failure copy without dropping the dialog context", () => {
+    render(
+      <HistoryDetailDialog
+        open
+        detail={detail}
+        restoreError="Network failed"
+        onRestore={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(/Restore failed/i)).toHaveTextContent(
+      /current workspace context is still preserved/i,
+    );
+    expect(screen.getByText("A restored prompt snapshot")).toBeInTheDocument();
   });
 });

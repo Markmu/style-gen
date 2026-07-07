@@ -1,23 +1,18 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
 import Image from "next/image";
 import type { TemplateListItem } from "@/hooks/use-template-search";
+import { deriveStyleMemoryCardViewModel } from "@/lib/style-memory-view-model";
 
 interface TemplateCardProps {
   template: TemplateListItem;
-  onUse: (id: string) => void;
+  onUse: (id: string) => void | Promise<void>;
   onEdit?: (id: string) => void | Promise<void>;
   onDuplicate?: (id: string) => void | Promise<void>;
   onDelete?: (id: string) => void | Promise<void>;
 }
 
-/**
- * 模板卡片组件
- * - 固定Aspect Ratio（约 3:4），CSS Grid 自适应
- * - Reveals the "Use Template" button on hover
- * - 右上角 overflow menu（Edit / Duplicate / Delete）
- */
 export function TemplateCard({
   template,
   onUse,
@@ -29,45 +24,49 @@ export function TemplateCard({
   const [deleteTarget, setDeleteTarget] = useState(false);
   const [duplicating, setDuplicating] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const memory = deriveStyleMemoryCardViewModel(template);
 
   const handleUse = useCallback(() => {
-    onUse(template.id);
-  }, [onUse, template.id]);
+    void onUse(memory.id);
+  }, [memory.id, onUse]);
 
   const handleDuplicate = useCallback(async () => {
     if (!onDuplicate) return;
     setDuplicating(true);
     try {
-      await onDuplicate(template.id);
+      await onDuplicate(memory.id);
       setActionMenuId(null);
     } finally {
       setDuplicating(false);
     }
-  }, [onDuplicate, template.id]);
+  }, [memory.id, onDuplicate]);
 
   const handleDelete = useCallback(async () => {
     if (!onDelete) return;
     setDeleting(true);
     try {
-      await onDelete(template.id);
+      await onDelete(memory.id);
       setDeleteTarget(false);
       setActionMenuId(null);
     } finally {
       setDeleting(false);
     }
-  }, [onDelete, template.id]);
+  }, [memory.id, onDelete]);
 
   return (
     <>
-      <div className="group relative flex flex-col overflow-hidden rounded-xl bg-[var(--surface-mid)] ring-1 ring-[var(--border)] transition-shadow hover:shadow-lg">
-        {/* Overflow menu — 右上角 */}
+      <article
+        data-testid="style-memory-card"
+        data-has-source-image={memory.sourceImageUrl ? "true" : "false"}
+        className="style-memory-card group relative flex min-h-[28rem] flex-col transition-transform duration-150 hover:-translate-y-0.5"
+      >
         <div className="absolute right-2 top-2 z-10">
           <button
             type="button"
             onClick={() =>
-              setActionMenuId(actionMenuId === template.id ? null : template.id)
+              setActionMenuId(actionMenuId === memory.id ? null : memory.id)
             }
-            className="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--surface-base)]/80 text-[var(--text-secondary)] opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100 hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)]"
+            className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--surface-bright)]/85 text-[var(--text-secondary)] opacity-0 shadow-[var(--shadow-ambient)] backdrop-blur-sm transition-opacity group-hover:opacity-100 hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)] focus:opacity-100"
             aria-label="More actions"
           >
             <svg
@@ -80,6 +79,7 @@ export function TemplateCard({
               strokeWidth={2}
               strokeLinecap="round"
               strokeLinejoin="round"
+              aria-hidden="true"
             >
               <circle cx="12" cy="12" r="1" />
               <circle cx="19" cy="12" r="1" />
@@ -87,19 +87,18 @@ export function TemplateCard({
             </svg>
           </button>
 
-          {/* Action dropdown */}
-          {actionMenuId === template.id && (
+          {actionMenuId === memory.id && (
             <>
               <div
                 className="fixed inset-0 z-[-1]"
                 onClick={() => setActionMenuId(null)}
               />
-              <div className="absolute right-0 top-full z-20 mt-1 w-28 rounded-lg bg-[var(--surface-bright)] py-1 ring-1 ring-[var(--border)] shadow-lg">
+              <div className="absolute right-0 top-full z-20 mt-1 w-36 rounded-lg bg-[var(--surface-bright)] py-1 shadow-[var(--shadow-ambient)] ring-1 ring-[var(--border-static)]">
                 {onEdit && (
                   <button
                     type="button"
                     onClick={() => {
-                      onEdit(template.id);
+                      onEdit(memory.id);
                       setActionMenuId(null);
                     }}
                     className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-mid)]"
@@ -114,18 +113,18 @@ export function TemplateCard({
                     disabled={duplicating}
                     className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-mid)] disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {duplicating ? "Duplicating..." : "Duplicate"}
+                    {duplicating
+                      ? "Duplicating..."
+                      : memory.actions.duplicateLabel}
                   </button>
                 )}
                 {onDelete && (
                   <button
                     type="button"
-                    onClick={() => {
-                      setDeleteTarget(true);
-                    }}
-                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-red-400 transition-colors hover:bg-red-500/10"
+                    onClick={() => setDeleteTarget(true)}
+                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-red-500 transition-colors hover:bg-red-500/10"
                   >
-                    Delete
+                    {memory.actions.deleteLabel}
                   </button>
                 )}
               </div>
@@ -133,75 +132,100 @@ export function TemplateCard({
           )}
         </div>
 
-        {/* 预览区域 */}
-        <div className="media-lens relative aspect-[3/4] w-full bg-[var(--surface-base)]">
-          {template.sourceImageUrl ? (
+        <div className="style-memory-source media-lens relative aspect-[4/3] w-full overflow-hidden">
+          {memory.sourceImageUrl ? (
             <Image
-              src={template.sourceImageUrl}
-              alt={`Reference image for ${template.name}`}
+              src={memory.sourceImageUrl}
+              alt={memory.sourceAlt}
               fill
               className="object-cover transition-transform duration-150 group-hover:scale-[1.02]"
               sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
               unoptimized
             />
           ) : (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-              <span className="material-symbols-outlined text-4xl text-[var(--text-secondary)]/30">
-                description
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-6 text-center">
+              <span className="material-symbols-outlined text-4xl text-[var(--text-secondary)]/35">
+                image_not_supported
               </span>
-              <span className="text-xs text-[var(--text-secondary)]/40">
-                No preview
+              <span className="text-sm font-medium text-[var(--text-secondary)]">
+                No source preview
               </span>
+              <p className="max-w-40 text-xs leading-5 text-[var(--text-muted)]">
+                Prompt structure remains reusable.
+              </p>
             </div>
           )}
 
-          {/* Hover overlay + Use Template button */}
-          <div className="absolute inset-0 flex items-end justify-center bg-[rgba(25,28,30,0)] p-4 pb-6 transition-colors group-hover:bg-[rgba(25,28,30,0.48)]">
+          <div className="absolute inset-0 flex items-end justify-center bg-[rgba(25,28,30,0)] p-4 pb-6 transition-colors group-hover:bg-[rgba(25,28,30,0.32)]">
             <button
               type="button"
               onClick={handleUse}
-              className="translate-y-2 rounded-lg bg-[var(--surface-bright)] px-5 py-2 text-sm font-medium text-[var(--text-primary)] opacity-0 shadow-[var(--shadow-ambient)] transition-all hover:bg-[var(--surface-low)] group-hover:translate-y-0 group-hover:opacity-100"
+              className="btn-primary translate-y-2 rounded-md px-5 py-2 text-sm font-medium opacity-0 transition-all group-hover:translate-y-0 group-hover:opacity-100 focus:translate-y-0 focus:opacity-100"
             >
-              Use Template
+              {memory.actions.useLabel}
             </button>
           </div>
         </div>
 
-        {/* 卡片信息区 */}
-        <div className="flex flex-1 flex-col gap-1.5 p-3">
-          {/* 名称（最多 2 行截断） */}
-          <h3 className="line-clamp-2 text-sm font-medium text-[var(--text-primary)]">
-            {template.name}
-          </h3>
+        <div className="flex flex-1 flex-col gap-4 p-4">
+          <div>
+            <p className="text-xs font-semibold text-[var(--text-muted)]">
+              Style Memory
+            </p>
+            <h3 className="mt-1 line-clamp-2 text-base font-semibold text-[var(--text-primary)]">
+              {memory.name}
+            </h3>
+          </div>
 
-          {/* 标签 chips：从 variableCount 推导 */}
-          <div className="mt-auto flex flex-wrap gap-1">
-            {template.variableCount > 0 && (
-              <span className="inline-block rounded-full bg-[var(--surface-bright)] px-2 py-0.5 text-xs text-[var(--text-secondary)]">
-                {template.variableCount} variables
-              </span>
-            )}
+          <div className="flex flex-wrap gap-2">
+            <span className="rounded-full bg-[var(--style-memory-chip-bg)] px-2.5 py-1 text-xs font-medium text-[var(--style-memory-chip-text)]">
+              {memory.variableLabel}
+            </span>
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold text-[var(--text-muted)]">
+              Style tags
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {memory.styleTags.map((tag) => (
+                <span
+                  className="rounded-full bg-[var(--style-memory-chip-bg)] px-2.5 py-1 text-xs font-medium text-[var(--style-memory-chip-text)]"
+                  key={tag}
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-auto rounded-lg bg-[var(--style-memory-intent-bg)] px-3 py-2">
+            <p className="text-xs font-semibold text-[var(--style-memory-intent-text)]">
+              Reuse intent
+            </p>
+            <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">
+              {memory.reuseIntent}
+            </p>
           </div>
         </div>
-      </div>
+      </article>
 
-      {/* DeleteConfirm dialog */}
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div
-            className="w-full max-w-sm rounded-xl bg-[var(--surface-mid)] p-5 ring-1 ring-[var(--border)] shadow-xl"
+            className="surface-panel w-full max-w-sm rounded-xl p-5 shadow-xl"
             role="alertdialog"
             aria-modal="true"
             aria-label="Confirm Delete"
           >
             <p className="mb-4 text-sm text-[var(--text-primary)]">
-              Delete template &ldquo;{template.name}&rdquo;? This cannot be undone.
+              Delete style memory &ldquo;{memory.name}&rdquo;? This cannot be undone.
             </p>
             <div className="flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setDeleteTarget(false)}
-                className="rounded-lg px-3 py-1.5 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)]"
+                className="btn-secondary rounded-md px-3 py-1.5 text-sm"
               >
                 Cancel
               </button>
@@ -209,9 +233,9 @@ export function TemplateCard({
                 type="button"
                 onClick={handleDelete}
                 disabled={deleting}
-                className="rounded-lg px-3 py-1.5 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-md px-3 py-1.5 text-sm font-medium text-red-500 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {deleting ? "Deleting..." : "Delete"}
+                {deleting ? "Deleting..." : memory.actions.deleteLabel}
               </button>
             </div>
           </div>

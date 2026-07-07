@@ -61,6 +61,34 @@ const generatedAsset = {
   createdAt: new Date("2025-01-01"),
 };
 
+const templateVariables = [
+  {
+    name: "subject",
+    defaultValue: "Glass flower",
+    label: "Subject",
+    sourceField: "subject",
+  },
+];
+
+const completedDetail = {
+  id: "gen-1",
+  analysisTaskId: "analysis-1",
+  status: "completed" as const,
+  promptSnapshot: "a beautiful sunset",
+  negativePromptSnapshot: "ugly",
+  params: { aspectRatio: "16:9", quality: "high" },
+  modelName: "flux.2",
+  resultAssetId: "asset-gen-1",
+  resultFileUrl: "https://r2.example.com/generated/gen-1/result.webp",
+  recipe: null,
+  sourceAssetId: "source-asset-1",
+  sourceImageUrl: "https://r2.example.com/references/source-asset-1/original.png",
+  variables: templateVariables,
+  analysisTemplateVariables: templateVariables,
+  createdAt: new Date("2025-01-01"),
+  updatedAt: new Date("2025-01-01"),
+};
+
 // ---- Tests ----
 
 describe("GET /api/generation/[id]", () => {
@@ -90,6 +118,31 @@ describe("GET /api/generation/[id]", () => {
     expect(json.resultFileUrl).toBe(
       "https://r2.example.com/generated/gen-1/result.webp"
     );
+  });
+
+  it("查询 completed 详情应包含 restored source context 和 variables", async () => {
+    mockFindGenerationTaskById.mockResolvedValueOnce(completedTask);
+    mockFindByIdWithRecipe.mockResolvedValueOnce(completedDetail);
+
+    const res = await GET(createGetRequest(), {
+      params: Promise.resolve({ id: "gen-1" }),
+    });
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json).toEqual(
+      expect.objectContaining({
+        id: "gen-1",
+        status: "completed",
+        resultFileUrl: "https://r2.example.com/generated/gen-1/result.webp",
+        sourceAssetId: "source-asset-1",
+        sourceImageUrl: "https://r2.example.com/references/source-asset-1/original.png",
+        variables: templateVariables,
+        analysisTemplateVariables: templateVariables,
+      })
+    );
+    expect(mockFindByIdWithRecipe).toHaveBeenCalledWith("gen-1", "user-1");
+    expect(mockFindAssetById).not.toHaveBeenCalled();
   });
 
   // 2. P0: 查询 pending 任务 (resultFileUrl: null)

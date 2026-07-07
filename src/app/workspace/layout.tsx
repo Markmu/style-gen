@@ -8,9 +8,14 @@ export default function WorkspaceLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="workspace-chromatic flex h-screen min-h-0 overflow-hidden bg-[var(--surface-page)]">
+    <div className="flex h-full min-h-0 overflow-hidden bg-[var(--surface-page)]">
       <LeftSidebar />
-      <div className="min-w-0 flex-1 overflow-hidden">{children}</div>
+      <main
+        aria-label="Workspace content"
+        className="min-w-0 flex-1 overflow-hidden"
+      >
+        {children}
+      </main>
     </div>
   );
 }

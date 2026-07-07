@@ -54,7 +54,9 @@ export function TemplateSaveDialog({
     }
   }, [open, initialContent]);
 
-  const variables = mergeTemplateVariables(content, initialVariables);
+  const contentVariables = mergeTemplateVariables(content, initialVariables);
+  const variables =
+    contentVariables.length > 0 ? contentVariables : initialVariables.slice(0, 20);
 
   /** 在 textarea 当前光标位置插入 {{varName}} */
   const insertVariable = useCallback(

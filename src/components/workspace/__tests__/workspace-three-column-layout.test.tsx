@@ -15,13 +15,13 @@ describe("WorkspaceThreeColumnLayout", () => {
     const layout = screen.getByTestId("workspace-three-column-layout");
     expect(layout).toBeInTheDocument();
     expect(layout).toHaveClass("overflow-x-auto");
-    expect(layout.firstElementChild).toHaveClass("min-w-[928px]");
+    expect(layout.firstElementChild).toHaveClass("min-w-[1080px]");
     expect(layout.firstElementChild).toHaveClass(
-      "grid-cols-[minmax(280px,1fr)_minmax(280px,1fr)_minmax(320px,1.2fr)]",
+      "grid-cols-[minmax(330px,1.08fr)_minmax(280px,0.86fr)_minmax(360px,1.15fr)]",
     );
-    expect(layout.firstElementChild).toHaveClass("gap-4");
-    expect(screen.getByLabelText("Reference column")).toHaveTextContent("Reference slot");
-    expect(screen.getByLabelText("Visual Recipe column")).toHaveTextContent("Recipe slot");
-    expect(screen.getByLabelText("Prompt column")).toHaveTextContent("Prompt slot");
+    expect(layout.firstElementChild).toHaveClass("gap-3");
+    expect(screen.getByLabelText("Reference Canvas column")).toHaveTextContent("Reference slot");
+    expect(screen.getByLabelText("Style Intelligence column")).toHaveTextContent("Recipe slot");
+    expect(screen.getByLabelText("Prompt and Render column")).toHaveTextContent("Prompt slot");
   });
 });

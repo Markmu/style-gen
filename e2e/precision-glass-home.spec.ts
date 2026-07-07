@@ -1,20 +1,21 @@
 import { expect, test } from '@playwright/test'
 
-test.describe('FEAT-03 Precision Glass home', () => {
+test.describe('Phase 12 AI-first home compatibility', () => {
   test.use({ viewport: { width: 1280, height: 900 } })
 
-  test('first viewport exposes value, actions, product preview, and upload entry', async ({
+  test('first viewport exposes AI-first value, actions, product preview, and upload entry', async ({
     page,
   }) => {
     await page.goto('/')
 
     await expect(
-      page.getByRole('heading', { level: 1, name: /Reference Image Style Recreation/ }),
+      page.getByRole('heading', { level: 1, name: /Reference\s*->\s*Evidence\s*->\s*Render/ }),
     ).toBeVisible()
-    await expect(page.getByRole('link', { name: /Start Creating/ }).first()).toBeVisible()
-    await expect(page.getByRole('link', { name: /Template Library/ }).first()).toBeVisible()
+    await expect(page.getByRole('link', { name: /Start from reference/ }).first()).toBeVisible()
+    await expect(page.getByRole('link', { name: /Browse Style Memory/ }).first()).toBeVisible()
+    await expect(page.getByText(/Template Library/i)).toHaveCount(0)
     await expect(page.getByText('Reference', { exact: true })).toBeVisible()
-    await expect(page.getByText('Recipe', { exact: true })).toBeVisible()
+    await expect(page.getByText('Evidence', { exact: true })).toBeVisible()
     await expect(page.getByText('Render', { exact: true })).toBeVisible()
     await expect(page.getByText('Click or drag to upload a reference image')).toBeVisible()
   })
@@ -45,7 +46,7 @@ test.describe('FEAT-03 Precision Glass home', () => {
 
       expect(hasHorizontalOverflow).toBe(false)
       await expect(
-        page.getByRole('heading', { name: 'Recreate a Style in Three Steps' }),
+        page.getByRole('heading', { name: 'The workbench keeps AI decisions inspectable' }),
       ).toBeVisible()
     })
   }

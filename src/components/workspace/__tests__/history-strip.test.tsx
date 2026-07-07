@@ -15,7 +15,14 @@ describe("HistoryStrip", () => {
     render(<HistoryStrip historyItems={[]} onSelect={vi.fn()} onViewAll={vi.fn()} />);
 
     expect(screen.getByTestId("history-strip")).toHaveClass("h-full");
-    expect(screen.getByRole("heading", { name: "History" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Recent iterations" })).toBeInTheDocument();
+    expect(screen.getAllByText(/Iteration Memory/i).length).toBeGreaterThan(0);
+    expect(screen.getByText("Renders will appear here as visual evidence.")).toBeInTheDocument();
+    expect(screen.getByText(/Compare, restore, and reuse unlock/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Compare" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Compare" })).toHaveAccessibleDescription(
+      /first render/i,
+    );
     expect(screen.queryByRole("button", { name: "Open history item" })).not.toBeInTheDocument();
   });
 
@@ -25,7 +32,7 @@ describe("HistoryStrip", () => {
     expect(screen.getAllByRole("button", { name: "Open history item" })).toHaveLength(20);
   });
 
-  it("opens a thumbnail without marking it selected and calls view all", async () => {
+  it("opens a thumbnail, exposes compare, and calls view all", async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
     const onViewAll = vi.fn();
@@ -39,12 +46,46 @@ describe("HistoryStrip", () => {
     );
 
     await user.click(screen.getAllByRole("button", { name: "Open history item" })[0]);
+    await user.click(screen.getByRole("button", { name: "Compare" }));
     await user.click(screen.getByRole("button", { name: "View all" }));
 
     expect(onSelect).toHaveBeenCalledWith("history-1");
+    expect(onSelect).toHaveBeenCalledTimes(2);
     expect(onViewAll).toHaveBeenCalledTimes(1);
     expect(screen.getAllByRole("button", { name: "Open history item" })[1]).not.toHaveAttribute(
       "aria-pressed",
     );
+  });
+
+  it("shows recoverable history failures instead of the empty lesson", () => {
+    render(
+      <HistoryStrip
+        historyItems={[]}
+        status="error"
+        errorMessage="History temporarily unavailable"
+        onSelect={vi.fn()}
+        onViewAll={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("History temporarily unavailable");
+    expect(screen.getByRole("status")).toHaveTextContent(/retry history later/i);
+    expect(screen.queryByText("Renders will appear here as visual evidence.")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Compare" })).toBeDisabled();
+  });
+
+  it("distinguishes auth-required history from an empty list", () => {
+    render(
+      <HistoryStrip
+        historyItems={[]}
+        status="error"
+        errorStatus={401}
+        onSelect={vi.fn()}
+        onViewAll={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent(/Sign in to view Iteration Memory/i);
+    expect(screen.queryByText("Renders will appear here as visual evidence.")).not.toBeInTheDocument();
   });
 });

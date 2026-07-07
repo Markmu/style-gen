@@ -17,23 +17,64 @@ interface UseTemplateSearchReturn {
   templates: TemplateListItem[] | undefined;
   isLoading: boolean;
   isError: boolean;
-  error: Error | null;
+  error: TemplateSearchError | null;
+  errorStatus: number | null;
+  errorCode: string | null;
+  isAuthRequired: boolean;
+  isRecoverableError: boolean;
   search: string;
   setSearch: (keyword: string) => void;
   isSearching: boolean;
 }
 
+interface TemplateErrorResponse {
+  error?: string;
+  code?: string;
+  retryable?: boolean;
+}
+
+export class TemplateSearchError extends Error {
+  status: number;
+  code: string | null;
+  retryable: boolean;
+
+  constructor({
+    message,
+    status,
+    code,
+    retryable,
+  }: {
+    message: string;
+    status: number;
+    code?: string;
+    retryable?: boolean;
+  }) {
+    super(message);
+    this.name = "TemplateSearchError";
+    this.status = status;
+    this.code = code ?? null;
+    this.retryable = retryable ?? (status >= 500 || status === 429);
+  }
+}
+
+async function readErrorResponse(res: Response): Promise<TemplateErrorResponse> {
+  try {
+    return (await res.json()) as TemplateErrorResponse;
+  } catch {
+    return {};
+  }
+}
+
 /**
  * 模板搜索 hook
- * - 使用 React useDeferredValue 实现 300ms debounce 效果
+ * - 搜索请求保持现有 /api/templates contract
+ * - 使用 React useDeferredValue 暴露轻量 isSearching 过渡状态
  * - 使用 React Query 缓存和自动请求
  * - 初始 search 为空字符串，加载最近模板
  */
 export function useTemplateSearch(): UseTemplateSearchReturn {
   const [search, setSearch] = useState("");
 
-  // useDeferredValue 在高优先级更新（输入）Done后返回 deferred 值
-  // 实际效果：输入期间不触发查询，停顿后才用最新值发起请求
   const debouncedSearch = useDeferredValue(search);
   const isSearching = search !== debouncedSearch;
 
@@ -42,19 +83,24 @@ export function useTemplateSearch(): UseTemplateSearchReturn {
     isLoading,
     isError,
     error,
-  } = useQuery({
-    queryKey: ["templates", { search: debouncedSearch }],
+  } = useQuery<TemplateListItem[], TemplateSearchError>({
+    queryKey: ["templates", { search }],
     queryFn: async (): Promise<TemplateListItem[]> => {
       const params = new URLSearchParams();
-      if (debouncedSearch.trim().length > 0) {
-        params.set("search", debouncedSearch.trim());
+      if (search.trim().length > 0) {
+        params.set("search", search.trim());
       }
       params.set("limit", "20");
 
       const res = await fetch(`/api/templates?${params.toString()}`);
       if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
-        throw new Error(data.error ?? "Failed to search templates");
+        const data = await readErrorResponse(res);
+        throw new TemplateSearchError({
+          message: data.error ?? "Failed to search Style Memories",
+          status: res.status,
+          code: data.code,
+          retryable: data.retryable,
+        });
       }
 
       const result = (await res.json()) as {
@@ -64,13 +110,23 @@ export function useTemplateSearch(): UseTemplateSearchReturn {
       };
       return result.items;
     },
+    retry: false,
   });
+
+  const errorStatus = error?.status ?? null;
+  const errorCode = error?.code ?? null;
+  const isAuthRequired = errorStatus === 401;
+  const isRecoverableError = Boolean(error && !isAuthRequired);
 
   return {
     templates,
     isLoading,
     isError,
     error,
+    errorStatus,
+    errorCode,
+    isAuthRequired,
+    isRecoverableError,
     search,
     setSearch,
     isSearching,

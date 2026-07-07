@@ -9,6 +9,7 @@ import {
 import { TemplateModeEditor } from "@/components/workspace/template-mode-editor";
 import { TemplateVariablePanel } from "@/components/workspace/template-variable-panel";
 import { TextModeEditor } from "@/components/workspace/text-mode-editor";
+import type { PromptProvenanceSpan } from "@/lib/prompt-provenance";
 import type {
   AnalysisTemplateStatus,
   TemplateVariable,
@@ -25,6 +26,8 @@ interface UnifiedPromptEditorProps {
   templateStatus?: AnalysisTemplateStatus | null;
   templateReason?: string | null;
   templateKey?: string | null;
+  selectedProvenanceSpan?: PromptProvenanceSpan | null;
+  compact?: boolean;
   onResolvedPromptChange: (value: string) => void;
   onTemplateContentChange?: (value: string) => void;
   onTemplateVariablesChange?: (variables: TemplateVariable[]) => void;
@@ -58,6 +61,8 @@ export function UnifiedPromptEditor({
   templateStatus = null,
   templateReason = null,
   templateKey = null,
+  selectedProvenanceSpan = null,
+  compact = false,
   onResolvedPromptChange,
   onTemplateContentChange,
   onTemplateVariablesChange,
@@ -239,9 +244,12 @@ export function UnifiedPromptEditor({
   return (
     <div
       data-testid="unified-prompt-editor"
-      className="surface-panel flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl p-5"
+      data-compact={compact ? "true" : "false"}
+      className={`surface-panel flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl ${
+        compact ? "p-2" : "p-5"
+      }`}
     >
-      <div className="mb-4 flex shrink-0 items-center justify-between gap-3">
+      <div className={`${compact ? "mb-1" : "mb-4"} flex shrink-0 items-center justify-between gap-3`}>
         <p className="label-tech text-[var(--accent-primary)]">Edit</p>
         <div className="flex items-center gap-2">
           <div className="flex h-7 rounded-md bg-[var(--surface-low)] p-0.5">
@@ -271,6 +279,22 @@ export function UnifiedPromptEditor({
         </div>
       </div>
 
+      {selectedProvenanceSpan && (
+        <div
+          data-testid="unified-prompt-selected-provenance"
+          data-facet={selectedProvenanceSpan.facetId}
+          data-match-type={selectedProvenanceSpan.matchType}
+          className="mb-3 rounded-lg bg-[var(--surface-low)] px-3 py-2 text-xs leading-5 text-[var(--text-secondary)]"
+        >
+          <span className="font-semibold text-[var(--text-primary)]">
+            {selectedProvenanceSpan.label}
+          </span>{" "}
+          {selectedProvenanceSpan.matchType === "facet_only"
+            ? "is a related signal without an exact editable prompt span."
+            : `is linked to "${selectedProvenanceSpan.matchedText}".`}
+        </div>
+      )}
+
       <div className="min-h-0 flex-1 overflow-y-auto pr-1">
         {mode === "template" ? (
           <TemplateModeEditor
@@ -279,6 +303,7 @@ export function UnifiedPromptEditor({
             variableValues={combinedVariableValues}
             templateStatus={templateStatus}
             templateReason={templateReason}
+            compact={compact}
             onTemplateChange={handleTemplateChange}
             onVariableChange={handleVariableChange}
           />
@@ -292,7 +317,11 @@ export function UnifiedPromptEditor({
                 {templateReason && <p className="mt-1 text-xs">{templateReason}</p>}
               </div>
             )}
-            <TextModeEditor promptText={textPrompt} onChange={handleTextChange} />
+            <TextModeEditor
+              promptText={textPrompt}
+              compact={compact}
+              onChange={handleTextChange}
+            />
             {auxiliaryVariables.length > 0 && (
               <TemplateVariablePanel
                 variables={auxiliaryVariables}

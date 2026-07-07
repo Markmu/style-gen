@@ -1,4 +1,4 @@
-import type { GenerationParams, GenerationTaskStatus } from "@/types/models";
+import type { GenerationParams, GenerationTaskStatus, VisualRecipe } from "@/types/models";
 
 const { mockGenerateId } = vi.hoisted(() => ({
   mockGenerateId: vi.fn(),
@@ -13,10 +13,10 @@ const mockReturning = vi.fn();
 const mockValues = vi.fn(() => ({ returning: mockReturning }));
 const mockInsert = vi.fn(() => ({ values: mockValues }));
 
-// Original simple chain for existing functions (findGenerationTaskById, etc.)
 const mockWhere = vi.fn();
-const mockFrom = vi.fn(() => ({ where: mockWhere }));
-const mockSelect = vi.fn(() => ({ from: mockFrom }));
+const mockLeftJoin = vi.fn();
+const mockFrom = vi.fn();
+const mockSelect = vi.fn();
 
 const mockUpdateSet = vi.fn(() => ({
   where: vi.fn(() => ({ returning: mockReturning })),
@@ -37,6 +37,7 @@ vi.mock("@/lib/db/schema", async (importOriginal) => {
 
 import {
   createGenerationTask,
+  findByIdWithRecipe,
   findGenerationTaskById,
   updateGenerationTask,
 } from "@/lib/repositories/generation-task-repository";
@@ -46,6 +47,22 @@ const NOW = new Date("2025-01-01T00:00:00Z");
 const sampleParams: GenerationParams = {
   aspectRatio: "16:9",
   quality: "hd",
+};
+
+const sampleRecipe: VisualRecipe = {
+  imageSummary: "A precise glass flower study",
+  subject: "Glass flower",
+  scene: "Editorial studio",
+  composition: "Centered macro composition",
+  cameraLanguage: "Macro lens",
+  lighting: "Blue rim light",
+  color: "Cool blue and silver",
+  texture: "Translucent glass petals",
+  styleTags: ["glass", "editorial"],
+  mood: "Quiet and refined",
+  visualKeywords: ["translucent", "rim light"],
+  mustKeep: ["glass petal structure"],
+  replaceable: ["background prop"],
 };
 
 function makeCamelCaseRow(overrides: Partial<Record<string, unknown>> = {}) {
@@ -84,10 +101,20 @@ describe("generation-task-repository", () => {
     mockSelect.mockClear();
     mockFrom.mockClear();
     mockWhere.mockClear();
+    mockLeftJoin.mockClear();
     mockUpdate.mockClear();
     mockUpdateSet.mockClear();
     mockGenerateId.mockReset();
     mockGenerateId.mockReturnValue("GEN_001");
+    mockSelect.mockImplementation(() => ({ from: mockFrom }));
+    mockFrom.mockImplementation(() => ({
+      leftJoin: mockLeftJoin,
+      where: mockWhere,
+    }));
+    mockLeftJoin.mockImplementation(() => ({
+      leftJoin: mockLeftJoin,
+      where: mockWhere,
+    }));
   });
 
   describe("createGenerationTask", () => {
@@ -325,13 +352,110 @@ describe("generation-task-repository", () => {
       expect(typeof fir).toBe("function");
     });
 
-    it("非 completed 状态应返回 null（逻辑验证）", () => {
-      // Verify the status check logic
-      const statuses = ["pending", "processing", "failed"] as const;
-      for (const status of statuses) {
-        const shouldReturnNull = status !== "completed";
-        expect(shouldReturnNull).toBe(true);
-      }
+    it("返回 completed 详情时带出真实 source context 和 template variables", async () => {
+      const variables = [
+        {
+          name: "subject",
+          defaultValue: "Glass flower",
+          label: "Subject",
+          sourceField: "subject" as const,
+        },
+      ];
+      mockWhere.mockResolvedValueOnce([
+        {
+          id: "GEN_001",
+          analysisTaskId: "TASK_001",
+          status: "completed",
+          promptSnapshot: "Restored prompt with {{subject}}",
+          negativePromptSnapshot: "blurry",
+          params: sampleParams,
+          modelName: "flux.2",
+          resultAssetId: "RESULT_ASSET_001",
+          assetFileUrl: "https://cdn.example.com/generated/result.webp",
+          recipe: sampleRecipe,
+          sourceAssetId: "SOURCE_ASSET_001",
+          sourceImageUrl: "https://cdn.example.com/references/source.png",
+          analysisTemplateVariables: variables,
+          createdAt: NOW,
+          updatedAt: NOW,
+        },
+      ]);
+
+      const detail = await findByIdWithRecipe("GEN_001", "USER_001");
+
+      expect(detail).toMatchObject({
+        id: "GEN_001",
+        analysisTaskId: "TASK_001",
+        status: "completed",
+        resultAssetId: "RESULT_ASSET_001",
+        resultFileUrl: "https://cdn.example.com/generated/result.webp",
+        recipe: sampleRecipe,
+        sourceAssetId: "SOURCE_ASSET_001",
+        sourceImageUrl: "https://cdn.example.com/references/source.png",
+        variables,
+        analysisTemplateVariables: variables,
+      });
+      expect(mockLeftJoin).toHaveBeenCalledTimes(3);
+      expect(Object.keys(mockSelect.mock.calls.at(-1)?.[0] ?? {})).toEqual(
+        expect.arrayContaining([
+          "sourceAssetId",
+          "sourceImageUrl",
+          "analysisTemplateVariables",
+        ])
+      );
+    });
+
+    it("source context 缺失时返回 null source 和空 variables，避免前端误用 mock 字段", async () => {
+      mockWhere.mockResolvedValueOnce([
+        {
+          id: "GEN_001",
+          analysisTaskId: "TASK_001",
+          status: "completed",
+          promptSnapshot: "Restored prompt",
+          negativePromptSnapshot: "blurry",
+          params: sampleParams,
+          modelName: "flux.2",
+          resultAssetId: "RESULT_ASSET_001",
+          assetFileUrl: "https://cdn.example.com/generated/result.webp",
+          recipe: null,
+          sourceAssetId: null,
+          sourceImageUrl: null,
+          analysisTemplateVariables: null,
+          createdAt: NOW,
+          updatedAt: NOW,
+        },
+      ]);
+
+      const detail = await findByIdWithRecipe("GEN_001", "USER_001");
+
+      expect(detail?.sourceAssetId).toBeNull();
+      expect(detail?.sourceImageUrl).toBeNull();
+      expect(detail?.variables).toEqual([]);
+      expect(detail?.analysisTemplateVariables).toEqual([]);
+    });
+
+    it("非 completed 状态应返回 null", async () => {
+      mockWhere.mockResolvedValueOnce([
+        {
+          id: "GEN_001",
+          analysisTaskId: "TASK_001",
+          status: "processing",
+          promptSnapshot: "Restored prompt",
+          negativePromptSnapshot: "blurry",
+          params: sampleParams,
+          modelName: "flux.2",
+          resultAssetId: null,
+          assetFileUrl: null,
+          recipe: null,
+          sourceAssetId: "SOURCE_ASSET_001",
+          sourceImageUrl: "https://cdn.example.com/references/source.png",
+          analysisTemplateVariables: [],
+          createdAt: NOW,
+          updatedAt: NOW,
+        },
+      ]);
+
+      await expect(findByIdWithRecipe("GEN_001", "USER_001")).resolves.toBeNull();
     });
 
     it("completed 状态且 recipe 为 null 应正常返回（逻辑验证）", () => {

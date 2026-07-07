@@ -27,15 +27,24 @@ describe("UploadEntry", () => {
     vi.clearAllMocks();
   });
 
-  it("渲染上传区域", () => {
+  it("renders the AI-first upload handoff entry", () => {
     render(<UploadEntry />);
-    expect(screen.getByText("Click or drag to upload a reference image")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /upload a reference image/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Upload a reference image")).toBeInTheDocument();
+    expect(
+      screen.getByText(/handed to Workspace first/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Start from reference/i),
+    ).toBeInTheDocument();
     expect(
       screen.getByText("JPG, PNG, or WebP, up to 10MB"),
     ).toBeInTheDocument();
   });
 
-  it("合法文件 -> 跳转Workspace", () => {
+  it("stores a valid file and navigates to Workspace without starting analysis", () => {
     const { container } = render(<UploadEntry />);
     const input = container.querySelector(
       'input[type="file"]',

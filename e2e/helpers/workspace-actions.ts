@@ -22,12 +22,7 @@ export async function gotoWorkspace(page: Page) {
       throw error
     }
   }
-  await page
-    .locator(
-      '[data-testid="workspace-two-pane-layout"], [data-testid="workspace-three-column-layout"]',
-    )
-    .first()
-    .waitFor({ timeout: 15000 })
+  await page.getByTestId('workspace-three-column-layout').waitFor({ timeout: 15000 })
 }
 
 /** Upload a test image in the workspace and wait for analysis to start */
@@ -97,12 +92,10 @@ export async function uploadAndCompleteAnalysis(
     mockPolling: false,
   })
 
-  // Wait for analysis to complete in either the legacy editor or the three-column shell.
   await page
-    .getByText('Ready to Generate')
-    .or(page.getByRole('button', { name: 'Save as Template' }))
-    .first()
+    .locator('[data-testid="ai-status-header"][data-phase="analysis_ready"]')
     .waitFor({ timeout: 15000 })
+  await page.getByTestId('unified-prompt-editor').waitFor({ timeout: 15000 })
 
   return result
 }
@@ -128,12 +121,12 @@ export async function completeFullFlow(
   // Complete analysis
   const result = await uploadAndCompleteAnalysis(page)
 
-  // Click generate button
-  const generateBtn = page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' })
+  const generateBtn = page
+    .getByTestId('output-card')
+    .getByRole('button', { name: /^Generate$/i })
   await generateBtn.click()
 
-  // Wait for generation result
-  await page.waitForSelector('text=Generated Result', { timeout: 15000 })
+  await page.getByTestId('generation-dialog').getByText('Generated Result').waitFor({ timeout: 15000 })
 
   return { ...result, generationTaskId: genTaskId }
 }

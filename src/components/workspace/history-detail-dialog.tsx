@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import type { GenerationParams, VisualRecipe } from "@/types/models";
+import type { GenerationParams, TemplateVariable, VisualRecipe } from "@/types/models";
 
 export interface HistoryDetail {
   id: string;
@@ -11,20 +11,29 @@ export interface HistoryDetail {
   negativePromptSnapshot: string;
   params: GenerationParams;
   analysisTaskId: string;
+  sourceAssetId?: string | null;
+  sourceImageUrl?: string | null;
+  variables?: TemplateVariable[];
 }
 
 interface HistoryDetailDialogProps {
   open: boolean;
   detail: HistoryDetail | null;
   onRestore: (id: string) => void;
+  onContinueEditing?: (detail: HistoryDetail) => void;
+  onSaveStyleMemory?: (detail: HistoryDetail) => void;
   onClose: () => void;
+  restoreError?: string | null;
 }
 
 export function HistoryDetailDialog({
   open,
   detail,
   onRestore,
+  onContinueEditing,
+  onSaveStyleMemory,
   onClose,
+  restoreError,
 }: HistoryDetailDialogProps) {
   if (!open || !detail) return null;
 
@@ -100,17 +109,43 @@ export function HistoryDetailDialog({
                     {detail.params.quality}
                   </dd>
                 </div>
+                <div className="col-span-2">
+                  <dt className="text-xs text-[var(--text-muted)]">Analysis task</dt>
+                  <dd className="mt-1 break-all font-medium text-[var(--text-primary)]">
+                    {detail.analysisTaskId}
+                  </dd>
+                </div>
               </dl>
             </section>
+
+            {restoreError && (
+              <p className="rounded-lg bg-[var(--color-error-soft)] px-3 py-2 text-sm text-[var(--color-error)]">
+                Restore failed. The current workspace context is still preserved. {restoreError}
+              </p>
+            )}
           </div>
 
-          <div className="mt-5 flex justify-end gap-2">
+          <div className="mt-5 flex flex-wrap justify-end gap-2">
             <button
               type="button"
               onClick={onClose}
               className="btn-secondary rounded-lg px-4 py-2 text-sm"
             >
               Close
+            </button>
+            <button
+              type="button"
+              onClick={() => onSaveStyleMemory?.(detail)}
+              className="btn-secondary rounded-lg px-4 py-2 text-sm"
+            >
+              Save as Style Memory
+            </button>
+            <button
+              type="button"
+              onClick={() => onContinueEditing?.(detail)}
+              className="btn-secondary rounded-lg px-4 py-2 text-sm"
+            >
+              Generate variation
             </button>
             <button
               type="button"

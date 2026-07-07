@@ -1,8 +1,11 @@
 import {
   getStatusCopy,
   type ProductStatus,
+  type StatusCopyOverride,
   type StatusTone,
 } from "@/lib/ui/status-copy";
+
+type StatePresenterVariant = "compact" | "full";
 
 interface StatePresenterProps {
   status: ProductStatus;
@@ -10,17 +13,20 @@ interface StatePresenterProps {
   description?: string;
   primaryActionLabel?: string;
   secondaryActionLabel?: string;
+  tone?: StatusTone;
+  copyOverride?: StatusCopyOverride;
   onPrimaryAction?: () => void;
   onSecondaryAction?: () => void;
+  variant?: StatePresenterVariant;
   compact?: boolean;
 }
 
 const toneClassName: Record<StatusTone, string> = {
-  neutral: "bg-[var(--surface-control)] text-[var(--text-secondary)]",
-  accent: "bg-[var(--accent-primary-soft)] text-[var(--accent-primary)]",
-  success: "bg-[var(--color-success-soft)] text-[var(--color-success)]",
-  warning: "bg-[var(--color-warning-soft)] text-[var(--color-warning)]",
-  danger: "bg-[var(--color-error-soft)] text-[var(--color-error)]",
+  neutral: "text-[var(--status-neutral-text)]",
+  accent: "text-[var(--status-accent-text)]",
+  success: "text-[var(--status-success-text)]",
+  warning: "text-[var(--status-warning-text)]",
+  danger: "text-[var(--status-danger-text)]",
 };
 
 export function StatePresenter({
@@ -29,35 +35,54 @@ export function StatePresenter({
   description,
   primaryActionLabel,
   secondaryActionLabel,
+  tone,
+  copyOverride,
   onPrimaryAction,
   onSecondaryAction,
+  variant,
   compact = false,
 }: StatePresenterProps) {
+  const resolvedVariant = variant ?? (compact ? "compact" : "full");
+  const directOverride = Object.fromEntries(
+    Object.entries({
+      title,
+      description,
+      primaryActionLabel,
+      secondaryActionLabel,
+      tone,
+    }).filter(([, value]) => value !== undefined),
+  ) as StatusCopyOverride;
   const copy = getStatusCopy(status, {
-    title,
-    description,
-    primaryActionLabel,
-    secondaryActionLabel,
+    ...copyOverride,
+    ...directOverride,
   });
 
   return (
     <section
       aria-live={status === "failedRecoverable" ? "assertive" : "polite"}
-      className={`surface-panel rounded-lg ${compact ? "p-4" : "p-6"}`}
+      className={`ai-panel surface-panel rounded-lg ${
+        resolvedVariant === "compact" ? "p-4" : "p-6"
+      }`}
       data-status={status}
+      data-variant={resolvedVariant}
     >
       <div className="flex items-start gap-4">
         <span
-          className={`mt-0.5 inline-flex h-2.5 w-2.5 shrink-0 rounded-full ${toneClassName[copy.tone]}`}
+          className={`status-tone-dot mt-0.5 inline-flex h-2.5 w-2.5 shrink-0 rounded-full ${toneClassName[copy.tone]}`}
+          data-tone={copy.tone}
           data-testid="state-presenter-tone"
         />
         <div className="min-w-0 flex-1">
-          <p className="text-base font-semibold text-[var(--text-primary)]">
+          <p
+            className={`font-semibold text-[var(--text-primary)] ${
+              resolvedVariant === "compact" ? "text-sm" : "text-base"
+            }`}
+          >
             {copy.title}
           </p>
           <p
             className={`mt-2 text-sm leading-6 text-[var(--text-secondary)] ${
-              compact ? "max-w-xl" : "max-w-2xl"
+              resolvedVariant === "compact" ? "max-w-xl" : "max-w-2xl"
             }`}
           >
             {copy.description}

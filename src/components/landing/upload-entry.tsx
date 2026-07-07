@@ -39,7 +39,6 @@ export function UploadEntry() {
         setFile(file);
         router.push("/workspace");
       } else {
-        // 未Log in：触发 Google OAuth，Log in成功后跳转Workspace
         signIn("google", { callbackUrl: "/workspace" });
       }
     },
@@ -50,7 +49,6 @@ export function UploadEntry() {
     if (session) {
       inputRef.current?.click();
     } else {
-      // 未Log in：触发 Google OAuth，Log in成功后跳转Workspace
       signIn("google", { callbackUrl: "/workspace" });
     }
   }, [session]);
@@ -97,6 +95,7 @@ export function UploadEntry() {
       <div
         role="button"
         tabIndex={0}
+        aria-label="Upload a reference image"
         onClick={handleClick}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") handleClick();
@@ -104,21 +103,37 @@ export function UploadEntry() {
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`glass-panel interactive-lift w-full max-w-2xl cursor-pointer rounded-lg p-8 text-center ${
+        className={`glass-panel interactive-lift w-full max-w-3xl cursor-pointer rounded-lg p-6 text-left sm:p-8 ${
           isDragOver
             ? "bg-[var(--accent-primary-soft)]"
             : "hover:bg-[var(--surface-panel)]"
         }`}
       >
-        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-[var(--accent-primary-soft)]">
-          <span className="icon text-[var(--accent-primary)]" aria-hidden="true">cloud_upload</span>
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-[var(--accent-primary-soft)]">
+              <span className="icon text-[var(--accent-primary)]" aria-hidden="true">
+                cloud_upload
+              </span>
+            </div>
+            <p className="text-lg font-semibold text-[var(--text-primary)]">
+              Upload a reference image
+            </p>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--text-secondary)]">
+              The file is handed to Workspace first. AI reads it there as
+              evidence before any analysis request starts.
+            </p>
+            <p className="mt-3 text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
+              JPG, PNG, or WebP, up to 10MB
+            </p>
+          </div>
+          <div className="readiness-row shrink-0" data-state="waiting">
+            <span className="icon text-base" aria-hidden="true">
+              arrow_forward
+            </span>
+            <span className="text-sm font-medium">Start from reference</span>
+          </div>
         </div>
-        <p className="text-base font-medium text-[var(--text-primary)]">
-          Click or drag to upload a reference image
-        </p>
-        <p className="mt-2 text-sm text-[var(--text-secondary)]">
-          JPG, PNG, or WebP, up to 10MB
-        </p>
       </div>
       {error && (
         <div

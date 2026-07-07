@@ -201,12 +201,16 @@ export function UploadZone({
           JPG, PNG, or WebP, up to 10MB
         </p>
         <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-[var(--text-secondary)]">
-          <span>1. Upload Reference</span>
+          <span>Reference</span>
           <span aria-hidden="true">→</span>
-          <span>2. AI Analyzes Style</span>
+          <span>Evidence readiness</span>
           <span aria-hidden="true">→</span>
-          <span>3. Generate a New Image in the Same Style</span>
+          <span>Render-ready prompt</span>
         </div>
+        <p className="mx-auto mt-3 max-w-md text-xs leading-5 text-[var(--text-secondary)]">
+          AI keeps color, composition, lighting, texture, and mood evidence available
+          for prompt edits, render decisions, and Style Memory.
+        </p>
       </div>
       {error && (
         <p className="mt-3 text-sm text-[var(--color-error)]" role="alert">

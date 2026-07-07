@@ -50,6 +50,7 @@ describe("GenerationDialog", () => {
     );
 
     expect(screen.getByAltText("Generated Result")).toBeInTheDocument();
+    expect(screen.getByText(/reference, prompt, and params are still available/i)).toBeInTheDocument();
     await user.click(screen.getByText("Close Dialog"));
 
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -72,6 +73,9 @@ describe("GenerationDialog", () => {
     );
 
     expect(screen.getByText("Generation Failed")).toBeInTheDocument();
+    expect(
+      screen.getByText(/reference, prompt, variables, and params are preserved/i),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Back to Edit" }));
 
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -82,5 +86,22 @@ describe("GenerationDialog", () => {
     render(<GenerationDialog {...defaultProps} open={false} />);
 
     expect(screen.queryByRole("dialog", { name: "Generation Task" })).not.toBeInTheDocument();
+  });
+
+  it("does not expose internal stack details in failure messages", () => {
+    render(
+      <GenerationDialog
+        {...defaultProps}
+        state="generation_ready"
+        error={{
+          message:
+            "Provider exploded\n    at secretHandler (/Users/example/app/node_modules/provider/index.js:10:5)",
+          stage: "generation",
+        }}
+      />,
+    );
+
+    expect(screen.getByText(/workspace context is safe/i)).toBeInTheDocument();
+    expect(screen.queryByText(/node_modules|\/Users|secretHandler/i)).not.toBeInTheDocument();
   });
 });

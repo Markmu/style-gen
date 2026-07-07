@@ -24,12 +24,20 @@ vi.mock("@/components/landing/use-file-store", () => ({
 import Home from "../page";
 
 describe("Home Page", () => {
-  it("渲染Home所有子组件", () => {
+  it("renders the AI-first landing first viewport and shared navigation", () => {
     render(<Home />);
-    expect(screen.getByText("Reference Image Style Recreation")).toBeInTheDocument();
     expect(
-      screen.getAllByText("Click or drag to upload a reference image").length,
+      screen.getByRole("heading", { name: /Reference -> Evidence -> Render/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("app-shell-primary-nav")).toBeInTheDocument();
+    expect(
+      screen.getAllByText("Upload a reference image").length,
     ).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText("Recreate a Style in Three Steps")).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("link", { name: /Style Memory/i }).length,
+    ).toBeGreaterThan(0);
+    expect(screen.queryByText(/Reference Image Style Recreation/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Template Library$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Visual Recipe/i)).not.toBeInTheDocument();
   });
 });

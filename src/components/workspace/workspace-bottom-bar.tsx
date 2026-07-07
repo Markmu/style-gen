@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 
 interface WorkspaceBottomBarProps {
   history: ReactNode;
-  output: ReactNode;
+  output?: ReactNode;
 }
 
 export function WorkspaceBottomBar({
@@ -16,13 +16,18 @@ export function WorkspaceBottomBar({
       data-testid="workspace-bottom-bar"
       className="shrink-0 overflow-x-auto px-4 pb-3"
     >
-      <div className="grid min-w-[928px] grid-cols-[minmax(280px,1fr)_minmax(280px,1fr)_minmax(320px,1.2fr)] items-stretch gap-4">
-        <div data-testid="workspace-bottom-history" className="col-span-2 min-w-0">
+      <div className="grid min-w-[1080px] grid-cols-[minmax(330px,1.08fr)_minmax(280px,0.86fr)_minmax(360px,1.15fr)] items-stretch gap-3">
+        <div
+          data-testid="workspace-bottom-history"
+          className={output ? "col-span-2 min-w-0" : "col-span-3 min-w-0"}
+        >
           {history}
         </div>
-        <div data-testid="workspace-bottom-output" className="min-w-0">
-          {output}
-        </div>
+        {output && (
+          <div data-testid="workspace-bottom-output" className="min-w-0">
+            {output}
+          </div>
+        )}
       </div>
     </div>
   );

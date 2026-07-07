@@ -1,4 +1,5 @@
 import { eq, sql, and, desc, lt, or } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/lib/db";
 import { generationTasks, assets, analysisTasks } from "@/lib/db/schema";
 import { generateId } from "@/lib/ulid";
@@ -7,10 +8,12 @@ import type {
   GenerationTask,
   GenerationTaskStatus,
   ImageGenProviderName,
+  TemplateVariable,
   VisualRecipe,
 } from "@/types/models";
 
 type GenerationTaskRow = typeof generationTasks.$inferSelect;
+const sourceAssets = alias(assets, "source_assets");
 
 /** 数据库行 → GenerationTask 领域对象 */
 function rowToGenerationTask(row: GenerationTaskRow): GenerationTask {
@@ -146,6 +149,10 @@ export interface GenerationTaskDetail {
   resultAssetId: string;
   resultFileUrl: string;
   recipe?: VisualRecipe | null;
+  sourceAssetId: string | null;
+  sourceImageUrl: string | null;
+  variables: TemplateVariable[];
+  analysisTemplateVariables: TemplateVariable[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -214,7 +221,7 @@ export async function listCompleted(
 
 /**
  * 根据 ID 查询Generation Task详情（含关联 Recipe）
- * LEFT JOIN analysis_tasks 获取 recipe
+ * LEFT JOIN analysis_tasks 获取 recipe/source context
  */
 export async function findByIdWithRecipe(
   id: string,
@@ -232,12 +239,16 @@ export async function findByIdWithRecipe(
       resultAssetId: generationTasks.resultAssetId,
       assetFileUrl: assets.fileUrl,
       recipe: analysisTasks.recipe,
+      sourceAssetId: analysisTasks.sourceAssetId,
+      sourceImageUrl: sourceAssets.fileUrl,
+      analysisTemplateVariables: analysisTasks.analysisTemplateVariables,
       createdAt: generationTasks.createdAt,
       updatedAt: generationTasks.updatedAt,
     })
     .from(generationTasks)
     .leftJoin(assets, eq(generationTasks.resultAssetId, assets.id))
     .leftJoin(analysisTasks, eq(generationTasks.analysisTaskId, analysisTasks.id))
+    .leftJoin(sourceAssets, eq(analysisTasks.sourceAssetId, sourceAssets.id))
     .where(
       and(eq(generationTasks.id, id), eq(generationTasks.userId, userId))
     );
@@ -260,6 +271,10 @@ export async function findByIdWithRecipe(
     resultAssetId: row.resultAssetId ?? "",
     resultFileUrl: row.assetFileUrl ?? "",
     recipe: row.recipe,
+    sourceAssetId: row.sourceAssetId ?? null,
+    sourceImageUrl: row.sourceImageUrl ?? null,
+    variables: row.analysisTemplateVariables ?? [],
+    analysisTemplateVariables: row.analysisTemplateVariables ?? [],
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

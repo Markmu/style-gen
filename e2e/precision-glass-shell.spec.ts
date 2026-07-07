@@ -1,24 +1,38 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
+import {
+  mockAuthSession,
+  mockGenerationList,
+  mockTemplateCollection,
+} from './helpers/mock-api'
 
-test.describe('FEAT-02 Precision Glass shell', () => {
+async function mockShellApis(page: Page) {
+  await mockAuthSession(page)
+  await mockGenerationList(page)
+  await mockTemplateCollection(page)
+}
+
+test.describe('Phase 12 AI-first shell compatibility', () => {
   test.use({ viewport: { width: 1280, height: 900 } })
 
-  test('top navigation uses unified Visoryn brand and page entries', async ({ page }) => {
-    await page.goto('/')
+  test('workspace top navigation uses unified Visoryn brand and page entries', async ({ page }) => {
+    await mockShellApis(page)
+    await page.goto('/workspace')
 
     const header = page.getByRole('banner')
     await expect(header.getByRole('link', { name: /Visoryn/ })).toBeVisible()
     await expect(header.getByRole('link', { name: /Home/ })).toBeVisible()
     await expect(header.getByRole('link', { name: /Workspace/ })).toBeVisible()
-    await expect(header.getByRole('link', { name: /Template Library/ })).toBeVisible()
+    await expect(header.getByRole('link', { name: /Style Memory/ })).toBeVisible()
+    await expect(header.getByText(/Template Library/i)).toHaveCount(0)
     await expect(header.getByText('StyleGen')).toHaveCount(0)
   })
 
-  test('workspace sidebar marks Library as current on templates page', async ({ page }) => {
+  test('workspace sidebar marks Style Memory as current on templates page', async ({ page }) => {
+    await mockShellApis(page)
     await page.goto('/workspace/templates')
 
     const sidebar = page.getByRole('complementary', { name: /Workspace navigation/ })
-    await expect(sidebar.getByRole('button', { name: /Library/ })).toHaveAttribute(
+    await expect(sidebar.getByRole('button', { name: /Style Memory/ })).toHaveAttribute(
       'aria-current',
       'page',
     )
@@ -30,6 +44,7 @@ test.describe('FEAT-02 Precision Glass shell', () => {
 
   for (const path of ['/', '/workspace', '/workspace/templates']) {
     test(`keeps ${path} within desktop viewport width`, async ({ page }) => {
+      await mockShellApis(page)
       await page.goto(path)
 
       const hasHorizontalOverflow = await page.evaluate(

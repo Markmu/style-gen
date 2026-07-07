@@ -90,3 +90,34 @@ Depth in this system is achieved through **Tonal Layering** rather than structur
  
 ## 7. Director's Closing Note
 This design system is about **restraint**. Our goal is to create a digital environment that feels as silent and expensive as a gallery. Trust the typography and the white space to do the heavy lifting. Every time you are tempted to add a border or a shadow, ask if a shift in background tone or a 1px inner glow could achieve the same goal with more elegance.
+
+---
+
+## 8. Phase 12 AI-First Evidence Workbench Appendix
+
+The Phase 12 interface uses the existing Precision Glass foundation to make AI work visible. Every page should explain what the AI has read, what evidence supports the current prompt or render decision, what context is preserved, and which action is available next. The shared contract is Reference -> Evidence -> Render.
+
+### Evidence Facets
+
+Evidence facets represent color, composition, lighting, texture, mood, subject, and neutral supporting signals. Use `.evidence-chip` with `data-facet` whenever a page labels an AI observation. A facet should include a short label, confidence or strength when available, a reference anchor when it points back to the image, and prompt provenance when it explains a prompt phrase. Do not invent decorative facet colors in page code; consume `--evidence-color-*`, `--evidence-composition-*`, `--evidence-lighting-*`, `--evidence-texture-*`, `--evidence-mood-*`, and `--evidence-neutral-*`.
+
+### Render Dock Readiness
+
+Render Dock is the visible source for generation readiness. It must show the readiness list, output parameters, busy state, service availability, disabled reason, and the primary render action in one scanning area. Use `.readiness-row` with `data-state="ready" | "waiting" | "blocked" | "processing"` and the matching `--readiness-*` tokens. Disabled generation controls must explain why generation is blocked and what can still be edited or saved.
+
+### Style Memory Cards
+
+Style Memory is the user-facing name for saved prompt templates. Cards should prioritize the source image or a clear no-preview surface, then the memory name, derived tags, variable count, and reuse intent. Use `.style-memory-card`, `.style-memory-source`, and `--style-memory-*` tokens. Empty, no-result, auth, and service-limited states should use `StatePresenter` rather than a blank template grid.
+
+### Status Language
+
+All empty, queued, processing, recoverable failure, auth required, no result, and service-limited states follow a three-part sentence model:
+1. What happened.
+2. What context remains preserved.
+3. What the user can do next.
+
+This model covers the L1-L5 degradation ladder: queued work over 60 seconds, temporary service unavailability, recoverable analysis or generation failure, auth restriction, and empty or no-result states. `failedRecoverable` plus page override is the default way to describe service unavailability; do not add a new backend-facing status for visual copy alone. `StatePresenter` uses `aria-live="assertive"` for recoverable failures and `polite` for every other state.
+
+### Control Feedback And Phase D Cleanup
+
+Continue to use `.surface-panel`, `.ai-panel`, `.btn-primary`, `.btn-secondary`, `.input-precision`, `.evidence-chip`, `.readiness-row`, `.style-memory-card`, and `.status-tone-dot` before adding page-specific classes. Phase D must remove obvious old-system leftovers: hard structural dividers, isolated SVG text buttons where an icon or normal button is expected, disabled controls without explanation, visible "Template Library" product copy, and old two-pane workspace visuals that conflict with the Evidence Workbench hierarchy.

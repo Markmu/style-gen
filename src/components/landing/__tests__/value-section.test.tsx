@@ -3,18 +3,23 @@ import { render, screen } from "@testing-library/react";
 import { ValueSection } from "../value-section";
 
 describe("ValueSection", () => {
-  it("渲染三个功能卡片", () => {
+  it("renders the three AI-first capability cards", () => {
     render(<ValueSection />);
-    expect(screen.getByText("Recreate a Style in Three Steps")).toBeInTheDocument();
-    expect(screen.getByText("Upload Reference")).toBeInTheDocument();
-    expect(screen.getByText("AI Extracts the Visual Recipe")).toBeInTheDocument();
-    expect(screen.getByText("Generate a New Image in the Same Style")).toBeInTheDocument();
+    expect(
+      screen.getByText("The workbench keeps AI decisions inspectable"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Evidence")).toBeInTheDocument();
+    expect(screen.getByText("Readiness")).toBeInTheDocument();
+    expect(screen.getByText("Style Memory")).toBeInTheDocument();
+    expect(screen.getByText(/color, composition, lighting, texture, and mood/i)).toBeInTheDocument();
   });
 
-  it("每个卡片包含步骤编号", () => {
+  it("removes the old marketing step copy", () => {
     render(<ValueSection />);
-    expect(screen.getByText("01")).toBeInTheDocument();
-    expect(screen.getByText("02")).toBeInTheDocument();
-    expect(screen.getByText("03")).toBeInTheDocument();
+    expect(screen.queryByText("Recreate a Style in Three Steps")).not.toBeInTheDocument();
+    expect(screen.queryByText("AI Extracts the Visual Recipe")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Generate a New Image in the Same Style"),
+    ).not.toBeInTheDocument();
   });
 });

@@ -46,6 +46,66 @@
   --color-info: oklch(58% 0.11 184);
   --color-info-soft: oklch(94% 0.04 184 / 0.58);
 
+  /* AI-first evidence, readiness, memory, and status semantics */
+  --surface-evidence-panel: oklch(99.1% 0.008 245 / 0.78);
+  --surface-evidence-chip: oklch(96.2% 0.025 246 / 0.72);
+  --surface-evidence-anchor: oklch(99.4% 0.006 245 / 0.86);
+
+  --evidence-color-bg: oklch(95.4% 0.052 28 / 0.74);
+  --evidence-color-text: oklch(43% 0.12 28);
+  --evidence-color-border: oklch(74% 0.09 28 / 0.34);
+  --evidence-composition-bg: oklch(94.8% 0.045 263 / 0.72);
+  --evidence-composition-text: oklch(42% 0.13 263);
+  --evidence-composition-border: oklch(72% 0.11 263 / 0.34);
+  --evidence-lighting-bg: oklch(96% 0.055 92 / 0.72);
+  --evidence-lighting-text: oklch(44% 0.105 88);
+  --evidence-lighting-border: oklch(76% 0.11 88 / 0.34);
+  --evidence-texture-bg: oklch(94.6% 0.034 184 / 0.72);
+  --evidence-texture-text: oklch(39% 0.095 184);
+  --evidence-texture-border: oklch(72% 0.09 184 / 0.34);
+  --evidence-mood-bg: oklch(94.8% 0.042 315 / 0.72);
+  --evidence-mood-text: oklch(42% 0.12 315);
+  --evidence-mood-border: oklch(72% 0.1 315 / 0.34);
+  --evidence-neutral-bg: oklch(95.4% 0.014 245 / 0.74);
+  --evidence-neutral-text: var(--text-secondary);
+  --evidence-neutral-border: var(--border-static);
+
+  --readiness-ready-bg: var(--color-success-soft);
+  --readiness-ready-text: var(--color-success);
+  --readiness-ready-border: oklch(72% 0.11 155 / 0.34);
+  --readiness-waiting-bg: var(--color-warning-soft);
+  --readiness-waiting-text: oklch(48% 0.13 78);
+  --readiness-waiting-border: oklch(76% 0.12 78 / 0.34);
+  --readiness-blocked-bg: var(--color-error-soft);
+  --readiness-blocked-text: var(--color-error);
+  --readiness-blocked-border: oklch(70% 0.12 25 / 0.34);
+  --readiness-processing-bg: var(--color-info-soft);
+  --readiness-processing-text: var(--color-info);
+  --readiness-processing-border: oklch(72% 0.1 184 / 0.34);
+
+  --style-memory-card-bg: oklch(99% 0.008 250 / 0.8);
+  --style-memory-source-bg: oklch(94.8% 0.018 250 / 0.76);
+  --style-memory-chip-bg: oklch(95.6% 0.026 263 / 0.68);
+  --style-memory-chip-text: var(--accent-primary-dim);
+  --style-memory-intent-bg: oklch(96.4% 0.034 155 / 0.58);
+  --style-memory-intent-text: oklch(40% 0.09 155);
+
+  --status-neutral-bg: var(--surface-control);
+  --status-neutral-text: var(--text-secondary);
+  --status-neutral-dot: oklch(64% 0.025 250);
+  --status-accent-bg: var(--accent-primary-soft);
+  --status-accent-text: var(--accent-primary);
+  --status-accent-dot: var(--accent-primary);
+  --status-success-bg: var(--color-success-soft);
+  --status-success-text: var(--color-success);
+  --status-success-dot: var(--color-success);
+  --status-warning-bg: var(--color-warning-soft);
+  --status-warning-text: oklch(48% 0.13 78);
+  --status-warning-dot: var(--color-warning);
+  --status-danger-bg: var(--color-error-soft);
+  --status-danger-text: var(--color-error);
+  --status-danger-dot: var(--color-error);
+
   /* Gradient tokens */
   --gradient-primary: var(--accent-primary);
 
@@ -251,6 +311,140 @@ h1, h2, h3, h4, h5, h6 {
     0 16px 36px oklch(28% 0.04 260 / 0.032);
   backdrop-filter: blur(28px) saturate(145%);
   -webkit-backdrop-filter: blur(28px) saturate(145%);
+}
+
+.ai-panel {
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in oklch, var(--surface-evidence-panel) 86%, transparent),
+      color-mix(in oklch, var(--surface-panel) 88%, var(--surface-low) 12%)
+    );
+  border: 1px solid color-mix(in oklch, var(--border-static) 86%, var(--accent-primary) 14%);
+  box-shadow:
+    inset 0 1px 0 oklch(99.5% 0.006 245 / 0.58),
+    inset 0 -1px 0 oklch(82% 0.025 250 / 0.1),
+    0 16px 36px oklch(28% 0.04 260 / 0.032);
+  backdrop-filter: blur(30px) saturate(150%);
+  -webkit-backdrop-filter: blur(30px) saturate(150%);
+}
+
+.evidence-chip {
+  display: inline-flex;
+  min-height: 1.75rem;
+  align-items: center;
+  gap: 0.375rem;
+  border: 1px solid var(--evidence-neutral-border);
+  border-radius: 9999px;
+  background: var(--surface-evidence-chip);
+  color: var(--evidence-neutral-text);
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.evidence-chip[data-facet="color"] {
+  background: var(--evidence-color-bg);
+  border-color: var(--evidence-color-border);
+  color: var(--evidence-color-text);
+}
+
+.evidence-chip[data-facet="composition"] {
+  background: var(--evidence-composition-bg);
+  border-color: var(--evidence-composition-border);
+  color: var(--evidence-composition-text);
+}
+
+.evidence-chip[data-facet="lighting"] {
+  background: var(--evidence-lighting-bg);
+  border-color: var(--evidence-lighting-border);
+  color: var(--evidence-lighting-text);
+}
+
+.evidence-chip[data-facet="texture"] {
+  background: var(--evidence-texture-bg);
+  border-color: var(--evidence-texture-border);
+  color: var(--evidence-texture-text);
+}
+
+.evidence-chip[data-facet="mood"] {
+  background: var(--evidence-mood-bg);
+  border-color: var(--evidence-mood-border);
+  color: var(--evidence-mood-text);
+}
+
+.readiness-row {
+  display: flex;
+  min-height: 2.75rem;
+  align-items: flex-start;
+  gap: 0.625rem;
+  border: 1px solid var(--readiness-processing-border);
+  border-radius: var(--glass-radius-control);
+  background: var(--readiness-processing-bg);
+  color: var(--readiness-processing-text);
+  padding: 0.625rem 0.75rem;
+}
+
+.readiness-row[data-state="ready"] {
+  background: var(--readiness-ready-bg);
+  border-color: var(--readiness-ready-border);
+  color: var(--readiness-ready-text);
+}
+
+.readiness-row[data-state="waiting"] {
+  background: var(--readiness-waiting-bg);
+  border-color: var(--readiness-waiting-border);
+  color: var(--readiness-waiting-text);
+}
+
+.readiness-row[data-state="blocked"] {
+  background: var(--readiness-blocked-bg);
+  border-color: var(--readiness-blocked-border);
+  color: var(--readiness-blocked-text);
+}
+
+.style-memory-card {
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in oklch, var(--style-memory-card-bg) 88%, transparent),
+      color-mix(in oklch, var(--surface-panel) 90%, var(--surface-low) 10%)
+    );
+  border: 1px solid var(--border-static);
+  border-radius: var(--glass-radius-card);
+  box-shadow: var(--shadow-glass);
+  overflow: hidden;
+}
+
+.style-memory-source {
+  background: var(--style-memory-source-bg);
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--border-static) 70%, transparent);
+}
+
+.status-tone-dot {
+  background: var(--status-neutral-dot);
+  box-shadow: 0 0 0 4px var(--status-neutral-bg);
+}
+
+.status-tone-dot[data-tone="accent"] {
+  background: var(--status-accent-dot);
+  box-shadow: 0 0 0 4px var(--status-accent-bg);
+}
+
+.status-tone-dot[data-tone="success"] {
+  background: var(--status-success-dot);
+  box-shadow: 0 0 0 4px var(--status-success-bg);
+}
+
+.status-tone-dot[data-tone="warning"] {
+  background: var(--status-warning-dot);
+  box-shadow: 0 0 0 4px var(--status-warning-bg);
+}
+
+.status-tone-dot[data-tone="danger"] {
+  background: var(--status-danger-dot);
+  box-shadow: 0 0 0 4px var(--status-danger-bg);
 }
 
 .workspace-chromatic [class~="bg-[var(--surface-mid)]"] {

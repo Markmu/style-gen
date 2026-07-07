@@ -8,6 +8,7 @@ describe("GeneratePanel", () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+    window.localStorage.removeItem("style-gen-gen-params");
   });
 
   it('analysis_ready 状态按钮文案 "GENERATE"', () => {

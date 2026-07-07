@@ -220,6 +220,7 @@ export function OutputSettings({
               type="button"
               onClick={() => handleAspectRatioChange(option.value)}
               disabled={isGenerating}
+              aria-disabled={isGenerating}
               className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                 aspectRatio === option.value
                   ? "bg-[var(--accent-primary)] text-white"
@@ -244,6 +245,7 @@ export function OutputSettings({
               type="button"
               onClick={() => handleQualityChange(option.value)}
               disabled={isGenerating}
+              aria-disabled={isGenerating}
               className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                 quality === option.value
                   ? "bg-[var(--accent-primary)] text-white"

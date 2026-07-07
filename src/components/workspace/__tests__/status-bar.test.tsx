@@ -22,6 +22,11 @@ describe("StatusBar", () => {
     render(<StatusBar {...defaultProps} state="idle" />);
 
     expect(screen.getByText("Workspace")).toBeInTheDocument();
+    const header = screen.getByTestId("ai-status-header");
+    expect(header).toHaveAttribute("data-phase", "idle");
+    expect(header).toHaveTextContent(/upload a reference/i);
+    expect(header).toHaveTextContent(/service ready and available/i);
+    expect(header).toHaveTextContent(/next: upload a reference image/i);
     expect(screen.queryByText("Style Gen")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Workspace help")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("User avatar")).not.toBeInTheDocument();
@@ -79,5 +84,51 @@ describe("StatusBar", () => {
 
     await user.click(screen.getByRole("button", { name: "Generate" }));
     expect(onModeChange).toHaveBeenCalledWith("generate");
+  });
+
+  it("maps analysis processing to visible AI evidence language", () => {
+    render(<StatusBar {...defaultProps} state="analyzing" />);
+
+    const header = screen.getByTestId("ai-status-header");
+    expect(header).toHaveAttribute("data-phase", "analyzing");
+    expect(header).toHaveTextContent(/reading style signals/i);
+    expect(header).toHaveTextContent(/color, composition, lighting, texture, and mood/i);
+  });
+
+  it("maps analysis ready to readiness and next action", () => {
+    render(
+      <StatusBar
+        {...defaultProps}
+        state="analysis_ready"
+        promptText="ready prompt"
+      />,
+    );
+
+    const header = screen.getByTestId("ai-status-header");
+    expect(header).toHaveAttribute("data-phase", "analysis_ready");
+    expect(header).toHaveTextContent(/evidence is ready/i);
+    expect(header).toHaveTextContent(/ready to generate/i);
+    expect(header).toHaveTextContent(/next: refine intent or generate/i);
+  });
+
+  it("shows service-limited recoverable failure without hiding next action", () => {
+    render(
+      <StatusBar
+        {...defaultProps}
+        state="generation_ready"
+        error={{
+          message: "Generation provider unavailable",
+          stage: "generation",
+          code: "SERVICE_UNAVAILABLE",
+          retryable: true,
+        }}
+      />,
+    );
+
+    const header = screen.getByTestId("ai-status-header");
+    expect(header).toHaveAttribute("data-phase", "failure");
+    expect(header).toHaveTextContent(/recoverable failure/i);
+    expect(header).toHaveTextContent(/service unavailable/i);
+    expect(header).toHaveTextContent(/retry the step or go back to edit/i);
   });
 });

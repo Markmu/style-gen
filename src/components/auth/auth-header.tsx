@@ -11,11 +11,11 @@ import { trackAuthEvent } from "./auth-tracking";
 function getOAuthErrorMessage(error: string): string {
   switch (error) {
     case "OAuthAccountNotLinked":
-      return "Login failed";
+      return "Login could not link this account. Your workspace context stays preserved, and you can try another login method.";
     case "AccessDenied":
-      return "Login canceled";
+      return "Login was canceled. Your reference and prompt context stay preserved, and you can return to the workspace when ready.";
     default:
-      return "Login failed. Please try again.";
+      return "Login could not be completed. Your workspace context stays preserved, and you can try again.";
   }
 }
 
@@ -61,7 +61,7 @@ export function AuthHeader() {
       active: pathname === "/workspace",
     },
     {
-      label: "Template Library",
+      label: "Style Memory",
       href: "/workspace/templates",
       icon: "library_books",
       active: pathname.startsWith("/workspace/templates"),
@@ -70,7 +70,7 @@ export function AuthHeader() {
 
   return (
     <>
-      <header className="glass-panel sticky top-0 z-50">
+      <header className="glass-panel sticky top-0 z-50 rounded-none border-x-0 border-t-0">
         <div className="flex h-[var(--header-height)] items-center justify-between px-6">
           <Link
             href="/"
@@ -85,7 +85,11 @@ export function AuthHeader() {
             </span>
           </Link>
 
-          <nav className="hidden items-center gap-2 md:flex" aria-label="Site navigation">
+          <nav
+            data-testid="app-shell-primary-nav"
+            className="hidden items-center gap-2 md:flex"
+            aria-label="Site navigation"
+          >
             {navItems.map((item) => (
               <Link
                 key={item.href}
@@ -105,12 +109,22 @@ export function AuthHeader() {
             ))}
           </nav>
 
-          <div>{session ? <UserMenu /> : <LoginButton />}</div>
+          <div data-testid="app-shell-auth-entry">
+            {session ? <UserMenu /> : <LoginButton />}
+          </div>
         </div>
       </header>
       {errorMessage && (
-        <div className="glass-panel fixed top-20 right-4 z-50 rounded-lg px-4 py-3 text-sm text-[var(--color-error)]">
-          {errorMessage}
+        <div
+          className="glass-panel fixed right-4 top-20 z-50 flex max-w-sm items-start gap-3 rounded-lg px-4 py-3 text-sm text-[var(--text-primary)]"
+          role="alert"
+        >
+          <span
+            className="status-tone-dot mt-1 inline-flex h-2.5 w-2.5 shrink-0"
+            data-tone="warning"
+            aria-hidden="true"
+          />
+          <span className="leading-6">{errorMessage}</span>
         </div>
       )}
     </>

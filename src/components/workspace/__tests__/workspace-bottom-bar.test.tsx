@@ -4,7 +4,23 @@ import { render, screen } from "@testing-library/react";
 import { WorkspaceBottomBar } from "@/components/workspace/workspace-bottom-bar";
 
 describe("WorkspaceBottomBar", () => {
-  it("places history across the first two columns and output in the prompt-width column", () => {
+  it("places history across the full three-column workbench by default", () => {
+    render(
+      <WorkspaceBottomBar
+        history={<section data-testid="history-slot">History</section>}
+      />,
+    );
+
+    expect(screen.getByTestId("workspace-bottom-bar")).toBeInTheDocument();
+    expect(screen.getByTestId("workspace-bottom-bar").firstElementChild).toHaveClass(
+      "items-stretch",
+    );
+    expect(screen.getByTestId("workspace-bottom-history")).toHaveClass("col-span-3");
+    expect(screen.queryByTestId("workspace-bottom-output")).not.toBeInTheDocument();
+    expect(screen.getByTestId("history-slot")).toBeInTheDocument();
+  });
+
+  it("still supports an optional output slot for legacy embedded layouts", () => {
     render(
       <WorkspaceBottomBar
         history={<section data-testid="history-slot">History</section>}
