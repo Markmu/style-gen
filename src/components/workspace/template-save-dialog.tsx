@@ -292,7 +292,7 @@ export function TemplateSaveDialog({
               onChange={(e) => setContent(e.target.value)}
               rows={8}
               maxLength={MAX_CONTENT_LENGTH}
-              className="input-precision min-h-[220px] w-full resize-y rounded-t-lg px-3 py-3 text-sm leading-6"
+              className="input-precision min-h-[13.75rem] w-full resize-y rounded-t-lg px-3 py-3 text-sm leading-6"
               placeholder="Enter or edit prompt template content..."
             />
             <p className="text-right text-xs text-[var(--text-secondary)]/60">
@@ -319,7 +319,7 @@ export function TemplateSaveDialog({
                         {variable.label || variable.name}
                       </span>
                       {variable.sourceField && (
-                        <span className="rounded-full bg-[var(--surface-low)] px-2 py-0.5 text-[10px] text-[var(--text-muted)]">
+                        <span className="rounded-full bg-[var(--surface-low)] px-2 py-0.5 text-[0.625rem] text-[var(--text-muted)]">
                           {variable.sourceField}
                         </span>
                       )}

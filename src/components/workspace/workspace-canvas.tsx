@@ -121,7 +121,7 @@ export function WorkspaceCanvas({
           <div className="relative">
             {/* Analyzing的视觉反馈 */}
             {state === "analyzing" && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-black/30 backdrop-blur-[2px]">
+              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-black/30 backdrop-blur-[0.125rem]">
                 <div className="flex flex-col items-center gap-3">
                   <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--accent-primary)] border-t-transparent" />
                   <p className="text-sm font-medium text-white">
@@ -137,7 +137,7 @@ export function WorkspaceCanvas({
                 alt="Reference"
                 width={1024}
                 height={1024}
-                className="h-auto max-h-[600px] w-full object-contain"
+                className="h-auto max-h-[37.5rem] w-full object-contain"
                 unoptimized
               />
             </div>
@@ -177,7 +177,7 @@ export function WorkspaceCanvas({
                   alt="Generated Result"
                   width={1024}
                   height={1024}
-                  className="h-auto max-h-[600px] w-full object-contain"
+                  className="h-auto max-h-[37.5rem] w-full object-contain"
                   unoptimized
                 />
               </button>

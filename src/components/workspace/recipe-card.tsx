@@ -58,7 +58,7 @@ export function RecipeCard({
         <div className="min-w-0">
           <h2 className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
             Style Intelligence
-            <span className="icon text-[15px] text-[var(--text-muted)]" aria-hidden="true">
+            <span className="icon text-[0.9375rem] text-[var(--text-muted)]" aria-hidden="true">
               info
             </span>
           </h2>
@@ -76,7 +76,7 @@ export function RecipeCard({
               aria-label="Style intelligence options"
               className="btn-secondary flex h-8 w-8 items-center justify-center rounded-lg"
             >
-              <span className="icon text-[17px]" aria-hidden="true">more_horiz</span>
+              <span className="icon text-[1.0625rem]" aria-hidden="true">more_horiz</span>
             </button>
           </div>
         )}
@@ -166,7 +166,7 @@ export function RecipeCard({
             </div>
           </div>
         ) : (
-          <div className="flex h-full min-h-[260px] flex-col justify-center rounded-xl bg-[var(--surface-low)] p-6">
+          <div className="flex h-full min-h-[16.25rem] flex-col justify-center rounded-xl bg-[var(--surface-low)] p-6">
             <span className="icon mb-4 text-[var(--accent-primary)]" aria-hidden="true">
               data_object
             </span>

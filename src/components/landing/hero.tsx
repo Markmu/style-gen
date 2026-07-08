@@ -11,7 +11,7 @@ const evidenceFacets = [
 export function Hero() {
   return (
     <section className="relative overflow-hidden px-4 pb-20 pt-14 md:pb-24 md:pt-20">
-      <div className="mx-auto grid max-w-6xl items-start gap-10 lg:grid-cols-[minmax(0,0.82fr)_minmax(480px,1fr)]">
+      <div className="mx-auto grid max-w-6xl items-start gap-10 lg:grid-cols-[minmax(0,0.82fr)_minmax(30rem,1fr)]">
         <div className="max-w-2xl">
           <span className="label-tech mb-4 inline-block rounded-full bg-[var(--surface-low)] px-3 py-1 text-[var(--accent-primary)]">
             AI evidence workbench
@@ -29,7 +29,7 @@ export function Hero() {
               href="/workspace"
               className="btn-primary inline-flex items-center justify-center gap-2 rounded-lg px-8 py-3 text-base font-semibold"
             >
-              <span className="icon text-[18px]" aria-hidden="true">
+              <span className="icon text-[1.125rem]" aria-hidden="true">
                 add_photo_alternate
               </span>
               Start from reference
@@ -38,7 +38,7 @@ export function Hero() {
               href="/workspace/templates"
               className="btn-secondary inline-flex items-center justify-center gap-2 rounded-lg px-6 py-3 text-base font-medium"
             >
-              <span className="icon text-[18px]" aria-hidden="true">
+              <span className="icon text-[1.125rem]" aria-hidden="true">
                 library_books
               </span>
               Browse Style Memory

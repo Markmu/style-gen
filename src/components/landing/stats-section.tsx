@@ -19,7 +19,7 @@ export function StatsSection() {
           </p>
         </div>
 
-        <div className="grid gap-3 md:w-[360px]">
+        <div className="grid gap-3 md:w-[22.5rem]">
           {statusItems.map((item) => (
             <div className="surface-panel rounded-lg p-4" key={item.status}>
               <p className="text-sm font-semibold text-[var(--text-primary)]">

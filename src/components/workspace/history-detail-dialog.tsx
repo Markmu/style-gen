@@ -44,7 +44,7 @@ export function HistoryDetailDialog({
         role="dialog"
         aria-modal="true"
         aria-label="History Detail"
-        className="glass-panel grid max-h-[86vh] w-full max-w-5xl gap-5 overflow-y-auto rounded-xl p-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.82fr)]"
+        className="glass-panel grid max-h-[86vh] w-full max-w-5xl gap-5 overflow-y-auto rounded-xl p-6 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.82fr)]"
       >
         <div className="min-w-0">
           <p className="label-tech text-[var(--text-muted)]">History Result</p>

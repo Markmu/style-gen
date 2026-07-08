@@ -256,7 +256,7 @@ export function UnifiedPromptEditor({
             <button
               type="button"
               onClick={() => setMode("template")}
-              className={`h-6 rounded-[5px] px-2.5 text-xs transition-colors ${
+              className={`h-6 rounded-[0.3125rem] px-2.5 text-xs transition-colors ${
                 mode === "template"
                   ? "bg-[var(--accent-primary-soft)] text-[var(--accent-primary)]"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -267,7 +267,7 @@ export function UnifiedPromptEditor({
             <button
               type="button"
               onClick={switchToText}
-              className={`h-6 rounded-[5px] px-2.5 text-xs transition-colors ${
+              className={`h-6 rounded-[0.3125rem] px-2.5 text-xs transition-colors ${
                 mode === "text"
                   ? "bg-[var(--accent-primary-soft)] text-[var(--accent-primary)]"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"

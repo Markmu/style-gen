@@ -195,7 +195,7 @@ export function StatusBar({
     <div
       data-testid={hasMounted ? "ai-status-header" : undefined}
       data-phase={status.phase}
-      className="workspace-status-bar grid min-h-20 grid-cols-[minmax(260px,1fr)_auto_minmax(260px,0.95fr)] items-center gap-4 px-6 py-3"
+      className="workspace-status-bar grid min-h-20 grid-cols-[minmax(16.25rem,1fr)_auto_minmax(16.25rem,0.95fr)] items-center gap-4 px-6 py-3"
       aria-label="AI status header"
     >
       <div className="flex min-w-0 items-start gap-3">
@@ -251,14 +251,14 @@ export function StatusBar({
           aria-label="Share workspace"
           className="btn-secondary hidden h-9 w-9 items-center justify-center rounded-lg md:inline-flex"
         >
-          <span className="icon text-[17px]" aria-hidden="true">share</span>
+          <span className="icon text-[1.0625rem]" aria-hidden="true">share</span>
         </button>
         <button
           type="button"
           aria-label="Workspace settings"
           className="btn-secondary hidden h-9 w-9 items-center justify-center rounded-lg md:inline-flex"
         >
-          <span className="icon text-[17px]" aria-hidden="true">settings</span>
+          <span className="icon text-[1.0625rem]" aria-hidden="true">settings</span>
         </button>
         {canReplace && (
           <button

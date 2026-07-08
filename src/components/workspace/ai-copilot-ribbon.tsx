@@ -114,7 +114,7 @@ export function AiCopilotRibbon({
         <div className="workspace-copilot-ribbon-grid">
           <div className="workspace-copilot-lede flex min-w-0 items-center gap-3">
             <span className="workspace-copilot-mark flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[var(--accent-primary)]">
-              <span className="icon text-[20px]" aria-hidden="true">auto_awesome</span>
+              <span className="icon text-[1.25rem]" aria-hidden="true">auto_awesome</span>
             </span>
             <div className="min-w-0">
               <p className="truncate text-base font-bold text-[var(--accent-primary)]">
@@ -182,9 +182,9 @@ export function AiCopilotRibbon({
             type="button"
             className="workspace-copilot-insights inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg px-3 text-xs font-semibold"
           >
-            <span className="icon text-[16px]" aria-hidden="true">lightbulb</span>
+            <span className="icon text-[1rem]" aria-hidden="true">lightbulb</span>
             Copilot insights
-            <span className="icon text-[16px]" aria-hidden="true">expand_more</span>
+            <span className="icon text-[1rem]" aria-hidden="true">expand_more</span>
           </button>
         </div>
       </section>
@@ -205,7 +205,7 @@ function RibbonMetric({
     <div className="workspace-copilot-segment min-w-0">
       <p className="workspace-copilot-label">{label}</p>
       <p className="flex items-center gap-2 truncate text-sm font-medium text-[var(--text-primary)]">
-        <span className="icon text-[16px] text-[var(--accent-primary)]" aria-hidden="true">
+        <span className="icon text-[1rem] text-[var(--accent-primary)]" aria-hidden="true">
           {icon}
         </span>
         {value}

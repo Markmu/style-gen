@@ -28,7 +28,7 @@ describe("FloatingGenerateWindow", () => {
     );
     expect(screen.getByTestId("floating-generate-window")).not.toHaveClass(
       "glass-panel",
-      "max-w-[640px]",
+      "max-w-[40rem]",
     );
     expect(screen.queryByText(/^Generate$/)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "GENERATE" })).toBeEnabled();

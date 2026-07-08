@@ -63,8 +63,8 @@ export function HistoryStrip({
       aria-label="Recent iterations"
     >
       <div className="flex h-full min-w-0 items-center gap-4">
-        <div className="flex w-[190px] shrink-0 items-center gap-3">
-          <span className="icon text-[18px] text-[var(--accent-primary)]" aria-hidden="true">
+        <div className="flex w-[11.875rem] shrink-0 items-center gap-3">
+          <span className="icon text-[1.125rem] text-[var(--accent-primary)]" aria-hidden="true">
             history_toggle_off
           </span>
           <div className="min-w-0">
@@ -97,7 +97,7 @@ export function HistoryStrip({
               role="status"
               className="flex min-w-0 items-center gap-2 rounded-xl bg-[var(--surface-low)]/72 px-4 py-3 text-xs text-[var(--text-secondary)]"
             >
-              <span className="icon text-[16px] text-[var(--accent-primary)]" aria-hidden="true">
+              <span className="icon text-[1rem] text-[var(--accent-primary)]" aria-hidden="true">
                 progress_activity
               </span>
               Loading Iteration Memory.
@@ -121,10 +121,10 @@ export function HistoryStrip({
                     unoptimized
                   />
                 </span>
-                <span className="absolute left-1.5 top-1.5 rounded-md bg-[var(--surface-bright)]/88 px-1.5 py-0.5 text-[10px] font-semibold text-[var(--text-primary)] backdrop-blur-xl">
+                <span className="absolute left-1.5 top-1.5 rounded-md bg-[var(--surface-bright)]/88 px-1.5 py-0.5 text-[0.625rem] font-semibold text-[var(--text-primary)] backdrop-blur-xl">
                   {index + 1}
                 </span>
-                <span className="absolute bottom-1.5 right-1.5 rounded-md bg-[var(--surface-bright)]/88 px-1 py-0.5 text-[9px] font-medium text-[var(--text-secondary)] backdrop-blur-xl">
+                <span className="absolute bottom-1.5 right-1.5 rounded-md bg-[var(--surface-bright)]/88 px-1 py-0.5 text-[0.5625rem] font-medium text-[var(--text-secondary)] backdrop-blur-xl">
                   {formatHistoryDate(item.createdAt)}
                 </span>
               </button>
@@ -132,7 +132,7 @@ export function HistoryStrip({
           ) : (
             <div className="min-w-0 rounded-xl bg-[var(--surface-low)]/72 px-4 py-3 text-xs text-[var(--text-secondary)]">
               <div className="flex items-center gap-2">
-                <span className="icon text-[16px] text-[var(--accent-primary)]" aria-hidden="true">
+                <span className="icon text-[1rem] text-[var(--accent-primary)]" aria-hidden="true">
                   auto_awesome
                 </span>
                 <span>Renders will appear here as visual evidence.</span>
@@ -157,7 +157,7 @@ export function HistoryStrip({
           title={hasItems ? "Compare latest iteration" : compareDisabledReason}
           className="btn-secondary hidden shrink-0 items-center gap-2 rounded-lg px-3 py-1.5 text-xs disabled:opacity-50 md:inline-flex"
         >
-          <span className="icon text-[15px]" aria-hidden="true">compare_arrows</span>
+          <span className="icon text-[0.9375rem]" aria-hidden="true">compare_arrows</span>
           Compare
         </button>
         <button

@@ -18,7 +18,7 @@ export function TextModeEditor({
         value={promptText}
         onChange={(event) => onChange(event.target.value)}
         className={`input-precision flex-1 resize-none rounded-t-lg px-3 text-sm leading-6 ${
-          compact ? "min-h-0 py-1.5" : "min-h-[320px] py-3"
+          compact ? "min-h-0 py-1.5" : "min-h-[20rem] py-3"
         }`}
         placeholder="A full prompt appears after analysis, and you can edit it here directly."
       />

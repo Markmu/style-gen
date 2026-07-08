@@ -53,7 +53,7 @@ export function TemplateVariablePanel({
                   {variable.label || variable.name}
                 </span>
                 {variable.sourceField && (
-                  <span className="rounded-full bg-[var(--accent-primary-soft)] px-2 py-0.5 text-[10px] text-[var(--accent-primary)]">
+                  <span className="rounded-full bg-[var(--accent-primary-soft)] px-2 py-0.5 text-[0.625rem] text-[var(--accent-primary)]">
                     {variable.sourceField}
                   </span>
                 )}
@@ -63,7 +63,7 @@ export function TemplateVariablePanel({
                   aria-label={`Variable ${variable.name}`}
                   value={values[variable.name] ?? ""}
                   onChange={(event) => onChange(variable.name, event.target.value)}
-                  className="input-precision min-h-[84px] w-full resize-none rounded-t-md px-3 py-2 text-sm leading-6"
+                  className="input-precision min-h-[5.25rem] w-full resize-none rounded-t-md px-3 py-2 text-sm leading-6"
                   placeholder={`Fill ${variable.name}`}
                 />
               ) : (

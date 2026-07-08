@@ -81,7 +81,7 @@ export function FloatingGenerateWindow({
 
   const containerClass =
     variant === "floating"
-      ? "glass-panel floating-generate-glass pointer-events-auto w-full max-w-[640px] rounded-xl px-4 py-3"
+      ? "glass-panel floating-generate-glass pointer-events-auto w-full max-w-[40rem] rounded-xl px-4 py-3"
       : variant === "embedded"
         ? "surface-panel min-w-0 shrink-0 overflow-hidden rounded-xl p-4"
         : "min-w-0 shrink-0";
@@ -145,7 +145,7 @@ export function FloatingGenerateWindow({
           </div>
         </div>
 
-        <div className="flex min-w-0 flex-col gap-2 xl:min-w-[180px] xl:items-end">
+        <div className="flex min-w-0 flex-col gap-2 xl:min-w-[11.25rem] xl:items-end">
           {error?.stage === "generation" && (
             <button
               type="button"
@@ -156,7 +156,7 @@ export function FloatingGenerateWindow({
             </button>
           )}
           {unavailableReason && (
-            <p className="max-w-[280px] text-xs leading-5 text-[var(--text-secondary)] xl:text-right">
+            <p className="max-w-[17.5rem] text-xs leading-5 text-[var(--text-secondary)] xl:text-right">
               {unavailableReason}
             </p>
           )}
@@ -164,7 +164,7 @@ export function FloatingGenerateWindow({
             type="button"
             onClick={handleGenerate}
             disabled={!canGenerate}
-            className="btn-primary h-10 w-full rounded-lg px-5 text-sm font-medium xl:w-[180px]"
+            className="btn-primary h-10 w-full rounded-lg px-5 text-sm font-medium xl:w-[11.25rem]"
           >
             {isGenerating ? "GENERATING..." : "GENERATE"}
           </button>

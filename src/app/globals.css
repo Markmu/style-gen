@@ -116,7 +116,7 @@
   --focus-ring: 0 0 0 3px oklch(66% 0.14 263 / 0.18);
   --glass-radius-card: 1rem;
   --glass-radius-control: 0.75rem;
-  --header-height: 64px;
+  --header-height: 4rem;
 }
 
 .workspace-chromatic {
@@ -215,6 +215,10 @@
 }
 
 /* Base Styles */
+html {
+  font-size: 80%;
+}
+
 body {
   background-color: var(--surface-page);
   color: var(--text-primary);
@@ -234,14 +238,14 @@ h1, h2, h3, h4, h5, h6 {
 .icon {
   font-family: "Material Symbols Outlined";
   font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
-  font-size: 24px;
+  font-size: 1.5rem;
   line-height: 1;
   user-select: none;
 }
 
 /* Technical Label */
 .label-tech {
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.2em; /* tracking-widest */
@@ -759,12 +763,12 @@ h1, h2, h3, h4, h5, h6 {
   display: grid;
   min-height: 4.125rem;
   grid-template-columns:
-    minmax(190px, 0.95fr)
-    minmax(118px, 0.54fr)
-    minmax(124px, 0.56fr)
-    minmax(150px, 0.68fr)
-    minmax(210px, 1fr)
-    minmax(112px, 0.5fr)
+    minmax(11.875rem, 0.95fr)
+    minmax(7.375rem, 0.54fr)
+    minmax(7.75rem, 0.56fr)
+    minmax(9.375rem, 0.68fr)
+    minmax(13.125rem, 1fr)
+    minmax(7rem, 0.5fr)
     auto;
   align-items: center;
 }
@@ -800,7 +804,7 @@ h1, h2, h3, h4, h5, h6 {
 
 @media (max-width: 1180px) {
   .workspace-copilot-ribbon-grid {
-    grid-template-columns: minmax(190px, 1fr) minmax(118px, auto) minmax(124px, auto) auto;
+    grid-template-columns: minmax(11.875rem, 1fr) minmax(7.375rem, auto) minmax(7.75rem, auto) auto;
   }
 
   .workspace-copilot-ribbon-grid .workspace-copilot-segment:nth-of-type(n + 4) {

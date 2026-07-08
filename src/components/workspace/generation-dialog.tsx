@@ -104,7 +104,7 @@ export function GenerationDialog({
               Context preserved: your reference, prompt, and params are still available
               for editing, another render, or saving as Style Memory.
             </p>
-            <div className="media-lens relative mx-auto aspect-square max-h-[58vh] w-full max-w-[560px] rounded-lg">
+            <div className="media-lens relative mx-auto aspect-square max-h-[58vh] w-full max-w-[35rem] rounded-lg">
               <Image
                 src={resultImageUrl}
                 alt="Generated Result"

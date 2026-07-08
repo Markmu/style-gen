@@ -128,7 +128,7 @@ export function OutputCard({
       <div className="flex items-center justify-between gap-3">
         <h2 className="flex min-w-0 items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
           Render Dock
-          <span className="icon text-[15px] text-[var(--text-muted)]" aria-hidden="true">
+          <span className="icon text-[0.9375rem] text-[var(--text-muted)]" aria-hidden="true">
             info
           </span>
         </h2>
@@ -185,7 +185,7 @@ export function OutputCard({
               className="readiness-row flex min-w-0 !min-h-0 !items-center !gap-1.5 rounded-md !px-2 !py-1 text-xs font-medium text-[var(--text-secondary)]"
             >
               <span
-                className="icon text-[14px]"
+                className="icon text-[0.875rem]"
                 aria-hidden="true"
               >
                 {item.icon}
@@ -232,7 +232,7 @@ export function OutputCard({
           </p>
           <p
             data-testid="render-next-action"
-            className="mt-0.5 text-[11px] font-medium uppercase tracking-[0.05em] text-[var(--text-muted)]"
+            className="mt-0.5 text-[0.6875rem] font-medium uppercase tracking-[0.05em] text-[var(--text-muted)]"
           >
             Next: {nextActionLabel}
           </p>

@@ -27,7 +27,7 @@ export function WorkspaceTopBar({
             aria-label="Rename workspace"
             className="workspace-top-bar-icon-button"
           >
-            <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
+            <span className="material-symbols-outlined text-[1rem]" aria-hidden="true">
               edit
             </span>
           </button>
@@ -44,7 +44,7 @@ export function WorkspaceTopBar({
           onClick={onShare}
           className="workspace-top-bar-action inline-flex h-9 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold"
         >
-          <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
+          <span className="material-symbols-outlined text-[1.125rem]" aria-hidden="true">
             share
           </span>
           <span className="hidden sm:inline">Share</span>
@@ -55,7 +55,7 @@ export function WorkspaceTopBar({
           onClick={onSettings}
           className="workspace-top-bar-action workspace-top-bar-square"
         >
-          <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
+          <span className="material-symbols-outlined text-[1.125rem]" aria-hidden="true">
             settings
           </span>
         </button>
@@ -65,7 +65,7 @@ export function WorkspaceTopBar({
           onClick={onMore}
           className="workspace-top-bar-action workspace-top-bar-square"
         >
-          <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
+          <span className="material-symbols-outlined text-[1.125rem]" aria-hidden="true">
             more_horiz
           </span>
         </button>

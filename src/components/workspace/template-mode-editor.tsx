@@ -27,7 +27,7 @@ export function TemplateModeEditor({
 }: TemplateModeEditorProps) {
   return (
     <div className={`flex min-h-0 flex-col ${compact ? "gap-2" : "min-h-full gap-4"}`}>
-      <div className={`flex flex-1 flex-col ${compact ? "min-h-0" : "min-h-[220px]"}`}>
+      <div className={`flex flex-1 flex-col ${compact ? "min-h-0" : "min-h-[13.75rem]"}`}>
         <textarea
           aria-label="Template Source"
           value={templateSource}

@@ -21,7 +21,7 @@ export function BottomCta() {
             href="/workspace"
             className="btn-primary inline-flex items-center justify-center gap-2 rounded-lg px-6 py-3 text-sm font-semibold"
           >
-            <span className="icon text-[18px]" aria-hidden="true">
+            <span className="icon text-[1.125rem]" aria-hidden="true">
               add_photo_alternate
             </span>
             Start from reference
@@ -30,7 +30,7 @@ export function BottomCta() {
             href="/workspace/templates"
             className="btn-secondary inline-flex items-center justify-center gap-2 rounded-lg px-6 py-3 text-sm font-semibold"
           >
-            <span className="icon text-[18px]" aria-hidden="true">
+            <span className="icon text-[1.125rem]" aria-hidden="true">
               library_books
             </span>
             Open saved directions

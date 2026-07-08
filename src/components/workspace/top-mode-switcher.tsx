@@ -124,7 +124,7 @@ export function TopModeSwitcher({
             onClick={() => onModeChange(item.mode)}
             className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/25 ${stateClass}`}
           >
-            <span className="icon text-[16px]" aria-hidden="true">
+            <span className="icon text-[1rem]" aria-hidden="true">
               {item.icon}
             </span>
             <span>{item.label}</span>

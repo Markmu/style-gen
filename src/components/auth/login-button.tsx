@@ -23,7 +23,7 @@ export function LoginButton() {
       className="btn-secondary inline-flex h-9 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium"
       type="button"
     >
-      <span className="icon text-[16px]" aria-hidden="true">
+      <span className="icon text-[1rem]" aria-hidden="true">
         {isPending ? "progress_activity" : "login"}
       </span>
       {isPending ? "Opening login" : "Log in"}

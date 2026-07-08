@@ -93,7 +93,7 @@ export function LeftSidebar() {
           aria-label="Visoryn home"
         >
           <span
-            className="workspace-sidebar-brand-mark material-symbols-outlined text-[26px]"
+            className="workspace-sidebar-brand-mark material-symbols-outlined text-[1.625rem]"
             aria-hidden="true"
           >
             auto_awesome
@@ -107,7 +107,7 @@ export function LeftSidebar() {
           aria-label="Sidebar options"
           className="workspace-sidebar-icon-button"
         >
-          <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
+          <span className="material-symbols-outlined text-[1.125rem]" aria-hidden="true">
             more_horiz
           </span>
         </button>
@@ -129,7 +129,7 @@ export function LeftSidebar() {
               }`}
             >
               <span
-                className="material-symbols-outlined workspace-sidebar-nav-icon text-[21px]"
+                className="material-symbols-outlined workspace-sidebar-nav-icon text-[1.3125rem]"
                 aria-hidden="true"
               >
                 {item.icon}
@@ -146,7 +146,7 @@ export function LeftSidebar() {
       >
         <h2
           id="recent-workspaces-heading"
-          className="px-2 text-[11px] font-bold uppercase text-[var(--text-muted)]"
+          className="px-2 text-[0.6875rem] font-bold uppercase text-[var(--text-muted)]"
         >
           Recent Workspaces
         </h2>
@@ -255,7 +255,7 @@ export function LeftSidebar() {
             aria-label="Workspace appearance"
             className="workspace-sidebar-icon-button"
           >
-            <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
+            <span className="material-symbols-outlined text-[1.125rem]" aria-hidden="true">
               light_mode
             </span>
           </button>

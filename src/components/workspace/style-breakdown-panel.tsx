@@ -60,7 +60,7 @@ export function StyleBreakdownPanel({
             onReplace={onReplace}
           />
         ) : (
-          <div className="flex h-full min-h-[260px] flex-col justify-center rounded-lg bg-[var(--surface-low)] p-6">
+          <div className="flex h-full min-h-[16.25rem] flex-col justify-center rounded-lg bg-[var(--surface-low)] p-6">
             <p className="text-sm leading-6 text-[var(--text-secondary)]">
               After you upload a reference, visual structure, lighting, color, and mood will unfold here.
             </p>

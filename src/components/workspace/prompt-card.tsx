@@ -112,7 +112,7 @@ export function PromptCard({
         <div className="min-w-0">
           <h2 className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
             Prompt + Render
-            <span className="icon text-[15px] text-[var(--text-muted)]" aria-hidden="true">
+            <span className="icon text-[0.9375rem] text-[var(--text-muted)]" aria-hidden="true">
               info
             </span>
           </h2>
@@ -145,8 +145,8 @@ export function PromptCard({
             <div
               className={
                 renderDock
-                  ? "h-[92px] min-h-0 overflow-hidden"
-                  : "min-h-[360px]"
+                  ? "h-[5.75rem] min-h-0 overflow-hidden"
+                  : "min-h-[22.5rem]"
               }
             >
               <UnifiedPromptEditor
@@ -170,7 +170,7 @@ export function PromptCard({
           </div>
         ) : (
           <div className="flex min-h-full flex-col">
-            <div className="flex min-h-[260px] flex-1 flex-col justify-center rounded-xl bg-[var(--surface-low)] p-6">
+            <div className="flex min-h-[16.25rem] flex-1 flex-col justify-center rounded-xl bg-[var(--surface-low)] p-6">
               <span className="icon mb-4 text-[var(--accent-primary)]" aria-hidden="true">
                 notes
               </span>
@@ -213,7 +213,7 @@ function PromptProvenance({
         <p className="text-xs font-semibold text-[var(--text-primary)]">
           Prompt provenance
         </p>
-        <span className="icon text-[14px] text-[var(--text-muted)]" aria-hidden="true">
+        <span className="icon text-[0.875rem] text-[var(--text-muted)]" aria-hidden="true">
           info
         </span>
       </div>

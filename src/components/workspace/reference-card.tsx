@@ -78,7 +78,7 @@ export function ReferenceCard({
         <div className="min-w-0">
           <h2 className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
             Reference Canvas
-            <span className="icon text-[15px] text-[var(--text-muted)]" aria-hidden="true">
+            <span className="icon text-[0.9375rem] text-[var(--text-muted)]" aria-hidden="true">
               info
             </span>
           </h2>
@@ -102,7 +102,7 @@ export function ReferenceCard({
               aria-label="Reference options"
               className="btn-secondary flex h-8 w-8 items-center justify-center rounded-lg"
             >
-              <span className="icon text-[18px]" aria-hidden="true">
+              <span className="icon text-[1.125rem]" aria-hidden="true">
                 more_horiz
               </span>
             </button>
@@ -113,7 +113,7 @@ export function ReferenceCard({
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         {hasReference ? (
           <div className="space-y-4">
-            <div className="media-lens relative aspect-[4/5] min-h-[360px] overflow-hidden rounded-xl ring-1 ring-[var(--border-static)]">
+            <div className="media-lens relative aspect-[4/5] min-h-[22.5rem] overflow-hidden rounded-xl ring-1 ring-[var(--border-static)]">
               <Image
                 src={referenceImageUrl}
                 alt="Reference"
@@ -148,11 +148,11 @@ export function ReferenceCard({
                     );
                   })}
                   <div className="absolute bottom-3 right-3 inline-flex items-center gap-2 rounded-lg bg-[var(--surface-bright)]/90 px-2 py-1 text-xs font-medium text-[var(--text-secondary)] shadow-[var(--shadow-ambient)] backdrop-blur-xl">
-                    <button type="button" className="icon text-[16px]" aria-label="Zoom out">
+                    <button type="button" className="icon text-[1rem]" aria-label="Zoom out">
                       remove
                     </button>
                     <span>100%</span>
-                    <button type="button" className="icon text-[16px]" aria-label="Zoom in">
+                    <button type="button" className="icon text-[1rem]" aria-label="Zoom in">
                       add
                     </button>
                   </div>
@@ -165,7 +165,7 @@ export function ReferenceCard({
                 <p className="text-xs font-semibold text-[var(--text-primary)]">
                   Detected palette
                 </p>
-                <span className="icon text-[14px] text-[var(--text-muted)]" aria-hidden="true">
+                <span className="icon text-[0.875rem] text-[var(--text-muted)]" aria-hidden="true">
                   info
                 </span>
               </div>
@@ -199,7 +199,7 @@ export function ReferenceCard({
                     type="button"
                     className="btn-secondary inline-flex h-9 items-center justify-center gap-2 rounded-lg px-2 text-xs"
                   >
-                    <span className="icon text-[15px]" aria-hidden="true">{icon}</span>
+                    <span className="icon text-[0.9375rem]" aria-hidden="true">{icon}</span>
                     {label}
                   </button>
                 ))}
@@ -279,7 +279,7 @@ export function ReferenceCard({
                     <div key={item.dimension} className="space-y-1.5">
                       <div className="flex items-center gap-2">
                         <span
-                          className="icon text-[17px]"
+                          className="icon text-[1.0625rem]"
                           style={{ color: item.iconColor }}
                           aria-hidden="true"
                         >
