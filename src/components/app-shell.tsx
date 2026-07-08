@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { AuthHeader } from "@/components/auth/auth-header";
 
@@ -72,15 +72,7 @@ export function AppShell({
           : "min-h-screen"
       }`}
     >
-      {isWorkspaceRoute && (
-        <Suspense
-          fallback={
-            <div className="h-[var(--header-height)] shrink-0 bg-[var(--surface-page)]" />
-          }
-        >
-          <AuthHeader />
-        </Suspense>
-      )}
+      {!isWorkspaceRoute && <AuthHeader />}
 
       {(statusSummary || actions) && (
         <div className="surface-panel mx-4 mt-4 flex items-center justify-between gap-4 px-4 py-3">

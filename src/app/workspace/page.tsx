@@ -10,16 +10,15 @@ import { useAnalysis } from "@/hooks/use-analysis";
 import { useGeneration } from "@/hooks/use-generation";
 import { useHistoryList } from "@/hooks/use-history-list";
 import { useHistoryRestore, type RestoredData } from "@/hooks/use-history-restore";
-import { StatusBar } from "@/components/workspace/status-bar";
 import { WorkspaceThreeColumnLayout } from "@/components/workspace/workspace-three-column-layout";
 import { ReferenceCard } from "@/components/workspace/reference-card";
 import { RecipeCard } from "@/components/workspace/recipe-card";
 import { PromptCard } from "@/components/workspace/prompt-card";
-import type { TopMode } from "@/components/workspace/top-mode-switcher";
 import { HistoryStrip } from "@/components/workspace/history-strip";
 import { OutputCard } from "@/components/workspace/output-card";
 import { WorkspaceBottomBar } from "@/components/workspace/workspace-bottom-bar";
 import { AiCopilotRibbon } from "@/components/workspace/ai-copilot-ribbon";
+import { WorkspaceTopBar } from "@/components/workspace/workspace-top-bar";
 import {
   previewHistoryItems,
   previewNegativePrompt,
@@ -106,12 +105,10 @@ function WorkspacePageInner() {
   const hasConsumedFile = useRef(false);
   const analysisStartTime = useRef<number | null>(null);
   const generationStartTime = useRef<number | null>(null);
-  const previousWorkspaceState = useRef(ws.state);
   const [generationDialogOpen, setGenerationDialogOpen] = useState(false);
   const [resolvedPromptText, setResolvedPromptText] = useState("");
   const [templateSaveContent, setTemplateSaveContent] = useState("");
   const [currentTemplateVariables, setCurrentTemplateVariables] = useState<TemplateVariable[]>([]);
-  const [manualModeOverride, setManualModeOverride] = useState<TopMode | null>(null);
   const [selectedFacetId, setSelectedFacetId] = useState<EvidenceFacetId | null>(null);
   const [historyDetailOpen, setHistoryDetailOpen] = useState(false);
   const [historyDetail, setHistoryDetail] = useState<HistoryDetail | null>(null);
@@ -131,10 +128,6 @@ function WorkspacePageInner() {
     setShowTemplateSaveDialog(true);
   }, []);
 
-  const handleModeChange = useCallback((mode: TopMode) => {
-    setManualModeOverride(mode);
-  }, []);
-
   const handleResolvedPromptChange = useCallback(
     (value: string) => {
       setResolvedPromptText(value);
@@ -142,12 +135,6 @@ function WorkspacePageInner() {
     },
     [setWorkspacePromptText],
   );
-
-  useEffect(() => {
-    if (previousWorkspaceState.current === ws.state) return;
-    previousWorkspaceState.current = ws.state;
-    setManualModeOverride(null);
-  }, [ws.state]);
 
   // FEAT-04: templateId query 参数加载逻辑
   useEffect(() => {
@@ -681,11 +668,11 @@ function WorkspacePageInner() {
       : isHistoryLoading
         ? "loading"
         : "idle";
+  const workspaceTitle = isEvidencePreview ? "Editorial Soft Light" : "Workspace";
 
   const handleHistoryContinueEditing = useCallback(
     (detail: HistoryDetail) => {
       applyHistoryRestore(detail);
-      setManualModeOverride("editing");
       setHistoryDetailOpen(false);
     },
     [applyHistoryRestore],
@@ -705,22 +692,7 @@ function WorkspacePageInner() {
     <div className="h-full overflow-hidden">
       {/* 中央Workspace */}
       <div className="flex h-full min-w-0 flex-col overflow-hidden">
-        <h1 className="sr-only">Workspace</h1>
-
-        {/* Compact StatusBar */}
-        <StatusBar
-          state={effectiveState}
-          error={ws.error}
-          resultImageUrl={ws.resultImageUrl}
-          promptText={effectivePromptText}
-          manualModeOverride={manualModeOverride}
-          workspaceName={isEvidencePreview ? "Editorial Soft Light" : "Workspace"}
-          workspaceSubtitle={
-            isEvidencePreview ? "AI evidence workbench preview" : undefined
-          }
-          onModeChange={handleModeChange}
-          onReplace={handleReplace}
-        />
+        <WorkspaceTopBar title={workspaceTitle} subtitle="Updated just now" />
 
         <AiCopilotRibbon
           state={effectiveState}
@@ -780,7 +752,6 @@ function WorkspacePageInner() {
                 onTemplateVariablesChange={setCurrentTemplateVariables}
                 onNegativePromptChange={ws.setNegativePromptText}
                 onSaveTemplate={handleOpenTemplateSave}
-                onBackToEdit={() => setManualModeOverride("editing")}
                 renderDock={
                   <OutputCard
                     state={effectiveState}
@@ -796,7 +767,6 @@ function WorkspacePageInner() {
                     onSaveStyleMemory={() =>
                       handleOpenTemplateSave(activePromptText || effectivePromptText)
                     }
-                    onBackToEdit={() => setManualModeOverride("editing")}
                   />
                 }
               />

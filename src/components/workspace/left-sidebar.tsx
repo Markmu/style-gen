@@ -2,51 +2,60 @@
 
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { trackAuthEvent } from "@/components/auth/auth-tracking";
-
-const SIDEBAR_COLLAPSED_STORAGE_KEY = "style-gen:workspace-sidebar-collapsed";
 
 const navItems = [
   {
     label: "Generate",
+    ariaLabel: "Generate",
     href: "/workspace",
     tone: "generate",
-    icon: (
-      <span className="material-symbols-outlined workspace-sidebar-nav-icon text-lg" aria-hidden="true">
-        auto_awesome
-      </span>
-    ),
+    icon: "auto_awesome",
     match: (pathname: string) => pathname === "/workspace",
   },
   {
-    label: "Style Memory",
+    label: "Library",
+    ariaLabel: "Style Memory Library",
     href: "/workspace/templates",
     tone: "library",
-    icon: (
-      <span className="material-symbols-outlined workspace-sidebar-nav-icon text-lg" aria-hidden="true">
-        library_books
-      </span>
-    ),
-    match: (pathname: string) =>
-      pathname.startsWith("/workspace/templates"),
+    icon: "stacks",
+    match: (pathname: string) => pathname.startsWith("/workspace/templates"),
   },
 ] as const;
+
+const recentWorkspaces = [
+  { label: "Editorial Soft Light", active: true },
+  { label: "Warm Minimal", active: false },
+  { label: "Film Street Mood", active: false },
+  { label: "Product Clean", active: false },
+] as const;
+
+const creditsPreview = {
+  plan: "Pro Plan",
+  used: 3240,
+  limit: 10000,
+};
+
+function formatCredits(value: number) {
+  return new Intl.NumberFormat("en-US").format(value);
+}
 
 export function LeftSidebar() {
   const { data: session, status } = useSession();
   const pathname = usePathname();
-  const router = useRouter();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
-  const hasMountedCollapsePreference = useRef(false);
   const userName = session?.user.name ?? "";
   const userEmail = session?.user.email ?? "";
   const avatarUrl = session?.user.avatarUrl ?? session?.user.image;
   const initials =
     userName.charAt(0).toUpperCase() || userEmail.charAt(0).toUpperCase() || "U";
+  const creditsPercent = Math.min(
+    100,
+    Math.round((creditsPreview.used / creditsPreview.limit) * 100),
+  );
 
   const handleClickOutside = useCallback((event: MouseEvent) => {
     if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
@@ -63,33 +72,6 @@ export function LeftSidebar() {
     };
   }, [isUserMenuOpen, handleClickOutside]);
 
-  useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY);
-      if (stored !== null) {
-        setIsCollapsed(stored === "true");
-      }
-    } catch {
-      // Ignore storage failures; the sidebar remains fully usable.
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!hasMountedCollapsePreference.current) {
-      hasMountedCollapsePreference.current = true;
-      return;
-    }
-
-    try {
-      window.localStorage.setItem(
-        SIDEBAR_COLLAPSED_STORAGE_KEY,
-        String(isCollapsed),
-      );
-    } catch {
-      // Ignore storage failures; this preference is non-critical.
-    }
-  }, [isCollapsed]);
-
   async function handleSignOut() {
     trackAuthEvent("logout");
     try {
@@ -102,140 +84,138 @@ export function LeftSidebar() {
   return (
     <aside
       aria-label="Workspace navigation"
-      data-collapsed={isCollapsed}
-      className={`workspace-sidebar surface-panel flex h-full flex-shrink-0 flex-col transition-[width] duration-200 ease-out ${
-        isCollapsed ? "w-[4.25rem]" : "w-48"
-      }`}
+      className="workspace-sidebar surface-panel flex h-full w-[14.125rem] flex-shrink-0 flex-col px-3 pb-3 pt-4"
     >
-      {/* Brand */}
-      <div
-        className={
-          isCollapsed
-            ? "flex flex-col items-center gap-2 px-2 py-4"
-            : "flex items-center justify-between gap-2 px-3.5 py-4"
-        }
-      >
+      <div className="flex items-center justify-between px-2">
         <Link
           href="/"
-          className={`flex min-w-0 items-center gap-2.5 transition-opacity hover:opacity-80 ${
-            isCollapsed ? "justify-center" : ""
-          }`}
+          className="flex min-w-0 items-center gap-2.5 transition-opacity hover:opacity-80"
+          aria-label="Visoryn home"
         >
           <span
-            className="workspace-sidebar-brand-mark material-symbols-outlined text-2xl"
+            className="workspace-sidebar-brand-mark material-symbols-outlined text-[26px]"
             aria-hidden="true"
           >
-            palette
+            auto_awesome
           </span>
-          {!isCollapsed && (
-            <span className="truncate text-base font-bold text-[var(--text-primary)]">
-              Visoryn
-            </span>
-          )}
+          <span className="truncate text-lg font-bold text-[var(--text-primary)]">
+            Visoryn
+          </span>
         </Link>
         <button
           type="button"
-          onClick={() => {
-            setIsCollapsed((collapsed) => !collapsed);
-            setIsUserMenuOpen(false);
-          }}
-          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="workspace-sidebar-collapse interactive-lift flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          aria-label="Sidebar options"
+          className="workspace-sidebar-icon-button"
         >
-          <span className="material-symbols-outlined text-lg" aria-hidden="true">
-            {isCollapsed ? "chevron_right" : "chevron_left"}
+          <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
+            more_horiz
           </span>
         </button>
       </div>
 
-      {/* Navigation */}
-      <nav
-        className={`flex-1 space-y-1 ${isCollapsed ? "px-2" : "px-2.5"}`}
-        aria-label="Workspace primary navigation"
-      >
+      <nav className="mt-10 space-y-2" aria-label="Workspace primary navigation">
         {navItems.map((item) => {
           const active = item.match(pathname);
           return (
-            <button
+            <Link
               key={item.href}
-              type="button"
-              onClick={() => router.push(item.href)}
+              href={item.href}
+              aria-label={item.ariaLabel}
               aria-current={active ? "page" : undefined}
-              aria-label={item.label}
-              title={isCollapsed ? item.label : undefined}
               data-tone={item.tone}
               data-active={active}
-              className={`workspace-sidebar-nav-item interactive-lift flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium ${
-                isCollapsed ? "justify-center px-0" : ""
-              } ${
-                active
-                  ? "is-active"
-                  : "text-[var(--text-secondary)] hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)]"
+              className={`workspace-sidebar-nav-item flex w-full items-center gap-3 rounded-lg px-3.5 py-3 text-sm font-semibold ${
+                active ? "is-active" : "text-[var(--text-secondary)]"
               }`}
             >
-              {item.icon}
-              {!isCollapsed && (
-                <span aria-hidden="true" className="min-w-0 truncate leading-tight">
-                  {item.label}
-                </span>
-              )}
-            </button>
+              <span
+                className="material-symbols-outlined workspace-sidebar-nav-icon text-[21px]"
+                aria-hidden="true"
+              >
+                {item.icon}
+              </span>
+              <span className="min-w-0 truncate leading-tight">{item.label}</span>
+            </Link>
           );
         })}
       </nav>
 
-      {/* Signed-in user */}
-      <div className="workspace-sidebar-account relative px-2.5 pt-3 pb-4">
-        {status === "loading" ? (
+      <section
+        className="workspace-sidebar-recents mt-9"
+        aria-labelledby="recent-workspaces-heading"
+      >
+        <h2
+          id="recent-workspaces-heading"
+          className="px-2 text-[11px] font-bold uppercase text-[var(--text-muted)]"
+        >
+          Recent Workspaces
+        </h2>
+        <div className="mt-3 space-y-1.5">
+          {recentWorkspaces.map((workspace) => (
+            <button
+              key={workspace.label}
+              type="button"
+              data-active={workspace.active}
+              aria-current={workspace.active ? "page" : undefined}
+              className="workspace-sidebar-recent-row flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm"
+            >
+              <span className="workspace-sidebar-recent-dot" aria-hidden="true" />
+              <span className="min-w-0 truncate">{workspace.label}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <div className="mt-auto space-y-2">
+        <section className="workspace-sidebar-plan rounded-lg px-3 py-3">
+          <p className="text-sm font-semibold text-[var(--text-primary)]">
+            {creditsPreview.plan}
+          </p>
+          <p className="mt-1 text-xs text-[var(--text-secondary)]">
+            {formatCredits(creditsPreview.used)} / {formatCredits(creditsPreview.limit)} credits
+          </p>
           <div
-            className={`flex items-center gap-3 rounded-lg px-3 py-2 ${
-              isCollapsed ? "justify-center px-0" : ""
-            }`}
+            className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--surface-low)]"
+            aria-hidden="true"
           >
-            <div className="h-9 w-9 rounded-full bg-[var(--surface-bright)]" />
-            {!isCollapsed && (
+            <div
+              className="h-full rounded-full bg-[var(--accent-primary)]"
+              style={{ width: `${creditsPercent}%` }}
+            />
+          </div>
+        </section>
+
+        <div ref={userMenuRef} className="relative">
+          {isUserMenuOpen && (
+            <div className="workspace-sidebar-menu absolute right-0 bottom-full left-0 z-20 mb-2 rounded-lg py-2">
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="workspace-sidebar-menu-item flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+              >
+                <span className="material-symbols-outlined text-base" aria-hidden="true">
+                  logout
+                </span>
+                Log out
+              </button>
+            </div>
+          )}
+
+          {status === "loading" ? (
+            <div className="workspace-sidebar-user flex items-center gap-3 rounded-lg px-3 py-2.5">
+              <div className="h-9 w-9 rounded-full bg-[var(--surface-bright)]" />
               <div className="min-w-0 flex-1 space-y-2">
                 <div className="h-3 w-24 rounded-full bg-[var(--surface-bright)]" />
                 <div className="h-2.5 w-32 rounded-full bg-[var(--surface-bright)]" />
               </div>
-            )}
-          </div>
-        ) : (
-          <div ref={userMenuRef} className="relative">
-            {isUserMenuOpen && (
-              <div
-                className={`workspace-sidebar-menu absolute z-20 rounded-lg py-2 ${
-                  isCollapsed
-                    ? "bottom-0 left-full ml-2 w-44"
-                    : "right-0 bottom-full left-0 mb-2"
-                }`}
-              >
-                <button
-                  type="button"
-                  onClick={handleSignOut}
-                  className="workspace-sidebar-menu-item flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-                >
-                  <span className="material-symbols-outlined text-base" aria-hidden="true">
-                    logout
-                  </span>
-                  Log out
-                </button>
-              </div>
-            )}
+            </div>
+          ) : (
             <button
               type="button"
               onClick={() => setIsUserMenuOpen((open) => !open)}
-              aria-label={
-                isCollapsed
-                  ? `User menu：${userName || userEmail || "Workspace user"}`
-                  : "User menu"
-              }
+              aria-label="User menu"
               aria-expanded={isUserMenuOpen}
-              title={isCollapsed ? userName || userEmail || "User menu" : undefined}
-              className={`workspace-sidebar-user interactive-lift flex w-full min-w-0 items-center gap-3 rounded-lg px-3 py-2 text-left ${
-                isCollapsed ? "justify-center gap-0 px-0" : ""
-              }`}
+              className="workspace-sidebar-user flex w-full min-w-0 items-center gap-3 rounded-lg px-3 py-2.5 text-left"
             >
               <span className="workspace-sidebar-avatar flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-full">
                 {avatarUrl ? (
@@ -251,24 +231,35 @@ export function LeftSidebar() {
                   </span>
                 )}
               </span>
-              {!isCollapsed && (
-                <>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-[var(--text-primary)]">
-                      {userName || "Signed in"}
-                    </span>
-                    <span className="block truncate text-xs text-[var(--text-secondary)]">
-                      {userEmail || "Workspace user"}
-                    </span>
-                  </span>
-                  <span className="material-symbols-outlined text-base text-[var(--text-muted)]" aria-hidden="true">
-                    expand_less
-                  </span>
-                </>
-              )}
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold text-[var(--text-primary)]">
+                  {userName || "Signed in"}
+                </span>
+                <span className="block truncate text-xs text-[var(--text-secondary)]">
+                  {userEmail || "Workspace user"}
+                </span>
+              </span>
+              <span
+                className="material-symbols-outlined text-base text-[var(--text-muted)]"
+                aria-hidden="true"
+              >
+                expand_less
+              </span>
             </button>
-          </div>
-        )}
+          )}
+        </div>
+
+        <div className="flex justify-end px-2 pt-5">
+          <button
+            type="button"
+            aria-label="Workspace appearance"
+            className="workspace-sidebar-icon-button"
+          >
+            <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
+              light_mode
+            </span>
+          </button>
+        </div>
       </div>
     </aside>
   );

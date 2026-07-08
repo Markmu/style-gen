@@ -499,61 +499,53 @@ h1, h2, h3, h4, h5, h6 {
   background:
     linear-gradient(
       180deg,
-      color-mix(in oklch, var(--surface-panel) 92%, var(--accent-primary-soft) 8%),
-      color-mix(in oklch, var(--surface-low) 82%, var(--surface-panel) 18%)
+      color-mix(in oklch, var(--surface-panel) 90%, var(--surface-bright) 10%),
+      color-mix(in oklch, var(--surface-low) 88%, var(--surface-panel) 12%)
     );
-  border-color: var(--border-static);
+  border-color: transparent;
   box-shadow:
-    inset -1px 0 0 var(--border-static),
-    inset 0 1px 0 oklch(99.8% 0.004 245 / 0.64);
-  backdrop-filter: blur(30px) saturate(140%);
-  -webkit-backdrop-filter: blur(30px) saturate(140%);
+    inset -1px 0 0 color-mix(in oklch, var(--border-static) 78%, transparent),
+    inset 1px 0 0 oklch(99.8% 0.004 245 / 0.72);
+  backdrop-filter: blur(32px) saturate(142%);
+  -webkit-backdrop-filter: blur(32px) saturate(142%);
 }
 
 .workspace-sidebar-brand-mark {
   display: inline-flex;
-  width: 2.125rem;
-  height: 2.125rem;
+  width: 2rem;
+  height: 2rem;
   align-items: center;
   justify-content: center;
-  border-radius: var(--glass-radius-control);
-  color: var(--accent-primary);
-  background: color-mix(in oklch, var(--surface-bright) 72%, var(--accent-primary-soft) 28%);
-  box-shadow:
-    inset 0 0 0 1px color-mix(in oklch, var(--accent-primary) 18%, transparent),
-    inset 0 1px 0 oklch(99.5% 0.006 245 / 0.58);
-}
-
-.workspace-sidebar-collapse {
-  background: color-mix(in oklch, var(--surface-control) 90%, var(--accent-primary-soft) 10%);
-}
-
-.workspace-sidebar-collapse:hover {
-  background: color-mix(in oklch, var(--surface-bright) 84%, var(--accent-primary-soft) 16%);
+  color: var(--text-primary);
 }
 
 .workspace-sidebar-nav-item {
   --sidebar-nav-accent: var(--accent-primary);
   --sidebar-nav-soft: var(--accent-primary-soft);
   --sidebar-nav-ink: var(--accent-primary-dim);
-  min-height: 2.375rem;
+  min-height: 2.875rem;
   border: 1px solid transparent;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .workspace-sidebar-nav-item[data-tone="library"] {
-  --sidebar-nav-accent: var(--accent-secondary);
-  --sidebar-nav-soft: var(--accent-secondary-soft);
-  --sidebar-nav-ink: var(--accent-secondary-ink);
+  --sidebar-nav-accent: var(--text-secondary);
+  --sidebar-nav-soft: var(--surface-low);
+  --sidebar-nav-ink: var(--text-secondary);
 }
 
 .workspace-sidebar-nav-icon {
-  color: color-mix(in oklch, var(--sidebar-nav-accent) 58%, var(--text-secondary) 42%);
-  transition: color 0.16s ease, transform 0.16s ease;
+  color: color-mix(in oklch, var(--sidebar-nav-accent) 72%, var(--text-secondary) 28%);
+  transition: color 0.15s ease;
 }
 
 .workspace-sidebar-nav-item:hover {
-  background: color-mix(in oklch, var(--surface-bright) 78%, var(--sidebar-nav-soft) 22%);
-  border-color: color-mix(in oklch, var(--sidebar-nav-accent) 16%, transparent);
+  background: color-mix(in oklch, var(--surface-bright) 82%, var(--sidebar-nav-soft) 18%);
+  border-color: color-mix(in oklch, var(--sidebar-nav-accent) 12%, transparent);
   color: var(--sidebar-nav-ink);
 }
 
@@ -565,51 +557,133 @@ h1, h2, h3, h4, h5, h6 {
   background:
     linear-gradient(
       135deg,
-      color-mix(in oklch, var(--surface-bright) 58%, var(--sidebar-nav-soft) 42%),
-      color-mix(in oklch, var(--surface-control) 74%, var(--sidebar-nav-soft) 26%)
+      color-mix(in oklch, var(--surface-bright) 64%, var(--sidebar-nav-soft) 36%),
+      color-mix(in oklch, var(--surface-control) 78%, var(--sidebar-nav-soft) 22%)
     );
-  border-color: color-mix(in oklch, var(--sidebar-nav-accent) 24%, transparent);
+  border-color: color-mix(in oklch, var(--sidebar-nav-accent) 16%, transparent);
   color: var(--sidebar-nav-ink);
   box-shadow:
-    inset 0 1px 0 oklch(99.5% 0.006 245 / 0.56),
-    0 10px 24px color-mix(in oklch, var(--sidebar-nav-accent) 9%, transparent);
+    inset 0 1px 0 oklch(99.5% 0.006 245 / 0.58),
+    0 10px 24px color-mix(in oklch, var(--sidebar-nav-accent) 7%, transparent);
 }
 
 .workspace-sidebar-nav-item.is-active .workspace-sidebar-nav-icon {
   color: var(--sidebar-nav-accent);
-  transform: translateY(-0.5px);
 }
 
-.workspace-sidebar-account {
+.workspace-sidebar-nav-item:focus-visible,
+.workspace-sidebar-recent-row:focus-visible,
+.workspace-sidebar-user:focus-visible,
+.workspace-sidebar-icon-button:focus-visible,
+.workspace-top-bar-action:focus-visible,
+.workspace-top-bar-icon-button:focus-visible,
+.workspace-copilot-insights:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.workspace-sidebar-recents {
+  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--border-static) 70%, transparent);
+  padding-top: 1.75rem;
+}
+
+.workspace-sidebar-recent-row {
+  color: var(--text-secondary);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.workspace-sidebar-recent-row:hover {
+  background: color-mix(in oklch, var(--surface-bright) 76%, var(--surface-low) 24%);
+  color: var(--text-primary);
+}
+
+.workspace-sidebar-recent-row[data-active="true"] {
   background:
     linear-gradient(
-      180deg,
-      transparent,
-      color-mix(in oklch, var(--surface-low) 88%, var(--surface-panel) 12%)
+      135deg,
+      color-mix(in oklch, var(--surface-bright) 66%, var(--accent-primary-soft) 34%),
+      color-mix(in oklch, var(--surface-control) 84%, var(--accent-primary-soft) 16%)
     );
-  box-shadow: inset 0 1px 0 var(--border-static);
+  color: var(--text-primary);
+  box-shadow: inset 0 1px 0 oklch(99.5% 0.006 245 / 0.5);
+}
+
+.workspace-sidebar-recent-dot {
+  width: 0.625rem;
+  height: 0.625rem;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  background: color-mix(in oklch, var(--text-muted) 32%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--text-muted) 28%, transparent);
+}
+
+.workspace-sidebar-recent-row[data-active="true"] .workspace-sidebar-recent-dot {
+  background: color-mix(in oklch, var(--accent-primary) 50%, var(--accent-primary-soft) 50%);
+  box-shadow: none;
+}
+
+.workspace-sidebar-plan {
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in oklch, var(--surface-bright) 78%, transparent),
+      color-mix(in oklch, var(--surface-control) 88%, var(--surface-low) 12%)
+    );
+  border: 1px solid color-mix(in oklch, var(--border-static) 76%, transparent);
+  box-shadow: inset 0 1px 0 oklch(99.5% 0.006 245 / 0.5);
 }
 
 .workspace-sidebar-user {
-  border: 1px solid transparent;
-  background: color-mix(in oklch, var(--surface-control) 92%, var(--surface-bright) 8%);
+  border: 1px solid color-mix(in oklch, var(--border-static) 68%, transparent);
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in oklch, var(--surface-bright) 78%, transparent),
+      color-mix(in oklch, var(--surface-control) 88%, var(--surface-low) 12%)
+    );
+  box-shadow: inset 0 1px 0 oklch(99.5% 0.006 245 / 0.5);
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .workspace-sidebar-user:hover {
-  background: color-mix(in oklch, var(--surface-bright) 88%, var(--accent-primary-soft) 12%);
-  border-color: color-mix(in oklch, var(--accent-primary) 14%, transparent);
+  border-color: color-mix(in oklch, var(--accent-primary) 16%, var(--border-static) 84%);
 }
 
 .workspace-sidebar-avatar {
-  border: 1px solid color-mix(in oklch, var(--accent-primary) 16%, var(--border) 84%);
-  background: color-mix(in oklch, var(--surface-bright) 84%, var(--accent-primary-soft) 16%);
+  border: 1px solid color-mix(in oklch, var(--accent-primary) 14%, var(--border) 86%);
+  background: color-mix(in oklch, var(--surface-bright) 86%, var(--accent-primary-soft) 14%);
   box-shadow: inset 0 1px 0 oklch(99.8% 0.004 245 / 0.6);
   color: var(--accent-primary);
 }
 
+.workspace-sidebar-icon-button {
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.625rem;
+  color: var(--text-secondary);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.workspace-sidebar-icon-button:hover {
+  background: color-mix(in oklch, var(--surface-bright) 82%, var(--surface-low) 18%);
+  color: var(--text-primary);
+}
+
 .workspace-sidebar-menu {
-  border: 1px solid var(--border);
-  background: color-mix(in oklch, var(--surface-bright) 92%, var(--surface-panel) 8%);
+  border: 1px solid color-mix(in oklch, var(--border-static) 90%, transparent);
+  background: color-mix(in oklch, var(--surface-bright) 90%, var(--surface-panel) 10%);
   box-shadow: var(--shadow-ambient);
   backdrop-filter: blur(26px) saturate(135%);
   -webkit-backdrop-filter: blur(26px) saturate(135%);
@@ -617,6 +691,121 @@ h1, h2, h3, h4, h5, h6 {
 
 .workspace-sidebar-menu-item:hover {
   background: color-mix(in oklch, var(--surface-mid) 88%, var(--accent-primary-soft) 12%);
+}
+
+.workspace-top-bar {
+  background: color-mix(in oklch, var(--surface-page) 92%, var(--surface-bright) 8%);
+}
+
+.workspace-top-bar-action,
+.workspace-top-bar-icon-button,
+.workspace-copilot-insights {
+  border: 1px solid color-mix(in oklch, var(--border-static) 82%, transparent);
+  background: color-mix(in oklch, var(--surface-bright) 80%, transparent);
+  color: var(--text-primary);
+  box-shadow: inset 0 1px 0 oklch(99.5% 0.006 245 / 0.48);
+  backdrop-filter: blur(28px) saturate(136%);
+  -webkit-backdrop-filter: blur(28px) saturate(136%);
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.workspace-top-bar-action:hover,
+.workspace-top-bar-icon-button:hover,
+.workspace-copilot-insights:hover {
+  border-color: color-mix(in oklch, var(--accent-primary) 18%, var(--border-static) 82%);
+  background: color-mix(in oklch, var(--surface-bright) 86%, var(--accent-primary-soft) 14%);
+}
+
+.workspace-top-bar-square {
+  display: inline-flex;
+  width: 2.25rem;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.625rem;
+}
+
+.workspace-top-bar-icon-button {
+  display: inline-flex;
+  width: 1.5rem;
+  height: 1.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  color: var(--text-muted);
+}
+
+.workspace-copilot-ribbon {
+  border: 1px solid color-mix(in oklch, var(--accent-primary) 22%, var(--border-static) 78%);
+  border-radius: 0.875rem;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in oklch, var(--surface-bright) 78%, var(--accent-primary-soft) 22%),
+      color-mix(in oklch, var(--surface-panel) 88%, var(--accent-primary-soft) 12%)
+    );
+  box-shadow:
+    inset 0 1px 0 oklch(99.5% 0.006 245 / 0.6),
+    0 12px 30px color-mix(in oklch, var(--accent-primary) 5%, transparent);
+  backdrop-filter: blur(30px) saturate(145%);
+  -webkit-backdrop-filter: blur(30px) saturate(145%);
+}
+
+.workspace-copilot-ribbon-grid {
+  display: grid;
+  min-height: 4.125rem;
+  grid-template-columns:
+    minmax(190px, 0.95fr)
+    minmax(118px, 0.54fr)
+    minmax(124px, 0.56fr)
+    minmax(150px, 0.68fr)
+    minmax(210px, 1fr)
+    minmax(112px, 0.5fr)
+    auto;
+  align-items: center;
+}
+
+.workspace-copilot-lede,
+.workspace-copilot-segment {
+  min-height: 2.5rem;
+  padding: 0.5rem 1rem;
+}
+
+.workspace-copilot-segment {
+  box-shadow: inset 1px 0 0 color-mix(in oklch, var(--accent-primary) 14%, var(--border-static) 86%);
+}
+
+.workspace-copilot-label {
+  margin-bottom: 0.25rem;
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.workspace-copilot-mark {
+  background: color-mix(in oklch, var(--surface-bright) 60%, var(--accent-primary-soft) 40%);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklch, var(--accent-primary) 16%, transparent),
+    inset 0 1px 0 oklch(99.5% 0.006 245 / 0.58);
+}
+
+.workspace-copilot-insights {
+  margin-right: 0.75rem;
+}
+
+@media (max-width: 1180px) {
+  .workspace-copilot-ribbon-grid {
+    grid-template-columns: minmax(190px, 1fr) minmax(118px, auto) minmax(124px, auto) auto;
+  }
+
+  .workspace-copilot-ribbon-grid .workspace-copilot-segment:nth-of-type(n + 4) {
+    display: none;
+  }
 }
 
 .media-lens {

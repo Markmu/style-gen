@@ -94,93 +94,101 @@ export function AiCopilotRibbon({
   const serviceTone = serviceUnavailable ? "var(--color-warning)" : "var(--color-success)";
   const signalCount = summary.length || (hasReference ? 5 : 0);
   const signalDots = summary.length > 0 ? summary : [];
+  const phase = phaseAttribute(state, degradation);
+  const serviceState = serviceUnavailable ? "limited" : "ready";
 
   return (
-    <section
-      data-testid="ai-copilot-ribbon"
-      data-phase={phaseAttribute(state, degradation)}
-      className="mx-4 mb-2 rounded-2xl border border-[color-mix(in_oklch,var(--accent-primary)_20%,var(--border-static)_80%)] bg-[color-mix(in_oklch,var(--surface-bright)_82%,var(--accent-primary-soft)_18%)] px-4 py-3 shadow-[inset_0_1px_0_oklch(99.5%_0.006_245_/_0.62)] backdrop-blur-2xl"
-      aria-label="AI Copilot"
-      aria-live={
-        degradation.analysisUnavailable || degradation.generationUnavailable
-          ? "assertive"
-          : "polite"
-      }
-    >
-      <div className="grid items-center gap-3 lg:grid-cols-[minmax(180px,0.85fr)_minmax(120px,0.55fr)_minmax(120px,0.55fr)_minmax(150px,0.7fr)_minmax(220px,1fr)_minmax(120px,0.55fr)_auto]">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-primary-soft)] text-[var(--accent-primary)]">
-            <span className="icon text-[20px]" aria-hidden="true">auto_awesome</span>
-          </span>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-[var(--accent-primary)]">
-              AI Copilot
-            </p>
-            <p className="truncate text-xs text-[var(--text-secondary)]">
-              {signalCount > 0
-                ? `${signalCount} style signals detected`
-                : "Waiting for reference evidence"}
+    <div data-testid={phase === "idle" ? undefined : "ai-status-header"} data-phase={phase}>
+      <section
+        data-testid="ai-copilot-ribbon"
+        data-phase={phase}
+        data-service={serviceState}
+        className="workspace-copilot-ribbon mx-4 mb-3"
+        aria-label="AI Copilot"
+        aria-live={
+          degradation.analysisUnavailable || degradation.generationUnavailable
+            ? "assertive"
+            : "polite"
+        }
+      >
+        <div className="workspace-copilot-ribbon-grid">
+          <div className="workspace-copilot-lede flex min-w-0 items-center gap-3">
+            <span className="workspace-copilot-mark flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[var(--accent-primary)]">
+              <span className="icon text-[20px]" aria-hidden="true">auto_awesome</span>
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-base font-bold text-[var(--accent-primary)]">
+                AI Copilot
+              </p>
+              <p className="truncate text-xs text-[var(--text-secondary)]">
+                {signalCount > 0
+                  ? `${signalCount} style signals detected`
+                  : "Waiting for reference evidence"}
+              </p>
+            </div>
+          </div>
+
+          <RibbonMetric label="Phase" value={phaseLabel(state)} icon="edit" />
+          <RibbonMetric
+            label="Confidence"
+            value={confidence > 0 ? `${confidence}%` : "--"}
+            icon="donut_large"
+          />
+
+          <div className="workspace-copilot-segment min-w-0">
+            <p className="workspace-copilot-label">Signals detected</p>
+            <div className="flex items-center gap-1.5">
+              <span className="mr-1 text-sm font-semibold text-[var(--text-primary)]">
+                {signalCount}
+              </span>
+              {signalDots.length > 0
+                ? signalDots.map((item) => (
+                    <span
+                      key={item.dimension}
+                      className="h-2.5 w-2.5 rounded-full ring-2 ring-[var(--surface-bright)]"
+                      style={{ background: item.iconColor }}
+                      title={item.label}
+                    />
+                  ))
+                : Array.from({ length: 5 }).map((_, index) => (
+                    <span
+                      key={index}
+                      className="h-2.5 w-2.5 rounded-full bg-[var(--surface-low)] ring-2 ring-[var(--surface-bright)]"
+                    />
+                  ))}
+            </div>
+          </div>
+
+          <div className="workspace-copilot-segment min-w-0">
+            <p className="workspace-copilot-label">Next</p>
+            <p className="truncate text-sm font-medium text-[var(--text-primary)]">
+              {nextAction({ state, hasReference, hasPrompt, canGenerate, disabledReason })}
             </p>
           </div>
-        </div>
 
-        <RibbonMetric label="Phase" value={phaseLabel(state)} icon="edit_note" />
-        <RibbonMetric
-          label="Confidence"
-          value={confidence > 0 ? `${confidence}%` : "--"}
-          icon="donut_large"
-        />
-
-        <div className="min-w-0">
-          <p className="label-tech mb-1 text-[var(--text-muted)]">Signals</p>
-          <div className="flex items-center gap-1.5">
-            {signalDots.length > 0
-              ? signalDots.map((item) => (
-                  <span
-                    key={item.dimension}
-                    className="h-2.5 w-2.5 rounded-full ring-2 ring-[var(--surface-bright)]"
-                    style={{ background: item.iconColor }}
-                    title={item.label}
-                  />
-                ))
-              : Array.from({ length: 5 }).map((_, index) => (
-                  <span
-                    key={index}
-                    className="h-2.5 w-2.5 rounded-full bg-[var(--surface-low)] ring-2 ring-[var(--surface-bright)]"
-                  />
-                ))}
+          <div className="workspace-copilot-segment min-w-0">
+            <p className="workspace-copilot-label">Services</p>
+            <p className="flex items-center gap-2 text-sm font-medium text-[var(--text-primary)]">
+              <span
+                className="h-2 w-2 rounded-full"
+                style={{ background: serviceTone }}
+                aria-hidden="true"
+              />
+              {serviceLabel}
+            </p>
           </div>
-        </div>
 
-        <div className="min-w-0">
-          <p className="label-tech mb-1 text-[var(--text-muted)]">Next</p>
-          <p className="truncate text-sm font-medium text-[var(--text-primary)]">
-            {nextAction({ state, hasReference, hasPrompt, canGenerate, disabledReason })}
-          </p>
+          <button
+            type="button"
+            className="workspace-copilot-insights inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg px-3 text-xs font-semibold"
+          >
+            <span className="icon text-[16px]" aria-hidden="true">lightbulb</span>
+            Copilot insights
+            <span className="icon text-[16px]" aria-hidden="true">expand_more</span>
+          </button>
         </div>
-
-        <div className="min-w-0">
-          <p className="label-tech mb-1 text-[var(--text-muted)]">Services</p>
-          <p className="flex items-center gap-2 text-sm font-medium text-[var(--text-primary)]">
-            <span
-              className="h-2 w-2 rounded-full"
-              style={{ background: serviceTone }}
-              aria-hidden="true"
-            />
-            {serviceLabel}
-          </p>
-        </div>
-
-        <button
-          type="button"
-          className="btn-secondary inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg px-3 text-xs font-medium"
-        >
-          <span className="icon text-[16px]" aria-hidden="true">lightbulb</span>
-          Copilot insights
-          <span className="icon text-[16px]" aria-hidden="true">expand_more</span>
-        </button>
-      </div>
-    </section>
+      </section>
+    </div>
   );
 }
 
@@ -194,8 +202,8 @@ function RibbonMetric({
   icon: string;
 }) {
   return (
-    <div className="min-w-0">
-      <p className="label-tech mb-1 text-[var(--text-muted)]">{label}</p>
+    <div className="workspace-copilot-segment min-w-0">
+      <p className="workspace-copilot-label">{label}</p>
       <p className="flex items-center gap-2 truncate text-sm font-medium text-[var(--text-primary)]">
         <span className="icon text-[16px] text-[var(--accent-primary)]" aria-hidden="true">
           {icon}

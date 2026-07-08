@@ -1,24 +1,16 @@
 // @vitest-environment jsdom
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { signOut } from "next-auth/react";
 import { LeftSidebar } from "@/components/workspace/left-sidebar";
+import { trackAuthEvent } from "@/components/auth/auth-tracking";
 
 const navigationMocks = vi.hoisted(() => ({
-  push: vi.fn(),
   pathname: "/workspace",
 }));
 
-let storage: Record<string, string> = {};
-const localStorageMock = {
-  getItem: vi.fn((key: string) => storage[key] ?? null),
-  setItem: vi.fn((key: string, value: string) => {
-    storage[key] = value;
-  }),
-};
-
 vi.mock("next/navigation", () => ({
   usePathname: () => navigationMocks.pathname,
-  useRouter: () => ({ push: navigationMocks.push }),
 }));
 
 vi.mock("next-auth/react", () => ({
@@ -40,55 +32,61 @@ vi.mock("@/components/auth/auth-tracking", () => ({
 
 describe("LeftSidebar", () => {
   beforeEach(() => {
-    storage = {};
     navigationMocks.pathname = "/workspace";
-    navigationMocks.push.mockClear();
-    localStorageMock.getItem.mockClear();
-    localStorageMock.setItem.mockClear();
-    Object.defineProperty(window, "localStorage", {
-      configurable: true,
-      value: localStorageMock,
-    });
+    vi.clearAllMocks();
   });
 
-  it("collapses and expands the navigation labels", async () => {
-    const user = userEvent.setup();
-
+  it("renders the fixed workbench navigation and preview shell data", () => {
     render(<LeftSidebar />);
 
     const sidebar = screen.getByLabelText("Workspace navigation");
-    expect(sidebar).toHaveAttribute("data-collapsed", "false");
-    expect(screen.getByText("Generate")).toBeInTheDocument();
-    expect(screen.getByText("Style Memory")).toBeInTheDocument();
+    expect(sidebar).toHaveClass("w-[14.125rem]");
+    expect(screen.queryByRole("button", { name: /collapse sidebar/i })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Collapse sidebar" }));
+    const generate = screen.getByRole("link", { name: "Generate" });
+    expect(generate).toHaveAttribute("href", "/workspace");
+    expect(generate).toHaveAttribute("aria-current", "page");
 
-    expect(sidebar).toHaveAttribute("data-collapsed", "true");
-    expect(screen.queryByText("Generate")).not.toBeInTheDocument();
-    expect(screen.queryByText("Style Memory")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Generate" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Style Memory" })).toBeInTheDocument();
-    await waitFor(() =>
-      expect(window.localStorage.getItem("style-gen:workspace-sidebar-collapsed")).toBe("true"),
+    const library = screen.getByRole("link", { name: "Style Memory Library" });
+    expect(library).toHaveTextContent("Library");
+    expect(library).toHaveAttribute("href", "/workspace/templates");
+
+    expect(screen.getByText("Recent Workspaces")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Editorial Soft Light" })).toHaveAttribute(
+      "aria-current",
+      "page",
     );
+    expect(screen.getByText("Warm Minimal")).toBeInTheDocument();
+    expect(screen.getByText("Film Street Mood")).toBeInTheDocument();
+    expect(screen.getByText("Product Clean")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Expand sidebar" }));
-
-    expect(sidebar).toHaveAttribute("data-collapsed", "false");
-    expect(screen.getByText("Generate")).toBeInTheDocument();
+    expect(screen.getByText("Pro Plan")).toBeInTheDocument();
+    expect(screen.getByText("3,240 / 10,000 credits")).toBeInTheDocument();
   });
 
-  it("marks Style Memory active on the template route without changing the route", async () => {
-    const user = userEvent.setup();
+  it("marks Library active on the template route", () => {
     navigationMocks.pathname = "/workspace/templates";
 
     render(<LeftSidebar />);
 
-    const styleMemory = screen.getByRole("button", { name: "Style Memory" });
-    expect(styleMemory).toHaveAttribute("aria-current", "page");
-    expect(styleMemory).toHaveAttribute("data-active", "true");
+    expect(screen.getByRole("link", { name: "Style Memory Library" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("link", { name: "Generate" })).not.toHaveAttribute(
+      "aria-current",
+    );
+  });
 
-    await user.click(styleMemory);
-    expect(navigationMocks.push).toHaveBeenCalledWith("/workspace/templates");
+  it("opens the user menu and signs out", async () => {
+    const user = userEvent.setup();
+
+    render(<LeftSidebar />);
+
+    await user.click(screen.getByRole("button", { name: "User menu" }));
+    await user.click(screen.getByRole("button", { name: "Log out" }));
+
+    expect(trackAuthEvent).toHaveBeenCalledWith("logout");
+    expect(signOut).toHaveBeenCalledWith({ callbackUrl: "/" });
   });
 });
