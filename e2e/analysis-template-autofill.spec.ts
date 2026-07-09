@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import { mockGenerationPolling } from './helpers/mock-api'
 import { uploadAndCompleteAnalysis } from './helpers/workspace-actions'
 
@@ -61,14 +61,52 @@ const emptyVariableReadyResponse = {
   analysisTemplateReason: null,
 }
 
+function renderGenerateButton(page: Page) {
+  return page.getByTestId('output-card').first().getByRole('button', { name: /^Generate$/i })
+}
+
 test.describe('analysis template autofill', () => {
-  test('defaults to template mode and prefills variables after analysis ready', async ({ page }) => {
+  test('defaults to text mode and keeps variables available in template mode', async ({ page }) => {
     await uploadAndCompleteAnalysis(page, {
       analysisTaskId: 'analysis-template-ready-task',
       analysisResponse: readyTemplateResponse,
     })
 
     await expect(page.getByTestId('unified-prompt-editor')).toBeVisible()
+    await expect(page.getByLabel('Full Generation Prompt')).toHaveValue(
+      readyTemplateResponse.promptText,
+    )
+    await expect(page.getByTestId('text-mode-highlight-editor')).toBeVisible()
+    await expect(page.getByTestId('prompt-variable-token-subject')).toContainText('glass fox')
+    const metrics = await page.getByTestId('text-mode-highlight-editor').evaluate((editor) => {
+      const layer = editor.querySelector('.prompt-highlight-layer')
+      const textarea = editor.querySelector('textarea')
+      const token = editor.querySelector('[data-testid="prompt-variable-token-subject"]')
+      if (!layer || !textarea || !token) return null
+
+      const layerStyle = window.getComputedStyle(layer)
+      const textareaStyle = window.getComputedStyle(textarea)
+      const tokenStyle = window.getComputedStyle(token)
+
+      return {
+        layerFontSize: layerStyle.fontSize,
+        textareaFontSize: textareaStyle.fontSize,
+        layerLineHeight: layerStyle.lineHeight,
+        textareaLineHeight: textareaStyle.lineHeight,
+        tokenBorderLeftWidth: tokenStyle.borderLeftWidth,
+        tokenMarginLeft: tokenStyle.marginLeft,
+        tokenPaddingLeft: tokenStyle.paddingLeft,
+      }
+    })
+    expect(metrics).not.toBeNull()
+    expect(metrics?.layerFontSize).toBe(metrics?.textareaFontSize)
+    expect(metrics?.layerLineHeight).toBe(metrics?.textareaLineHeight)
+    expect(metrics?.tokenBorderLeftWidth).toBe('0px')
+    expect(metrics?.tokenMarginLeft).toBe('0px')
+    expect(metrics?.tokenPaddingLeft).toBe('0px')
+    await expect(page.getByLabel('Template Source')).toHaveCount(0)
+
+    await page.getByRole('button', { name: 'Template Mode' }).click()
     await expect(page.getByLabel('Template Source')).toHaveValue(/{{subject}}/)
     await expect(page.getByLabel('Variable subject')).toHaveValue('glass fox')
     await expect(page.getByLabel('Variable scene')).toHaveValue('neon rain garden')
@@ -103,12 +141,12 @@ test.describe('analysis template autofill', () => {
       analysisResponse: readyTemplateResponse,
     })
 
-    await page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' }).click()
+    await renderGenerateButton(page).click()
 
     expect(requestBody.promptText).toContain('glass fox')
     expect(requestBody.promptText).toContain('neon rain garden')
     expect(requestBody.promptText).not.toContain('{{')
-    expect(requestBody.negativePromptText).toBe('')
+    expect(requestBody.negativePromptText).toBe('low quality, blurry')
   })
 
   test('uses edited variables for generation', async ({ page }) => {
@@ -138,8 +176,9 @@ test.describe('analysis template autofill', () => {
       analysisResponse: readyTemplateResponse,
     })
 
+    await page.getByRole('button', { name: 'Template Mode' }).click()
     await page.getByLabel('Variable subject').fill('crystal heron')
-    await page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' }).click()
+    await renderGenerateButton(page).click()
 
     expect(requestBody.promptText).toContain('crystal heron')
     expect(requestBody.promptText).not.toContain('glass fox')
@@ -177,7 +216,7 @@ test.describe('analysis template autofill', () => {
     await page.getByRole('button', { name: 'Template Mode' }).click()
     await page.getByLabel('Variable subject').fill('changed subject')
     await page.getByRole('button', { name: 'Text Mode' }).click()
-    await page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' }).click()
+    await renderGenerateButton(page).click()
 
     expect(requestBody.promptText).toBe('Manual protected prompt')
   })
@@ -193,7 +232,7 @@ test.describe('analysis template autofill', () => {
     )
     await expect(page.getByText('No stable replaceable variables were detected this time.')).toBeVisible()
     await expect(page.getByLabel(/Variable subject/)).toHaveCount(0)
-    await expect(page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' })).toBeEnabled()
+    await expect(renderGenerateButton(page)).toBeEnabled()
   })
 
   test('treats ready templates with no variables as text fallback', async ({ page }) => {

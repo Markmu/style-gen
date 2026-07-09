@@ -43,4 +43,24 @@ test.describe('workspace 09 unified editor', () => {
     await page.getByRole('button', { name: 'Text Mode' }).click()
     await expect(page.getByLabel('Full Generation Prompt')).toHaveValue('Manual prompt draft')
   })
+
+  test('renames template variables from the source without clearing values', async ({ page }) => {
+    await uploadAndCompleteAnalysis(page, { analysisTaskId: 'unified-editor-rename-variable-task' })
+
+    await page.getByRole('button', { name: 'Template Mode' }).click()
+    await page.getByLabel('Template Source').fill('Create a {{subject}} in {{lighting}}.')
+    await page.getByLabel('Variable subject').fill('glass sculpture')
+    await page.getByLabel('Variable lighting').fill('soft morning light')
+
+    await page.getByLabel('Template Source').fill('Create a {{hero_subject}} in {{lighting}}.')
+
+    await expect(page.getByLabel('Variable subject')).toHaveCount(0)
+    await expect(page.getByLabel('Variable hero_subject')).toHaveValue('glass sculpture')
+    await expect(page.getByLabel('Variable lighting')).toHaveValue('soft morning light')
+
+    await page.getByRole('button', { name: 'Text Mode' }).click()
+    await expect(page.getByLabel('Full Generation Prompt')).toHaveValue(
+      'Create a glass sculpture in soft morning light.',
+    )
+  })
 })

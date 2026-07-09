@@ -3,8 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { WorkspaceError, WorkspaceState } from "@/hooks/use-workspace-state";
 import { UnifiedPromptEditor } from "@/components/workspace/unified-prompt-editor";
-import type { EvidenceFacetId } from "@/lib/evidence-facets";
-import type { PromptProvenanceSpan } from "@/lib/prompt-provenance";
 import type { AnalysisTemplateStatus, TemplateVariable } from "@/types/models";
 
 const NEGATIVE_PROMPT_VARIABLE_NAME = "negative_prompt";
@@ -18,8 +16,6 @@ interface PromptCardProps {
   templateStatus?: AnalysisTemplateStatus | null;
   templateReason?: string | null;
   templateKey?: string | null;
-  provenanceSpans?: PromptProvenanceSpan[];
-  selectedFacetId?: EvidenceFacetId | null;
   error?: WorkspaceError | null;
   onResolvedPromptChange?: (value: string) => void;
   onTemplateContentChange?: (value: string) => void;
@@ -39,8 +35,6 @@ export function PromptCard({
   templateStatus = null,
   templateReason = null,
   templateKey = null,
-  provenanceSpans = [],
-  selectedFacetId = null,
   error = null,
   onResolvedPromptChange,
   onTemplateContentChange,
@@ -86,13 +80,7 @@ export function PromptCard({
     }),
     [negativePromptText],
   );
-  const selectedProvenanceSpan = useMemo(
-    () =>
-      selectedFacetId
-        ? provenanceSpans.find((span) => span.facetId === selectedFacetId) ?? null
-        : null,
-    [provenanceSpans, selectedFacetId],
-  );
+  const canSaveStyleMemory = prompt && onSaveTemplate && state !== "history_restored";
 
   const handleAuxiliaryVariableChange = useCallback(
     (name: string, value: string) => {
@@ -117,11 +105,11 @@ export function PromptCard({
             </span>
           </h2>
           <p className="mt-1 text-xs text-[var(--text-secondary)]">
-            Prompt provenance and generation controls
+            Prompt and generation controls
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {prompt && onSaveTemplate && (
+          {canSaveStyleMemory && (
             <button
               type="button"
               onClick={() => onSaveTemplate(saveTemplateContent || promptText)}
@@ -133,19 +121,28 @@ export function PromptCard({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div
+        className={
+          renderDock
+            ? "min-h-0 flex-1 overflow-hidden"
+            : "min-h-0 flex-1 overflow-y-auto"
+        }
+      >
         {isLoading ? (
           <PromptSkeleton />
         ) : prompt ? (
-          <div className="flex min-h-full flex-col gap-4">
-            <PromptProvenance
-              spans={provenanceSpans}
-              selectedFacetId={selectedFacetId}
-            />
+          <div
+            className={
+              renderDock
+                ? "flex h-full min-h-0 flex-col gap-3"
+                : "flex min-h-full flex-col gap-4"
+            }
+          >
             <div
+              data-testid="prompt-editor-frame"
               className={
                 renderDock
-                  ? "h-[5.75rem] min-h-0 overflow-hidden"
+                  ? "min-h-[14rem] flex-1 overflow-hidden"
                   : "min-h-[22.5rem]"
               }
             >
@@ -158,7 +155,6 @@ export function PromptCard({
                 templateStatus={templateStatus}
                 templateReason={templateReason}
                 templateKey={templateKey}
-                selectedProvenanceSpan={selectedProvenanceSpan}
                 compact={Boolean(renderDock)}
                 onResolvedPromptChange={onResolvedPromptChange ?? (() => undefined)}
                 onTemplateContentChange={onTemplateContentChange}
@@ -195,71 +191,12 @@ export function PromptCard({
           </div>
         )}
       </div>
-      {renderDock && <div className="mt-4 shrink-0">{renderDock}</div>}
+      {renderDock && (
+        <div data-testid="prompt-render-dock-slot" className="mt-2 shrink-0">
+          {renderDock}
+        </div>
+      )}
     </article>
-  );
-}
-
-function PromptProvenance({
-  spans,
-  selectedFacetId,
-}: {
-  spans: PromptProvenanceSpan[];
-  selectedFacetId: EvidenceFacetId | null;
-}) {
-  return (
-    <div className="rounded-xl bg-[var(--surface-low)]/70 p-2">
-      <div className="mb-1 flex items-center gap-2">
-        <p className="text-xs font-semibold text-[var(--text-primary)]">
-          Prompt provenance
-        </p>
-        <span className="icon text-[0.875rem] text-[var(--text-muted)]" aria-hidden="true">
-          info
-        </span>
-      </div>
-      <div className="flex flex-wrap gap-1 text-xs leading-5">
-        {spans.length > 0 ? (
-          spans.map((span) => {
-            const selected = selectedFacetId === span.facetId;
-            const isFacetOnly = span.matchType === "facet_only";
-
-            return (
-              <span
-                key={span.facetId}
-                data-testid={
-                  isFacetOnly
-                    ? `prompt-provenance-facet-only-${span.facetId}`
-                    : `prompt-provenance-span-${span.facetId}`
-                }
-                data-facet={span.facetId}
-                data-selected={selected ? "true" : "false"}
-                data-match-type={span.matchType}
-                title={span.summary}
-                className={`evidence-chip rounded-md px-2 py-0 ring-1 transition ${
-                  selected
-                    ? "bg-[var(--accent-primary)] text-[var(--text-on-primary)] ring-[var(--accent-primary)]"
-                    : isFacetOnly
-                      ? "bg-[var(--surface-bright)] text-[var(--text-secondary)] ring-[var(--border-static)]"
-                      : "bg-[var(--accent-primary-soft)] text-[var(--accent-primary-dim)] ring-[color-mix(in_oklch,var(--accent-primary)_18%,var(--border-static)_82%)]"
-                }`}
-              >
-                {isFacetOnly
-                  ? `${span.label}: related signal / 相关信号`
-                  : span.matchedText}
-              </span>
-            );
-          })
-        ) : (
-          <span className="rounded-md bg-[var(--surface-bright)] px-2 py-0 text-[var(--text-secondary)]">
-            Related signal chips will appear after analysis.
-          </span>
-        )}
-      </div>
-      <p className="sr-only">
-        These chips explain related signals only; they are not added to the system prompt or
-        user prompt.
-      </p>
-    </div>
   );
 }
 

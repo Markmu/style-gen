@@ -21,7 +21,6 @@ interface HistoryDetailDialogProps {
   detail: HistoryDetail | null;
   onRestore: (id: string) => void;
   onContinueEditing?: (detail: HistoryDetail) => void;
-  onSaveStyleMemory?: (detail: HistoryDetail) => void;
   onClose: () => void;
   restoreError?: string | null;
 }
@@ -31,7 +30,6 @@ export function HistoryDetailDialog({
   detail,
   onRestore,
   onContinueEditing,
-  onSaveStyleMemory,
   onClose,
   restoreError,
 }: HistoryDetailDialogProps) {
@@ -132,13 +130,6 @@ export function HistoryDetailDialog({
               className="btn-secondary rounded-lg px-4 py-2 text-sm"
             >
               Close
-            </button>
-            <button
-              type="button"
-              onClick={() => onSaveStyleMemory?.(detail)}
-              className="btn-secondary rounded-lg px-4 py-2 text-sm"
-            >
-              Save as Style Memory
             </button>
             <button
               type="button"

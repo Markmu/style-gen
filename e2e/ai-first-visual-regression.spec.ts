@@ -420,7 +420,7 @@ test.describe('plan-08 targeted visual QA and legacy gate', () => {
     }
   })
 
-  test('TC-8.3 generation failed keeps recovery actions visible without covering Prompt', async ({ page }) => {
+  test('TC-8.3 generation failed keeps compact Render Dock from covering Prompt', async ({ page }) => {
     const generationTaskId = 'visual-qa-generation-failed'
     await page.setViewportSize({ width: 1440, height: 900 })
     await mockGenerationCreate(page, generationTaskId)
@@ -448,12 +448,10 @@ test.describe('plan-08 targeted visual QA and legacy gate', () => {
     await dialog.getByRole('button', { name: /close dialog/i }).click()
     await expect(dialog).toHaveCount(0)
 
-    const recoveryActions = renderDock(page).getByTestId('render-recovery-actions')
-    await expect(recoveryActions).toBeVisible()
-    await expect(recoveryActions.getByRole('button', { name: /retry/i })).toBeVisible()
-    await expect(recoveryActions.getByRole('button', { name: /back to edit|keep editing/i })).toBeVisible()
+    await expect(renderDock(page).getByTestId('render-recovery-actions')).toHaveCount(0)
+    await expect(renderDock(page).locator('[data-testid^="render-readiness-item-"]')).toHaveCount(0)
     await expect(promptEditor(page)).toBeVisible()
-    await expectButtonsDoNotOverflow(appShell(page))
+    await expectButtonsDoNotOverflow(renderDock(page))
   })
 
   test('TC-8.4 populated Style Memory cards expose final QA selector and avoid legacy file-list copy', async ({

@@ -126,7 +126,7 @@ test.describe('plan-03 Workspace Reference / Evidence / Prompt AI-first contract
     }
   })
 
-  test('TC-3.3 selected facet highlights reference anchor and prompt provenance span', async ({ page }) => {
+  test('TC-3.3 selected facet highlights reference anchor without prompt editor provenance', async ({ page }) => {
     const taskId = 'ai-first-evidence-linked-selection'
     await mockCompletedAnalysis(page, taskId)
 
@@ -145,17 +145,10 @@ test.describe('plan-03 Workspace Reference / Evidence / Prompt AI-first contract
       'data-selected',
       'true',
     )
-    await expect(promptCard(page).getByTestId('prompt-provenance-span-lighting')).toHaveAttribute(
-      'data-selected',
-      'true',
-    )
-    await expect(promptCard(page).getByTestId('prompt-provenance-span-lighting')).toHaveAttribute(
-      'data-match-type',
-      /exact|keyword/,
-    )
+    await expect(promptCard(page).getByTestId('prompt-provenance-span-lighting')).toHaveCount(0)
   })
 
-  test('TC-3.4 unmatched prompt text is represented as facet-only related signal', async ({ page }) => {
+  test('TC-3.4 unmatched prompt text does not create an external prompt chip', async ({ page }) => {
     const taskId = 'ai-first-evidence-facet-only'
     const completed = loadFixture('analysis-completed.json') as {
       recipe: Record<string, unknown>
@@ -181,10 +174,8 @@ test.describe('plan-03 Workspace Reference / Evidence / Prompt AI-first contract
     await expect(textureFacet).toBeVisible({ timeout: 5000 })
     await textureFacet.click()
 
-    const facetOnly = promptCard(page).getByTestId('prompt-provenance-facet-only-texture')
-    await expect(facetOnly).toBeVisible()
-    await expect(facetOnly).toHaveAttribute('data-match-type', 'facet_only')
-    await expect(facetOnly).toContainText(/related signal|相关信号/i)
+    await expect(promptCard(page).getByTestId('text-mode-highlight-editor')).toBeVisible()
+    await expect(promptCard(page).getByTestId('prompt-provenance-facet-only-texture')).toHaveCount(0)
   })
 
   test('TC-3.5 retryable analysis failure preserves context and recovery actions', async ({ page }) => {

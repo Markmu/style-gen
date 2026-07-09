@@ -42,6 +42,7 @@ describe("LeftSidebar", () => {
     const sidebar = screen.getByLabelText("Workspace navigation");
     expect(sidebar).toHaveClass("w-[14.125rem]");
     expect(screen.queryByRole("button", { name: /collapse sidebar/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Workspace appearance" })).not.toBeInTheDocument();
 
     const generate = screen.getByRole("link", { name: "Generate" });
     expect(generate).toHaveAttribute("href", "/workspace");

@@ -12,7 +12,7 @@ const readyReadiness: RenderReadiness = {
   serviceAvailable: true,
   workspaceIdle: true,
   canGenerate: true,
-  disabledReason: "Ready to render with the current prompt.",
+  disabledReason: "Generate with the current prompt.",
   nextAction: "generate",
 };
 
@@ -20,12 +20,8 @@ const defaultProps = {
   state: "analysis_ready" as const,
   params: { aspectRatio: "1:1" as const, quality: "standard" as const },
   readiness: readyReadiness,
-  error: null,
   onParamsChange: vi.fn(),
   onGenerate: vi.fn(),
-  onRetry: vi.fn(),
-  onSaveStyleMemory: vi.fn(),
-  onBackToEdit: vi.fn(),
 };
 
 describe("OutputCard", () => {
@@ -44,13 +40,16 @@ describe("OutputCard", () => {
       "data-readiness-can-generate",
       "true",
     );
-    expect(screen.getByRole("heading", { name: "Render Dock" })).toBeInTheDocument();
-    expect(screen.getByTestId("render-readiness-list")).toBeInTheDocument();
-    expect(screen.getAllByTestId(/^render-readiness-item-/)).toHaveLength(5);
-    expect(screen.getByTestId("render-readiness-item-prompt")).toHaveAttribute(
-      "data-state",
-      "ready",
-    );
+    expect(screen.getByLabelText("Aspect Ratio")).toBeInTheDocument();
+    expect(screen.getByLabelText("Quality")).toBeInTheDocument();
+    expect(screen.getByTestId("render-parameter-controls")).toBeInTheDocument();
+    expect(screen.queryByTestId("render-status-summary")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("render-status-detail")).not.toBeInTheDocument();
+    expect(screen.queryByText("Render ready")).not.toBeInTheDocument();
+    expect(screen.queryByText("Prompt checks")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Render Dock" })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("render-readiness-list")).not.toBeInTheDocument();
+    expect(screen.queryAllByTestId(/^render-readiness-item-/)).toHaveLength(0);
 
     await user.click(screen.getByRole("button", { name: "Generate" }));
 
@@ -100,16 +99,16 @@ describe("OutputCard", () => {
 
     const button = screen.getByRole("button", { name: "Generate" });
     expect(button).toBeDisabled();
-    expect(screen.getByTestId("render-readiness-item-variables")).toHaveAttribute(
-      "data-state",
-      "blocked",
-    );
-    expect(screen.getByTestId("render-disabled-reason")).toHaveTextContent(
+    expect(button).toHaveAttribute(
+      "title",
       "Resolve template variables before generating.",
     );
-    expect(screen.getByTestId("render-next-action")).toHaveTextContent(
-      "Resolve variables",
-    );
+    expect(screen.queryByTestId("render-status-summary")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("render-status-detail")).not.toBeInTheDocument();
+    expect(screen.queryByText("Needs attention")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("render-readiness-item-variables")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("render-disabled-reason")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("render-next-action")).not.toBeInTheDocument();
 
     await user.click(button);
     expect(onGenerate).not.toHaveBeenCalled();
@@ -121,29 +120,24 @@ describe("OutputCard", () => {
     expect(screen.getByTestId("output-card")).toHaveClass("min-w-0", "rounded-xl");
   });
 
-  it("keeps style memory and generate actions grouped at the bottom", () => {
+  it("keeps Render Dock scoped to generation controls", () => {
     render(<OutputCard {...defaultProps} />);
 
     expect(screen.getByTestId("output-card-actions")).toHaveClass(
-      "grid-cols-[minmax(0,1fr)_auto]",
+      "grid",
+      "sm:grid-cols-[minmax(0,1fr)_auto]",
     );
-    expect(screen.getByRole("button", { name: "Save as style memory" })).toBeInTheDocument();
-  });
-
-  it("opens the style memory save entry when the dock save action is clicked", async () => {
-    const user = userEvent.setup();
-    const onSaveStyleMemory = vi.fn();
-
-    render(
-      <OutputCard
-        {...defaultProps}
-        onSaveStyleMemory={onSaveStyleMemory}
-      />,
+    expect(screen.getByTestId("render-parameter-controls")).toHaveClass(
+      "grid",
+      "grid-cols-2",
     );
-
-    await user.click(screen.getByRole("button", { name: "Save as style memory" }));
-
-    expect(onSaveStyleMemory).toHaveBeenCalledOnce();
+    expect(screen.queryByTestId("render-status-summary")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Aspect Ratio")).toBeInTheDocument();
+    expect(screen.getByLabelText("Quality")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Generate" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /save as style memory/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps parameters visible but disabled while generating", () => {
@@ -162,13 +156,13 @@ describe("OutputCard", () => {
     expect(screen.getByLabelText("Quality")).toBeVisible();
     expect(screen.getByLabelText("Quality")).toBeDisabled();
     expect(screen.getByRole("button", { name: "Rendering..." })).toBeDisabled();
-    expect(screen.getByTestId("render-readiness-item-workspace-idle")).toHaveAttribute(
-      "data-state",
-      "processing",
-    );
+    expect(screen.queryByTestId("render-status-summary")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("render-status-detail")).not.toBeInTheDocument();
+    expect(screen.queryByText("Parameters are locked while the render runs.")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("render-readiness-item-workspace-idle")).not.toBeInTheDocument();
   });
 
-  it("shows service unavailable recovery while keeping style memory available", () => {
+  it("keeps service unavailable state visually compact", () => {
     const readiness: RenderReadiness = {
       ...readyReadiness,
       serviceAvailable: false,
@@ -181,11 +175,17 @@ describe("OutputCard", () => {
     render(<OutputCard {...defaultProps} readiness={readiness} />);
 
     expect(screen.getByRole("button", { name: "Generate" })).toBeDisabled();
-    expect(screen.getByTestId("render-disabled-reason")).toHaveTextContent(
-      "Generation service is temporarily unavailable.",
+    expect(screen.getByRole("button", { name: "Generate" })).toHaveAttribute(
+      "title",
+      "Generation service is temporarily unavailable. Retry service when ready.",
     );
-    expect(screen.getByTestId("render-recovery-actions")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Retry service" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "Save as style memory" })).toBeEnabled();
+    expect(screen.queryByTestId("render-status-summary")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("render-status-detail")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("render-disabled-reason")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("render-recovery-actions")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Retry service" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /save as style memory/i }),
+    ).not.toBeInTheDocument();
   });
 });

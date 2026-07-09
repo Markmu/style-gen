@@ -148,6 +148,7 @@ test.describe('plan-06 Style Memory template library migration', () => {
 
     await expect(page).toHaveURL(/\/workspace/)
     await expect(page.getByTestId('unified-prompt-editor')).toBeVisible({ timeout: 15000 })
+    await page.getByRole('button', { name: 'Template Mode' }).click()
     await expect(page.getByLabel('Variable subject')).toHaveValue('glass sculpture')
     await expect(page.getByLabel('Variable scene')).toHaveValue('white studio')
     await page.getByRole('button', { name: 'Text Mode' }).click()

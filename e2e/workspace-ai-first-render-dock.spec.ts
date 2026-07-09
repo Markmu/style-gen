@@ -133,28 +133,18 @@ test.describe('plan-04 Render Dock readiness and generation recovery', () => {
     await mockCdnImages(page)
   })
 
-  test('TC-4.1 empty workspace exposes the complete Render Dock readiness contract', async ({ page }) => {
+  test('TC-4.1 empty workspace exposes the compact Render Dock controls', async ({ page }) => {
     await openWorkspace(page)
 
     const dock = renderDock(page)
     await expect(dock).toBeVisible()
     await expect(dock).toHaveAttribute('data-readiness-can-generate', 'false')
-    await expect(dock.getByTestId('render-readiness-list')).toBeVisible()
-    await expect(dock.locator('[data-testid^="render-readiness-item-"]')).toHaveCount(5)
-    await expect(dock.getByTestId('render-readiness-item-prompt')).toHaveAttribute(
-      'data-state',
-      /waiting|blocked/,
-    )
-    await expect(dock.getByTestId('render-readiness-item-variables')).toBeVisible()
-    await expect(dock.getByTestId('render-readiness-item-style-signals')).toBeVisible()
-    await expect(dock.getByTestId('render-readiness-item-service')).toBeVisible()
-    await expect(dock.getByTestId('render-readiness-item-workspace-idle')).toBeVisible()
-    await expect(dock.getByTestId('render-disabled-reason')).toContainText(
-      /upload|analy[sz]e|prompt|reference/i,
-    )
-    await expect(dock.getByTestId('render-next-action')).toContainText(
-      /upload|analy[sz]e|edit prompt/i,
-    )
+    await expect(dock.getByTestId('render-readiness-list')).toHaveCount(0)
+    await expect(dock.locator('[data-testid^="render-readiness-item-"]')).toHaveCount(0)
+    await expect(dock.getByTestId('render-disabled-reason')).toHaveCount(0)
+    await expect(dock.getByTestId('render-next-action')).toHaveCount(0)
+    await expect(dock.getByLabel(/Aspect Ratio/i)).toBeVisible()
+    await expect(dock.getByLabel(/Quality/i)).toBeVisible()
     await expect(dock.getByRole('button', { name: /^Generate$/i })).toBeDisabled()
   })
 
@@ -168,17 +158,14 @@ test.describe('plan-04 Render Dock readiness and generation recovery', () => {
     })
 
     await openWithCompletedAnalysis(page, 'render-dock-unresolved-variables', templateAnalysisResponse)
+    await page.getByRole('button', { name: 'Template Mode' }).click()
     await page.getByLabel('Variable subject').fill('{{subject}}')
 
     const dock = renderDock(page)
-    await expect(dock.getByTestId('render-readiness-item-variables')).toHaveAttribute(
-      'data-state',
-      /blocked|waiting/,
-    )
-    await expect(dock.getByTestId('render-disabled-reason')).toContainText(
-      /resolve|variable|变量/i,
-    )
-    await expect(dock.getByRole('button', { name: /^Generate$/i })).toBeDisabled()
+    await expect(dock.locator('[data-testid^="render-readiness-item-"]')).toHaveCount(0)
+    const generateButton = dock.getByRole('button', { name: /^Generate$/i })
+    await expect(generateButton).toBeDisabled()
+    await expect(generateButton).toHaveAttribute('title', /resolve|variable|变量/i)
     expect(generationPostCount).toBe(0)
   })
 
@@ -198,7 +185,9 @@ test.describe('plan-04 Render Dock readiness and generation recovery', () => {
     await openWithCompletedAnalysis(page, 'render-dock-ready-analysis')
 
     const dock = renderDock(page)
-    await expect(dock).toContainText(/ready to render|generate image/i)
+    await expect(dock.getByLabel(/Aspect Ratio/i)).toBeVisible()
+    await expect(dock.getByLabel(/Quality/i)).toBeVisible()
+    await expect(dock.locator('[data-testid^="render-readiness-item-"]')).toHaveCount(0)
     await expect(dock.getByRole('button', { name: /^Generate$/i })).toBeEnabled()
     await dock.getByRole('button', { name: /^Generate$/i }).click()
 
@@ -234,18 +223,20 @@ test.describe('plan-04 Render Dock readiness and generation recovery', () => {
     await expect(dock.getByRole('button', { name: /^Generate$/i })).toBeDisabled({
       timeout: 15000,
     })
-    await expect(dock.getByTestId('render-disabled-reason')).toContainText(
-      /service|unavailable|retry/i,
-    )
+    await expect(dock.getByTestId('render-disabled-reason')).toHaveCount(0)
+    await expect(dock.locator('[data-testid^="render-readiness-item-"]')).toHaveCount(0)
     await expect(promptCard(page).getByLabel('Full Generation Prompt')).toBeEditable()
-    await expect(dock.getByRole('button', { name: /save as style memory/i })).toBeEnabled()
+    await expect(dock.getByRole('button', { name: /save as style memory/i })).toHaveCount(0)
+    await expect(
+      promptCard(page).getByRole('button', { name: /save as style memory/i }),
+    ).toBeEnabled()
 
     const generationDialog = page.getByTestId('generation-dialog')
     await expect(generationDialog).toBeVisible()
     await generationDialog.getByRole('button', { name: /close dialog/i }).click()
     await expect(generationDialog).toBeHidden()
 
-    await dock.getByRole('button', { name: /save as style memory/i }).click()
+    await promptCard(page).getByRole('button', { name: /save as style memory/i }).click()
     const saveDialog = page.getByRole('dialog', { name: 'Save as Template' })
     await expect(saveDialog).toBeVisible()
     await expect(saveDialog.getByLabel('Prompt Content')).toHaveValue(/sunset/i)
@@ -280,7 +271,7 @@ test.describe('plan-04 Render Dock readiness and generation recovery', () => {
     expect(generationPostCount).toBe(1)
   })
 
-  test('TC-4.6 generation failure preserves context and exposes recovery actions', async ({ page }) => {
+  test('TC-4.6 generation failure preserves context while Render Dock stays compact', async ({ page }) => {
     const generationTaskId = 'render-dock-failed-generation'
     await mockGenerationCreateWithCapture(page, generationTaskId)
     await mockGenerationPolling(page, generationTaskId, {
@@ -310,13 +301,8 @@ test.describe('plan-04 Render Dock readiness and generation recovery', () => {
     )
 
     const dock = renderDock(page)
-    await expect(dock.getByTestId('render-recovery-actions')).toBeVisible()
-    await expect(dock.getByTestId('render-recovery-actions').getByRole('button', { name: /retry/i })).toBeVisible()
-    await expect(
-      dock.getByTestId('render-recovery-actions').getByRole('button', {
-        name: /back to edit|keep editing/i,
-      }),
-    ).toBeVisible()
+    await expect(dock.getByTestId('render-recovery-actions')).toHaveCount(0)
+    await expect(dock.locator('[data-testid^="render-readiness-item-"]')).toHaveCount(0)
     await expect(promptCard(page).getByLabel('Full Generation Prompt')).toHaveValue(originalPrompt)
     await expect(dock.getByLabel(/Aspect Ratio/i)).toHaveValue('1:1')
   })

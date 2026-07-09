@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { UnifiedPromptEditor } from "@/components/workspace/unified-prompt-editor";
+import type { PromptProvenanceSpan } from "@/lib/prompt-provenance";
 
 describe("UnifiedPromptEditor", () => {
   it("renders text mode from the initial prompt", () => {
@@ -29,6 +30,8 @@ describe("UnifiedPromptEditor", () => {
       />,
     );
 
+    expect(screen.queryByLabelText("Template Source")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Template Mode" }));
     expect(screen.getByLabelText("Template Source")).toHaveValue(
       "Create {{subject}} in {{lighting}}.",
     );
@@ -49,6 +52,7 @@ describe("UnifiedPromptEditor", () => {
   });
 
   it("prefills template variables from analysis defaults and emits current variables", async () => {
+    const user = userEvent.setup();
     const onTemplateVariablesChange = vi.fn();
 
     render(
@@ -65,12 +69,106 @@ describe("UnifiedPromptEditor", () => {
       />,
     );
 
+    await user.click(screen.getByRole("button", { name: "Template Mode" }));
     expect(screen.getByLabelText("Variable subject")).toHaveValue("glass fox");
     expect(screen.getByLabelText("Variable scene")).toHaveValue("neon garden");
     expect(onTemplateVariablesChange).toHaveBeenLastCalledWith([
       { name: "subject", defaultValue: "glass fox", label: "Subject", sourceField: "subject" },
       { name: "scene", defaultValue: "neon garden", label: "Scene", sourceField: "scene" },
     ]);
+  });
+
+  it("shows resolved prompt provenance and variables inside the editor body", async () => {
+    const user = userEvent.setup();
+    const lightingSpan: PromptProvenanceSpan = {
+      facetId: "lighting",
+      label: "Lighting",
+      summary: "soft daylight",
+      matchedText: "soft daylight",
+      startIndex: null,
+      endIndex: null,
+      matchType: "exact",
+    };
+
+    render(
+      <UnifiedPromptEditor
+        initialPromptText="Create glass fox in soft daylight."
+        initialTemplateContent="Create {{subject}} in {{lighting}}."
+        initialTemplateVariables={[
+          { name: "subject", defaultValue: "glass fox", label: "Subject" },
+          { name: "lighting", defaultValue: "soft daylight", label: "Lighting" },
+        ]}
+        provenanceSpans={[lightingSpan]}
+        selectedProvenanceSpan={lightingSpan}
+        templateStatus="ready"
+        onResolvedPromptChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId("prompt-composition-panel")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("resolved-prompt-provenance")).not.toBeInTheDocument();
+    const textPromptInput = screen.getByLabelText("Full Generation Prompt");
+    const textEditor = screen.getByTestId("text-mode-highlight-editor");
+    expect(textEditor).toContainElement(textPromptInput);
+    expect(textEditor).toHaveClass("min-h-[20rem]");
+    expect(screen.getByLabelText("Full Generation Prompt")).toHaveValue(
+      "Create glass fox in soft daylight.",
+    );
+    expect(within(textEditor).getByTestId("prompt-variable-token-subject")).toHaveTextContent(
+      "glass fox",
+    );
+    expect(within(textEditor).getByTestId("prompt-variable-token-lighting")).toHaveTextContent(
+      "soft daylight",
+    );
+    const lightingProvenance = within(textEditor).getByTestId("prompt-provenance-span-lighting");
+    expect(lightingProvenance).toHaveAttribute(
+      "data-selected",
+      "true",
+    );
+    expect(lightingProvenance).toHaveClass("prompt-highlight-provenance-marker");
+    expect(lightingProvenance).not.toHaveClass("prompt-highlight-token");
+
+    await user.click(screen.getByRole("button", { name: "Template Mode" }));
+    const templateSourceInput = screen.getByLabelText("Template Source");
+    const templateEditor = screen.getByTestId("template-mode-highlight-editor");
+    expect(templateEditor).toContainElement(templateSourceInput);
+    expect(within(templateEditor).getByTestId("prompt-variable-token-subject")).toHaveTextContent(
+      "{{subject}}",
+    );
+    await user.clear(screen.getByLabelText("Variable subject"));
+    await user.type(screen.getByLabelText("Variable subject"), "crystal fox");
+    await user.click(screen.getByRole("button", { name: "Text Mode" }));
+
+    await waitFor(() =>
+      expect(screen.getByLabelText("Full Generation Prompt")).toHaveValue(
+        "Create crystal fox in soft daylight.",
+      ),
+    );
+  });
+
+  it("keeps the compact text input visible above the variable strip", () => {
+    render(
+      <UnifiedPromptEditor
+        initialPromptText="Create glass fox with soft daylight."
+        compact
+        initialTemplateContent="Create {{subject}} with {{lighting}}."
+        initialTemplateVariables={[
+          { name: "subject", defaultValue: "glass fox", label: "Subject" },
+          { name: "lighting", defaultValue: "soft daylight", label: "Lighting" },
+        ]}
+        templateStatus="ready"
+        onResolvedPromptChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("text-mode-highlight-editor")).toHaveClass(
+      "min-h-[12rem]",
+    );
+    expect(
+      within(screen.getByTestId("text-mode-highlight-editor")).getByTestId(
+        "prompt-variable-token-subject",
+      ),
+    ).toHaveTextContent("glass fox");
   });
 
   it("resets touched text when a new analysis template arrives", async () => {
@@ -101,6 +199,8 @@ describe("UnifiedPromptEditor", () => {
       />,
     );
 
+    expect(screen.getByLabelText("Full Generation Prompt")).toHaveValue("Create crystal heron.");
+    await user.click(screen.getByRole("button", { name: "Template Mode" }));
     expect(screen.getByLabelText("Variable subject")).toHaveValue("crystal heron");
   });
 
@@ -124,7 +224,70 @@ describe("UnifiedPromptEditor", () => {
     expect(screen.getByLabelText("Full Generation Prompt")).toHaveValue("manual draft");
   });
 
-  it("emits the current text draft as save content from text mode", async () => {
+  it("renames template variables from the source without clearing their values", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <UnifiedPromptEditor
+        initialPromptText=""
+        initialTemplateContent="Create {{subject}} in {{lighting}}."
+        initialTemplateVariables={[
+          { name: "subject", defaultValue: "glass fox", label: "Subject", sourceField: "subject" },
+          { name: "lighting", defaultValue: "soft daylight", label: "Lighting", sourceField: "lighting_color" },
+        ]}
+        templateStatus="ready"
+        onResolvedPromptChange={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Template Mode" }));
+    await user.clear(screen.getByLabelText("Variable subject"));
+    await user.type(screen.getByLabelText("Variable subject"), "crystal heron");
+
+    fireEvent.change(screen.getByLabelText("Template Source"), {
+      target: { value: "Create {{hero_subject}} in {{lighting}}." },
+    });
+
+    expect(screen.queryByLabelText("Variable subject")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Variable hero_subject")).toHaveValue("crystal heron");
+    expect(screen.getByText("hero_subject")).toBeInTheDocument();
+    expect(screen.getByLabelText("Variable lighting")).toHaveValue("soft daylight");
+
+    await user.click(screen.getByRole("button", { name: "Text Mode" }));
+    expect(screen.getByLabelText("Full Generation Prompt")).toHaveValue(
+      "Create crystal heron in soft daylight.",
+    );
+  });
+
+  it("restores a variable value when a placeholder is briefly invalid during rename", async () => {
+    render(
+      <UnifiedPromptEditor
+        initialPromptText=""
+        initialTemplateContent="Create {{subject}}."
+        initialTemplateVariables={[
+          { name: "subject", defaultValue: "glass fox", label: "Subject", sourceField: "subject" },
+        ]}
+        templateStatus="ready"
+        onResolvedPromptChange={vi.fn()}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Template Mode" }));
+
+    fireEvent.change(screen.getByLabelText("Template Source"), {
+      target: { value: "Create {{}}." },
+    });
+    expect(screen.queryByLabelText("Variable subject")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Template Source"), {
+      target: { value: "Create {{product}}." },
+    });
+
+    expect(screen.getByLabelText("Variable product")).toHaveValue("glass fox");
+    expect(screen.getByText("product")).toBeInTheDocument();
+  });
+
+  it("keeps template source as save content until the text draft is edited", async () => {
     const user = userEvent.setup();
     const onTemplateContentChange = vi.fn();
     const onSaveContentChange = vi.fn();
@@ -139,6 +302,7 @@ describe("UnifiedPromptEditor", () => {
       />,
     );
 
+    await user.click(screen.getByRole("button", { name: "Template Mode" }));
     await user.type(screen.getByLabelText("Variable var1"), "glass chair");
     await user.type(screen.getByLabelText("Variable var2"), "rim light");
     await user.click(screen.getByRole("button", { name: "Text Mode" }));
@@ -152,8 +316,13 @@ describe("UnifiedPromptEditor", () => {
 
     await waitFor(() =>
       expect(onSaveContentChange).toHaveBeenLastCalledWith(
-        "Create glass chair with rim light.",
+        "Create {{var1}} with {{var2}}.",
       ),
+    );
+    await user.clear(screen.getByLabelText("Full Generation Prompt"));
+    await user.type(screen.getByLabelText("Full Generation Prompt"), "Edited full prompt");
+    await waitFor(() =>
+      expect(onSaveContentChange).toHaveBeenLastCalledWith("Edited full prompt"),
     );
     expect(
       screen.queryByRole("button", { name: "Save as Template" }),

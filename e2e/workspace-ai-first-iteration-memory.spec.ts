@@ -10,7 +10,6 @@ import {
   mockGenerationList,
   mockGenerationListSequence,
   mockGenerationPolling,
-  mockTemplateCreate,
   mockUploadPresign,
 } from './helpers/mock-api'
 
@@ -202,7 +201,7 @@ test.describe('plan-05 Iteration Memory and Save Style Memory entry', () => {
     await expect(strip.getByRole('button', { name: /compare/i })).toBeDisabled()
   })
 
-  test('TC-5.3 history detail shows prompt, params, restore, continue, and Save Style Memory actions', async ({
+  test('TC-5.3 history detail shows prompt, params, restore, and continue actions', async ({
     page,
   }) => {
     await mockGenerationList(page, [historyItem])
@@ -219,7 +218,7 @@ test.describe('plan-05 Iteration Memory and Save Style Memory entry', () => {
     await expect(
       dialog.getByRole('button', { name: /generate variation|continue editing/i }),
     ).toBeVisible()
-    await expect(dialog.getByRole('button', { name: /save as style memory/i })).toBeVisible()
+    await expect(dialog.getByRole('button', { name: /save as style memory/i })).toHaveCount(0)
   })
 
   test('TC-5.4 restore loads prompt, style intelligence, render params, and allows a variation render', async ({
@@ -251,40 +250,23 @@ test.describe('plan-05 Iteration Memory and Save Style Memory entry', () => {
     )
   })
 
-  test('TC-5.5 saving restored history as Style Memory posts restored source context and variables', async ({
+  test('TC-5.5 restored history does not expose Save as Style Memory actions', async ({
     page,
   }) => {
-    let templateRequestBody: Record<string, unknown> | null = null
-
     await mockGenerationList(page, [historyItem])
     await mockRestoredHistoryDetail(page)
-    await mockTemplateCreate(page, (body) => {
-      templateRequestBody = body
-    })
 
-    await restoreHistoryToWorkspace(page)
-    await renderDock(page).getByRole('button', { name: /save as style memory/i }).click()
-
-    const saveDialog = page.getByRole('dialog', { name: /save as template|save as style memory/i })
-    await expect(saveDialog).toBeVisible()
-    await expect(saveDialog.getByLabel('Prompt Content')).toHaveValue(restoredPrompt)
-
-    await saveDialog.getByLabel('Template Name').fill('Restored glass memory')
-    await saveDialog.getByRole('button', { name: /save template|save style memory/i }).click()
-
-    await expect.poll(() => templateRequestBody).not.toBeNull()
-    const savedTemplateRequestBody = templateRequestBody as unknown as Record<string, unknown>
-    expect(savedTemplateRequestBody).toMatchObject({
-      content: restoredPrompt,
-      sourceAnalysisTaskId: 'restored-analysis-task',
-    })
-    expect(savedTemplateRequestBody.sourceAssetId).toBe('restored-source-asset')
-    expect(savedTemplateRequestBody.sourceImageUrl).toBe(restoredSourceImageUrl)
-    expect(savedTemplateRequestBody.variables).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ name: expect.any(String) }),
-      ]),
-    )
+    await openHistoryDetail(page)
+    await expect(
+      page.getByTestId('history-detail-dialog').getByRole('button', { name: /save as style memory/i }),
+    ).toHaveCount(0)
+    await page
+      .getByTestId('history-detail-dialog')
+      .getByRole('button', { name: /restore to workspace/i })
+      .click()
+    await expect(page.getByTestId('history-detail-dialog')).toHaveCount(0)
+    await expect(renderDock(page).getByRole('button', { name: /save as style memory/i })).toHaveCount(0)
+    await expect(promptCard(page).getByRole('button', { name: /save as style memory/i })).toHaveCount(0)
   })
 
   test('TC-5.6 history API failure shows a recoverable state instead of the empty history lesson', async ({

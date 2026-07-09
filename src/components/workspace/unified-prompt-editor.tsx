@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   extractVariables,
-  mergeVariableValues,
   replaceVariables,
 } from "@/lib/template-parser";
 import { TemplateModeEditor } from "@/components/workspace/template-mode-editor";
@@ -17,6 +16,11 @@ import type {
 
 type PromptMode = "template" | "text";
 
+interface ArchivedVariableState {
+  value: string;
+  metadata?: TemplateVariable;
+}
+
 interface UnifiedPromptEditorProps {
   initialPromptText: string;
   initialTemplateContent?: string | null;
@@ -26,6 +30,7 @@ interface UnifiedPromptEditorProps {
   templateStatus?: AnalysisTemplateStatus | null;
   templateReason?: string | null;
   templateKey?: string | null;
+  provenanceSpans?: PromptProvenanceSpan[];
   selectedProvenanceSpan?: PromptProvenanceSpan | null;
   compact?: boolean;
   onResolvedPromptChange: (value: string) => void;
@@ -52,6 +57,77 @@ function buildInitialVariableValues(
   }, {});
 }
 
+function hasOwnValue(values: Record<string, string>, name: string) {
+  return Object.prototype.hasOwnProperty.call(values, name);
+}
+
+function metadataForRenamedVariable(
+  variable: TemplateVariable,
+  archived?: ArchivedVariableState,
+): TemplateVariable {
+  return {
+    name: variable.name,
+    defaultValue: archived?.value ?? variable.defaultValue ?? "",
+    ...(archived?.metadata?.sourceField
+      ? { sourceField: archived.metadata.sourceField }
+      : {}),
+  };
+}
+
+function mergeTemplateVariableState(
+  previousContent: string,
+  nextContent: string,
+  previousValues: Record<string, string>,
+  previousMetadata: Map<string, TemplateVariable>,
+  archivedVariables: Map<number, ArchivedVariableState>,
+) {
+  const previousVariables = extractVariables(previousContent);
+  const nextVariables = extractVariables(nextContent);
+  const nextNames = new Set(nextVariables.map((variable) => variable.name));
+  const nextArchive = new Map(archivedVariables);
+
+  previousVariables.forEach((variable, index) => {
+    if (nextNames.has(variable.name)) return;
+
+    nextArchive.set(index, {
+      value: previousValues[variable.name] ?? "",
+      metadata: previousMetadata.get(variable.name),
+    });
+  });
+
+  const nextValues: Record<string, string> = {};
+  const nextMetadata = new Map<string, TemplateVariable>();
+
+  nextVariables.forEach((variable, index) => {
+    const archived = nextArchive.get(index);
+
+    if (hasOwnValue(previousValues, variable.name)) {
+      nextValues[variable.name] = previousValues[variable.name] ?? "";
+    } else if (archived) {
+      nextValues[variable.name] = archived.value;
+      nextArchive.delete(index);
+    } else {
+      nextValues[variable.name] = "";
+    }
+
+    const existingMetadata = previousMetadata.get(variable.name);
+    if (existingMetadata) {
+      nextMetadata.set(variable.name, existingMetadata);
+    } else {
+      nextMetadata.set(
+        variable.name,
+        metadataForRenamedVariable(variable, archived),
+      );
+    }
+  });
+
+  return {
+    values: nextValues,
+    metadata: nextMetadata,
+    archivedVariables: nextArchive,
+  };
+}
+
 export function UnifiedPromptEditor({
   initialPromptText,
   initialTemplateContent,
@@ -61,6 +137,7 @@ export function UnifiedPromptEditor({
   templateStatus = null,
   templateReason = null,
   templateKey = null,
+  provenanceSpans = [],
   selectedProvenanceSpan = null,
   compact = false,
   onResolvedPromptChange,
@@ -73,21 +150,29 @@ export function UnifiedPromptEditor({
   const hasUsableTemplate =
     !!normalizedTemplateContent &&
     (templateStatus === "ready" || templateStatus === "partial" || templateStatus === null);
-  const [mode, setMode] = useState<PromptMode>(
-    hasUsableTemplate ? "template" : "text",
-  );
+  const initialEditorSource = normalizedTemplateContent || initialPromptText;
+  const [mode, setMode] = useState<PromptMode>("text");
   const [templateSource, setTemplateSource] = useState(
-    normalizedTemplateContent || initialPromptText,
+    initialEditorSource,
   );
   const [variableValues, setVariableValues] = useState<Record<string, string>>(
-    () => buildInitialVariableValues(normalizedTemplateContent || initialPromptText, initialTemplateVariables),
+    () => buildInitialVariableValues(initialEditorSource, initialTemplateVariables),
   );
-  const [textPrompt, setTextPrompt] = useState(initialPromptText);
+  const [textPrompt, setTextPrompt] = useState(() => {
+    if (initialPromptText) return initialPromptText;
+    if (!hasUsableTemplate || !normalizedTemplateContent) return "";
+
+    return replaceVariables(
+      normalizedTemplateContent,
+      buildInitialVariableValues(normalizedTemplateContent, initialTemplateVariables),
+    );
+  });
   const textTouchedRef = useRef(false);
   const lastPromptRef = useRef(initialPromptText);
   const lastTemplateRef = useRef(normalizedTemplateContent);
   const lastTemplateKeyRef = useRef(templateKey ?? normalizedTemplateContent);
   const lastEmittedPromptRef = useRef(initialPromptText);
+  const archivedVariableStateRef = useRef(new Map<number, ArchivedVariableState>());
   const [variableMetadata, setVariableMetadata] = useState(
     () => variablesByName(initialTemplateVariables),
   );
@@ -103,12 +188,18 @@ export function UnifiedPromptEditor({
       lastTemplateRef.current = normalizedTemplateContent;
       lastPromptRef.current = initialPromptText;
       textTouchedRef.current = false;
-      setMode("template");
+      setMode("text");
       setTemplateSource(normalizedTemplateContent);
       setVariableMetadata(variablesByName(initialTemplateVariables));
-      const nextValues = buildInitialVariableValues(normalizedTemplateContent, initialTemplateVariables);
+      archivedVariableStateRef.current = new Map();
+      const nextValues = buildInitialVariableValues(
+        normalizedTemplateContent,
+        initialTemplateVariables,
+      );
       setVariableValues(nextValues);
-      setTextPrompt(replaceVariables(normalizedTemplateContent, nextValues));
+      setTextPrompt(
+        initialPromptText || replaceVariables(normalizedTemplateContent, nextValues),
+      );
       return;
     }
 
@@ -122,6 +213,7 @@ export function UnifiedPromptEditor({
       setTemplateSource(initialPromptText);
       setVariableValues({});
       setVariableMetadata(new Map());
+      archivedVariableStateRef.current = new Map();
       return;
     }
 
@@ -136,6 +228,7 @@ export function UnifiedPromptEditor({
       setTextPrompt(initialPromptText);
       setTemplateSource(initialPromptText);
       setMode("text");
+      archivedVariableStateRef.current = new Map();
     }
   }, [
     hasUsableTemplate,
@@ -181,7 +274,10 @@ export function UnifiedPromptEditor({
     [combinedVariableValues, templateSource],
   );
   const resolvedPrompt = mode === "template" ? resolvedTemplatePrompt : textPrompt;
-  const saveContent = mode === "template" ? templateSource : textPrompt;
+  const shouldSaveTemplateSource =
+    mode === "template" ||
+    (!textTouchedRef.current && hasUsableTemplate && Boolean(normalizedTemplateContent));
+  const saveContent = shouldSaveTemplateSource ? templateSource : textPrompt;
 
   useEffect(() => {
     lastEmittedPromptRef.current = resolvedPrompt;
@@ -201,19 +297,19 @@ export function UnifiedPromptEditor({
   }, [onSaveContentChange, saveContent]);
 
   const handleTemplateChange = useCallback((value: string) => {
+    const nextVariableState = mergeTemplateVariableState(
+      templateSource,
+      value,
+      variableValues,
+      variableMetadata,
+      archivedVariableStateRef.current,
+    );
+
     setTemplateSource(value);
-    setVariableValues((previous) => mergeVariableValues(value, previous));
-    setVariableMetadata((previous) => {
-      const next = new Map<string, TemplateVariable>();
-      for (const variable of extractVariables(value)) {
-        const meta = previous.get(variable.name);
-        if (meta) {
-          next.set(variable.name, meta);
-        }
-      }
-      return next;
-    });
-  }, []);
+    setVariableValues(nextVariableState.values);
+    setVariableMetadata(nextVariableState.metadata);
+    archivedVariableStateRef.current = nextVariableState.archivedVariables;
+  }, [templateSource, variableMetadata, variableValues]);
 
   const auxiliaryVariableNames = useMemo(
     () => new Set(auxiliaryVariables.map((variable) => variable.name)),
@@ -246,54 +342,15 @@ export function UnifiedPromptEditor({
       data-testid="unified-prompt-editor"
       data-compact={compact ? "true" : "false"}
       className={`surface-panel flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl ${
-        compact ? "p-2" : "p-5"
+        compact ? "p-2" : "p-4"
       }`}
     >
-      <div className={`${compact ? "mb-1" : "mb-4"} flex shrink-0 items-center justify-between gap-3`}>
-        <p className="label-tech text-[var(--accent-primary)]">Edit</p>
-        <div className="flex items-center gap-2">
-          <div className="flex h-7 rounded-md bg-[var(--surface-low)] p-0.5">
-            <button
-              type="button"
-              onClick={() => setMode("template")}
-              className={`h-6 rounded-[0.3125rem] px-2.5 text-xs transition-colors ${
-                mode === "template"
-                  ? "bg-[var(--accent-primary-soft)] text-[var(--accent-primary)]"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-              }`}
-            >
-              Template Mode
-            </button>
-            <button
-              type="button"
-              onClick={switchToText}
-              className={`h-6 rounded-[0.3125rem] px-2.5 text-xs transition-colors ${
-                mode === "text"
-                  ? "bg-[var(--accent-primary-soft)] text-[var(--accent-primary)]"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-              }`}
-            >
-              Text Mode
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {selectedProvenanceSpan && (
-        <div
-          data-testid="unified-prompt-selected-provenance"
-          data-facet={selectedProvenanceSpan.facetId}
-          data-match-type={selectedProvenanceSpan.matchType}
-          className="mb-3 rounded-lg bg-[var(--surface-low)] px-3 py-2 text-xs leading-5 text-[var(--text-secondary)]"
-        >
-          <span className="font-semibold text-[var(--text-primary)]">
-            {selectedProvenanceSpan.label}
-          </span>{" "}
-          {selectedProvenanceSpan.matchType === "facet_only"
-            ? "is a related signal without an exact editable prompt span."
-            : `is linked to "${selectedProvenanceSpan.matchedText}".`}
-        </div>
-      )}
+      <PromptModeSwitcher
+        mode={mode}
+        compact={compact}
+        onTemplateMode={() => setMode("template")}
+        onTextMode={switchToText}
+      />
 
       <div className="min-h-0 flex-1 overflow-y-auto pr-1">
         {mode === "template" ? (
@@ -303,12 +360,14 @@ export function UnifiedPromptEditor({
             variableValues={combinedVariableValues}
             templateStatus={templateStatus}
             templateReason={templateReason}
+            provenanceSpans={provenanceSpans}
+            selectedProvenanceSpan={selectedProvenanceSpan}
             compact={compact}
             onTemplateChange={handleTemplateChange}
             onVariableChange={handleVariableChange}
           />
         ) : (
-          <div className="space-y-3">
+          <div className="flex min-h-full flex-col gap-3">
             {templateStatus === "fallback" && (
               <div className="rounded-lg bg-[var(--surface-low)] p-3 text-sm text-[var(--text-secondary)]">
                 <p className="font-medium text-[var(--text-primary)]">
@@ -320,6 +379,10 @@ export function UnifiedPromptEditor({
             <TextModeEditor
               promptText={textPrompt}
               compact={compact}
+              variables={variables}
+              variableValues={combinedVariableValues}
+              provenanceSpans={provenanceSpans}
+              selectedProvenanceSpan={selectedProvenanceSpan}
               onChange={handleTextChange}
             />
             {auxiliaryVariables.length > 0 && (
@@ -331,6 +394,52 @@ export function UnifiedPromptEditor({
             )}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+interface PromptModeSwitcherProps {
+  mode: PromptMode;
+  compact: boolean;
+  onTemplateMode: () => void;
+  onTextMode: () => void;
+}
+
+function PromptModeSwitcher({
+  mode,
+  compact,
+  onTemplateMode,
+  onTextMode,
+}: PromptModeSwitcherProps) {
+  return (
+    <div
+      className={`${compact ? "mb-2" : "mb-3"} flex shrink-0 items-center justify-between gap-3`}
+    >
+      <p className="label-tech text-[var(--accent-primary)]">Prompt Editor</p>
+      <div className="flex h-7 shrink-0 rounded-md bg-[var(--surface-low)] p-0.5">
+        <button
+          type="button"
+          onClick={onTemplateMode}
+          className={`h-6 rounded-[0.3125rem] px-2.5 text-xs transition-colors ${
+            mode === "template"
+              ? "bg-[var(--accent-primary-soft)] text-[var(--accent-primary)]"
+              : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          }`}
+        >
+          Template Mode
+        </button>
+        <button
+          type="button"
+          onClick={onTextMode}
+          className={`h-6 rounded-[0.3125rem] px-2.5 text-xs transition-colors ${
+            mode === "text"
+              ? "bg-[var(--accent-primary-soft)] text-[var(--accent-primary)]"
+              : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          }`}
+        >
+          Text Mode
+        </button>
       </div>
     </div>
   );

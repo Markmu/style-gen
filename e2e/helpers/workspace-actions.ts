@@ -22,7 +22,7 @@ export async function gotoWorkspace(page: Page) {
       throw error
     }
   }
-  await page.getByTestId('workspace-three-column-layout').waitFor({ timeout: 15000 })
+  await page.getByTestId('workspace-three-column-layout').first().waitFor({ timeout: 15000 })
 }
 
 /** Upload a test image in the workspace and wait for analysis to start */
@@ -55,7 +55,7 @@ export async function uploadAndStartAnalysis(
 
   // Navigate to workspace
   await gotoWorkspace(page)
-  await page.locator('input[type="file"]').waitFor({ state: 'attached', timeout: 10000 })
+  await page.locator('input[type="file"]').first().waitFor({ state: 'attached', timeout: 10000 })
   await page.waitForTimeout(300)
 
   // Upload file through the visible drop-zone so React's click handler is active.

@@ -929,3 +929,115 @@ h1, h2, h3, h4, h5, h6 {
   cursor: not-allowed;
   opacity: 0.62;
 }
+
+.prompt-highlight-editor {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.5rem 0.5rem 0 0;
+}
+
+.prompt-highlight-editor:focus-within {
+  outline: none;
+  border-bottom-color: var(--accent-primary);
+  box-shadow: 0 6px 20px color-mix(in oklch, var(--accent-primary) 10%, transparent);
+}
+
+.prompt-highlight-layer {
+  pointer-events: none;
+  scrollbar-width: none;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  color: var(--text-primary);
+  font-family: inherit;
+  letter-spacing: 0;
+  tab-size: 2;
+}
+
+.prompt-highlight-layer::-webkit-scrollbar {
+  display: none;
+}
+
+.prompt-highlight-placeholder {
+  color: var(--text-muted);
+}
+
+.prompt-highlight-textarea {
+  border: 0;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--text-primary);
+  font-family: inherit;
+  letter-spacing: 0;
+  outline: none;
+  overflow-wrap: break-word;
+  tab-size: 2;
+  white-space: pre-wrap;
+}
+
+.prompt-highlight-textarea::placeholder {
+  color: transparent;
+}
+
+.prompt-highlight-textarea::selection {
+  background: color-mix(in oklch, var(--accent-primary-soft) 74%, transparent);
+  color: transparent;
+}
+
+.prompt-highlight-token {
+  border-radius: 0.375rem;
+  background: var(--evidence-neutral-bg);
+  color: var(--evidence-neutral-text);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  font: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  outline: 1px solid var(--evidence-neutral-border);
+  outline-offset: -1px;
+}
+
+.prompt-highlight-token[data-facet="color"] {
+  background: var(--evidence-color-bg);
+  color: var(--evidence-color-text);
+  outline-color: var(--evidence-color-border);
+}
+
+.prompt-highlight-token[data-facet="composition"] {
+  background: var(--evidence-composition-bg);
+  color: var(--evidence-composition-text);
+  outline-color: var(--evidence-composition-border);
+}
+
+.prompt-highlight-token[data-facet="lighting"] {
+  background: var(--evidence-lighting-bg);
+  color: var(--evidence-lighting-text);
+  outline-color: var(--evidence-lighting-border);
+}
+
+.prompt-highlight-token[data-facet="texture"] {
+  background: var(--evidence-texture-bg);
+  color: var(--evidence-texture-text);
+  outline-color: var(--evidence-texture-border);
+}
+
+.prompt-highlight-token[data-facet="mood"] {
+  background: var(--evidence-mood-bg);
+  color: var(--evidence-mood-text);
+  outline-color: var(--evidence-mood-border);
+}
+
+.prompt-highlight-token[data-facet="subject"] {
+  background: var(--evidence-neutral-bg);
+  color: var(--evidence-neutral-text);
+  outline-color: var(--evidence-neutral-border);
+}
+
+.prompt-highlight-token[data-selected="true"] {
+  box-shadow:
+    0 0 0 1px color-mix(in oklch, var(--accent-primary) 55%, transparent),
+    0 0 0 4px color-mix(in oklch, var(--accent-primary-soft) 62%, transparent);
+}
+
+.prompt-highlight-provenance-marker {
+  display: none;
+}

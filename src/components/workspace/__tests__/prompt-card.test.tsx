@@ -3,30 +3,8 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { PromptCard } from "@/components/workspace/prompt-card";
-import type { PromptProvenanceSpan } from "@/lib/prompt-provenance";
 
 const STYLE_MEMORY_SAVE_BUTTON = "Save as Style Memory";
-
-const provenanceSpans: PromptProvenanceSpan[] = [
-  {
-    facetId: "lighting",
-    label: "Lighting",
-    summary: "Golden hour, warm backlight",
-    matchedText: "Golden hour",
-    startIndex: 0,
-    endIndex: 11,
-    matchType: "exact",
-  },
-  {
-    facetId: "texture",
-    label: "Texture",
-    summary: "powdered terrazzo grain with pearlescent micro scratches",
-    matchedText: null,
-    startIndex: null,
-    endIndex: null,
-    matchType: "facet_only",
-  },
-];
 
 describe("PromptCard", () => {
   it("keeps a single outer Style Memory save button and saves source with variables", async () => {
@@ -63,6 +41,8 @@ describe("PromptCard", () => {
     expect(
       screen.getAllByRole("button", { name: STYLE_MEMORY_SAVE_BUTTON }),
     ).toHaveLength(1);
+    expect(screen.getByText("Prompt and generation controls")).toBeInTheDocument();
+    expect(screen.queryByText("Prompt provenance and generation controls")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Prompt help")).toBeNull();
     expect(screen.queryByText("Output")).toBeNull();
     expect(screen.queryByText("Use recipe guidance")).toBeNull();
@@ -177,6 +157,7 @@ describe("PromptCard", () => {
       />,
     );
 
+    await user.click(screen.getByRole("button", { name: "Template Mode" }));
     fireEvent.change(screen.getByLabelText("Template Source"), {
       target: { value: "Paint {{subject}}." },
     });
@@ -192,7 +173,7 @@ describe("PromptCard", () => {
     expect(onSaveTemplate).toHaveBeenCalledWith("Paint {{subject}}.");
   });
 
-  it("renders provenance spans, facet-only signals, variables, and the single save entry", () => {
+  it("renders variables without prompt provenance in the editor", () => {
     render(
       <PromptCard
         state="analysis_ready"
@@ -204,28 +185,58 @@ describe("PromptCard", () => {
           { name: "lighting", defaultValue: "golden hour" },
         ]}
         templateStatus="ready"
-        provenanceSpans={provenanceSpans}
-        selectedFacetId="lighting"
         onResolvedPromptChange={vi.fn()}
         onSaveTemplate={vi.fn()}
       />,
     );
 
     expect(screen.getAllByRole("button", { name: STYLE_MEMORY_SAVE_BUTTON })).toHaveLength(1);
-    expect(screen.getByTestId("prompt-provenance-span-lighting")).toHaveAttribute(
-      "data-selected",
+    expect(screen.queryByTestId("prompt-provenance-span-lighting")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("prompt-provenance-facet-only-texture")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Variable negative_prompt")).toHaveValue("blurry");
+    expect(screen.queryByTestId("unified-prompt-selected-provenance")).not.toBeInTheDocument();
+  });
+
+  it("hides Style Memory save when a history item is restored", () => {
+    render(
+      <PromptCard
+        state="history_restored"
+        promptText="Restored history prompt"
+        onResolvedPromptChange={vi.fn()}
+        onSaveTemplate={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: STYLE_MEMORY_SAVE_BUTTON }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("expands the edit area to fill the space above Render Dock", () => {
+    render(
+      <PromptCard
+        state="analysis_ready"
+        promptText="Golden hour product render."
+        onResolvedPromptChange={vi.fn()}
+        renderDock={<div>Render Dock</div>}
+      />,
+    );
+
+    expect(screen.getByTestId("prompt-editor-frame")).toHaveClass(
+      "min-h-[14rem]",
+      "flex-1",
+      "overflow-hidden",
+    );
+    expect(screen.getByTestId("prompt-editor-frame")).not.toHaveClass(
+      "h-[5.75rem]",
+    );
+    expect(screen.getByTestId("unified-prompt-editor")).toHaveAttribute(
+      "data-compact",
       "true",
     );
-    expect(screen.getByTestId("prompt-provenance-span-lighting")).toHaveAttribute(
-      "data-match-type",
-      "exact",
-    );
-    expect(screen.getByTestId("prompt-provenance-facet-only-texture")).toHaveTextContent(
-      /related signal|相关信号/i,
-    );
-    expect(screen.getByLabelText("Variable negative_prompt")).toHaveValue("blurry");
-    expect(screen.getByTestId("unified-prompt-selected-provenance")).toHaveTextContent(
-      /Lighting/,
+    expect(screen.getByTestId("prompt-render-dock-slot")).toHaveClass(
+      "mt-2",
+      "shrink-0",
     );
   });
 

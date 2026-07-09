@@ -678,16 +678,6 @@ function WorkspacePageInner() {
     [applyHistoryRestore],
   );
 
-  const handleHistorySaveStyleMemory = useCallback(
-    (detail: HistoryDetail) => {
-      applyHistoryRestore(detail);
-      setTemplateSaveContent(detail.promptSnapshot);
-      setShowTemplateSaveDialog(true);
-      setHistoryDetailOpen(false);
-    },
-    [applyHistoryRestore],
-  );
-
   return (
     <div className="h-full overflow-hidden">
       {/* 中央Workspace */}
@@ -740,8 +730,6 @@ function WorkspacePageInner() {
                 state={effectiveState}
                 promptText={effectivePromptText}
                 negativePromptText={effectiveNegativePromptText}
-                provenanceSpans={promptProvenanceSpans}
-                selectedFacetId={selectedFacetId}
                 error={ws.error}
                 templateContent={effectiveTemplateContent}
                 templateVariables={effectiveTemplateVariables}
@@ -757,16 +745,11 @@ function WorkspacePageInner() {
                     state={effectiveState}
                     params={generationParams}
                     readiness={renderReadiness}
-                    error={ws.error}
                     onParamsChange={setGenerationParams}
                     onGenerate={(params) => {
                       if (isEvidencePreview) return;
                       void handleGenerate(params);
                     }}
-                    onRetry={handleGenerateRetry}
-                    onSaveStyleMemory={() =>
-                      handleOpenTemplateSave(activePromptText || effectivePromptText)
-                    }
                   />
                 }
               />
@@ -812,7 +795,6 @@ function WorkspacePageInner() {
           detail={historyDetail}
           onRestore={handleHistoryRestore}
           onContinueEditing={handleHistoryContinueEditing}
-          onSaveStyleMemory={handleHistorySaveStyleMemory}
           onClose={() => setHistoryDetailOpen(false)}
           restoreError={historyRestoreError?.message}
         />

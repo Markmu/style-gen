@@ -249,17 +249,6 @@ export function LeftSidebar() {
           )}
         </div>
 
-        <div className="flex justify-end px-2 pt-5">
-          <button
-            type="button"
-            aria-label="Workspace appearance"
-            className="workspace-sidebar-icon-button"
-          >
-            <span className="material-symbols-outlined text-[1.125rem]" aria-hidden="true">
-              light_mode
-            </span>
-          </button>
-        </div>
       </div>
     </aside>
   );
