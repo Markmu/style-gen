@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { trackAuthEvent } from "@/components/auth/auth-tracking";
+import { VisorynMark } from "@/components/brand/visoryn-mark";
 
 const navItems = [
   {
@@ -92,12 +93,7 @@ export function LeftSidebar() {
           className="flex min-w-0 items-center gap-2.5 transition-opacity hover:opacity-80"
           aria-label="Visoryn home"
         >
-          <span
-            className="workspace-sidebar-brand-mark material-symbols-outlined text-[1.625rem]"
-            aria-hidden="true"
-          >
-            auto_awesome
-          </span>
+          <VisorynMark className="workspace-sidebar-brand-mark shrink-0" />
           <span className="truncate text-lg font-bold text-[var(--text-primary)]">
             Visoryn
           </span>

@@ -7,6 +7,7 @@ import { useEffect, useState, useRef } from "react";
 import { LoginButton } from "./login-button";
 import { UserMenu } from "./user-menu";
 import { trackAuthEvent } from "./auth-tracking";
+import { VisorynMark } from "@/components/brand/visoryn-mark";
 
 function getOAuthErrorMessage(error: string): string {
   switch (error) {
@@ -77,9 +78,7 @@ export function AuthHeader() {
             className="interactive-lift flex items-center gap-2.5 rounded-md px-2 py-1.5"
             aria-current={pathname === "/" ? "page" : undefined}
           >
-            <span className="icon text-[var(--accent-primary)]" aria-hidden="true">
-              auto_awesome
-            </span>
+            <VisorynMark className="h-6 w-6 shrink-0 text-[var(--text-primary)]" />
             <span className="text-base font-bold text-[var(--text-primary)]">
               Visoryn
             </span>

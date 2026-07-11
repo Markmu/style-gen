@@ -4,8 +4,14 @@ import { Providers } from "@/components/providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Style Gen - Reference Image Style Recreation",
-  description: "Upload a reference image, extract an editable visual style recipe, and generate a new image in the same style",
+  title: "Visoryn - Reference Image Style Recreation",
+  description:
+    "Upload a reference image, extract an editable visual style recipe, and generate a new image in the same style",
+  applicationName: "Visoryn",
+  icons: {
+    icon: [{ url: "/visoryn-mark.svg", type: "image/svg+xml" }],
+    shortcut: "/visoryn-mark.svg",
+  },
 };
 
 export default function RootLayout({
