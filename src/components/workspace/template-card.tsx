@@ -2,6 +2,8 @@
 
 import { useCallback, useState } from "react";
 import Image from "next/image";
+import { Ellipsis, ImageOff } from "lucide-react";
+import { AppIcon } from "@/components/ui/app-icon";
 import type { TemplateListItem } from "@/hooks/use-template-search";
 import { deriveStyleMemoryCardViewModel } from "@/lib/style-memory-view-model";
 
@@ -69,22 +71,7 @@ export function TemplateCard({
             className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--surface-bright)]/85 text-[var(--text-secondary)] opacity-0 shadow-[var(--shadow-ambient)] backdrop-blur-sm transition-opacity group-hover:opacity-100 hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)] focus:opacity-100"
             aria-label="More actions"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <circle cx="12" cy="12" r="1" />
-              <circle cx="19" cy="12" r="1" />
-              <circle cx="5" cy="12" r="1" />
-            </svg>
+            <AppIcon icon={Ellipsis} size={14} />
           </button>
 
           {actionMenuId === memory.id && (
@@ -144,9 +131,7 @@ export function TemplateCard({
             />
           ) : (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-6 text-center">
-              <span className="material-symbols-outlined text-4xl text-[var(--text-secondary)]/35">
-                image_not_supported
-              </span>
+              <AppIcon icon={ImageOff} size={36} className="text-[var(--text-secondary)]/35" />
               <span className="text-sm font-medium text-[var(--text-secondary)]">
                 No source preview
               </span>

@@ -1,8 +1,13 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { X } from "lucide-react";
+import { AppIcon } from "@/components/ui/app-icon";
 import type { PromptTemplate, TemplateVariable } from "@/types/models";
-import { mergeTemplateVariables } from "@/lib/template-parser";
+import {
+  mergeTemplateVariables,
+  normalizeVariableName,
+} from "@/lib/template-parser";
 
 interface TemplateSaveDialogProps {
   open: boolean;
@@ -14,9 +19,6 @@ interface TemplateSaveDialogProps {
   onSave: (template: PromptTemplate) => void;
   onClose: () => void;
 }
-
-/** Variable name合法格式：[a-zA-Z_]\w* */
-const VARIABLE_NAME_RE = /^[a-zA-Z_]\w*$/;
 
 const MAX_CONTENT_LENGTH = 10_000;
 
@@ -87,16 +89,12 @@ export function TemplateSaveDialog({
 
   /** ConfirmVariable name并插入 */
   const handleConfirmVariable = useCallback(() => {
-    const trimmed = varNameInput.trim();
-    if (!trimmed) {
+    const normalized = normalizeVariableName(varNameInput);
+    if (!normalized) {
       setVarNameError("Enter a variable name");
       return;
     }
-    if (!VARIABLE_NAME_RE.test(trimmed)) {
-      setVarNameError("Variable names must start with a letter or underscore");
-      return;
-    }
-    insertVariable(trimmed);
+    insertVariable(normalized);
   }, [varNameInput, insertVariable]);
 
   /** Save Template */
@@ -189,9 +187,7 @@ export function TemplateSaveDialog({
             className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)]"
             aria-label="Close"
           >
-            <span className="material-symbols-outlined text-base" aria-hidden="true">
-              close
-            </span>
+            <AppIcon icon={X} size={16} />
           </button>
         </div>
 

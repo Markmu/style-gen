@@ -7,6 +7,7 @@ import {
   findByName,
 } from "@/lib/repositories/template-repository";
 import { findAssetById } from "@/lib/repositories/asset-repository";
+import { normalizeVariableName } from "@/lib/template-parser";
 import type { TemplateVariable } from "@/types/models";
 
 /** 从 session 获取 userId，未认证返回 401 */
@@ -26,7 +27,6 @@ function log(event: string, data: Record<string, unknown>) {
   console.log(JSON.stringify({ event, timestamp: new Date().toISOString(), ...data }));
 }
 
-const VARIABLE_NAME_RE = /^[a-zA-Z_]\w*$/;
 const VALID_SOURCE_FIELDS = new Set([
   "subject",
   "scene",
@@ -46,7 +46,8 @@ function validateVariables(value: unknown): TemplateVariable[] | undefined | nul
   for (const item of value) {
     if (!item || typeof item !== "object") return null;
     const obj = item as Record<string, unknown>;
-    if (typeof obj.name !== "string" || !VARIABLE_NAME_RE.test(obj.name)) return null;
+    const name = typeof obj.name === "string" ? normalizeVariableName(obj.name) : null;
+    if (!name) return null;
     if (typeof obj.defaultValue !== "string" || obj.defaultValue.length > 500) return null;
     if (obj.label !== undefined && (typeof obj.label !== "string" || obj.label.length > 80)) return null;
     if (
@@ -56,7 +57,7 @@ function validateVariables(value: unknown): TemplateVariable[] | undefined | nul
       return null;
     }
     variables.push({
-      name: obj.name,
+      name,
       defaultValue: obj.defaultValue,
       ...(typeof obj.label === "string" && obj.label ? { label: obj.label } : {}),
       ...(typeof obj.sourceField === "string" ? { sourceField: obj.sourceField as TemplateVariable["sourceField"] } : {}),

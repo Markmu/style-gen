@@ -42,6 +42,9 @@ describe("OutputCard", () => {
     );
     expect(screen.getByLabelText("Aspect Ratio")).toBeInTheDocument();
     expect(screen.getByLabelText("Quality")).toBeInTheDocument();
+    expect(screen.getByLabelText("Aspect Ratio")).toHaveClass("render-select", "h-9");
+    expect(screen.getByLabelText("Quality")).toHaveClass("render-select", "h-9");
+    expect(document.querySelectorAll(".lucide-chevron-down")).toHaveLength(2);
     expect(screen.getByTestId("render-parameter-controls")).toBeInTheDocument();
     expect(screen.queryByTestId("render-status-summary")).not.toBeInTheDocument();
     expect(screen.queryByTestId("render-status-detail")).not.toBeInTheDocument();

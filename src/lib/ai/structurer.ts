@@ -7,6 +7,7 @@ import type {
 import {
   extractVariables,
   hasUnresolvedVariables,
+  normalizeVariableName,
   replaceVariables,
 } from "@/lib/template-parser";
 import { getStructurerProvider } from "./providers";
@@ -17,7 +18,6 @@ const ANALYSIS_TEMPLATE_REASON_MAX_LENGTH = 500;
 const TEMPLATE_VARIABLE_DEFAULT_MAX_LENGTH = 500;
 const TEMPLATE_VARIABLE_LABEL_MAX_LENGTH = 80;
 const MAX_ANALYSIS_TEMPLATE_VARIABLES = 8;
-const VARIABLE_NAME_RE = /^[a-zA-Z_]\w*$/;
 const VALID_TEMPLATE_SOURCE_FIELDS = new Set<AnalysisTemplateSourceField>([
   "subject",
   "scene",
@@ -334,7 +334,6 @@ function normalizeTemplateFields(
   }
 
   const contentVariables = extractVariables(content)
-    .filter((variable) => VARIABLE_NAME_RE.test(variable.name))
     .slice(0, MAX_ANALYSIS_TEMPLATE_VARIABLES);
 
   if (contentVariables.length === 0) {
@@ -361,14 +360,17 @@ function normalizeTemplateFields(
   for (const value of obj.analysisTemplateVariables) {
     if (!value || typeof value !== "object") continue;
     const variable = value as TemplateVariable;
+    const name =
+      typeof variable.name === "string"
+        ? normalizeVariableName(variable.name)
+        : null;
     if (
-      typeof variable.name !== "string" ||
-      !VARIABLE_NAME_RE.test(variable.name) ||
-      providedByName.has(variable.name)
+      !name ||
+      providedByName.has(name)
     ) {
       continue;
     }
-    providedByName.set(variable.name, variable);
+    providedByName.set(name, { ...variable, name });
   }
 
   const variables = contentVariables

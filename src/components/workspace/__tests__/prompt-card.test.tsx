@@ -41,6 +41,13 @@ describe("PromptCard", () => {
     expect(
       screen.getAllByRole("button", { name: STYLE_MEMORY_SAVE_BUTTON }),
     ).toHaveLength(1);
+    expect(
+      screen.getByRole("button", { name: STYLE_MEMORY_SAVE_BUTTON }).nextElementSibling,
+    ).toBe(screen.getByRole("button", { name: "Expand Prompt editor" }));
+    const expandButton = screen.getByRole("button", {
+      name: "Expand Prompt editor",
+    });
+    expect(expandButton.querySelector("svg")).toHaveClass("lucide-maximize");
     expect(screen.getByText("Prompt and generation controls")).toBeInTheDocument();
     expect(screen.queryByText("Prompt provenance and generation controls")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Prompt help")).toBeNull();
@@ -240,6 +247,61 @@ describe("PromptCard", () => {
     );
   });
 
+  it("enlarges the same editor instance, hides Render Dock, and preserves the draft", async () => {
+    const user = userEvent.setup();
+    const onSaveTemplate = vi.fn();
+
+    render(
+      <PromptCard
+        state="analysis_ready"
+        promptText="Initial prompt"
+        onResolvedPromptChange={vi.fn()}
+        onSaveTemplate={onSaveTemplate}
+        renderDock={<div>Render Dock</div>}
+      />,
+    );
+
+    const promptInput = screen.getByLabelText("Full Generation Prompt");
+    await user.clear(promptInput);
+    await user.type(promptInput, "Expanded prompt draft");
+
+    const expandButton = screen.getByRole("button", {
+      name: "Expand Prompt editor",
+    });
+    expandButton.focus();
+    await user.click(expandButton);
+
+    expect(screen.getByRole("dialog", { name: "Prompt + Render" })).toBeInTheDocument();
+    expect(
+      screen
+        .getByRole("button", { name: "Close expanded Prompt editor" })
+        .querySelector("svg"),
+    ).toHaveClass("lucide-minimize");
+    expect(screen.getByTestId("unified-prompt-editor")).toHaveAttribute(
+      "data-compact",
+      "false",
+    );
+    expect(screen.getByLabelText("Full Generation Prompt")).toBe(promptInput);
+    expect(promptInput).toHaveValue("Expanded prompt draft");
+    expect(screen.queryByTestId("prompt-render-dock-slot")).not.toBeInTheDocument();
+    expect(screen.queryByText("Render Dock")).not.toBeInTheDocument();
+
+    fireEvent.mouseDown(screen.getByTestId("prompt-expandable-panel-backdrop"));
+
+    expect(screen.queryByRole("dialog", { name: "Prompt + Render" })).not.toBeInTheDocument();
+    expect(screen.getByTestId("unified-prompt-editor")).toHaveAttribute(
+      "data-compact",
+      "true",
+    );
+    expect(screen.getByLabelText("Full Generation Prompt")).toBe(promptInput);
+    expect(promptInput).toHaveValue("Expanded prompt draft");
+    expect(screen.getByTestId("prompt-render-dock-slot")).toBeInTheDocument();
+    expect(expandButton).toHaveFocus();
+
+    await user.click(screen.getByRole("button", { name: STYLE_MEMORY_SAVE_BUTTON }));
+    expect(onSaveTemplate).toHaveBeenCalledWith("Expanded prompt draft");
+  });
+
   it("shows preserved prompt context and back to edit after analysis failure", () => {
     render(
       <PromptCard
@@ -252,5 +314,8 @@ describe("PromptCard", () => {
 
     expect(screen.getByText(/Prompt context preserved/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Back to Edit/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Expand Prompt editor" }),
+    ).toBeInTheDocument();
   });
 });

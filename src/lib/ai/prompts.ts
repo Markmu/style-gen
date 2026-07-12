@@ -72,7 +72,7 @@ Rules:
 - analysisTemplateStatus must be one of "ready", "partial", or "fallback".
 - Prefer variables for subject, scene, visual_style, and lighting_color; add composition, camera_language, texture, and mood only when stable.
 - analysisTemplateContent must use only {{name}} markers whose names appear in analysisTemplateVariables. Keep it under 6000 characters and use at most 8 variables.
-- Every analysisTemplateVariables item must have a non-empty defaultValue from the reference analysis. The name must match [a-zA-Z_]\\w*. sourceField may be subject, scene, visual_style, lighting_color, composition, camera_language, texture, or mood.
+- Every analysisTemplateVariables item must have a non-empty defaultValue from the reference analysis. Names may use letters (including Chinese), numbers after the first character, spaces, underscores, and hyphens. sourceField may be subject, scene, visual_style, lighting_color, composition, camera_language, texture, or mood.
 - If the reference is too ambiguous, output analysisTemplateStatus "fallback", analysisTemplateContent null, analysisTemplateVariables [], and a short analysisTemplateReason. Fallback must not block promptText.
 - For ready or partial, promptText should match the template rendered with the default values and must not contain unresolved {{name}} markers.
 - Output ONLY the JSON object, no additional text or markdown formatting.`;

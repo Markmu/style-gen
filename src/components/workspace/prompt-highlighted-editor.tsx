@@ -3,6 +3,7 @@
 import { useMemo, useRef, type UIEvent } from "react";
 import type { EvidenceFacetId } from "@/lib/evidence-facets";
 import type { PromptProvenanceSpan } from "@/lib/prompt-provenance";
+import { normalizeVariableName } from "@/lib/template-parser";
 import type {
   AnalysisTemplateSourceField,
   TemplateVariable,
@@ -10,9 +11,18 @@ import type {
 
 type PromptHighlightMode = "template" | "text";
 type AnnotationKind = "variable" | "provenance";
+type VariableHighlightTone = "color" | "composition" | "lighting" | "texture" | "mood" | "neutral";
 
 const HIDDEN_PROMPT_VARIABLES = new Set(["negative_prompt"]);
-const TEMPLATE_VARIABLE_PATTERN = /{{([a-zA-Z_]\w*)}}/g;
+const TEMPLATE_VARIABLE_PATTERN = /{{([^{}]+)}}/g;
+const VARIABLE_FALLBACK_TONES: VariableHighlightTone[] = [
+  "color",
+  "composition",
+  "lighting",
+  "texture",
+  "mood",
+  "neutral",
+];
 
 const SOURCE_FIELD_FACET_MAP: Partial<Record<AnalysisTemplateSourceField, EvidenceFacetId>> = {
   subject: "subject",
@@ -48,6 +58,7 @@ interface PromptAnnotation {
   label: string;
   title: string;
   variableName?: string;
+  variableTone?: VariableHighlightTone;
   provenanceFacetId?: EvidenceFacetId;
   matchType?: PromptProvenanceSpan["matchType"];
   selected?: boolean;
@@ -75,6 +86,14 @@ function resolveVariableFacet(variable: TemplateVariable): EvidenceFacetId | nul
   if (normalizedName.includes("subject") || normalizedName.includes("scene")) return "subject";
 
   return null;
+}
+
+function resolveVariableTone(
+  facetId: EvidenceFacetId | null,
+  fallbackIndex: number,
+): VariableHighlightTone {
+  if (facetId) return facetId === "subject" ? "neutral" : facetId;
+  return VARIABLE_FALLBACK_TONES[fallbackIndex % VARIABLE_FALLBACK_TONES.length];
 }
 
 function hasOverlap(
@@ -110,7 +129,13 @@ function buildTemplateVariableAnnotations(
   const variableByName = new Map(
     variables
       .filter((variable) => !HIDDEN_PROMPT_VARIABLES.has(variable.name))
-      .map((variable) => [variable.name, variable]),
+      .map((variable, index) => [
+        variable.name,
+        {
+          variable,
+          fallbackIndex: index,
+        },
+      ]),
   );
   const annotations: PromptAnnotation[] = [];
   let match: RegExpExecArray | null;
@@ -118,21 +143,24 @@ function buildTemplateVariableAnnotations(
   TEMPLATE_VARIABLE_PATTERN.lastIndex = 0;
 
   while ((match = TEMPLATE_VARIABLE_PATTERN.exec(value)) !== null) {
-    const variable = variableByName.get(match[1]);
-    if (!variable) continue;
+    const name = normalizeVariableName(match[1]);
+    const entry = name ? variableByName.get(name) : undefined;
+    if (!entry) continue;
 
-    const facetId = resolveVariableFacet(variable);
-    const variableValue = variableValues[variable.name] ?? variable.defaultValue ?? "";
+    const facetId = resolveVariableFacet(entry.variable);
+    const variableValue =
+      variableValues[entry.variable.name] ?? entry.variable.defaultValue ?? "";
     annotations.push({
       kind: "variable",
       start: match.index,
       end: match.index + match[0].length,
       facetId,
-      label: variable.label || variable.name,
+      label: entry.variable.label || entry.variable.name,
       title: variableValue
-        ? `${variable.label || variable.name}: ${variableValue}`
-        : variable.label || variable.name,
-      variableName: variable.name,
+        ? `${entry.variable.label || entry.variable.name}: ${variableValue}`
+        : entry.variable.label || entry.variable.name,
+      variableName: entry.variable.name,
+      variableTone: resolveVariableTone(facetId, entry.fallbackIndex),
     });
   }
 
@@ -147,14 +175,15 @@ function buildTextVariableAnnotations(
   const annotations: PromptAnnotation[] = [];
   const candidates = variables
     .filter((variable) => !HIDDEN_PROMPT_VARIABLES.has(variable.name))
-    .map((variable) => ({
+    .map((variable, index) => ({
       variable,
+      fallbackIndex: index,
       text: (variableValues[variable.name] ?? variable.defaultValue ?? "").trim(),
     }))
     .filter((candidate) => candidate.text.length >= 2)
     .sort((left, right) => right.text.length - left.text.length);
 
-  for (const { variable, text } of candidates) {
+  for (const { variable, fallbackIndex, text } of candidates) {
     for (const occurrence of findTextOccurrences(value, text)) {
       if (hasOverlap(annotations, occurrence.start, occurrence.end)) continue;
 
@@ -170,6 +199,7 @@ function buildTextVariableAnnotations(
           occurrence.end,
         )}`,
         variableName: variable.name,
+        variableTone: resolveVariableTone(facetId, fallbackIndex),
       });
     }
   }
@@ -229,6 +259,9 @@ function tokenProps(annotation: PromptAnnotation, claimedTestIds: Set<string>) {
   return {
     ...(firstUse ? { "data-testid": testId } : {}),
     ...(annotation.facetId ? { "data-facet": annotation.facetId } : {}),
+    ...(annotation.variableTone
+      ? { "data-variable-tone": annotation.variableTone }
+      : {}),
     ...(annotation.kind === "provenance"
       ? {
           "data-selected": annotation.selected ? "true" : "false",

@@ -3,9 +3,9 @@ import type {
   TemplateVariable,
 } from "@/types/models";
 
-/** Variable name正则：匹配 {{variableName}} 格式 */
-const VARIABLE_PATTERN = /{{([a-zA-Z_]\w*)}}/g;
-const VARIABLE_NAME_RE = /^[a-zA-Z_]\w*$/;
+/** Variable marker supports Unicode letters, internal spaces, and hyphens. */
+const VARIABLE_PATTERN = /{{([^{}]+)}}/g;
+const VARIABLE_NAME_RE = /^[\p{L}_][\p{L}\p{N}_ -]*$/u;
 const VALID_SOURCE_FIELDS = new Set<AnalysisTemplateSourceField>([
   "subject",
   "scene",
@@ -20,6 +20,32 @@ const VALID_SOURCE_FIELDS = new Set<AnalysisTemplateSourceField>([
 export const TEMPLATE_VARIABLE_DEFAULT_MAX_LENGTH = 500;
 export const TEMPLATE_VARIABLE_LABEL_MAX_LENGTH = 80;
 
+export function normalizeVariableName(name: string): string | null {
+  const normalized = name.trim();
+  return VARIABLE_NAME_RE.test(normalized) ? normalized : null;
+}
+
+export function isValidVariableName(name: string): boolean {
+  return normalizeVariableName(name) !== null;
+}
+
+export interface LinkedTextVariableRange {
+  start: number;
+  end: number;
+}
+
+export interface LinkedTextVariableState {
+  name: string;
+  ranges: LinkedTextVariableRange[];
+}
+
+export interface LinkedTextVariableEdit {
+  name: string;
+  value: string;
+  promptText: string;
+  linkState: LinkedTextVariableState;
+}
+
 /**
  * 从模板正文中提取所有Variables标记
  * 返回去重的Variables定义列表（按首次出现顺序）
@@ -32,7 +58,8 @@ export function extractVariables(content: string): TemplateVariable[] {
   VARIABLE_PATTERN.lastIndex = 0;
 
   while ((match = VARIABLE_PATTERN.exec(content)) !== null) {
-    const name = match[1];
+    const name = normalizeVariableName(match[1]);
+    if (!name) continue;
     if (!seen.has(name)) {
       seen.add(name);
       variables.push({ name, defaultValue: "" });
@@ -43,26 +70,20 @@ export function extractVariables(content: string): TemplateVariable[] {
 }
 
 /**
- * 用Variables值替换模板正文中的 {{var}} 标记
- * 按Variable name长度降序执行，避免短Variable name误替换长Variable name的子串
+ * 用Variables值替换模板正文中的 {{var}} 标记。
+ * 变量名会去除标记内部的首尾空格，保留变量名中的内部空格和横线。
  */
 export function replaceVariables(
   content: string,
   values: Record<string, string>
 ): string {
-  let result = content;
-
-  const sortedKeys = Object.keys(values).sort((a, b) => b.length - a.length);
-
-  for (const key of sortedKeys) {
-    const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    result = result.replace(
-      new RegExp(`\\{\\{${escapedKey}\\}\\}`, "g"),
-      values[key] ?? ""
-    );
-  }
-
-  return result;
+  return content.replace(VARIABLE_PATTERN, (marker, rawName: string) => {
+    const name = normalizeVariableName(rawName);
+    if (!name || !Object.prototype.hasOwnProperty.call(values, name)) {
+      return marker;
+    }
+    return values[name] ?? "";
+  });
 }
 
 /**
@@ -84,13 +105,202 @@ export function mergeVariableValues(
  * 检测模板正文是否包含Variables标记
  */
 export function hasVariables(content: string): boolean {
-  VARIABLE_PATTERN.lastIndex = 0;
-  return VARIABLE_PATTERN.test(content);
+  return extractVariables(content).length > 0;
 }
 
 /** 检测文本是否仍包含合法Variables标记 */
 export function hasUnresolvedVariables(content: string): boolean {
   return hasVariables(content);
+}
+
+interface TextEdit {
+  start: number;
+  end: number;
+  insertedText: string;
+}
+
+interface VariableOccurrence extends LinkedTextVariableRange {
+  name: string;
+}
+
+function describeTextEdit(previousText: string, nextText: string): TextEdit | null {
+  if (previousText === nextText) return null;
+
+  let start = 0;
+  while (
+    start < previousText.length &&
+    start < nextText.length &&
+    previousText[start] === nextText[start]
+  ) {
+    start += 1;
+  }
+
+  let suffixLength = 0;
+  while (
+    suffixLength < previousText.length - start &&
+    suffixLength < nextText.length - start &&
+    previousText[previousText.length - 1 - suffixLength] ===
+      nextText[nextText.length - 1 - suffixLength]
+  ) {
+    suffixLength += 1;
+  }
+
+  return {
+    start,
+    end: previousText.length - suffixLength,
+    insertedText: nextText.slice(start, nextText.length - suffixLength),
+  };
+}
+
+function editFitsRange(edit: TextEdit, range: LinkedTextVariableRange) {
+  if (edit.start === edit.end) {
+    return edit.start >= range.start && edit.start <= range.end;
+  }
+
+  return edit.start >= range.start && edit.end <= range.end;
+}
+
+function findOccurrences(source: string, target: string) {
+  const normalizedSource = source.toLowerCase();
+  const normalizedTarget = target.toLowerCase();
+  const occurrences: LinkedTextVariableRange[] = [];
+  let cursor = 0;
+
+  while (cursor < source.length) {
+    const start = normalizedSource.indexOf(normalizedTarget, cursor);
+    if (start === -1) break;
+
+    const end = start + target.length;
+    occurrences.push({ start, end });
+    cursor = end;
+  }
+
+  return occurrences;
+}
+
+function rangesOverlap(
+  left: LinkedTextVariableRange,
+  right: LinkedTextVariableRange,
+) {
+  return left.start < right.end && left.end > right.start;
+}
+
+function findVariableOccurrences(
+  promptText: string,
+  variables: TemplateVariable[],
+  values: Record<string, string>,
+) {
+  const claimedRanges: LinkedTextVariableRange[] = [];
+  const occurrences: VariableOccurrence[] = [];
+  const candidates = variables
+    .map((variable) => ({
+      variable,
+      visibleValue: (values[variable.name] ?? variable.defaultValue ?? "").trim(),
+    }))
+    .filter((candidate) => candidate.visibleValue.length >= 2)
+    .sort((left, right) => right.visibleValue.length - left.visibleValue.length);
+
+  for (const { variable, visibleValue } of candidates) {
+    for (const range of findOccurrences(promptText, visibleValue)) {
+      if (claimedRanges.some((claimed) => rangesOverlap(claimed, range))) continue;
+
+      claimedRanges.push(range);
+      occurrences.push({ ...range, name: variable.name });
+    }
+  }
+
+  return occurrences;
+}
+
+function replaceLinkedRanges(
+  previousText: string,
+  ranges: LinkedTextVariableRange[],
+  nextVisibleValue: string,
+) {
+  const sortedRanges = [...ranges].sort((left, right) => left.start - right.start);
+  const nextRanges: LinkedTextVariableRange[] = [];
+  let cursor = 0;
+  let promptText = "";
+
+  for (const range of sortedRanges) {
+    promptText += previousText.slice(cursor, range.start);
+    const start = promptText.length;
+    promptText += nextVisibleValue;
+    nextRanges.push({ start, end: promptText.length });
+    cursor = range.end;
+  }
+
+  promptText += previousText.slice(cursor);
+  return { promptText, ranges: nextRanges };
+}
+
+/**
+ * Reconciles a text-mode edit with a resolved template variable.
+ * Returns null when the edit touches ordinary prompt prose or crosses a variable boundary.
+ */
+export function reconcileLinkedTextVariableEdit(
+  previousText: string,
+  nextText: string,
+  variables: TemplateVariable[],
+  values: Record<string, string>,
+  activeLink: LinkedTextVariableState | null = null,
+): LinkedTextVariableEdit | null {
+  const edit = describeTextEdit(previousText, nextText);
+  if (!edit) return null;
+
+  const activeValue = activeLink
+    ? values[activeLink.name] ??
+      variables.find((variable) => variable.name === activeLink.name)?.defaultValue ??
+      ""
+    : "";
+  const activeLinkIsCurrent =
+    activeLink?.ranges.every(
+      (range) => previousText.slice(range.start, range.end) === activeValue,
+    ) ?? false;
+  const activeRange = activeLinkIsCurrent
+    ? activeLink?.ranges.find((range) => editFitsRange(edit, range))
+    : undefined;
+  let editedOccurrence: VariableOccurrence | undefined;
+  let linkedRanges: LinkedTextVariableRange[];
+
+  if (activeLink && activeRange) {
+    editedOccurrence = { ...activeRange, name: activeLink.name };
+    linkedRanges = activeLink.ranges;
+  } else {
+    const occurrences = findVariableOccurrences(previousText, variables, values);
+    editedOccurrence = occurrences.find((occurrence) =>
+      editFitsRange(edit, occurrence),
+    );
+    if (!editedOccurrence) return null;
+    linkedRanges = occurrences.filter(
+      (occurrence) => occurrence.name === editedOccurrence?.name,
+    );
+  }
+
+  const currentVisibleValue = previousText.slice(
+    editedOccurrence.start,
+    editedOccurrence.end,
+  );
+  const relativeStart = edit.start - editedOccurrence.start;
+  const relativeEnd = edit.end - editedOccurrence.start;
+  const nextVisibleValue = `${currentVisibleValue.slice(0, relativeStart)}${
+    edit.insertedText
+  }${currentVisibleValue.slice(relativeEnd)}`;
+  const replacement = replaceLinkedRanges(
+    previousText,
+    linkedRanges,
+    nextVisibleValue,
+  );
+
+  return {
+    name: editedOccurrence.name,
+    value: nextVisibleValue,
+    promptText: replacement.promptText,
+    linkState: {
+      name: editedOccurrence.name,
+      ranges: replacement.ranges,
+    },
+  };
 }
 
 function normalizeProvidedVariable(
@@ -137,10 +347,11 @@ export function mergeTemplateVariables(
   const providedByName = new Map<string, TemplateVariable>();
 
   for (const variable of providedVariables ?? []) {
-    if (!VARIABLE_NAME_RE.test(variable.name) || providedByName.has(variable.name)) {
+    const name = normalizeVariableName(variable.name);
+    if (!name || providedByName.has(name)) {
       continue;
     }
-    providedByName.set(variable.name, variable);
+    providedByName.set(name, { ...variable, name });
   }
 
   return contentVariables.map((variable) => ({

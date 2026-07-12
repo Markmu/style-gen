@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import type { VisualRecipe, GenerationParams, TemplateVariable } from "@/types/models";
+import { normalizeVariableName } from "@/lib/template-parser";
 
 /** 历史恢复成功后返回的完整数据 */
 export interface RestoredData {
@@ -41,14 +42,20 @@ function isTemplateVariable(value: unknown): value is TemplateVariable {
   const variable = value as Record<string, unknown>;
   return (
     typeof variable.name === "string" &&
-    /^[a-zA-Z_]\w*$/.test(variable.name) &&
+    normalizeVariableName(variable.name) !== null &&
     typeof variable.defaultValue === "string"
   );
 }
 
 function normalizeVariables(value: unknown): TemplateVariable[] {
   if (!Array.isArray(value)) return [];
-  return value.filter(isTemplateVariable).slice(0, 20);
+  return value
+    .filter(isTemplateVariable)
+    .slice(0, 20)
+    .map((variable) => ({
+      ...variable,
+      name: normalizeVariableName(variable.name) ?? variable.name,
+    }));
 }
 
 function deriveVariablesFromRecipe(recipe: VisualRecipe | null | undefined): TemplateVariable[] {

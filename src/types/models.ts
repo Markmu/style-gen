@@ -120,7 +120,7 @@ export interface GenerationTask {
 
 /** 模板Variables定义 */
 export interface TemplateVariable {
-  name: string;           // Variable name，匹配 [a-zA-Z_]\w* 格式
+  name: string;           // Variable name，支持中文、空格、下划线和横线
   defaultValue: string;   // 默认值，用户未填值时使用
   label?: string;         // 展示标签，缺失时回退到 name
   sourceField?: AnalysisTemplateSourceField; // 自动模板Variables来源

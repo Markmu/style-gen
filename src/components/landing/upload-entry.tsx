@@ -3,6 +3,8 @@
 import { useCallback, useRef, useState, type DragEvent, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useSession, signIn } from "next-auth/react";
+import { ArrowRight, CloudUpload } from "lucide-react";
+import { AppIcon } from "@/components/ui/app-icon";
 import { useFileStore } from "@/components/landing/use-file-store";
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -112,9 +114,7 @@ export function UploadEntry() {
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-[var(--accent-primary-soft)]">
-              <span className="icon text-[var(--accent-primary)]" aria-hidden="true">
-                cloud_upload
-              </span>
+              <AppIcon icon={CloudUpload} size={24} className="text-[var(--accent-primary)]" />
             </div>
             <p className="text-lg font-semibold text-[var(--text-primary)]">
               Upload a reference image
@@ -128,9 +128,7 @@ export function UploadEntry() {
             </p>
           </div>
           <div className="readiness-row shrink-0" data-state="waiting">
-            <span className="icon text-base" aria-hidden="true">
-              arrow_forward
-            </span>
+            <AppIcon icon={ArrowRight} size={16} />
             <span className="text-sm font-medium">Start from reference</span>
           </div>
         </div>

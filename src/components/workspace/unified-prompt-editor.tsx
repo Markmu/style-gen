@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   extractVariables,
+  reconcileLinkedTextVariableEdit,
   replaceVariables,
 } from "@/lib/template-parser";
 import { TemplateModeEditor } from "@/components/workspace/template-mode-editor";
@@ -13,6 +14,7 @@ import type {
   AnalysisTemplateStatus,
   TemplateVariable,
 } from "@/types/models";
+import type { LinkedTextVariableState } from "@/lib/template-parser";
 
 type PromptMode = "template" | "text";
 
@@ -173,6 +175,7 @@ export function UnifiedPromptEditor({
   const lastTemplateKeyRef = useRef(templateKey ?? normalizedTemplateContent);
   const lastEmittedPromptRef = useRef(initialPromptText);
   const archivedVariableStateRef = useRef(new Map<number, ArchivedVariableState>());
+  const linkedTextVariableRef = useRef<LinkedTextVariableState | null>(null);
   const [variableMetadata, setVariableMetadata] = useState(
     () => variablesByName(initialTemplateVariables),
   );
@@ -192,6 +195,7 @@ export function UnifiedPromptEditor({
       setTemplateSource(normalizedTemplateContent);
       setVariableMetadata(variablesByName(initialTemplateVariables));
       archivedVariableStateRef.current = new Map();
+      linkedTextVariableRef.current = null;
       const nextValues = buildInitialVariableValues(
         normalizedTemplateContent,
         initialTemplateVariables,
@@ -214,6 +218,7 @@ export function UnifiedPromptEditor({
       setVariableValues({});
       setVariableMetadata(new Map());
       archivedVariableStateRef.current = new Map();
+      linkedTextVariableRef.current = null;
       return;
     }
 
@@ -229,6 +234,7 @@ export function UnifiedPromptEditor({
       setTemplateSource(initialPromptText);
       setMode("text");
       archivedVariableStateRef.current = new Map();
+      linkedTextVariableRef.current = null;
     }
   }, [
     hasUsableTemplate,
@@ -326,9 +332,28 @@ export function UnifiedPromptEditor({
   }, [auxiliaryVariableNames, onAuxiliaryVariableChange]);
 
   const handleTextChange = useCallback((value: string) => {
+    const linkedEdit = reconcileLinkedTextVariableEdit(
+      textPrompt,
+      value,
+      templateVariables,
+      variableValues,
+      linkedTextVariableRef.current,
+    );
+
+    if (linkedEdit) {
+      linkedTextVariableRef.current = linkedEdit.linkState;
+      setVariableValues((previous) => ({
+        ...previous,
+        [linkedEdit.name]: linkedEdit.value,
+      }));
+      setTextPrompt(linkedEdit.promptText);
+      return;
+    }
+
+    linkedTextVariableRef.current = null;
     textTouchedRef.current = true;
     setTextPrompt(value);
-  }, []);
+  }, [templateVariables, textPrompt, variableValues]);
 
   const switchToText = useCallback(() => {
     setMode("text");
@@ -367,7 +392,7 @@ export function UnifiedPromptEditor({
             onVariableChange={handleVariableChange}
           />
         ) : (
-          <div className="flex min-h-full flex-col gap-3">
+          <div className="flex h-full min-h-full flex-col gap-3">
             {templateStatus === "fallback" && (
               <div className="rounded-lg bg-[var(--surface-low)] p-3 text-sm text-[var(--text-secondary)]">
                 <p className="font-medium text-[var(--text-primary)]">
@@ -386,11 +411,13 @@ export function UnifiedPromptEditor({
               onChange={handleTextChange}
             />
             {auxiliaryVariables.length > 0 && (
-              <TemplateVariablePanel
-                variables={auxiliaryVariables}
-                values={auxiliaryVariableValues}
-                onChange={handleVariableChange}
-              />
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <TemplateVariablePanel
+                  variables={auxiliaryVariables}
+                  values={auxiliaryVariableValues}
+                  onChange={handleVariableChange}
+                />
+              </div>
             )}
           </div>
         )}

@@ -7,6 +7,8 @@ import {
   type DragEvent,
   type ChangeEvent,
 } from "react";
+import { ArrowRight, ImageUp } from "lucide-react";
+import { AppIcon } from "@/components/ui/app-icon";
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
@@ -191,8 +193,8 @@ export function UploadZone({
             : "border-[var(--border)]/15 bg-[var(--surface-low)] hover:border-[var(--accent-primary)]/30 hover:bg-[var(--surface-mid)]"
         }`}
       >
-        <div className="mb-3 flex items-center justify-center" aria-hidden="true">
-          <span className="icon text-[var(--accent-primary)]">add_photo_alternate</span>
+        <div className="mb-3 flex items-center justify-center">
+          <AppIcon icon={ImageUp} size={24} className="text-[var(--accent-primary)]" />
         </div>
         <p className="text-base font-medium text-[var(--text-primary)]">
           Click or drag to upload a reference image
@@ -202,9 +204,9 @@ export function UploadZone({
         </p>
         <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-[var(--text-secondary)]">
           <span>Reference</span>
-          <span aria-hidden="true">→</span>
+          <AppIcon icon={ArrowRight} size={14} />
           <span>Evidence readiness</span>
-          <span aria-hidden="true">→</span>
+          <AppIcon icon={ArrowRight} size={14} />
           <span>Render-ready prompt</span>
         </div>
         <p className="mx-auto mt-3 max-w-md text-xs leading-5 text-[var(--text-secondary)]">

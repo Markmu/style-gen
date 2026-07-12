@@ -51,6 +51,34 @@ describe("UnifiedPromptEditor", () => {
     );
   });
 
+  it("cycles highlight tones for newly added variables without evidence mappings", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <UnifiedPromptEditor
+        initialPromptText="Create glass fox in a neon studio."
+        initialTemplateContent="Create {{subject}} in {{custom_scene}} with {{camera_angle}}."
+        initialTemplateVariables={[
+          { name: "subject", defaultValue: "glass fox" },
+          { name: "custom_scene", defaultValue: "a neon studio" },
+          { name: "camera_angle", defaultValue: "a low angle" },
+        ]}
+        templateStatus="ready"
+        onResolvedPromptChange={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Template Mode" }));
+
+    const tones = [
+      screen.getByTestId("prompt-variable-token-custom_scene").getAttribute("data-variable-tone"),
+      screen.getByTestId("prompt-variable-token-camera_angle").getAttribute("data-variable-tone"),
+    ];
+    expect(tones[0]).toBeTruthy();
+    expect(tones[1]).toBeTruthy();
+    expect(tones[0]).not.toBe(tones[1]);
+  });
+
   it("prefills template variables from analysis defaults and emits current variables", async () => {
     const user = userEvent.setup();
     const onTemplateVariablesChange = vi.fn();
@@ -146,7 +174,49 @@ describe("UnifiedPromptEditor", () => {
     );
   });
 
-  it("keeps the compact text input visible above the variable strip", () => {
+  it("updates the linked variable when its resolved text is edited in text mode", async () => {
+    const onTemplateVariablesChange = vi.fn();
+    const onSaveContentChange = vi.fn();
+
+    render(
+      <UnifiedPromptEditor
+        initialPromptText="Create glass fox in soft daylight."
+        initialTemplateContent="Create {{subject}} in {{lighting}}."
+        initialTemplateVariables={[
+          { name: "subject", defaultValue: "glass fox", label: "Subject" },
+          { name: "lighting", defaultValue: "soft daylight", label: "Lighting" },
+        ]}
+        templateStatus="ready"
+        onResolvedPromptChange={vi.fn()}
+        onTemplateVariablesChange={onTemplateVariablesChange}
+        onSaveContentChange={onSaveContentChange}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Full Generation Prompt"), {
+      target: { value: "Create crystal heron in soft daylight." },
+    });
+
+    await waitFor(() =>
+      expect(onTemplateVariablesChange).toHaveBeenLastCalledWith([
+        { name: "subject", defaultValue: "crystal heron", label: "Subject" },
+        { name: "lighting", defaultValue: "soft daylight", label: "Lighting" },
+      ]),
+    );
+    expect(screen.getByTestId("prompt-variable-token-subject")).toHaveTextContent(
+      "crystal heron",
+    );
+    expect(onSaveContentChange).toHaveBeenLastCalledWith(
+      "Create {{subject}} in {{lighting}}.",
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Template Mode" }));
+    expect(screen.getByLabelText("Variable subject")).toHaveValue("crystal heron");
+  });
+
+  it("keeps compact editors tall enough for the variable strip", async () => {
+    const user = userEvent.setup();
+
     render(
       <UnifiedPromptEditor
         initialPromptText="Create glass fox with soft daylight."
@@ -162,6 +232,7 @@ describe("UnifiedPromptEditor", () => {
     );
 
     expect(screen.getByTestId("text-mode-highlight-editor")).toHaveClass(
+      "h-[68%]",
       "min-h-[12rem]",
     );
     expect(
@@ -169,6 +240,12 @@ describe("UnifiedPromptEditor", () => {
         "prompt-variable-token-subject",
       ),
     ).toHaveTextContent("glass fox");
+
+    await user.click(screen.getByRole("button", { name: "Template Mode" }));
+    expect(screen.getByTestId("template-mode-highlight-editor")).toHaveClass(
+      "h-[68%]",
+      "min-h-[10rem]",
+    );
   });
 
   it("resets touched text when a new analysis template arrives", async () => {

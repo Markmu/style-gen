@@ -30,7 +30,9 @@ export function TextModeEditor({
       onChange={onChange}
       placeholder="A full prompt appears after analysis, and you can edit it here directly."
       mode="text"
-      minHeightClass={compact ? "min-h-[12rem]" : "min-h-[20rem]"}
+      minHeightClass={
+        compact ? "h-[68%] min-h-[12rem] shrink-0" : "min-h-[20rem]"
+      }
       compact={compact}
       variables={variables}
       variableValues={variableValues}

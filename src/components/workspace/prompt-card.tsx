@@ -1,6 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { FileText, Info, Maximize, Minimize } from "lucide-react";
+import { AppIcon } from "@/components/ui/app-icon";
+import { ExpandablePanel } from "@/components/ui/expandable-panel";
 import type { WorkspaceError, WorkspaceState } from "@/hooks/use-workspace-state";
 import { UnifiedPromptEditor } from "@/components/workspace/unified-prompt-editor";
 import type { AnalysisTemplateStatus, TemplateVariable } from "@/types/models";
@@ -44,6 +47,8 @@ export function PromptCard({
   onBackToEdit,
   renderDock,
 }: PromptCardProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const titleId = useId();
   const prompt = promptText.trim();
   const isLoading = state === "analyzing";
   const analysisError = error && error.stage !== "generation" ? error : null;
@@ -81,6 +86,7 @@ export function PromptCard({
     [negativePromptText],
   );
   const canSaveStyleMemory = prompt && onSaveTemplate && state !== "history_restored";
+  const showRenderDock = Boolean(renderDock) && !isExpanded;
 
   const handleAuxiliaryVariableChange = useCallback(
     (name: string, value: string) => {
@@ -92,17 +98,21 @@ export function PromptCard({
   );
 
   return (
-    <article
-      data-testid="prompt-card"
-      className="surface-panel flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl p-4"
+    <ExpandablePanel
+      expanded={isExpanded}
+      labelledBy={titleId}
+      testId="prompt-expandable-panel"
+      onClose={() => setIsExpanded(false)}
     >
+      <article
+        data-testid="prompt-card"
+        className="surface-panel flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl p-4"
+      >
       <div className="mb-4 flex shrink-0 items-center justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
+          <h2 id={titleId} className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
             Prompt + Render
-            <span className="icon text-[0.9375rem] text-[var(--text-muted)]" aria-hidden="true">
-              info
-            </span>
+            <AppIcon icon={Info} size={16} className="text-[var(--text-muted)]" />
           </h2>
           <p className="mt-1 text-xs text-[var(--text-secondary)]">
             Prompt and generation controls
@@ -118,12 +128,33 @@ export function PromptCard({
               Save as Style Memory
             </button>
           )}
+          <button
+            type="button"
+            data-expand-toggle="true"
+            aria-label={
+              isExpanded
+                ? "Close expanded Prompt editor"
+                : "Expand Prompt editor"
+            }
+            title={
+              isExpanded
+                ? "Close expanded Prompt editor"
+                : "Expand Prompt editor"
+            }
+            onClick={() => setIsExpanded((expanded) => !expanded)}
+            className="btn-secondary flex h-8 w-8 items-center justify-center rounded-lg"
+          >
+            <AppIcon
+              icon={isExpanded ? Minimize : Maximize}
+              strokeWidth={1.5}
+            />
+          </button>
         </div>
       </div>
 
       <div
         className={
-          renderDock
+          showRenderDock || isExpanded
             ? "min-h-0 flex-1 overflow-hidden"
             : "min-h-0 flex-1 overflow-y-auto"
         }
@@ -133,16 +164,20 @@ export function PromptCard({
         ) : prompt ? (
           <div
             className={
-              renderDock
+              showRenderDock
                 ? "flex h-full min-h-0 flex-col gap-3"
+                : isExpanded
+                  ? "flex h-full min-h-0 flex-col"
                 : "flex min-h-full flex-col gap-4"
             }
           >
             <div
               data-testid="prompt-editor-frame"
               className={
-                renderDock
+                showRenderDock
                   ? "min-h-[14rem] flex-1 overflow-hidden"
+                  : isExpanded
+                    ? "h-full min-h-0 flex-1 overflow-hidden"
                   : "min-h-[22.5rem]"
               }
             >
@@ -155,7 +190,7 @@ export function PromptCard({
                 templateStatus={templateStatus}
                 templateReason={templateReason}
                 templateKey={templateKey}
-                compact={Boolean(renderDock)}
+                compact={showRenderDock}
                 onResolvedPromptChange={onResolvedPromptChange ?? (() => undefined)}
                 onTemplateContentChange={onTemplateContentChange}
                 onTemplateVariablesChange={onTemplateVariablesChange}
@@ -167,9 +202,7 @@ export function PromptCard({
         ) : (
           <div className="flex min-h-full flex-col">
             <div className="flex min-h-[16.25rem] flex-1 flex-col justify-center rounded-xl bg-[var(--surface-low)] p-6">
-              <span className="icon mb-4 text-[var(--accent-primary)]" aria-hidden="true">
-                notes
-              </span>
+              <AppIcon icon={FileText} size={24} className="mb-4 text-[var(--accent-primary)]" />
               <p className="text-sm font-semibold text-[var(--text-primary)]">
                 Prompt provenance will appear here
               </p>
@@ -191,12 +224,13 @@ export function PromptCard({
           </div>
         )}
       </div>
-      {renderDock && (
+      {showRenderDock && (
         <div data-testid="prompt-render-dock-slot" className="mt-2 shrink-0">
           {renderDock}
         </div>
       )}
-    </article>
+      </article>
+    </ExpandablePanel>
   );
 }
 

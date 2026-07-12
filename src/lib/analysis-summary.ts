@@ -12,7 +12,6 @@ export interface DimensionScore {
   label: string;
   value: string;
   percentage: number;
-  iconName: string;
   iconColor: string;
 }
 
@@ -50,7 +49,6 @@ export function extractAnalysisSummary(
       dimension: "style",
       label: "Style",
       value: compactText([recipe.styleTags, recipe.cameraLanguage, recipe.visualKeywords]) || EMPTY_VALUE,
-      iconName: "auto_awesome",
       iconColor: "var(--accent-edit)",
       keywords: ["style", "cinematic", "photo", "illustration", "landscape"],
     },
@@ -58,7 +56,6 @@ export function extractAnalysisSummary(
       dimension: "material",
       label: "Material",
       value: compactText([recipe.texture, recipe.mustKeep, recipe.replaceable]) || EMPTY_VALUE,
-      iconName: "texture",
       iconColor: "var(--accent-warm)",
       keywords: ["texture", "smooth", "grain", "glass", "metal", "water"],
     },
@@ -66,7 +63,6 @@ export function extractAnalysisSummary(
       dimension: "lighting",
       label: "Lighting",
       value: compactText([recipe.lighting, recipe.color]) || EMPTY_VALUE,
-      iconName: "light_mode",
       iconColor: "var(--accent-analyze)",
       keywords: ["light", "golden", "shadow", "glow", "warm", "cool"],
     },
@@ -74,7 +70,6 @@ export function extractAnalysisSummary(
       dimension: "composition",
       label: "Composition",
       value: compactText([recipe.composition, recipe.scene]) || EMPTY_VALUE,
-      iconName: "grid_goldenratio",
       iconColor: "var(--accent-primary)",
       keywords: ["third", "symmetry", "wide", "center", "foreground", "horizon"],
     },
@@ -82,7 +77,6 @@ export function extractAnalysisSummary(
       dimension: "mood",
       label: "Mood",
       value: compactText([recipe.mood, recipe.imageSummary]) || EMPTY_VALUE,
-      iconName: "neurology",
       iconColor: "var(--accent-result)",
       keywords: ["serene", "dramatic", "soft", "calm", "energetic", "moody"],
     },

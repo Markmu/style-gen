@@ -1,4 +1,13 @@
 import Link from "next/link";
+import {
+  CircleCheck,
+  Eye,
+  ImageUp,
+  Layers3,
+  SlidersHorizontal,
+  Sparkles,
+} from "lucide-react";
+import { AppIcon } from "@/components/ui/app-icon";
 
 const evidenceFacets = [
   { label: "Color", detail: "warm coral, air blue", facet: "color" },
@@ -29,39 +38,29 @@ export function Hero() {
               href="/workspace"
               className="btn-primary inline-flex items-center justify-center gap-2 rounded-lg px-8 py-3 text-base font-semibold"
             >
-              <span className="icon text-[1.125rem]" aria-hidden="true">
-                add_photo_alternate
-              </span>
+              <AppIcon icon={ImageUp} />
               Start from reference
             </Link>
             <Link
               href="/workspace/templates"
               className="btn-secondary inline-flex items-center justify-center gap-2 rounded-lg px-6 py-3 text-base font-medium"
             >
-              <span className="icon text-[1.125rem]" aria-hidden="true">
-                library_books
-              </span>
+              <AppIcon icon={Layers3} />
               Browse Style Memory
             </Link>
           </div>
 
           <div className="mt-8 grid gap-3 text-sm text-[var(--text-secondary)] sm:grid-cols-3">
             <div className="readiness-row" data-state="ready">
-              <span className="icon text-base" aria-hidden="true">
-                visibility
-              </span>
+              <AppIcon icon={Eye} size={16} />
               <span>AI keeps the reference on canvas.</span>
             </div>
             <div className="readiness-row" data-state="processing">
-              <span className="icon text-base" aria-hidden="true">
-                auto_awesome
-              </span>
+              <AppIcon icon={Sparkles} size={16} />
               <span>Evidence stays attached to the prompt.</span>
             </div>
             <div className="readiness-row" data-state="waiting">
-              <span className="icon text-base" aria-hidden="true">
-                tune
-              </span>
+              <AppIcon icon={SlidersHorizontal} size={16} />
               <span>Readiness shows what is missing before render.</span>
             </div>
           </div>
@@ -129,9 +128,7 @@ export function Hero() {
               </div>
               <div className="mt-3 space-y-2 text-sm text-[var(--text-secondary)]">
                 <div className="readiness-row" data-state="ready">
-                  <span className="icon text-base" aria-hidden="true">
-                    check_circle
-                  </span>
+                  <AppIcon icon={CircleCheck} size={16} />
                   <span>Variables and service are ready.</span>
                 </div>
                 <p className="leading-5">

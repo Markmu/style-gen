@@ -423,6 +423,24 @@ describe("structurer", () => {
       expect(result.promptText).toBe("soft daylight around glass chair.");
     });
 
+    it("接受包含中文、空格和横线的自动模板变量", async () => {
+      mockValidResponse({
+        analysisTemplateContent: "Create {{主体 名称}} with {{lighting-color}}.",
+        analysisTemplateVariables: [
+          { name: "主体 名称", defaultValue: "glass fox" },
+          { name: "lighting-color", defaultValue: "soft blue" },
+        ],
+      });
+
+      const result = await structureAnalysis("raw analysis");
+
+      expect(result.analysisTemplateVariables.map((item) => item.name)).toEqual([
+        "主体 名称",
+        "lighting-color",
+      ]);
+      expect(result.promptText).toBe("Create glass fox with soft blue.");
+    });
+
     it("模板正文过长时 fallback 且不透传正文和Variables", async () => {
       mockValidResponse({
         analysisTemplateContent: `{{subject}} ${"x".repeat(6001)}`,

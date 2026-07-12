@@ -2,6 +2,8 @@
 
 import { useEffect, useRef } from "react";
 import Image from "next/image";
+import { RefreshCw } from "lucide-react";
+import { AppIcon } from "@/components/ui/app-icon";
 import { useHistoryList, type GenerationHistoryItem } from "@/hooks/use-history-list";
 
 export interface HistoryPanelProps {
@@ -71,12 +73,7 @@ export function HistoryPanel({
           aria-label="Refresh history"
           title="Refresh history"
         >
-          <span
-            className="material-symbols-outlined leading-none"
-            style={{ fontSize: 20, lineHeight: "20px" }}
-          >
-            refresh
-          </span>
+          <AppIcon icon={RefreshCw} size={20} />
         </button>
       </div>
 

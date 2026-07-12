@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Settings, Share2 } from "lucide-react";
+import { AppIcon } from "@/components/ui/app-icon";
 import type {
   DegradationState,
   WorkspaceState,
@@ -251,14 +253,14 @@ export function StatusBar({
           aria-label="Share workspace"
           className="btn-secondary hidden h-9 w-9 items-center justify-center rounded-lg md:inline-flex"
         >
-          <span className="icon text-[1.0625rem]" aria-hidden="true">share</span>
+          <AppIcon icon={Share2} />
         </button>
         <button
           type="button"
           aria-label="Workspace settings"
           className="btn-secondary hidden h-9 w-9 items-center justify-center rounded-lg md:inline-flex"
         >
-          <span className="icon text-[1.0625rem]" aria-hidden="true">settings</span>
+          <AppIcon icon={Settings} />
         </button>
         {canReplace && (
           <button

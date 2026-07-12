@@ -1,5 +1,7 @@
 "use client";
 
+import { CircleCheck, PenLine, Radar, Zap } from "lucide-react";
+import { AppIcon, type AppIconComponent } from "@/components/ui/app-icon";
 import type { WorkspaceState } from "@/hooks/use-workspace-state";
 
 export type TopMode = "analyze" | "editing" | "generate" | "result";
@@ -15,7 +17,7 @@ interface TopModeSwitcherProps {
 interface ModeConfig {
   mode: TopMode;
   label: string;
-  icon: string;
+  icon: AppIconComponent;
   selectedClass: string;
   softClass: string;
 }
@@ -24,28 +26,28 @@ const MODES: ModeConfig[] = [
   {
     mode: "analyze",
     label: "Analyze",
-    icon: "radar",
+    icon: Radar,
     selectedClass: "bg-[var(--accent-analyze)] text-[var(--text-on-primary)]",
     softClass: "bg-[var(--accent-analyze-soft)] text-[var(--accent-analyze)]",
   },
   {
     mode: "editing",
     label: "Editing",
-    icon: "edit_note",
+    icon: PenLine,
     selectedClass: "bg-[var(--accent-edit)] text-[var(--text-on-primary)]",
     softClass: "bg-[var(--accent-edit-soft)] text-[var(--accent-edit)]",
   },
   {
     mode: "generate",
     label: "Generate",
-    icon: "bolt",
+    icon: Zap,
     selectedClass: "bg-[var(--accent-warm)] text-[var(--text-on-primary)]",
     softClass: "bg-[var(--accent-warm-soft)] text-[var(--accent-warm)]",
   },
   {
     mode: "result",
     label: "Result",
-    icon: "check_circle",
+    icon: CircleCheck,
     selectedClass: "bg-[var(--accent-result)] text-[var(--text-on-primary)]",
     softClass: "bg-[var(--accent-result-soft)] text-[var(--accent-result)]",
   },
@@ -124,9 +126,7 @@ export function TopModeSwitcher({
             onClick={() => onModeChange(item.mode)}
             className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/25 ${stateClass}`}
           >
-            <span className="icon text-[1rem]" aria-hidden="true">
-              {item.icon}
-            </span>
+            <AppIcon icon={item.icon} size={16} />
             <span>{item.label}</span>
           </button>
         );

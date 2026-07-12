@@ -84,6 +84,34 @@ describe("/api/templates", () => {
     );
   });
 
+  it("accepts Unicode, spaced, and hyphenated variable names", async () => {
+    mockFindByName.mockResolvedValue(null);
+    mockFindAssetById.mockResolvedValue(null);
+    mockCreateTemplate.mockResolvedValue(TEMPLATE);
+
+    const response = await POST(
+      makeRequest("http://localhost:3000/api/templates", {
+        name: "多语言模板",
+        content: "Create {{主体 名称}} with {{lighting-color}}.",
+        variables: [
+          { name: "主体 名称 ", defaultValue: "glass fox" },
+          { name: "lighting-color", defaultValue: "soft blue" },
+        ],
+      }),
+    );
+
+    expect(response.status).toBe(201);
+    expect(mockCreateTemplate).toHaveBeenCalledWith(
+      "user-1",
+      expect.objectContaining({
+        variables: [
+          { name: "主体 名称", defaultValue: "glass fox" },
+          { name: "lighting-color", defaultValue: "soft blue" },
+        ],
+      }),
+    );
+  });
+
   it("returns source image fields in the template list response", async () => {
     mockFindAllByUserId.mockResolvedValue({
       items: [

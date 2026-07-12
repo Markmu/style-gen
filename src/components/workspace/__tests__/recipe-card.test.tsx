@@ -26,6 +26,10 @@ describe("RecipeCard", () => {
     render(<RecipeCard state="idle" recipe={null} />);
 
     expect(screen.getByText("Style Intelligence")).toBeInTheDocument();
+    const expandButton = screen.getByRole("button", {
+      name: "Expand Style Intelligence",
+    });
+    expect(expandButton.querySelector("svg")).toHaveClass("lucide-maximize");
     expect(screen.queryByLabelText("Visual Recipe help")).not.toBeInTheDocument();
     expect(
       screen.getByText(/After upload, AI will separate color/),
@@ -45,6 +49,7 @@ describe("RecipeCard", () => {
     expect(screen.getByText("A serene landscape")).toBeInTheDocument();
     expect(screen.getByText("landscape")).toBeInTheDocument();
     expect(screen.getByText("nature")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reset" })).not.toBeInTheDocument();
   });
 
   it("renders ordered evidence facets with selected highlight and confidence", () => {
@@ -87,6 +92,54 @@ describe("RecipeCard", () => {
 
     fireEvent.click(screen.getByTestId("evidence-facet-color"));
     expect(onFacetSelect).toHaveBeenCalledWith("color");
+  });
+
+  it("opens a near-fullscreen dialog with the complete summary and keeps facet actions", () => {
+    const onFacetSelect = vi.fn();
+    render(
+      <RecipeCard
+        state="analysis_ready"
+        recipe={mockRecipe}
+        onFacetSelect={onFacetSelect}
+      />,
+    );
+
+    const expandButton = screen.getByRole("button", {
+      name: "Expand Style Intelligence",
+    });
+    const summary = screen.getByTestId("style-intelligence-image-summary");
+    expect(summary).toHaveClass("max-h-10", "overflow-hidden");
+    expect(
+      screen.queryByRole("button", { name: "Style intelligence options" }),
+    ).not.toBeInTheDocument();
+
+    expandButton.focus();
+    fireEvent.click(expandButton);
+
+    expect(
+      screen.getByRole("dialog", { name: "Style Intelligence" }),
+    ).toBeInTheDocument();
+    expect(
+      screen
+        .getByRole("button", { name: "Close expanded Style Intelligence" })
+        .querySelector("svg"),
+    ).toHaveClass("lucide-minimize");
+    expect(summary).not.toHaveClass("max-h-10", "overflow-hidden");
+    expect(document.body.style.overflow).toBe("hidden");
+
+    fireEvent.click(screen.getByTestId("evidence-facet-color"));
+    expect(onFacetSelect).toHaveBeenCalledWith("color");
+
+    fireEvent.keyDown(
+      screen.getByRole("dialog", { name: "Style Intelligence" }),
+      { key: "Escape" },
+    );
+
+    expect(
+      screen.queryByRole("dialog", { name: "Style Intelligence" }),
+    ).not.toBeInTheDocument();
+    expect(summary).toHaveClass("max-h-10", "overflow-hidden");
+    expect(expandButton).toHaveFocus();
   });
 
   it("does not crash when recipe tags are empty", () => {

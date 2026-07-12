@@ -184,6 +184,41 @@ test.describe('analysis template autofill', () => {
     expect(requestBody.promptText).not.toContain('glass fox')
   })
 
+  test('keeps a variable linked when its resolved text is edited in text mode', async ({ page }) => {
+    await uploadAndCompleteAnalysis(page, {
+      analysisTaskId: 'analysis-template-inline-variable-edit-task',
+      analysisResponse: readyTemplateResponse,
+    })
+
+    await page.getByLabel('Full Generation Prompt').fill(
+      readyTemplateResponse.promptText.replace('glass fox', 'crystal heron'),
+    )
+
+    await expect(page.getByTestId('prompt-variable-token-subject')).toContainText('crystal heron')
+    await page.getByRole('button', { name: 'Template Mode' }).click()
+    await expect(page.getByLabel('Variable subject')).toHaveValue('crystal heron')
+  })
+
+  test('cycles colors for newly added template variables', async ({ page }) => {
+    await uploadAndCompleteAnalysis(page, {
+      analysisTaskId: 'analysis-template-variable-tone-task',
+      analysisResponse: readyTemplateResponse,
+    })
+
+    await page.getByRole('button', { name: 'Template Mode' }).click()
+    await page.getByLabel('Template Source').fill(
+      'Create {{subject}} in {{custom_scene}} with {{camera_angle}}.',
+    )
+
+    const tones = await page.locator('[data-testid^="prompt-variable-token-"][data-variable-tone]').evaluateAll(
+      (tokens) => tokens
+        .filter((token) => token.getAttribute('data-testid') !== 'prompt-variable-token-subject')
+        .map((token) => token.getAttribute('data-variable-tone')),
+    )
+    expect(tones).toHaveLength(2)
+    expect(tones[0]).not.toBe(tones[1])
+  })
+
   test('keeps manual text draft after template variables change', async ({ page }) => {
     let requestBody: Record<string, unknown> = {}
 

@@ -3,6 +3,8 @@
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
+import { Search } from "lucide-react";
+import { AppIcon } from "@/components/ui/app-icon";
 import { StatePresenter } from "@/components/ui/state-presenter";
 import { TemplateCard } from "@/components/workspace/template-card";
 import { useTemplateSearch } from "@/hooks/use-template-search";
@@ -210,9 +212,7 @@ export default function StyleMemoryPage() {
 
       <div className="shrink-0 px-6 pb-4">
         <div className="surface-panel flex min-h-12 items-center gap-3 rounded-lg px-4 py-2">
-          <span className="material-symbols-outlined text-lg text-[var(--text-secondary)]">
-            search
-          </span>
+          <AppIcon icon={Search} className="text-[var(--text-secondary)]" />
           <input
             type="text"
             value={search}

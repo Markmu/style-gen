@@ -4,6 +4,8 @@ import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ChevronUp, Layers3, LogOut, Sparkles } from "lucide-react";
+import { AppIcon } from "@/components/ui/app-icon";
 import { trackAuthEvent } from "@/components/auth/auth-tracking";
 import { VisorynMark } from "@/components/brand/visoryn-mark";
 
@@ -13,7 +15,7 @@ const navItems = [
     ariaLabel: "Generate",
     href: "/workspace",
     tone: "generate",
-    icon: "auto_awesome",
+    icon: Sparkles,
     match: (pathname: string) => pathname === "/workspace",
   },
   {
@@ -21,7 +23,7 @@ const navItems = [
     ariaLabel: "Style Memory Library",
     href: "/workspace/templates",
     tone: "library",
-    icon: "stacks",
+    icon: Layers3,
     match: (pathname: string) => pathname.startsWith("/workspace/templates"),
   },
 ] as const;
@@ -87,7 +89,7 @@ export function LeftSidebar() {
       aria-label="Workspace navigation"
       className="workspace-sidebar surface-panel flex h-full w-[14.125rem] flex-shrink-0 flex-col px-3 pb-3 pt-4"
     >
-      <div className="flex items-center justify-between px-2">
+      <div className="flex items-center px-2">
         <Link
           href="/"
           className="flex min-w-0 items-center gap-2.5 transition-opacity hover:opacity-80"
@@ -98,15 +100,6 @@ export function LeftSidebar() {
             Visoryn
           </span>
         </Link>
-        <button
-          type="button"
-          aria-label="Sidebar options"
-          className="workspace-sidebar-icon-button"
-        >
-          <span className="material-symbols-outlined text-[1.125rem]" aria-hidden="true">
-            more_horiz
-          </span>
-        </button>
       </div>
 
       <nav className="mt-10 space-y-2" aria-label="Workspace primary navigation">
@@ -124,12 +117,11 @@ export function LeftSidebar() {
                 active ? "is-active" : "text-[var(--text-secondary)]"
               }`}
             >
-              <span
-                className="material-symbols-outlined workspace-sidebar-nav-icon text-[1.3125rem]"
-                aria-hidden="true"
-              >
-                {item.icon}
-              </span>
+              <AppIcon
+                icon={item.icon}
+                size={18}
+                className="workspace-sidebar-nav-icon"
+              />
               <span className="min-w-0 truncate leading-tight">{item.label}</span>
             </Link>
           );
@@ -189,9 +181,7 @@ export function LeftSidebar() {
                 onClick={handleSignOut}
                 className="workspace-sidebar-menu-item flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
               >
-                <span className="material-symbols-outlined text-base" aria-hidden="true">
-                  logout
-                </span>
+                <AppIcon icon={LogOut} size={16} />
                 Log out
               </button>
             </div>
@@ -235,12 +225,7 @@ export function LeftSidebar() {
                   {userEmail || "Workspace user"}
                 </span>
               </span>
-              <span
-                className="material-symbols-outlined text-base text-[var(--text-muted)]"
-                aria-hidden="true"
-              >
-                expand_less
-              </span>
+              <AppIcon icon={ChevronUp} size={16} className="text-[var(--text-muted)]" />
             </button>
           )}
         </div>

@@ -71,4 +71,25 @@ describe("TemplateSaveDialog", () => {
       { name: "subject", defaultValue: "glass fox", label: "Subject", sourceField: "subject" },
     ]);
   });
+
+  it("inserts Chinese, spaced, and hyphenated variable names", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TemplateSaveDialog
+        open
+        initialContent="Create a prompt."
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /Insert Variable/ }));
+    await user.type(screen.getByPlaceholderText("Variable name"), "主体 名称-1");
+    await user.click(screen.getByRole("button", { name: "Confirm" }));
+
+    expect(screen.getByLabelText("Prompt Content")).toHaveValue(
+      "{{主体 名称-1}}Create a prompt.",
+    );
+  });
 });

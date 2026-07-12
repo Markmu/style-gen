@@ -4,6 +4,7 @@ import {
   mergeTemplateVariables,
   replaceVariables,
   hasVariables,
+  reconcileLinkedTextVariableEdit,
 } from "@/lib/template-parser";
 
 describe("template-parser", () => {
@@ -58,8 +59,19 @@ describe("template-parser", () => {
       expect(result).toEqual([{ name: "good", defaultValue: "" }]);
     });
 
-    it("忽略非法格式的Variable name（含特殊字符）", () => {
-      const result = extractVariables("Bad: {{bad-name}}, Good: {{good_name}}");
+    it("支持中文、空格和横线Variable name", () => {
+      const result = extractVariables(
+        "{{主体 名称}} {{lighting-color}} {{ 中文变量 }}",
+      );
+      expect(result).toEqual([
+        { name: "主体 名称", defaultValue: "" },
+        { name: "lighting-color", defaultValue: "" },
+        { name: "中文变量", defaultValue: "" },
+      ]);
+    });
+
+    it("仍然忽略不符合起始字符规则的Variable name", () => {
+      const result = extractVariables("Bad: {{123bad}}, Good: {{good_name}}");
       expect(result).toEqual([{ name: "good_name", defaultValue: "" }]);
     });
 
@@ -88,6 +100,19 @@ describe("template-parser", () => {
     it("替换单个Variables", () => {
       const result = replaceVariables("Hello {{name}}!", { name: "Alice" });
       expect(result).toBe("Hello Alice!");
+    });
+
+    it("替换包含中文、空格和横线的Variables", () => {
+      const result = replaceVariables(
+        "{{主体 名称}} / {{lighting-color}} / {{ 中文变量 }}",
+        {
+          "主体 名称": "glass fox",
+          "lighting-color": "soft blue",
+          中文变量: "neon garden",
+        },
+      );
+
+      expect(result).toBe("glass fox / soft blue / neon garden");
     });
 
     it("替换多个Variables", () => {
@@ -155,6 +180,87 @@ describe("template-parser", () => {
         subject: "glass chair",
         lighting: "",
       });
+    });
+  });
+
+  describe("reconcileLinkedTextVariableEdit", () => {
+    const variables = [
+      { name: "subject", defaultValue: "glass fox" },
+      { name: "lighting", defaultValue: "soft daylight" },
+    ];
+    const values = {
+      subject: "glass fox",
+      lighting: "soft daylight",
+    };
+
+    it("把 text mode 中的变量片段编辑同步回变量值", () => {
+      const result = reconcileLinkedTextVariableEdit(
+        "Create glass fox in soft daylight.",
+        "Create crystal heron in soft daylight.",
+        variables,
+        values,
+      );
+
+      expect(result).toMatchObject({
+        name: "subject",
+        value: "crystal heron",
+        promptText: "Create crystal heron in soft daylight.",
+      });
+    });
+
+    it("同步更新同一变量的重复出现", () => {
+      const result = reconcileLinkedTextVariableEdit(
+        "glass fox beside glass fox",
+        "crystal heron beside glass fox",
+        variables,
+        values,
+      );
+
+      expect(result).toMatchObject({
+        name: "subject",
+        value: "crystal heron",
+        promptText: "crystal heron beside crystal heron",
+      });
+    });
+
+    it("在变量暂时清空后保持连续输入的关联", () => {
+      const cleared = reconcileLinkedTextVariableEdit(
+        "Create glass fox.",
+        "Create .",
+        variables,
+        values,
+      );
+      const firstCharacter = reconcileLinkedTextVariableEdit(
+        cleared!.promptText,
+        "Create c.",
+        variables,
+        { ...values, subject: cleared!.value },
+        cleared!.linkState,
+      );
+      const secondCharacter = reconcileLinkedTextVariableEdit(
+        firstCharacter!.promptText,
+        "Create cr.",
+        variables,
+        { ...values, subject: firstCharacter!.value },
+        firstCharacter!.linkState,
+      );
+
+      expect(secondCharacter).toMatchObject({
+        name: "subject",
+        value: "cr",
+        promptText: "Create cr.",
+      });
+    });
+
+    it("普通 prompt 文案编辑不修改变量", () => {
+      expect(
+        reconcileLinkedTextVariableEdit(
+          "Create glass fox in soft daylight.",
+          "Render glass fox in soft daylight.",
+          variables,
+          values,
+        ),
+      ).toBeNull();
     });
   });
 

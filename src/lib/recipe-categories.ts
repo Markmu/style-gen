@@ -11,8 +11,6 @@ export interface RecipeCategory {
   category: RecipeCategoryKey;
   label: string;
   description: string;
-  iconName: string;
-  iconColor: string;
 }
 
 function fallback(value: string | null | undefined, fallbackText: string) {
@@ -36,8 +34,6 @@ export function extractRecipeCategories(
         [recipe.subject, recipe.scene, recipe.composition].filter(Boolean).join(" · "),
         "Core subject and composition will appear after analysis.",
       ),
-      iconName: "account_tree",
-      iconColor: "var(--accent-primary)",
     },
     {
       category: "materials",
@@ -46,8 +42,6 @@ export function extractRecipeCategories(
         [recipe.texture, joinList(recipe.mustKeep, "")].filter(Boolean).join(" · "),
         "Material and texture guidance will appear after analysis.",
       ),
-      iconName: "texture",
-      iconColor: "var(--accent-warm)",
     },
     {
       category: "lighting",
@@ -56,8 +50,6 @@ export function extractRecipeCategories(
         [recipe.lighting, recipe.cameraLanguage].filter(Boolean).join(" · "),
         "Lighting and camera language will appear after analysis.",
       ),
-      iconName: "light_mode",
-      iconColor: "var(--accent-analyze)",
     },
     {
       category: "color",
@@ -66,8 +58,6 @@ export function extractRecipeCategories(
         [recipe.color, joinList(recipe.styleTags, "")].filter(Boolean).join(" · "),
         "Color palette guidance will appear after analysis.",
       ),
-      iconName: "palette",
-      iconColor: "var(--accent-edit)",
     },
     {
       category: "mood",
@@ -76,8 +66,6 @@ export function extractRecipeCategories(
         [recipe.mood, recipe.imageSummary].filter(Boolean).join(" · "),
         "Mood and atmosphere will appear after analysis.",
       ),
-      iconName: "auto_awesome",
-      iconColor: "var(--accent-result)",
     },
   ];
 }

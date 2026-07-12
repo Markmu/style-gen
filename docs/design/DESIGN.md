@@ -69,6 +69,12 @@ Depth in this system is achieved through **Tonal Layering** rather than structur
 - Use `full` (9999px) roundedness. 
 - Background: `surface-container-high` at 40% opacity. 
 - Text: `label-md` for a technical, utility-first appearance.
+
+### Iconography
+- Use Lucide Outline for every functional product icon through the shared `AppIcon` component.
+- Default to 18px with a 1.75px absolute stroke width. Use 16px beside text, 20px for prominent toolbar actions, and 24px for upload or empty-state illustrations.
+- Icons inherit `currentColor`. Express hover, active, disabled, and semantic state through the surrounding control rather than switching to filled icons or adding gradients.
+- Keep the custom Visoryn brand mark as the only non-Lucide interface symbol. Status dots, progress rings, confidence meters, and evidence anchors remain data components rather than decorative icons.
  
 ---
  

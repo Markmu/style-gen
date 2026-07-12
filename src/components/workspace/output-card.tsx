@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback } from "react";
+import { ChevronDown, LoaderCircle, Sparkles } from "lucide-react";
+import { AppIcon } from "@/components/ui/app-icon";
 import type { WorkspaceState } from "@/hooks/use-workspace-state";
 import type { AspectRatio, Quality } from "@/components/workspace/output-settings";
 import type { RenderReadiness } from "@/lib/render-readiness";
@@ -65,44 +67,60 @@ export function OutputCard({
       >
         <div
           data-testid="render-parameter-controls"
-          className="grid min-w-0 grid-cols-2 gap-2 rounded-lg bg-[var(--surface-bright)]/72 px-2 py-1.5 ring-1 ring-[var(--border-static)]"
+          className="grid min-w-0 grid-cols-2 gap-2 rounded-lg bg-[var(--surface-control)]/58 p-1.5"
         >
-          <label className="grid min-w-0 gap-1">
-            <span className="text-[0.625rem] font-bold uppercase text-[var(--text-muted)]">
+          <label className="group grid min-w-0 gap-1.5">
+            <span className="px-1 text-[0.625rem] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
               Ratio
             </span>
-            <select
-              aria-label="Aspect Ratio"
-              value={params.aspectRatio}
-              disabled={isGenerating}
-              onChange={(event) => handleAspectRatioChange(event.target.value as AspectRatio)}
-              className="input-precision h-7 w-full min-w-0 rounded-t-md px-2 text-xs"
-            >
-              {ASPECT_RATIOS.map((value) => (
-                <option key={value} value={value}>
-                  {value}
-                </option>
-              ))}
-            </select>
+            <span className="relative block min-w-0">
+              <select
+                aria-label="Aspect Ratio"
+                value={params.aspectRatio}
+                disabled={isGenerating}
+                onChange={(event) => handleAspectRatioChange(event.target.value as AspectRatio)}
+                className="render-select h-9 min-w-0"
+              >
+                {ASPECT_RATIOS.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+              <AppIcon
+                icon={ChevronDown}
+                size={14}
+                strokeWidth={1.5}
+                className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] transition-colors group-focus-within:text-[var(--accent-primary)]"
+              />
+            </span>
           </label>
 
-          <label className="grid min-w-0 gap-1">
-            <span className="text-[0.625rem] font-bold uppercase text-[var(--text-muted)]">
+          <label className="group grid min-w-0 gap-1.5">
+            <span className="px-1 text-[0.625rem] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
               Quality
             </span>
-            <select
-              aria-label="Quality"
-              value={params.quality}
-              disabled={isGenerating}
-              onChange={(event) => handleQualityChange(event.target.value as Quality)}
-              className="input-precision h-7 w-full min-w-0 rounded-t-md px-2 text-xs"
-            >
-              {QUALITY_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <span className="relative block min-w-0">
+              <select
+                aria-label="Quality"
+                value={params.quality}
+                disabled={isGenerating}
+                onChange={(event) => handleQualityChange(event.target.value as Quality)}
+                className="render-select h-9 min-w-0"
+              >
+                {QUALITY_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <AppIcon
+                icon={ChevronDown}
+                size={14}
+                strokeWidth={1.5}
+                className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] transition-colors group-focus-within:text-[var(--accent-primary)]"
+              />
+            </span>
           </label>
         </div>
 
@@ -117,9 +135,11 @@ export function OutputCard({
               : "cursor-not-allowed bg-[var(--surface-control)] text-[var(--text-muted)] ring-1 ring-[var(--border-static)]"
           }`}
         >
-          <span className="icon text-[1rem]" aria-hidden="true">
-            {isGenerating ? "progress_activity" : "auto_awesome"}
-          </span>
+          <AppIcon
+            icon={isGenerating ? LoaderCircle : Sparkles}
+            size={16}
+            className={isGenerating ? "animate-spin" : undefined}
+          />
           <span>{buttonLabel}</span>
         </button>
       </div>

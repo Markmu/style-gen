@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import { X } from "lucide-react";
+import { AppIcon } from "@/components/ui/app-icon";
 import type { GenerationParams } from "@/types/models";
 
 interface ResultDisplayProps {
@@ -123,7 +125,7 @@ export function ResultDisplay({
             className="absolute top-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm transition-colors hover:bg-white/20"
             aria-label="Close fullscreen preview"
           >
-            <span className="material-symbols-outlined text-2xl">close</span>
+            <AppIcon icon={X} size={24} />
           </button>
 
           <Image

@@ -1,19 +1,53 @@
 "use client";
 
 import Image from "next/image";
+import {
+  Box,
+  Brain,
+  Ellipsis,
+  Grid3X3,
+  Info,
+  Minus,
+  Plus,
+  Sparkles,
+  Sun,
+  Waves,
+} from "lucide-react";
+import { AppIcon, type AppIconComponent } from "@/components/ui/app-icon";
 import type {
   DegradationState,
   WorkspaceError,
   WorkspaceState,
 } from "@/hooks/use-workspace-state";
 import { UploadZone } from "@/components/workspace/upload-zone";
-import { extractAnalysisSummary } from "@/lib/analysis-summary";
+import {
+  extractAnalysisSummary,
+  type AnalysisDimension,
+} from "@/lib/analysis-summary";
 import {
   deriveEvidenceFacets,
   type EvidenceFacet,
   type EvidenceFacetId,
 } from "@/lib/evidence-facets";
 import type { VisualRecipe } from "@/types/models";
+
+const ANALYSIS_ICONS: Record<AnalysisDimension, AppIconComponent> = {
+  style: Sparkles,
+  material: Waves,
+  lighting: Sun,
+  composition: Grid3X3,
+  mood: Brain,
+};
+
+const OVERLAY_CONTROLS: Array<{
+  label: string;
+  icon: AppIconComponent;
+}> = [
+  { label: "Composition", icon: Grid3X3 },
+  { label: "Lighting", icon: Sun },
+  { label: "Depth", icon: Box },
+  { label: "Texture", icon: Waves },
+];
 
 interface ReferenceCardProps {
   state: WorkspaceState;
@@ -78,9 +112,7 @@ export function ReferenceCard({
         <div className="min-w-0">
           <h2 className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
             Reference Canvas
-            <span className="icon text-[0.9375rem] text-[var(--text-muted)]" aria-hidden="true">
-              info
-            </span>
+            <AppIcon icon={Info} size={16} className="text-[var(--text-muted)]" />
           </h2>
           <p className="mt-1 text-xs text-[var(--text-secondary)]">
             Source image and visual evidence
@@ -102,9 +134,7 @@ export function ReferenceCard({
               aria-label="Reference options"
               className="btn-secondary flex h-8 w-8 items-center justify-center rounded-lg"
             >
-              <span className="icon text-[1.125rem]" aria-hidden="true">
-                more_horiz
-              </span>
+              <AppIcon icon={Ellipsis} />
             </button>
           )}
         </div>
@@ -148,12 +178,20 @@ export function ReferenceCard({
                     );
                   })}
                   <div className="absolute bottom-3 right-3 inline-flex items-center gap-2 rounded-lg bg-[var(--surface-bright)]/90 px-2 py-1 text-xs font-medium text-[var(--text-secondary)] shadow-[var(--shadow-ambient)] backdrop-blur-xl">
-                    <button type="button" className="icon text-[1rem]" aria-label="Zoom out">
-                      remove
+                    <button
+                      type="button"
+                      className="inline-flex h-5 w-5 items-center justify-center"
+                      aria-label="Zoom out"
+                    >
+                      <AppIcon icon={Minus} size={16} />
                     </button>
                     <span>100%</span>
-                    <button type="button" className="icon text-[1rem]" aria-label="Zoom in">
-                      add
+                    <button
+                      type="button"
+                      className="inline-flex h-5 w-5 items-center justify-center"
+                      aria-label="Zoom in"
+                    >
+                      <AppIcon icon={Plus} size={16} />
                     </button>
                   </div>
                 </>
@@ -165,9 +203,7 @@ export function ReferenceCard({
                 <p className="text-xs font-semibold text-[var(--text-primary)]">
                   Detected palette
                 </p>
-                <span className="icon text-[0.875rem] text-[var(--text-muted)]" aria-hidden="true">
-                  info
-                </span>
+                <AppIcon icon={Info} size={16} className="text-[var(--text-muted)]" />
               </div>
               <div className="grid grid-cols-7 gap-2">
                 {palette.map((color, index) => (
@@ -188,18 +224,13 @@ export function ReferenceCard({
                 View overlays
               </p>
               <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
-                {[
-                  ["Composition", "grid_view"],
-                  ["Lighting", "light_mode"],
-                  ["Depth", "deployed_code"],
-                  ["Texture", "texture"],
-                ].map(([label, icon]) => (
+                {OVERLAY_CONTROLS.map(({ label, icon }) => (
                   <button
                     key={label}
                     type="button"
                     className="btn-secondary inline-flex h-9 items-center justify-center gap-2 rounded-lg px-2 text-xs"
                   >
-                    <span className="icon text-[0.9375rem]" aria-hidden="true">{icon}</span>
+                    <AppIcon icon={icon} size={16} />
                     {label}
                   </button>
                 ))}
@@ -278,13 +309,11 @@ export function ReferenceCard({
                   {summary.map((item) => (
                     <div key={item.dimension} className="space-y-1.5">
                       <div className="flex items-center gap-2">
-                        <span
-                          className="icon text-[1.0625rem]"
+                        <AppIcon
+                          icon={ANALYSIS_ICONS[item.dimension]}
+                          size={18}
                           style={{ color: item.iconColor }}
-                          aria-hidden="true"
-                        >
-                          {item.iconName}
-                        </span>
+                        />
                         <p className="min-w-[5.5rem] text-xs font-semibold text-[var(--text-primary)]">
                           {item.label}
                         </p>

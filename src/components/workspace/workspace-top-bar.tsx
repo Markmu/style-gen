@@ -1,5 +1,8 @@
 "use client";
 
+import { Ellipsis, Pencil, Settings, Share2 } from "lucide-react";
+import { AppIcon } from "@/components/ui/app-icon";
+
 interface WorkspaceTopBarProps {
   title: string;
   subtitle: string;
@@ -27,9 +30,7 @@ export function WorkspaceTopBar({
             aria-label="Rename workspace"
             className="workspace-top-bar-icon-button"
           >
-            <span className="material-symbols-outlined text-[1rem]" aria-hidden="true">
-              edit
-            </span>
+            <AppIcon icon={Pencil} size={16} />
           </button>
         </div>
         <p className="mt-1 truncate text-xs font-medium text-[var(--text-secondary)]">
@@ -44,9 +45,7 @@ export function WorkspaceTopBar({
           onClick={onShare}
           className="workspace-top-bar-action inline-flex h-9 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold"
         >
-          <span className="material-symbols-outlined text-[1.125rem]" aria-hidden="true">
-            share
-          </span>
+          <AppIcon icon={Share2} />
           <span className="hidden sm:inline">Share</span>
         </button>
         <button
@@ -55,9 +54,7 @@ export function WorkspaceTopBar({
           onClick={onSettings}
           className="workspace-top-bar-action workspace-top-bar-square"
         >
-          <span className="material-symbols-outlined text-[1.125rem]" aria-hidden="true">
-            settings
-          </span>
+          <AppIcon icon={Settings} />
         </button>
         <button
           type="button"
@@ -65,9 +62,7 @@ export function WorkspaceTopBar({
           onClick={onMore}
           className="workspace-top-bar-action workspace-top-bar-square"
         >
-          <span className="material-symbols-outlined text-[1.125rem]" aria-hidden="true">
-            more_horiz
-          </span>
+          <AppIcon icon={Ellipsis} />
         </button>
       </div>
     </header>

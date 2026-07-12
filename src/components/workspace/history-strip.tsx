@@ -1,6 +1,8 @@
 "use client";
 
 import Image from "next/image";
+import { ArrowLeftRight, History, LoaderCircle, Sparkles } from "lucide-react";
+import { AppIcon } from "@/components/ui/app-icon";
 
 export interface HistoryStripItem {
   id: string;
@@ -64,9 +66,7 @@ export function HistoryStrip({
     >
       <div className="flex h-full min-w-0 items-center gap-4">
         <div className="flex w-[11.875rem] shrink-0 items-center gap-3">
-          <span className="icon text-[1.125rem] text-[var(--accent-primary)]" aria-hidden="true">
-            history_toggle_off
-          </span>
+          <AppIcon icon={History} className="text-[var(--accent-primary)]" />
           <div className="min-w-0">
             <h2 className="truncate text-xs font-semibold uppercase tracking-[0.05em] text-[var(--text-secondary)]">
               Recent iterations
@@ -97,9 +97,7 @@ export function HistoryStrip({
               role="status"
               className="flex min-w-0 items-center gap-2 rounded-xl bg-[var(--surface-low)]/72 px-4 py-3 text-xs text-[var(--text-secondary)]"
             >
-              <span className="icon text-[1rem] text-[var(--accent-primary)]" aria-hidden="true">
-                progress_activity
-              </span>
+              <AppIcon icon={LoaderCircle} size={16} className="animate-spin text-[var(--accent-primary)]" />
               Loading Iteration Memory.
             </div>
           ) : hasItems ? (
@@ -132,9 +130,7 @@ export function HistoryStrip({
           ) : (
             <div className="min-w-0 rounded-xl bg-[var(--surface-low)]/72 px-4 py-3 text-xs text-[var(--text-secondary)]">
               <div className="flex items-center gap-2">
-                <span className="icon text-[1rem] text-[var(--accent-primary)]" aria-hidden="true">
-                  auto_awesome
-                </span>
+                <AppIcon icon={Sparkles} size={16} className="text-[var(--accent-primary)]" />
                 <span>Renders will appear here as visual evidence.</span>
               </div>
               <p className="mt-1 leading-5">
@@ -157,7 +153,7 @@ export function HistoryStrip({
           title={hasItems ? "Compare latest iteration" : compareDisabledReason}
           className="btn-secondary hidden shrink-0 items-center gap-2 rounded-lg px-3 py-1.5 text-xs disabled:opacity-50 md:inline-flex"
         >
-          <span className="icon text-[0.9375rem]" aria-hidden="true">compare_arrows</span>
+          <AppIcon icon={ArrowLeftRight} size={16} />
           Compare
         </button>
         <button

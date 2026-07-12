@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
+import { House, Library, Network } from "lucide-react";
+import { AppIcon, type AppIconComponent } from "@/components/ui/app-icon";
 import { LoginButton } from "./login-button";
 import { UserMenu } from "./user-menu";
 import { trackAuthEvent } from "./auth-tracking";
@@ -53,18 +55,23 @@ export function AuthHeader() {
 
   if (status === "loading") return null; // Avoid flicker.
 
-  const navItems = [
-    { label: "Home", href: "/", icon: "home", active: pathname === "/" },
+  const navItems: Array<{
+    label: string;
+    href: string;
+    icon: AppIconComponent;
+    active: boolean;
+  }> = [
+    { label: "Home", href: "/", icon: House, active: pathname === "/" },
     {
       label: "Workspace",
       href: "/workspace",
-      icon: "hub",
+      icon: Network,
       active: pathname === "/workspace",
     },
     {
       label: "Style Memory",
       href: "/workspace/templates",
-      icon: "library_books",
+      icon: Library,
       active: pathname.startsWith("/workspace/templates"),
     },
   ];
@@ -100,9 +107,7 @@ export function AuthHeader() {
                     : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 }`}
               >
-                <span className="icon text-base" aria-hidden="true">
-                  {item.icon}
-                </span>
+                <AppIcon icon={item.icon} size={16} />
                 {item.label}
               </Link>
             ))}
