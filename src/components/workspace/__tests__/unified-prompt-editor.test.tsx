@@ -214,7 +214,7 @@ describe("UnifiedPromptEditor", () => {
     expect(screen.getByLabelText("Variable subject")).toHaveValue("crystal heron");
   });
 
-  it("keeps compact editors tall enough for the variable strip", async () => {
+  it("keeps compact editors at half of the available editor height", async () => {
     const user = userEvent.setup();
 
     render(
@@ -232,8 +232,8 @@ describe("UnifiedPromptEditor", () => {
     );
 
     expect(screen.getByTestId("text-mode-highlight-editor")).toHaveClass(
-      "h-[68%]",
-      "min-h-[12rem]",
+      "h-1/2",
+      "min-h-0",
     );
     expect(
       within(screen.getByTestId("text-mode-highlight-editor")).getByTestId(
@@ -243,8 +243,8 @@ describe("UnifiedPromptEditor", () => {
 
     await user.click(screen.getByRole("button", { name: "Template Mode" }));
     expect(screen.getByTestId("template-mode-highlight-editor")).toHaveClass(
-      "h-[68%]",
-      "min-h-[10rem]",
+      "h-1/2",
+      "min-h-0",
     );
   });
 

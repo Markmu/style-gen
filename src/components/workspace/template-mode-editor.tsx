@@ -42,7 +42,7 @@ export function TemplateModeEditor({
         placeholder="Enter a template, e.g. Create {{subject}} with {{lighting}}."
         mode="template"
         minHeightClass={
-          compact ? "h-[68%] min-h-[10rem] shrink-0" : "min-h-[13.75rem]"
+          compact ? "h-1/2 min-h-0 shrink-0" : "min-h-[13.75rem]"
         }
         compact={compact}
         variables={variables}

@@ -31,7 +31,7 @@ export function TextModeEditor({
       placeholder="A full prompt appears after analysis, and you can edit it here directly."
       mode="text"
       minHeightClass={
-        compact ? "h-[68%] min-h-[12rem] shrink-0" : "min-h-[20rem]"
+        compact ? "h-1/2 min-h-0 shrink-0" : "min-h-[20rem]"
       }
       compact={compact}
       variables={variables}
