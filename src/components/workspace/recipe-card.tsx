@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
-import { Braces, Info, Maximize, Minimize } from "lucide-react";
+import { Braces, ChevronDown, Info, Maximize, Minimize } from "lucide-react";
 import { AppIcon } from "@/components/ui/app-icon";
 import { ExpandablePanel } from "@/components/ui/expandable-panel";
 import type { VisualRecipe } from "@/types/models";
@@ -22,6 +22,17 @@ interface RecipeCardProps {
   onFacetSelect?: (facetId: EvidenceFacetId) => void;
 }
 
+const FACET_SUMMARY_COLLAPSE_UNITS = 80;
+
+function shouldCollapseFacetSummary(summary: string) {
+  const displayUnits = Array.from(summary).reduce((total, character) => {
+    const codePoint = character.codePointAt(0) ?? 0;
+    return total + (codePoint > 0xff ? 2 : 1);
+  }, 0);
+
+  return displayUnits > FACET_SUMMARY_COLLAPSE_UNITS;
+}
+
 function TagList({ tags }: { tags: string[] }) {
   if (tags.length === 0) return null;
   return (
@@ -34,6 +45,112 @@ function TagList({ tags }: { tags: string[] }) {
           {tag}
         </span>
       ))}
+    </div>
+  );
+}
+
+interface EvidenceFacetItemProps {
+  facet: EvidenceFacet;
+  selected: boolean;
+  promptStatus?: PromptProvenanceSpan["matchType"];
+  onSelect?: (facetId: EvidenceFacetId) => void;
+}
+
+function EvidenceFacetItem({
+  facet,
+  selected,
+  promptStatus,
+  onSelect,
+}: EvidenceFacetItemProps) {
+  const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
+  const summaryId = useId();
+  const isSummaryCollapsible = shouldCollapseFacetSummary(facet.summary);
+
+  return (
+    <div
+      data-facet={facet.id}
+      data-selected={selected ? "true" : "false"}
+      className={`evidence-chip group flex w-full flex-col items-stretch gap-0 rounded-xl p-3 text-left transition ${
+        selected
+          ? "bg-[color-mix(in_oklch,var(--surface-bright)_82%,var(--accent-primary-soft)_18%)] ring-1 ring-[color-mix(in_oklch,var(--accent-primary)_42%,var(--border-static)_58%)]"
+          : "bg-[var(--surface-low)]/62 ring-1 ring-[var(--border-static)] hover:bg-[var(--surface-bright)]"
+      }`}
+    >
+      <button
+        type="button"
+        data-testid={`evidence-facet-${facet.id}`}
+        data-facet={facet.id}
+        data-source-field={facet.sourceField}
+        data-selected={selected ? "true" : "false"}
+        aria-pressed={selected}
+        onClick={() => onSelect?.(facet.id)}
+        className="w-full text-left"
+      >
+        <div className="flex items-start gap-3">
+          <span
+            className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--surface-bright)] text-xs font-semibold text-[var(--text-primary)] ring-1 ring-[var(--border-static)]"
+            aria-hidden="true"
+          >
+            {facet.anchorIndex + 1}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+                  {facet.label}
+                </h3>
+                <p
+                  id={summaryId}
+                  data-testid={`evidence-summary-${facet.id}`}
+                  className={`mt-1 text-xs leading-5 text-[var(--text-secondary)] ${
+                    isSummaryCollapsible && !isSummaryExpanded
+                      ? "line-clamp-2"
+                      : ""
+                  }`}
+                >
+                  {facet.summary}
+                </p>
+              </div>
+              <span className="shrink-0 rounded-full bg-[var(--surface-bright)] px-2 py-0.5 text-[0.68rem] font-semibold uppercase text-[var(--text-secondary)]">
+                {facet.confidenceLabel}
+              </span>
+            </div>
+          </div>
+        </div>
+      </button>
+
+      <div className="ml-10 mt-2 flex flex-wrap items-center gap-1.5 text-[0.68rem] text-[var(--text-muted)]">
+        <span className="rounded-full bg-[var(--surface-bright)] px-2 py-0.5">
+          source: {facet.sourceField}
+        </span>
+        <span className="rounded-full bg-[var(--surface-bright)] px-2 py-0.5">
+          {promptStatus === "facet_only"
+            ? "related signal"
+            : promptStatus
+              ? "prompt span linked"
+              : "prompt pending"}
+        </span>
+        {isSummaryCollapsible && (
+          <button
+            type="button"
+            aria-expanded={isSummaryExpanded}
+            aria-controls={summaryId}
+            aria-label={`${isSummaryExpanded ? "Show less" : "Show more"} ${facet.label} analysis`}
+            onClick={() => setIsSummaryExpanded((expanded) => !expanded)}
+            className="ml-auto inline-flex min-h-6 items-center gap-1 rounded-md px-1.5 font-semibold text-[var(--accent-primary)] transition-colors hover:bg-[var(--accent-primary-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)] focus-visible:ring-offset-2"
+          >
+            {isSummaryExpanded ? "Show less" : "Show more"}
+            <AppIcon
+              icon={ChevronDown}
+              size={14}
+              strokeWidth={1.75}
+              className={`transition-transform duration-200 ${
+                isSummaryExpanded ? "rotate-180" : ""
+              }`}
+            />
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -133,56 +250,13 @@ export function RecipeCard({
                   const promptStatus = promptStatusByFacet.get(facet.id);
 
                   return (
-                    <button
-                      key={facet.id}
-                      type="button"
-                      data-testid={`evidence-facet-${facet.id}`}
-                      data-facet={facet.id}
-                      data-source-field={facet.sourceField}
-                      data-selected={selected ? "true" : "false"}
-                      onClick={() => onFacetSelect?.(facet.id)}
-                      className={`evidence-chip group w-full rounded-xl p-3 text-left transition ${
-                        selected
-                          ? "bg-[color-mix(in_oklch,var(--surface-bright)_82%,var(--accent-primary-soft)_18%)] ring-1 ring-[color-mix(in_oklch,var(--accent-primary)_42%,var(--border-static)_58%)]"
-                          : "bg-[var(--surface-low)]/62 ring-1 ring-[var(--border-static)] hover:bg-[var(--surface-bright)]"
-                      }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <span
-                          className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--surface-bright)] text-xs font-semibold text-[var(--text-primary)] ring-1 ring-[var(--border-static)]"
-                          aria-hidden="true"
-                        >
-                          {facet.anchorIndex + 1}
-                          </span>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <h3 className="text-sm font-semibold text-[var(--text-primary)]">
-                                {facet.label}
-                              </h3>
-                              <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">
-                                {facet.summary}
-                              </p>
-                            </div>
-                            <span className="shrink-0 rounded-full bg-[var(--surface-bright)] px-2 py-0.5 text-[0.68rem] font-semibold uppercase text-[var(--text-secondary)]">
-                              {facet.confidenceLabel}
-                            </span>
-                          </div>
-                          <div className="mt-2 flex flex-wrap gap-1.5 text-[0.68rem] text-[var(--text-muted)]">
-                            <span className="rounded-full bg-[var(--surface-bright)] px-2 py-0.5">
-                              source: {facet.sourceField}
-                            </span>
-                            <span className="rounded-full bg-[var(--surface-bright)] px-2 py-0.5">
-                              {promptStatus === "facet_only"
-                                ? "related signal"
-                                : promptStatus
-                                  ? "prompt span linked"
-                                  : "prompt pending"}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </button>
+                    <EvidenceFacetItem
+                      key={`${facet.id}-${facet.summary}`}
+                      facet={facet}
+                      selected={selected}
+                      promptStatus={promptStatus}
+                      onSelect={onFacetSelect}
+                    />
                   );
                 })}
               </div>

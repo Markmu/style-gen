@@ -94,6 +94,48 @@ describe("RecipeCard", () => {
     expect(onFacetSelect).toHaveBeenCalledWith("color");
   });
 
+  it("collapses long facet analysis independently from facet selection", () => {
+    const onFacetSelect = vi.fn();
+    const longColorSummary =
+      "A restrained mineral palette moves from cool slate blue into soft silver highlights, with warm reflected accents reserved for the focal subject and subtle atmospheric contrast throughout.";
+    const facets = deriveEvidenceFacets(mockRecipe).map((facet) =>
+      facet.id === "color" ? { ...facet, summary: longColorSummary } : facet,
+    );
+
+    render(
+      <RecipeCard
+        state="analysis_ready"
+        recipe={mockRecipe}
+        facets={facets}
+        onFacetSelect={onFacetSelect}
+      />,
+    );
+
+    const summary = screen.getByTestId("evidence-summary-color");
+    const showMore = screen.getByRole("button", {
+      name: "Show more Color analysis",
+    });
+
+    expect(summary).toHaveClass("line-clamp-2");
+    expect(showMore).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(showMore);
+
+    expect(summary).not.toHaveClass("line-clamp-2");
+    expect(
+      screen.getByRole("button", { name: "Show less Color analysis" }),
+    ).toHaveAttribute("aria-expanded", "true");
+    expect(onFacetSelect).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId("evidence-facet-color"));
+    expect(onFacetSelect).toHaveBeenCalledWith("color");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Show less Color analysis" }),
+    );
+    expect(summary).toHaveClass("line-clamp-2");
+  });
+
   it("opens a near-fullscreen dialog with the complete summary and keeps facet actions", () => {
     const onFacetSelect = vi.fn();
     render(
