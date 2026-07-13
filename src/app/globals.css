@@ -570,7 +570,6 @@ h1, h2, h3, h4, h5, h6 {
 .workspace-sidebar-recent-row:focus-visible,
 .workspace-sidebar-user:focus-visible,
 .workspace-sidebar-icon-button:focus-visible,
-.workspace-top-bar-action:focus-visible,
 .workspace-top-bar-icon-button:focus-visible,
 .workspace-copilot-insights:focus-visible {
   outline: none;
@@ -692,7 +691,6 @@ h1, h2, h3, h4, h5, h6 {
   background: color-mix(in oklch, var(--surface-page) 92%, var(--surface-bright) 8%);
 }
 
-.workspace-top-bar-action,
 .workspace-top-bar-icon-button,
 .workspace-copilot-insights {
   border: 1px solid color-mix(in oklch, var(--border-static) 82%, transparent);
@@ -708,20 +706,10 @@ h1, h2, h3, h4, h5, h6 {
     box-shadow 0.15s ease;
 }
 
-.workspace-top-bar-action:hover,
 .workspace-top-bar-icon-button:hover,
 .workspace-copilot-insights:hover {
   border-color: color-mix(in oklch, var(--accent-primary) 18%, var(--border-static) 82%);
   background: color-mix(in oklch, var(--surface-bright) 86%, var(--accent-primary-soft) 14%);
-}
-
-.workspace-top-bar-square {
-  display: inline-flex;
-  width: 2.25rem;
-  height: 2.25rem;
-  align-items: center;
-  justify-content: center;
-  border-radius: 0.625rem;
 }
 
 .workspace-top-bar-icon-button {
