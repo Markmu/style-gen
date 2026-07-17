@@ -63,6 +63,7 @@ interface ReferenceCardProps {
   onReplace: () => void;
   onRetry?: () => void;
   onFacetSelect?: (facetId: EvidenceFacetId) => void;
+  showSpatialEvidence?: boolean;
 }
 
 export function ReferenceCard({
@@ -79,13 +80,16 @@ export function ReferenceCard({
   onReplace,
   onRetry,
   onFacetSelect,
+  showSpatialEvidence = true,
 }: ReferenceCardProps) {
   const uploading = isUploading || state === "uploading";
   const hasReference = !!referenceImageUrl && !uploading;
   const isAnalyzing = state === "analyzing";
   const analysisError = error && error.stage !== "generation" ? error : null;
-  const summary = extractAnalysisSummary(recipe);
-  const evidenceFacets = facets.length > 0 ? facets : deriveEvidenceFacets(recipe);
+  const summary = showSpatialEvidence ? extractAnalysisSummary(recipe) : [];
+  const evidenceFacets = showSpatialEvidence
+    ? (facets.length > 0 ? facets : deriveEvidenceFacets(recipe))
+    : [];
   const anchorPositions = [
     "left-[39%] top-[18%]",
     "right-[26%] top-[35%]",
@@ -198,7 +202,7 @@ export function ReferenceCard({
               )}
             </div>
 
-            <div className="rounded-xl bg-[var(--surface-low)]/70 p-3">
+            {showSpatialEvidence && <div className="rounded-xl bg-[var(--surface-low)]/70 p-3">
               <div className="mb-2 flex items-center gap-2">
                 <p className="text-xs font-semibold text-[var(--text-primary)]">
                   Detected palette
@@ -217,9 +221,9 @@ export function ReferenceCard({
                   +2
                 </span>
               </div>
-            </div>
+            </div>}
 
-            <div className="space-y-2">
+            {showSpatialEvidence && <div className="space-y-2">
               <p className="text-xs font-semibold text-[var(--text-primary)]">
                 View overlays
               </p>
@@ -235,7 +239,7 @@ export function ReferenceCard({
                   </button>
                 ))}
               </div>
-            </div>
+            </div>}
 
             {isAnalyzing && (
               <div

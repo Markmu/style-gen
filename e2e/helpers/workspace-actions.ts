@@ -95,7 +95,10 @@ export async function uploadAndCompleteAnalysis(
   await page
     .locator('[data-testid="ai-status-header"][data-phase="analysis_ready"]')
     .waitFor({ timeout: 15000 })
-  await page.getByTestId('unified-prompt-editor').waitFor({ timeout: 15000 })
+  await page
+    .locator('[data-testid="unified-prompt-editor"], [data-testid="structured-prompt-editor"]')
+    .first()
+    .waitFor({ timeout: 15000 })
 
   return result
 }

@@ -43,6 +43,10 @@ import {
 import { derivePromptProvenanceSpans } from "@/lib/prompt-provenance";
 import { deriveRenderReadiness } from "@/lib/render-readiness";
 import type { TemplateVariable } from "@/types/models";
+import {
+  isVisualRecipeV2Success,
+  toLegacyVisualRecipe,
+} from "@/lib/visual-recipe";
 
 /** L1 degradation threshold: show queueing hint after 60s */
 const QUEUEING_THRESHOLD_MS = 60_000;
@@ -498,6 +502,8 @@ function WorkspacePageInner() {
     ? previewReferenceImageUrl
     : restoredSourceContext?.sourceImageUrl ?? ws.referenceImageUrl;
   const effectiveRecipe = isEvidencePreview ? previewRecipe : ws.recipe;
+  const effectiveLegacyRecipe = toLegacyVisualRecipe(effectiveRecipe);
+  const hasStructuredRecipe = isVisualRecipeV2Success(effectiveRecipe);
   const effectivePromptText = isEvidencePreview ? previewPrompt : ws.promptText;
   const effectiveNegativePromptText = isEvidencePreview
     ? previewNegativePrompt
@@ -686,7 +692,7 @@ function WorkspacePageInner() {
 
         <AiCopilotRibbon
           state={effectiveState}
-          recipe={effectiveRecipe}
+          recipe={effectiveLegacyRecipe}
           hasReference={!!effectiveReferenceImageUrl}
           hasPrompt={!!activePromptText}
           canGenerate={canGenerate}
@@ -704,8 +710,8 @@ function WorkspacePageInner() {
                   isEvidencePreview ? false : isUploading || ws.state === "uploading"
                 }
                 uploadProgress={isEvidencePreview ? 0 : progress}
-                recipe={effectiveRecipe}
-                facets={evidenceFacets}
+                recipe={effectiveLegacyRecipe}
+                facets={hasStructuredRecipe ? [] : evidenceFacets}
                 selectedFacetId={selectedFacetId}
                 error={ws.error}
                 degradation={effectiveDegradation}
@@ -713,6 +719,7 @@ function WorkspacePageInner() {
                 onReplace={handleReplace}
                 onRetry={handleAnalysisRetry}
                 onFacetSelect={setSelectedFacetId}
+                showSpatialEvidence={!hasStructuredRecipe}
               />
             }
             recipe={
@@ -723,6 +730,15 @@ function WorkspacePageInner() {
                 provenanceSpans={promptProvenanceSpans}
                 selectedFacetId={selectedFacetId}
                 onFacetSelect={setSelectedFacetId}
+                enabledInvariantIds={ws.v2PromptState?.enabledInvariantIds}
+                onInvariantToggle={(invariantId) => {
+                  ws.setV2PromptState((current) => ({
+                    ...current,
+                    enabledInvariantIds: current.enabledInvariantIds.includes(invariantId)
+                      ? current.enabledInvariantIds.filter((id) => id !== invariantId)
+                      : [...current.enabledInvariantIds, invariantId],
+                  }));
+                }}
               />
             }
             prompt={
@@ -736,6 +752,9 @@ function WorkspacePageInner() {
                 templateStatus={effectiveTemplateStatus}
                 templateReason={effectiveTemplateReason}
                 templateKey={effectiveTemplateKey}
+                recipe={effectiveRecipe}
+                v2PromptState={ws.v2PromptState}
+                onV2PromptStateChange={ws.setV2PromptState}
                 onResolvedPromptChange={handleResolvedPromptChange}
                 onTemplateVariablesChange={setCurrentTemplateVariables}
                 onNegativePromptChange={ws.setNegativePromptText}
@@ -804,7 +823,9 @@ function WorkspacePageInner() {
           open={showTemplateSaveDialog}
           initialContent={templateSaveContent || effectivePromptText}
           initialVariables={
-            currentTemplateVariables.length > 0
+            hasStructuredRecipe && ws.v2PromptState?.outputMode === "custom"
+              ? []
+              : currentTemplateVariables.length > 0
               ? currentTemplateVariables
               : effectiveTemplateVariables
           }

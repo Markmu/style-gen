@@ -12,7 +12,7 @@ import {
 import { sql } from "drizzle-orm";
 import type {
   AnalysisTemplateStatus,
-  VisualRecipe,
+  StoredVisualRecipe,
   GenerationParams,
   TemplateVariable,
 } from "@/types/models";
@@ -73,7 +73,7 @@ export const analysisTasks = pgTable(
       .notNull()
       .references(() => assets.id),
     status: varchar("status", { length: 20 }).notNull().default("pending"),
-    recipe: jsonb("recipe").$type<VisualRecipe | null>(),
+    recipe: jsonb("recipe").$type<StoredVisualRecipe | null>(),
     promptText: text("prompt_text"),
     negativePromptText: text("negative_prompt_text"),
     rawResponse: text("raw_response"),

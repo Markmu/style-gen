@@ -56,7 +56,7 @@ describe("deriveEvidenceFacets", () => {
     ]);
   });
 
-  it("derives confidence and tone deterministically", () => {
+  it("marks legacy evidence without inventing a numeric confidence", () => {
     const facets = deriveEvidenceFacets({
       ...recipe,
       subject: "Cup",
@@ -65,11 +65,13 @@ describe("deriveEvidenceFacets", () => {
 
     expect(facets.find((facet) => facet.id === "color")).toMatchObject({
       tone: "color",
-      confidenceLabel: "strong confidence",
+      confidenceLabel: "legacy · no model confidence",
+      confidence: null,
+      legacy: true,
     });
     expect(facets.find((facet) => facet.id === "subject")).toMatchObject({
       tone: "neutral",
-      confidenceLabel: "weak confidence",
+      confidenceLabel: "legacy · no model confidence",
     });
   });
 

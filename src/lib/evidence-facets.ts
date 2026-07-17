@@ -1,13 +1,7 @@
-import type { VisualRecipe } from "@/types/models";
+import { STYLE_DIMENSIONS, type StoredVisualRecipe, type StyleDimension } from "@/types/models";
+import { isVisualRecipeV2Success, toLegacyVisualRecipe } from "@/lib/visual-recipe";
 
-export type EvidenceFacetId =
-  | "color"
-  | "composition"
-  | "lighting"
-  | "texture"
-  | "mood"
-  | "subject";
-
+export type EvidenceFacetId = string;
 export type EvidenceFacetTone =
   | "color"
   | "composition"
@@ -16,108 +10,89 @@ export type EvidenceFacetTone =
   | "mood"
   | "neutral";
 
-export type EvidenceConfidenceLabel =
-  | "strong confidence"
-  | "medium confidence"
-  | "weak confidence";
-
 export interface EvidenceFacet {
   id: EvidenceFacetId;
   label: string;
   summary: string;
   tone: EvidenceFacetTone;
-  confidenceLabel: EvidenceConfidenceLabel;
-  sourceField: keyof VisualRecipe;
+  confidenceLabel: string;
+  confidence: number | null;
+  evidence: string[];
+  sourceField: string;
   anchorIndex: number;
+  legacy: boolean;
 }
 
-interface FacetDefinition {
-  id: EvidenceFacetId;
-  label: string;
-  sourceField: keyof VisualRecipe;
-  tone: EvidenceFacetTone;
-  keywords: string[];
-}
+const DIMENSION_LABELS: Record<StyleDimension, string> = {
+  visualMedium: "Visual medium",
+  composition: "Composition",
+  camera: "Camera",
+  color: "Color",
+  lighting: "Lighting",
+  formLanguage: "Form language",
+  materialTexture: "Material & texture",
+  atmosphere: "Atmosphere",
+  rendering: "Rendering",
+};
 
-const FACET_DEFINITIONS: FacetDefinition[] = [
-  {
-    id: "color",
-    label: "Color",
-    sourceField: "color",
-    tone: "color",
-    keywords: ["palette", "color", "warm", "cool", "tone", "hue", "saturation"],
-  },
-  {
-    id: "composition",
-    label: "Composition",
-    sourceField: "composition",
-    tone: "composition",
-    keywords: ["composition", "framing", "third", "symmetry", "horizon", "center"],
-  },
-  {
-    id: "lighting",
-    label: "Lighting",
-    sourceField: "lighting",
-    tone: "lighting",
-    keywords: ["light", "lighting", "shadow", "glow", "backlight", "window", "hour"],
-  },
-  {
-    id: "texture",
-    label: "Texture",
-    sourceField: "texture",
-    tone: "texture",
-    keywords: ["texture", "grain", "matte", "smooth", "glass", "water", "cloud"],
-  },
-  {
-    id: "mood",
-    label: "Mood",
-    sourceField: "mood",
-    tone: "mood",
-    keywords: ["mood", "calm", "serene", "dramatic", "quiet", "refined"],
-  },
-  {
-    id: "subject",
-    label: "Subject",
-    sourceField: "subject",
-    tone: "neutral",
-    keywords: ["subject", "object", "person", "product", "scene"],
-  },
-];
+const DIMENSION_TONES: Record<StyleDimension, EvidenceFacetTone> = {
+  color: "color",
+  composition: "composition",
+  lighting: "lighting",
+  materialTexture: "texture",
+  atmosphere: "mood",
+  visualMedium: "neutral",
+  camera: "neutral",
+  formLanguage: "neutral",
+  rendering: "neutral",
+};
 
-function normalizeText(value: unknown) {
-  return typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "";
-}
+const LEGACY_FIELDS = [
+  ["color", "Color", "color"],
+  ["composition", "Composition", "composition"],
+  ["lighting", "Lighting", "lighting"],
+  ["texture", "Texture", "texture"],
+  ["mood", "Mood", "mood"],
+  ["subject", "Subject", "neutral"],
+] as const;
 
-function confidenceFor(summary: string, keywords: string[]): EvidenceConfidenceLabel {
-  const normalized = summary.toLowerCase();
-  const keywordHits = keywords.filter((keyword) =>
-    normalized.includes(keyword.toLowerCase()),
-  ).length;
-  const commaRichness = (summary.match(/[,;·]/g) ?? []).length;
-  const score = summary.length + keywordHits * 18 + commaRichness * 8;
-
-  if (score >= 78) return "strong confidence";
-  if (score >= 38) return "medium confidence";
-  return "weak confidence";
-}
-
-export function deriveEvidenceFacets(recipe: VisualRecipe | null): EvidenceFacet[] {
+export function deriveEvidenceFacets(recipe: StoredVisualRecipe | null): EvidenceFacet[] {
   if (!recipe) return [];
 
-  return FACET_DEFINITIONS.flatMap((definition, index) => {
-    const summary = normalizeText(recipe[definition.sourceField]);
-    if (!summary) return [];
+  if (isVisualRecipeV2Success(recipe)) {
+    let anchorIndex = 0;
+    return STYLE_DIMENSIONS.flatMap((dimension) =>
+      recipe.styleProfile[dimension].map((observation) => ({
+        id: observation.id,
+        label: DIMENSION_LABELS[dimension],
+        summary: observation.value,
+        tone: DIMENSION_TONES[dimension],
+        confidenceLabel: `${Math.round(observation.confidence * 100)}% model confidence`,
+        confidence: observation.confidence,
+        evidence: observation.evidence,
+        sourceField: dimension,
+        anchorIndex: anchorIndex++,
+        legacy: false,
+      })),
+    );
+  }
 
-    return [
-      {
-        id: definition.id,
-        label: definition.label,
-        summary,
-        tone: definition.tone,
-        confidenceLabel: confidenceFor(summary, definition.keywords),
-        sourceField: definition.sourceField,
-        anchorIndex: index,
-      },
-    ];
+  const legacy = toLegacyVisualRecipe(recipe);
+  if (!legacy) return [];
+  return LEGACY_FIELDS.flatMap(([sourceField, label, tone], index) => {
+    const summary = legacy[sourceField].trim();
+    if (!summary) return [];
+    return [{
+      id: sourceField,
+      label,
+      summary,
+      tone,
+      confidenceLabel: "legacy · no model confidence",
+      confidence: null,
+      evidence: [],
+      sourceField,
+      anchorIndex: index,
+      legacy: true,
+    }];
   });
 }

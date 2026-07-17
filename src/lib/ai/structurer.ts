@@ -1,8 +1,8 @@
 import type {
   AnalysisTemplateSourceField,
   AnalysisTemplateStatus,
+  StoredVisualRecipe,
   TemplateVariable,
-  VisualRecipe,
 } from "@/types/models";
 import {
   extractVariables,
@@ -12,6 +12,11 @@ import {
 } from "@/lib/template-parser";
 import { getStructurerProvider } from "./providers";
 import type { StructurerContext } from "./providers/types";
+import {
+  normalizeVisualRecipeCandidate,
+  renderPromptTemplate,
+} from "@/lib/visual-recipe";
+import { getPromptTemplateVariables } from "@/lib/prompt-composer";
 
 const ANALYSIS_TEMPLATE_CONTENT_MAX_LENGTH = 6000;
 const ANALYSIS_TEMPLATE_REASON_MAX_LENGTH = 500;
@@ -58,7 +63,7 @@ export class StructurerError extends Error {
 
 /** structureAnalysis 的返回类型 */
 export interface StructuredResult {
-  recipe: VisualRecipe;
+  recipe: StoredVisualRecipe;
   promptText: string;
   negativePromptText: string;
   analysisTemplateContent: string | null;
@@ -88,7 +93,7 @@ export async function structureAnalysis(
   try {
     const provider = getStructurerProvider();
     const text = await provider.structure({ rawAnalysis, context });
-    const result = parseStructuredResponseText(text, meta);
+    const result = parseStructuredResponseText(text, meta, rawAnalysis);
     log("structurer_completed", {
       ...meta,
       promptLength: result.promptText.length,
@@ -121,7 +126,8 @@ export async function structureAnalysis(
 
 function parseStructuredResponseText(
   text: string,
-  meta: Record<string, unknown>
+  meta: Record<string, unknown>,
+  rawAnalysis: string,
 ): StructuredResult {
   let parsed: unknown;
   let lastError: unknown = null;
@@ -137,7 +143,7 @@ function parseStructuredResponseText(
           normalizedPreview: sanitizePreview(candidate.text),
         });
       }
-      return validateStructuredResult(parsed);
+      return validateStructuredResult(parsed, rawAnalysis);
     } catch (error) {
       lastError = error;
     }
@@ -419,7 +425,10 @@ function normalizeTemplateFields(
 }
 
 /** 验证并断言 parsed 数据符合 StructuredResult 结构 */
-function validateStructuredResult(parsed: unknown): StructuredResult {
+function validateStructuredResult(
+  parsed: unknown,
+  rawAnalysis: string,
+): StructuredResult {
   if (!parsed || typeof parsed !== "object") {
     throw new StructurerError("Invalid JSON structure: not an object");
   }
@@ -428,6 +437,45 @@ function validateStructuredResult(parsed: unknown): StructuredResult {
 
   if (!obj.recipe || typeof obj.recipe !== "object") {
     throw new StructurerError("Invalid JSON structure: missing recipe object");
+  }
+
+  const recipeObject = obj.recipe as Record<string, unknown>;
+  const isV2Candidate =
+    "contentDescription" in recipeObject || recipeObject.schemaVersion === 2;
+
+  if (isV2Candidate) {
+    const normalized = normalizeVisualRecipeCandidate(recipeObject);
+    if (normalized.kind === "fallback") {
+      const reason = normalized.recipe.extractionReasons.join(" ") ||
+        "The reference did not contain enough reliable style information.";
+      if (normalized.fallbackCause === "invalid") {
+        throw new StructurerError(`Invalid V2 recipe: ${reason}`);
+      }
+      return {
+        recipe: normalized.recipe,
+        promptText: rawAnalysis.trim(),
+        negativePromptText: "",
+        analysisTemplateContent: null,
+        analysisTemplateVariables: [],
+        analysisTemplateStatus: "fallback",
+        analysisTemplateReason: normalizeReason(reason, "Structured extraction fallback"),
+      };
+    }
+
+    const recipe = normalized.recipe;
+    const template = recipe.promptOutputs.standardTemplate;
+    const variables = getPromptTemplateVariables(recipe, template);
+    return {
+      recipe,
+      promptText: renderPromptTemplate(template, recipe),
+      negativePromptText: recipe.negativeConstraints.join(", "),
+      analysisTemplateContent: template,
+      analysisTemplateVariables: variables,
+      analysisTemplateStatus: recipe.extractionStatus,
+      analysisTemplateReason: recipe.extractionReasons.length > 0
+        ? normalizeReason(recipe.extractionReasons.join(" "), "")
+        : null,
+    };
   }
 
   if (typeof obj.promptText !== "string" || !obj.promptText) {
@@ -442,7 +490,7 @@ function validateStructuredResult(parsed: unknown): StructuredResult {
     );
   }
 
-  const recipe = obj.recipe as Record<string, unknown>;
+  const recipe = recipeObject;
   const requiredStrings = [
     "imageSummary",
     "subject",
@@ -481,7 +529,7 @@ function validateStructuredResult(parsed: unknown): StructuredResult {
   const { template, renderedPromptText } = normalizeTemplateFields(obj);
 
   return {
-    recipe: recipe as unknown as VisualRecipe,
+    recipe: recipe as unknown as StoredVisualRecipe,
     promptText: renderedPromptText ?? (obj.promptText as string),
     negativePromptText: obj.negativePromptText as string,
     ...template,

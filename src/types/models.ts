@@ -25,7 +25,7 @@ export interface User {
   updatedAt: Date;
 }
 
-/** Visual Recipe — AI 两阶段链路提取的结构化风格描述 */
+/** V1 Visual Recipe — 仅用于读取旧记录和兼容 UI。 */
 export interface VisualRecipe {
   imageSummary: string;
   subject: string;
@@ -40,6 +40,140 @@ export interface VisualRecipe {
   visualKeywords: string[];
   mustKeep: string[];
   replaceable: string[];
+}
+
+export type LegacyVisualRecipe = VisualRecipe;
+
+export type ExtractionStatus = "ready" | "partial" | "fallback";
+
+export const STYLE_DIMENSIONS = [
+  "visualMedium",
+  "composition",
+  "camera",
+  "color",
+  "lighting",
+  "formLanguage",
+  "materialTexture",
+  "atmosphere",
+  "rendering",
+] as const;
+
+export type StyleDimension = (typeof STYLE_DIMENSIONS)[number];
+
+export interface StyleObservation {
+  id: string;
+  value: string;
+  evidence: string[];
+  confidence: number;
+}
+
+export interface ContentDescription {
+  summary: string;
+  subject?: string;
+  subjectAttributes: string[];
+  actionOrState?: string;
+  environment?: string;
+  supportingElements: string[];
+  timeOrWeather?: string;
+}
+
+export interface StyleInvariant extends StyleObservation {
+  kind: "hard" | "soft";
+  dimension: StyleDimension;
+  sourceObservationIds: string[];
+}
+
+export type ContentVariableSourceField =
+  | "subject"
+  | "subject_attributes"
+  | "action"
+  | "environment"
+  | "supporting_elements"
+  | "time_weather";
+
+export interface ContentVariable {
+  name: string;
+  label: string;
+  defaultValue: string;
+  sourceField: ContentVariableSourceField;
+}
+
+export interface OptionalModifier {
+  name: "mood" | "primary_color";
+  label: string;
+  defaultValue: string;
+  dimension: "atmosphere" | "color";
+  enabledByDefault: false;
+}
+
+export const STYLE_FINGERPRINT_SCORE_KEYS = [
+  "realism",
+  "abstraction",
+  "contrast",
+  "saturation",
+  "softness",
+  "detailDensity",
+  "symmetry",
+  "depth",
+  "atmosphericIntensity",
+] as const;
+
+export type StyleFingerprintScoreKey =
+  (typeof STYLE_FINGERPRINT_SCORE_KEYS)[number];
+
+export interface StyleFingerprint {
+  tokens: string[];
+  scores: Record<StyleFingerprintScoreKey, number | null>;
+}
+
+export interface PromptOutputs {
+  reconstructionPrompt: string;
+  conciseTemplate: string;
+  standardTemplate: string;
+  professionalTemplate: string;
+}
+
+export interface VisualRecipeV2Success {
+  schemaVersion: 2;
+  extractionStatus: "ready" | "partial";
+  extractionReasons: string[];
+  contentDescription: ContentDescription;
+  styleProfile: Record<StyleDimension, StyleObservation[]>;
+  styleInvariants: StyleInvariant[];
+  contentVariables: ContentVariable[];
+  optionalModifiers: OptionalModifier[];
+  negativeConstraints: string[];
+  styleFingerprint: StyleFingerprint;
+  promptOutputs: PromptOutputs;
+}
+
+export interface VisualRecipeV2Fallback {
+  schemaVersion: 2;
+  extractionStatus: "fallback";
+  extractionReasons: string[];
+  promptOutputs: null;
+}
+
+export type VisualRecipeV2 = VisualRecipeV2Success | VisualRecipeV2Fallback;
+
+/** JSONB persisted recipe. V1 stays readable; all new successful analyses write V2. */
+export type StoredVisualRecipe = VisualRecipe | VisualRecipeV2;
+
+export type PromptOutputMode =
+  | "reconstruction"
+  | "concise"
+  | "standard"
+  | "professional"
+  | "structured"
+  | "custom";
+
+export interface V2PromptWorkspaceState {
+  outputMode: PromptOutputMode;
+  enabledInvariantIds: string[];
+  variableValues: Record<string, string>;
+  enabledModifierNames: OptionalModifier["name"][];
+  modifierValues: Partial<Record<OptionalModifier["name"], string>>;
+  customPrompt: string;
 }
 
 /** 视觉分析 Provider */
@@ -66,14 +200,15 @@ export type AnalysisTemplateSourceField =
   | "composition"
   | "camera_language"
   | "texture"
-  | "mood";
+  | "mood"
+  | ContentVariableSourceField;
 
 /** 分析任务 */
 export interface AnalysisTask {
   id: string;
   sourceAssetId: string;
   status: AnalysisTaskStatus;
-  recipe: VisualRecipe | null;
+  recipe: StoredVisualRecipe | null;
   promptText: string | null;
   negativePromptText: string | null;
   rawResponse: string | null;

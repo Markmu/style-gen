@@ -1,12 +1,12 @@
 "use client";
 
 import Image from "next/image";
-import type { GenerationParams, TemplateVariable, VisualRecipe } from "@/types/models";
+import type { GenerationParams, StoredVisualRecipe, TemplateVariable } from "@/types/models";
 
 export interface HistoryDetail {
   id: string;
   resultFileUrl: string;
-  recipe: VisualRecipe | null;
+  recipe: StoredVisualRecipe | null;
   promptSnapshot: string;
   negativePromptSnapshot: string;
   params: GenerationParams;

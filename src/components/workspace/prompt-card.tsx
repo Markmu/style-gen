@@ -6,7 +6,14 @@ import { AppIcon } from "@/components/ui/app-icon";
 import { ExpandablePanel } from "@/components/ui/expandable-panel";
 import type { WorkspaceError, WorkspaceState } from "@/hooks/use-workspace-state";
 import { UnifiedPromptEditor } from "@/components/workspace/unified-prompt-editor";
-import type { AnalysisTemplateStatus, TemplateVariable } from "@/types/models";
+import { StructuredPromptEditor } from "@/components/workspace/structured-prompt-editor";
+import type {
+  AnalysisTemplateStatus,
+  StoredVisualRecipe,
+  TemplateVariable,
+  V2PromptWorkspaceState,
+} from "@/types/models";
+import { isVisualRecipeV2Success } from "@/lib/visual-recipe";
 
 const NEGATIVE_PROMPT_VARIABLE_NAME = "negative_prompt";
 
@@ -27,6 +34,11 @@ interface PromptCardProps {
   onSaveTemplate?: (content: string) => void;
   onBackToEdit?: () => void;
   renderDock?: ReactNode;
+  recipe?: StoredVisualRecipe | null;
+  v2PromptState?: V2PromptWorkspaceState | null;
+  onV2PromptStateChange?: (
+    update: (current: V2PromptWorkspaceState) => V2PromptWorkspaceState,
+  ) => void;
 }
 
 export function PromptCard({
@@ -46,6 +58,9 @@ export function PromptCard({
   onSaveTemplate,
   onBackToEdit,
   renderDock,
+  recipe = null,
+  v2PromptState = null,
+  onV2PromptStateChange,
 }: PromptCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const titleId = useId();
@@ -85,7 +100,9 @@ export function PromptCard({
     }),
     [negativePromptText],
   );
-  const canSaveStyleMemory = prompt && onSaveTemplate && state !== "history_restored";
+  const structuredRecipe = isVisualRecipeV2Success(recipe) ? recipe : null;
+  const structuredSaveAllowed = !v2PromptState || ["concise", "standard", "professional", "custom"].includes(v2PromptState.outputMode);
+  const canSaveStyleMemory = prompt && onSaveTemplate && state !== "history_restored" && structuredSaveAllowed;
   const showRenderDock = Boolean(renderDock) && !isExpanded;
 
   const handleAuxiliaryVariableChange = useCallback(
@@ -161,7 +178,7 @@ export function PromptCard({
       >
         {isLoading ? (
           <PromptSkeleton />
-        ) : prompt ? (
+        ) : prompt || structuredRecipe ? (
           <div
             className={
               showRenderDock
@@ -181,7 +198,20 @@ export function PromptCard({
                   : "min-h-[22.5rem]"
               }
             >
-              <UnifiedPromptEditor
+              {structuredRecipe && v2PromptState && onV2PromptStateChange ? (
+                <StructuredPromptEditor
+                  recipe={structuredRecipe}
+                  state={v2PromptState}
+                  compact={showRenderDock}
+                  negativePromptText={negativePromptText}
+                  onStateChange={onV2PromptStateChange}
+                  onResolvedPromptChange={onResolvedPromptChange ?? (() => undefined)}
+                  onTemplateVariablesChange={onTemplateVariablesChange}
+                  onNegativePromptChange={onNegativePromptChange}
+                  onSaveContentChange={handleSaveContentChange}
+                />
+              ) : (
+                <UnifiedPromptEditor
                 initialPromptText={promptText}
                 initialTemplateContent={templateContent}
                 initialTemplateVariables={templateVariables}
@@ -197,6 +227,7 @@ export function PromptCard({
                 onAuxiliaryVariableChange={handleAuxiliaryVariableChange}
                 onSaveContentChange={handleSaveContentChange}
               />
+              )}
             </div>
           </div>
         ) : (

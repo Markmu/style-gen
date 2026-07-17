@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { GeneratePanel } from "@/components/workspace/generate-panel";
 
@@ -7,8 +7,11 @@ describe("GeneratePanel", () => {
   const noop = vi.fn();
 
   afterEach(() => {
+    cleanup();
     vi.clearAllMocks();
-    window.localStorage.removeItem("style-gen-gen-params");
+    if (typeof window.localStorage?.removeItem === "function") {
+      window.localStorage.removeItem("style-gen-gen-params");
+    }
   });
 
   it('analysis_ready 状态按钮文案 "GENERATE"', () => {

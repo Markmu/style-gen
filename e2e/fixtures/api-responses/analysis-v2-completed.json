@@ -1,0 +1,68 @@
+{
+  "id": "analysis-v2-task",
+  "sourceAssetId": "mock-asset-id",
+  "status": "completed",
+  "recipe": {
+    "schemaVersion": 2,
+    "extractionStatus": "ready",
+    "extractionReasons": [],
+    "contentDescription": {
+      "summary": "An amber bottle on folded linen",
+      "subject": "amber bottle",
+      "subjectAttributes": ["ribbed glass"],
+      "environment": "quiet studio table",
+      "supportingElements": ["folded linen"]
+    },
+    "styleProfile": {
+      "visualMedium": [{ "id": "visual_medium_1", "value": "editorial product photography", "evidence": ["Natural photographic highlights"], "confidence": 0.9 }],
+      "composition": [{ "id": "composition_1", "value": "asymmetric thirds composition", "evidence": ["Subject sits on the left third"], "confidence": 0.88 }],
+      "camera": [],
+      "color": [{ "id": "color_1", "value": "warm amber and sand palette", "evidence": ["Amber and linen dominate the frame"], "confidence": 0.92 }],
+      "lighting": [{ "id": "lighting_1", "value": "soft directional window light", "evidence": ["A soft-edged shadow falls right"], "confidence": 0.94 }],
+      "formLanguage": [],
+      "materialTexture": [{ "id": "material_texture_1", "value": "matte linen against polished glass", "evidence": ["Woven fibers contrast with glass"], "confidence": 0.86 }],
+      "atmosphere": [{ "id": "atmosphere_1", "value": "calm restrained mood", "evidence": ["Sparse staging and low contrast"], "confidence": 0.72 }],
+      "rendering": []
+    },
+    "styleInvariants": [
+      { "id": "color_invariant_1", "kind": "hard", "dimension": "color", "value": "warm amber and sand palette", "evidence": ["Amber and linen dominate the frame"], "confidence": 0.92, "sourceObservationIds": ["color_1"] },
+      { "id": "lighting_invariant_1", "kind": "hard", "dimension": "lighting", "value": "soft directional window light", "evidence": ["A soft-edged shadow falls right"], "confidence": 0.94, "sourceObservationIds": ["lighting_1"] },
+      { "id": "visual_medium_invariant_1", "kind": "hard", "dimension": "visualMedium", "value": "editorial product photography", "evidence": ["Natural photographic highlights"], "confidence": 0.9, "sourceObservationIds": ["visual_medium_1"] },
+      { "id": "material_texture_invariant_1", "kind": "hard", "dimension": "materialTexture", "value": "matte linen against polished glass", "evidence": ["Woven fibers contrast with glass"], "confidence": 0.86, "sourceObservationIds": ["material_texture_1"] },
+      { "id": "atmosphere_invariant_1", "kind": "soft", "dimension": "atmosphere", "value": "calm restrained mood", "evidence": ["Sparse staging and low contrast"], "confidence": 0.72, "sourceObservationIds": ["atmosphere_1"] }
+    ],
+    "contentVariables": [
+      { "name": "subject", "label": "Subject", "defaultValue": "amber bottle", "sourceField": "subject" },
+      { "name": "environment", "label": "Environment", "defaultValue": "quiet studio table", "sourceField": "environment" }
+    ],
+    "optionalModifiers": [
+      { "name": "mood", "label": "Mood", "defaultValue": "calm", "dimension": "atmosphere", "enabledByDefault": false },
+      { "name": "primary_color", "label": "Primary color", "defaultValue": "warm amber", "dimension": "color", "enabledByDefault": false }
+    ],
+    "negativeConstraints": ["watermark", "distorted glass"],
+    "styleFingerprint": {
+      "tokens": ["editorial", "warm neutral", "soft window light"],
+      "scores": { "realism": 0.9, "abstraction": 0.1, "contrast": 0.35, "saturation": 0.45, "softness": 0.8, "detailDensity": 0.7, "symmetry": 0.3, "depth": 0.65, "atmosphericIntensity": 0.55 }
+    },
+    "promptOutputs": {
+      "reconstructionPrompt": "Content: An amber bottle on folded linen; Color: warm amber and sand palette",
+      "conciseTemplate": "Content: {{subject}}, {{environment}}; Color: warm amber and sand palette",
+      "standardTemplate": "Content: {{subject}}, {{environment}}; Color: warm amber and sand palette; Lighting: soft directional window light",
+      "professionalTemplate": "Content: {{subject}}, {{environment}}; Color: warm amber and sand palette; Lighting: soft directional window light; Material: matte linen against polished glass"
+    }
+  },
+  "promptText": "Content: amber bottle, quiet studio table; Color: warm amber and sand palette; Lighting: soft directional window light",
+  "negativePromptText": "watermark, distorted glass",
+  "rawResponse": "raw analysis",
+  "errorMessage": null,
+  "errorStage": null,
+  "analysisTemplateContent": "Content: {{subject}}, {{environment}}; Color: warm amber and sand palette; Lighting: soft directional window light",
+  "analysisTemplateVariables": [
+    { "name": "subject", "label": "Subject", "defaultValue": "amber bottle", "sourceField": "subject" },
+    { "name": "environment", "label": "Environment", "defaultValue": "quiet studio table", "sourceField": "environment" }
+  ],
+  "analysisTemplateStatus": "ready",
+  "analysisTemplateReason": null,
+  "createdAt": "2026-07-14T00:00:00.000Z",
+  "updatedAt": "2026-07-14T00:00:01.000Z"
+}

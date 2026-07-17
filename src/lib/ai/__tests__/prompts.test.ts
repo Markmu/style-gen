@@ -15,13 +15,15 @@ describe("prompts", () => {
     });
 
     it("包含 JSON 结构说明关键字段", () => {
-      expect(STRUCTURER_SYSTEM_PROMPT).toContain("imageSummary");
-      expect(STRUCTURER_SYSTEM_PROMPT).toContain("promptText");
-      expect(STRUCTURER_SYSTEM_PROMPT).toContain("negativePromptText");
-      expect(STRUCTURER_SYSTEM_PROMPT).toContain("analysisTemplateContent");
-      expect(STRUCTURER_SYSTEM_PROMPT).toContain("analysisTemplateVariables");
-      expect(STRUCTURER_SYSTEM_PROMPT).toContain("analysisTemplateStatus");
-      expect(STRUCTURER_SYSTEM_PROMPT).toContain("fallback");
+      expect(STRUCTURER_SYSTEM_PROMPT).toContain("contentDescription");
+      expect(STRUCTURER_SYSTEM_PROMPT).toContain("styleProfile");
+      expect(STRUCTURER_SYSTEM_PROMPT).toContain("styleInvariants");
+      expect(STRUCTURER_SYSTEM_PROMPT).toContain("contentVariables");
+      expect(STRUCTURER_SYSTEM_PROMPT).toContain("styleFingerprint");
+      expect(STRUCTURER_SYSTEM_PROMPT).toContain("evidence");
+      expect(STRUCTURER_SYSTEM_PROMPT).toContain("confidence");
+      expect(STRUCTURER_SYSTEM_PROMPT).not.toContain('"promptText"');
+      expect(STRUCTURER_SYSTEM_PROMPT).not.toContain('"analysisTemplateContent"');
     });
   });
 });

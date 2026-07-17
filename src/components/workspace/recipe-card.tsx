@@ -4,7 +4,7 @@ import { useId, useState } from "react";
 import { Braces, ChevronDown, Info, Maximize, Minimize } from "lucide-react";
 import { AppIcon } from "@/components/ui/app-icon";
 import { ExpandablePanel } from "@/components/ui/expandable-panel";
-import type { VisualRecipe } from "@/types/models";
+import type { StoredVisualRecipe } from "@/types/models";
 import type { WorkspaceState } from "@/hooks/use-workspace-state";
 import {
   deriveEvidenceFacets,
@@ -12,14 +12,17 @@ import {
   type EvidenceFacetId,
 } from "@/lib/evidence-facets";
 import type { PromptProvenanceSpan } from "@/lib/prompt-provenance";
+import { deriveAnalysisResultViewModel } from "@/lib/analysis-result-view-model";
 
 interface RecipeCardProps {
   state: WorkspaceState;
-  recipe: VisualRecipe | null;
+  recipe: StoredVisualRecipe | null;
   facets?: EvidenceFacet[];
   provenanceSpans?: PromptProvenanceSpan[];
   selectedFacetId?: EvidenceFacetId | null;
   onFacetSelect?: (facetId: EvidenceFacetId) => void;
+  enabledInvariantIds?: string[];
+  onInvariantToggle?: (invariantId: string) => void;
 }
 
 const FACET_SUMMARY_COLLAPSE_UNITS = 80;
@@ -119,6 +122,14 @@ function EvidenceFacetItem({
         </div>
       </button>
 
+      {facet.evidence.length > 0 && (
+        <ul className="ml-10 mt-2 space-y-1 text-[0.72rem] leading-5 text-[var(--text-muted)]">
+          {facet.evidence.map((item) => (
+            <li key={item}>Observed: {item}</li>
+          ))}
+        </ul>
+      )}
+
       <div className="ml-10 mt-2 flex flex-wrap items-center gap-1.5 text-[0.68rem] text-[var(--text-muted)]">
         <span className="rounded-full bg-[var(--surface-bright)] px-2 py-0.5">
           source: {facet.sourceField}
@@ -162,6 +173,8 @@ export function RecipeCard({
   provenanceSpans = [],
   selectedFacetId = null,
   onFacetSelect,
+  enabledInvariantIds,
+  onInvariantToggle,
 }: RecipeCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const titleId = useId();
@@ -169,6 +182,10 @@ export function RecipeCard({
   const evidenceFacets = facets ?? deriveEvidenceFacets(recipe);
   const promptStatusByFacet = new Map(
     provenanceSpans.map((span) => [span.facetId, span.matchType]),
+  );
+  const viewModel = recipe ? deriveAnalysisResultViewModel(recipe) : null;
+  const enabledInvariants = new Set(
+    enabledInvariantIds ?? viewModel?.invariants.map((item) => item.id) ?? [],
   );
 
   return (
@@ -224,12 +241,17 @@ export function RecipeCard({
         <div className="min-h-0 flex-1 overflow-y-auto">
           {isAnalyzing ? (
             <RecipeSkeleton />
-          ) : recipe ? (
+          ) : recipe && viewModel ? (
             <div className="space-y-4">
-              <div className="rounded-xl bg-[var(--surface-low)]/70 p-3">
-                <p className="label-tech text-[var(--text-muted)]">Core summary</p>
+              <section data-testid="content-analysis" className="rounded-xl bg-[var(--surface-low)]/70 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="label-tech text-[var(--text-muted)]">Content analysis</p>
+                  <span className="rounded-full bg-[var(--surface-bright)] px-2 py-0.5 text-[0.65rem] font-semibold uppercase text-[var(--text-muted)]">
+                    {viewModel.status}
+                  </span>
+                </div>
                 <p className="mt-2 text-sm font-medium leading-5 text-[var(--text-primary)]">
-                  {recipe.subject}
+                  {viewModel.subject}
                 </p>
                 <p
                   data-testid="style-intelligence-image-summary"
@@ -237,14 +259,34 @@ export function RecipeCard({
                     isExpanded ? "" : "max-h-10 overflow-hidden"
                   }`}
                 >
-                  {recipe.imageSummary}
+                  {viewModel.summary}
                 </p>
+                {viewModel.version === "v2" && viewModel.contentLines.length > 0 && (
+                  <dl className="mt-3 space-y-1.5 border-t border-[var(--border-static)] pt-3 text-xs">
+                    {viewModel.contentLines.map((line) => (
+                      <div key={line.label} className="grid grid-cols-[6rem_1fr] gap-2">
+                        <dt className="text-[var(--text-muted)]">{line.label}</dt>
+                        <dd className="text-[var(--text-secondary)]">{line.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
                 <div className="mt-2">
-                  <TagList tags={recipe.styleTags} />
+                  <TagList tags={viewModel.tags} />
                 </div>
-              </div>
+                {viewModel.version === "v2" && viewModel.tags.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => void navigator.clipboard?.writeText(viewModel.tags.join(", "))}
+                    className="btn-secondary mt-2 rounded-lg px-2 py-1 text-[0.68rem] font-semibold"
+                  >
+                    Copy fingerprint
+                  </button>
+                )}
+              </section>
 
-              <div className="space-y-2">
+              <section data-testid="style-dna" className="space-y-2">
+                <p className="label-tech px-1 text-[var(--text-muted)]">Style DNA</p>
                 {evidenceFacets.map((facet) => {
                   const selected = selectedFacetId === facet.id;
                   const promptStatus = promptStatusByFacet.get(facet.id);
@@ -259,7 +301,34 @@ export function RecipeCard({
                     />
                   );
                 })}
-              </div>
+              </section>
+
+              {viewModel.version === "v2" && (
+                <section data-testid="style-invariants" className="space-y-2 rounded-xl bg-[var(--surface-low)]/70 p-3">
+                  <div>
+                    <p className="label-tech text-[var(--text-muted)]">Style invariants</p>
+                    <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">
+                      Cross-content rules. Disable a rule to recompose reusable prompts only.
+                    </p>
+                  </div>
+                  {viewModel.invariants.map((invariant) => (
+                    <label key={invariant.id} className="flex cursor-pointer gap-2 rounded-lg bg-[var(--surface-bright)] p-2.5 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={enabledInvariants.has(invariant.id)}
+                        onChange={() => onInvariantToggle?.(invariant.id)}
+                        className="mt-0.5 accent-[var(--accent-primary)]"
+                      />
+                      <span className="min-w-0">
+                        <span className="block font-medium text-[var(--text-primary)]">{invariant.value}</span>
+                        <span className="mt-1 block text-[0.7rem] text-[var(--text-muted)]">
+                          {invariant.kind} · {Math.round(invariant.confidence * 100)}% · {invariant.dimension}
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </section>
+              )}
 
               <div className="rounded-xl bg-[color-mix(in_oklch,var(--surface-bright)_82%,var(--accent-primary-soft)_18%)] p-3 text-xs leading-5 text-[var(--text-secondary)] ring-1 ring-[color-mix(in_oklch,var(--accent-primary)_18%,var(--border-static)_82%)]">
                 Click any facet to highlight related areas in the reference and

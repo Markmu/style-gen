@@ -9,7 +9,7 @@ import type {
   GenerationTaskStatus,
   ImageGenProviderName,
   TemplateVariable,
-  VisualRecipe,
+  StoredVisualRecipe,
 } from "@/types/models";
 
 type GenerationTaskRow = typeof generationTasks.$inferSelect;
@@ -148,7 +148,7 @@ export interface GenerationTaskDetail {
   modelName: string;
   resultAssetId: string;
   resultFileUrl: string;
-  recipe?: VisualRecipe | null;
+  recipe?: StoredVisualRecipe | null;
   sourceAssetId: string | null;
   sourceImageUrl: string | null;
   variables: TemplateVariable[];

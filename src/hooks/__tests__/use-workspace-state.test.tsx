@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { renderHook, act } from "@testing-library/react";
 import { useWorkspaceState } from "@/hooks/use-workspace-state";
-import type { VisualRecipe } from "@/types/models";
+import type { VisualRecipe, VisualRecipeV2Success } from "@/types/models";
 
 const mockRecipe: VisualRecipe = {
   imageSummary: "A serene landscape",
@@ -17,6 +17,29 @@ const mockRecipe: VisualRecipe = {
   visualKeywords: ["mountain", "meadow"],
   mustKeep: ["golden light"],
   replaceable: ["specific flowers"],
+};
+
+const v2Recipe: VisualRecipeV2Success = {
+  schemaVersion: 2,
+  extractionStatus: "partial",
+  extractionReasons: ["Partial but usable"],
+  contentDescription: { summary: "A chair", subject: "chair", subjectAttributes: [], supportingElements: [] },
+  styleProfile: {
+    visualMedium: [],
+    composition: [{ id: "composition_1", value: "centered", evidence: ["Centered in frame"], confidence: 0.9 }],
+    camera: [], color: [], lighting: [], formLanguage: [], materialTexture: [], atmosphere: [], rendering: [],
+  },
+  styleInvariants: [{ id: "composition_invariant_1", kind: "hard", dimension: "composition", value: "centered", evidence: ["Centered in frame"], confidence: 0.9, sourceObservationIds: ["composition_1"] }],
+  contentVariables: [{ name: "subject", label: "Subject", defaultValue: "chair", sourceField: "subject" }],
+  optionalModifiers: [],
+  negativeConstraints: [],
+  styleFingerprint: { tokens: ["centered"], scores: { realism: null, abstraction: null, contrast: null, saturation: null, softness: null, detailDensity: null, symmetry: null, depth: null, atmosphericIntensity: null } },
+  promptOutputs: {
+    reconstructionPrompt: "Content: A chair; Composition: centered",
+    conciseTemplate: "Content: {{subject}}; Composition: centered",
+    standardTemplate: "Content: {{subject}}; Composition: centered",
+    professionalTemplate: "Content: {{subject}}; Composition: centered",
+  },
 };
 
 describe("useWorkspaceState", () => {
@@ -183,6 +206,47 @@ describe("useWorkspaceState", () => {
 
     expect(restored.result.current.state).toBe("analysis_ready");
     expect(restored.result.current.analysisTaskId).toBe("analysis-task-123");
+  });
+
+  it("persists V2 output mode, anchors, variables, and custom draft and clears them on reset", () => {
+    const { result, unmount } = renderHook(() => useWorkspaceState());
+
+    act(() => {
+      result.current.completeUpload("asset-v2", "https://example.com/v2.png");
+      result.current.startAnalysis("analysis-v2");
+      result.current.completeAnalysis(v2Recipe, "Content: chair", "");
+    });
+    expect(result.current.v2PromptState).toMatchObject({
+      outputMode: "standard",
+      enabledInvariantIds: ["composition_invariant_1"],
+      variableValues: { subject: "chair" },
+    });
+
+    act(() => {
+      result.current.setV2PromptState((current) => ({
+        ...current,
+        outputMode: "custom",
+        variableValues: { subject: "stool" },
+        enabledInvariantIds: [],
+        customPrompt: "hand tuned prompt",
+      }));
+    });
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    unmount();
+
+    const restored = renderHook(() => useWorkspaceState());
+    expect(restored.result.current.v2PromptState).toMatchObject({
+      outputMode: "custom",
+      variableValues: { subject: "stool" },
+      enabledInvariantIds: [],
+      customPrompt: "hand tuned prompt",
+    });
+
+    act(() => restored.result.current.reset());
+    expect(restored.result.current.v2PromptState).toBeNull();
+    expect(sessionStorage.getItem("style-gen-workspace-state")).toBeNull();
   });
 
   it("fallback analysis 清空模板正文和Variables但保留 prompt", () => {

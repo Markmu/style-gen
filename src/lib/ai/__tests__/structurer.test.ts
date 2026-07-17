@@ -112,6 +112,74 @@ describe("structurer", () => {
   });
 
   describe("structureAnalysis", () => {
+    it("validates a semantic V2 candidate and deterministically projects compatibility fields", async () => {
+      mockGenerateContent.mockResolvedValue({
+        text: JSON.stringify({
+          recipe: {
+            contentDescription: {
+              summary: "A blue chair",
+              subject: "blue chair",
+              subjectAttributes: [],
+              supportingElements: [],
+            },
+            styleProfile: {
+              visualMedium: [], composition: [{ value: "centered composition", evidence: ["Chair is centered"], confidence: 0.9 }],
+              camera: [], color: [], lighting: [], formLanguage: [], materialTexture: [], atmosphere: [], rendering: [],
+            },
+            styleInvariants: [{ kind: "hard", dimension: "composition", value: "centered composition", evidence: ["Chair is centered"], confidence: 0.9, sourceObservationIds: ["composition_1"] }],
+            contentVariables: [{ name: "subject", label: "Subject", defaultValue: "blue chair", sourceField: "subject" }],
+            optionalModifiers: [],
+            negativeConstraints: ["watermark"],
+            styleFingerprint: {
+              tokens: ["editorial"],
+              scores: { realism: null, abstraction: null, contrast: null, saturation: null, softness: null, detailDensity: null, symmetry: null, depth: null, atmosphericIntensity: null },
+            },
+          },
+        }),
+      });
+
+      const result = await structureAnalysis("raw analysis text");
+
+      expect(result.recipe).toMatchObject({ schemaVersion: 2, extractionStatus: "partial" });
+      expect(result.promptText).toContain("blue chair");
+      expect(result.promptText).toContain("centered composition");
+      expect(result.negativePromptText).toBe("watermark");
+      expect(result.analysisTemplateStatus).toBe("partial");
+    });
+
+    it("keeps a legal but insufficient semantic response as a completed fallback projection", async () => {
+      mockGenerateContent.mockResolvedValue({
+        text: JSON.stringify({
+          recipe: {
+            contentDescription: { summary: "An indistinct image", subjectAttributes: [], supportingElements: [] },
+            styleProfile: { visualMedium: [], composition: [], camera: [], color: [], lighting: [], formLanguage: [], materialTexture: [], atmosphere: [], rendering: [] },
+            styleInvariants: [],
+            contentVariables: [],
+            optionalModifiers: [],
+            negativeConstraints: ["watermark"],
+            styleFingerprint: { tokens: ["indistinct"], scores: {} },
+          },
+        }),
+      });
+
+      const result = await structureAnalysis("ordinary fallback prompt");
+
+      expect(result.recipe).toMatchObject({ schemaVersion: 2, extractionStatus: "fallback", promptOutputs: null });
+      expect(result.promptText).toBe("ordinary fallback prompt");
+      expect(result.negativePromptText).toBe("");
+      expect(result.analysisTemplateStatus).toBe("fallback");
+    });
+
+    it("rejects a malformed V2 core so the completion path can record errorStage llm", async () => {
+      mockGenerateContent.mockResolvedValue({
+        text: JSON.stringify({ recipe: { schemaVersion: 2, contentDescription: {} } }),
+      });
+
+      await expect(structureAnalysis("raw analysis text")).rejects.toThrow(
+        /Invalid V2 recipe|missing required core fields/,
+      );
+    });
+
     it("正常返回结构化结果", async () => {
       mockValidResponse();
 

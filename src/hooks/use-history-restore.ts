@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import type { VisualRecipe, GenerationParams, TemplateVariable } from "@/types/models";
+import type { StoredVisualRecipe, GenerationParams, TemplateVariable } from "@/types/models";
 import { normalizeVariableName } from "@/lib/template-parser";
+import { isVisualRecipeV2Success, toLegacyVisualRecipe } from "@/lib/visual-recipe";
 
 /** 历史恢复成功后返回的完整数据 */
 export interface RestoredData {
   resultFileUrl: string;
-  recipe: VisualRecipe | null;
+  recipe: StoredVisualRecipe | null;
   promptSnapshot: string;
   negativePromptSnapshot: string;
   params: GenerationParams;
@@ -28,7 +29,7 @@ interface GenerationTaskDetailResponse {
   modelName: string;
   resultAssetId: string;
   resultFileUrl: string;
-  recipe?: VisualRecipe | null;
+  recipe?: StoredVisualRecipe | null;
   sourceAssetId?: string | null;
   sourceImageUrl?: string | null;
   variables?: TemplateVariable[];
@@ -58,29 +59,32 @@ function normalizeVariables(value: unknown): TemplateVariable[] {
     }));
 }
 
-function deriveVariablesFromRecipe(recipe: VisualRecipe | null | undefined): TemplateVariable[] {
+function deriveVariablesFromRecipe(recipe: StoredVisualRecipe | null | undefined): TemplateVariable[] {
   if (!recipe) return [];
+  if (isVisualRecipeV2Success(recipe)) return recipe.contentVariables;
+  const legacy = toLegacyVisualRecipe(recipe);
+  if (!legacy) return [];
 
   const candidates: TemplateVariable[] = [
     {
       name: "subject",
       label: "Subject",
-      defaultValue: recipe.subject,
+      defaultValue: legacy.subject,
       sourceField: "subject",
     },
     {
       name: "style_direction",
       label: "Style direction",
       defaultValue:
-        recipe.styleTags?.slice(0, 3).join(", ") ||
-        recipe.visualKeywords?.slice(0, 3).join(", ") ||
-        recipe.mood,
+        legacy.styleTags?.slice(0, 3).join(", ") ||
+        legacy.visualKeywords?.slice(0, 3).join(", ") ||
+        legacy.mood,
       sourceField: "visual_style",
     },
     {
       name: "lighting_color",
       label: "Lighting and color",
-      defaultValue: [recipe.lighting, recipe.color].filter(Boolean).join("; "),
+      defaultValue: [legacy.lighting, legacy.color].filter(Boolean).join("; "),
       sourceField: "lighting_color",
     },
   ];

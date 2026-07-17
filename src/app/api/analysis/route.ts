@@ -6,6 +6,7 @@ import {
 } from "@/lib/repositories/analysis-task-repository";
 import { upsertAsset } from "@/lib/repositories/asset-repository";
 import { structureAnalysis, StructurerError } from "@/lib/ai/structurer";
+import { toAnalysisCompletionUpdate } from "@/lib/ai/analysis-completion";
 import { getVisionProvider } from "@/lib/ai/providers";
 import { buildWebhookUrl } from "@/lib/ai/webhook-utils";
 import { auth } from "@/auth";
@@ -237,17 +238,10 @@ async function executeSyncPipeline(taskId: string, rawAnalysis: string, imageUrl
     });
 
     // 成功：保存 recipe、promptText、negativePromptText、rawResponse
-    const completedTask = await updateAnalysisTask(taskId, {
-      status: "completed",
-      recipe: structured.recipe,
-      promptText: structured.promptText,
-      negativePromptText: structured.negativePromptText,
-      rawResponse: rawAnalysis,
-      analysisTemplateContent: structured.analysisTemplateContent,
-      analysisTemplateVariables: structured.analysisTemplateVariables,
-      analysisTemplateStatus: structured.analysisTemplateStatus,
-      analysisTemplateReason: structured.analysisTemplateReason,
-    });
+    const completedTask = await updateAnalysisTask(
+      taskId,
+      toAnalysisCompletionUpdate(structured, rawAnalysis),
+    );
 
     return completedTask;
   } catch (error) {

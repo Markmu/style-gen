@@ -23,56 +23,41 @@ Describe the following aspects of the image in thorough detail:
 
 Provide a comprehensive, detailed description in natural language. Do NOT output JSON or structured data — just rich, descriptive text covering all the aspects above.`;
 
-/** 结构化整理阶段 System Prompt —— 引导 LLM 将视觉分析文本整理为 VisualRecipe JSON */
-export const STRUCTURER_SYSTEM_PROMPT = `You are a structured data extraction specialist. You will receive a detailed visual analysis of an image. Your task is to:
+/** Structurer emits semantic evidence only; deterministic server code owns all prompts/status/IDs. */
+export const STRUCTURER_SYSTEM_PROMPT = `You are a visual evidence extraction specialist. Separate image content facts from transferable style rules. Output ONLY valid JSON. Do not write prompts, templates, extraction status, stable IDs, image coordinates, artist identity, or copyright claims; the server validates the semantic candidate and deterministically composes all prompt outputs.
 
-1. Organize the analysis into a structured VisualRecipe JSON object.
-2. Generate a text-to-image prompt (promptText) that could reproduce the style.
-3. Generate a negative prompt (negativePromptText) listing things to avoid.
-4. Generate an editable automatic template with default variable values derived from the analysis.
-
-Output ONLY valid JSON with this exact structure:
-
+Output this shape:
 {
   "recipe": {
-    "imageSummary": "One-sentence overview of the image",
-    "subject": "Description of the main subject(s)",
-    "scene": "Description of the environment and setting",
-    "composition": "Layout, framing, and spatial arrangement",
-    "cameraLanguage": "Perspective, angle, focal length, depth of field",
-    "lighting": "Light direction, quality, color temperature, shadows",
-    "color": "Dominant palette, harmony, saturation, contrast, grading",
-    "texture": "Surface qualities, material feel, grain, detail level",
-    "styleTags": ["tag1", "tag2", "tag3"],
-    "mood": "Emotional tone and atmosphere",
-    "visualKeywords": ["keyword1", "keyword2", "keyword3"],
-    "mustKeep": ["essential element 1", "essential element 2"],
-    "replaceable": ["replaceable element 1", "replaceable element 2"]
-  },
-  "promptText": "A comprehensive text-to-image prompt that captures the style, composition, lighting, color, and mood of the original image. Should be detailed enough for a generative model to reproduce a similar style.",
-  "negativePromptText": "A negative prompt listing unwanted qualities — e.g., low quality, blurry, distorted, watermark, text, artifacts.",
-  "analysisTemplateContent": "A prompt template using {{variable_name}} markers, or null when fallback is needed.",
-  "analysisTemplateVariables": [
-    {
-      "name": "subject",
-      "label": "Subject",
-      "defaultValue": "A concrete value extracted from the reference image",
-      "sourceField": "subject"
+    "contentDescription": {
+      "summary": "concise factual summary",
+      "subject": "optional subject",
+      "subjectAttributes": ["attribute"],
+      "actionOrState": "optional action or state",
+      "environment": "optional environment",
+      "supportingElements": ["element"],
+      "timeOrWeather": "optional time or weather"
+    },
+    "styleProfile": {
+      "visualMedium": [], "composition": [], "camera": [], "color": [],
+      "lighting": [], "formLanguage": [], "materialTexture": [],
+      "atmosphere": [], "rendering": []
+    },
+    "styleInvariants": [],
+    "contentVariables": [],
+    "optionalModifiers": [],
+    "negativeConstraints": [],
+    "styleFingerprint": {
+      "tokens": [],
+      "scores": {
+        "realism": null, "abstraction": null, "contrast": null,
+        "saturation": null, "softness": null, "detailDensity": null,
+        "symmetry": null, "depth": null, "atmosphericIntensity": null
+      }
     }
-  ],
-  "analysisTemplateStatus": "ready",
-  "analysisTemplateReason": null
+  }
 }
 
-Rules:
-- All string fields must be non-empty.
-- styleTags, visualKeywords, mustKeep, and replaceable must each have at least 1 item.
-- promptText should be rich and detailed (100-300 words), written as a single paragraph suitable for image generation models.
-- negativePromptText should list unwanted qualities, comma-separated.
-- analysisTemplateStatus must be one of "ready", "partial", or "fallback".
-- Prefer variables for subject, scene, visual_style, and lighting_color; add composition, camera_language, texture, and mood only when stable.
-- analysisTemplateContent must use only {{name}} markers whose names appear in analysisTemplateVariables. Keep it under 6000 characters and use at most 8 variables.
-- Every analysisTemplateVariables item must have a non-empty defaultValue from the reference analysis. Names may use letters (including Chinese), numbers after the first character, spaces, underscores, and hyphens. sourceField may be subject, scene, visual_style, lighting_color, composition, camera_language, texture, or mood.
-- If the reference is too ambiguous, output analysisTemplateStatus "fallback", analysisTemplateContent null, analysisTemplateVariables [], and a short analysisTemplateReason. Fallback must not block promptText.
-- For ready or partial, promptText should match the template rendered with the default values and must not contain unresolved {{name}} markers.
-- Output ONLY the JSON object, no additional text or markdown formatting.`;
+Each styleProfile item is {"value":"...","evidence":["1-3 directly observed textual facts"],"confidence":0.0}. Each styleInvariant is {"kind":"hard|soft","dimension":"one styleProfile key","value":"transferable rule independent of the depicted subject or scene","evidence":["observed fact"],"confidence":0.0,"sourceObservationIds":["dimension_1"]}. Use the dimension_N position that the observation has in your array; the server replaces it with a stable ID. A hard candidate needs confidence >= 0.70 and evidence. Do not promote a visible subject, product, person, place, or scene into a style invariant.
+
+Content variables use stable lowercase snake_case names and sourceField subject, subject_attributes, action, environment, supporting_elements, or time_weather. Optional modifiers are only mood→atmosphere and primary_color→color, always with enabledByDefault false. Confidence and fingerprint scores must reflect the model judgment directly, never text length or keyword counts. Output only reliable items; unknown partial fingerprint scores are null.`;

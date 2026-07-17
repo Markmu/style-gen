@@ -3,15 +3,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   AnalysisTemplateStatus,
+  StoredVisualRecipe,
   TemplateVariable,
-  VisualRecipe,
+  V2PromptWorkspaceState,
 } from "@/types/models";
+import { isVisualRecipeV2Success } from "@/lib/visual-recipe";
 
 /** sessionStorage key */
 const STORAGE_KEY = "style-gen-workspace-state";
 
 /** 当前持久化数据版本号 */
-const STORAGE_VERSION = 3;
+const STORAGE_VERSION = 4;
 
 /** 持久化状态结构（仅包含需要跨页面恢复的关键数据） */
 export interface WorkspacePersistedState {
@@ -19,7 +21,7 @@ export interface WorkspacePersistedState {
   assetId: string | null;
   referenceImageUrl: string | null;
   analysisTaskId: string | null;
-  recipe: VisualRecipe | null;
+  recipe: StoredVisualRecipe | null;
   promptText: string;
   negativePromptText: string;
   analysisTemplateContent: string | null;
@@ -27,6 +29,7 @@ export interface WorkspacePersistedState {
   analysisTemplateStatus: AnalysisTemplateStatus | null;
   analysisTemplateReason: string | null;
   generationTaskId: string | null;
+  v2PromptState: V2PromptWorkspaceState | null;
 }
 
 export type WorkspaceState =
@@ -64,7 +67,7 @@ export interface WorkspaceContext {
   referenceImageUrl: string | null;
   assetId: string | null;
   analysisTaskId: string | null;
-  recipe: VisualRecipe | null;
+  recipe: StoredVisualRecipe | null;
   promptText: string;
   negativePromptText: string;
   analysisTemplateContent: string | null;
@@ -77,6 +80,7 @@ export interface WorkspaceContext {
   error: WorkspaceError | null;
   degradation: DegradationState;
   isRecipeExpanded: boolean;
+  v2PromptState: V2PromptWorkspaceState | null;
 }
 
 interface WorkspaceAnalysisTemplatePayload {
@@ -149,7 +153,26 @@ const initialContext: WorkspaceContext = {
   error: null,
   degradation: initialDegradation,
   isRecipeExpanded: false,
+  v2PromptState: null,
 };
+
+export function createInitialV2PromptState(
+  recipe: StoredVisualRecipe | null,
+): V2PromptWorkspaceState | null {
+  if (!isVisualRecipeV2Success(recipe)) return null;
+  return {
+    outputMode: "standard",
+    enabledInvariantIds: recipe.styleInvariants.map((item) => item.id),
+    variableValues: Object.fromEntries(
+      recipe.contentVariables.map((item) => [item.name, item.defaultValue]),
+    ),
+    enabledModifierNames: [],
+    modifierValues: Object.fromEntries(
+      recipe.optionalModifiers.map((item) => [item.name, item.defaultValue]),
+    ),
+    customPrompt: "",
+  };
+}
 
 /** 从 sessionStorage 读取持久化状态 */
 function loadPersistedState(): Partial<WorkspacePersistedState> | null {
@@ -257,6 +280,8 @@ function restoreFromPersistedState(
     error: null,
     degradation: initialDegradation,
     isRecipeExpanded: false,
+    v2PromptState:
+      persisted.v2PromptState ?? createInitialV2PromptState(persisted.recipe ?? null),
   };
 }
 
@@ -265,7 +290,7 @@ export interface WorkspaceActions {
   completeUpload: (assetId: string, fileUrl: string) => void;
   startAnalysis: (taskId: string) => void;
   completeAnalysis: (
-    recipe: VisualRecipe | null,
+    recipe: StoredVisualRecipe | null,
     promptText: string,
     negativePromptText: string,
     template?: WorkspaceAnalysisTemplatePayload
@@ -276,6 +301,11 @@ export interface WorkspaceActions {
   failGeneration: (message: string, code?: string, retryable?: boolean) => void;
   setPromptText: (text: string) => void;
   setNegativePromptText: (text: string) => void;
+  setV2PromptState: (
+    update:
+      | V2PromptWorkspaceState
+      | ((current: V2PromptWorkspaceState) => V2PromptWorkspaceState),
+  ) => void;
   setError: (message: string, stage?: string) => void;
   clearError: () => void;
   reset: () => void;
@@ -286,7 +316,7 @@ export interface WorkspaceActions {
   toggleRecipeExpanded: () => void;
   enterHistoryRestored: (
     resultFileUrl: string,
-    recipe: VisualRecipe | null,
+    recipe: StoredVisualRecipe | null,
     promptSnapshot: string,
     negativePromptSnapshot: string,
     analysisTaskId: string
@@ -337,13 +367,15 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
       ...prev,
       state: "analyzing",
       analysisTaskId: taskId,
+      v2PromptState:
+        prev.analysisTaskId === taskId ? prev.v2PromptState : null,
       error: null,
     }));
   }, []);
 
   const completeAnalysis = useCallback(
     (
-      recipe: VisualRecipe | null,
+      recipe: StoredVisualRecipe | null,
       promptText: string,
       negativePromptText: string,
       template: WorkspaceAnalysisTemplatePayload | undefined,
@@ -366,6 +398,10 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
           : [],
         analysisTemplateStatus: nextStatus,
         analysisTemplateReason: normalizedTemplate?.analysisTemplateReason ?? null,
+        // A completed poll may run again after refresh. Preserve edits restored for
+        // the same task; startAnalysis clears them when a different task begins.
+        v2PromptState:
+          prev.v2PromptState ?? createInitialV2PromptState(recipe),
         error: null,
       }));
     },
@@ -434,6 +470,20 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
     }));
   }, []);
 
+  const setV2PromptState = useCallback<WorkspaceActions["setV2PromptState"]>(
+    (update) => {
+      setCtx((prev) => {
+        const current = prev.v2PromptState ?? createInitialV2PromptState(prev.recipe);
+        if (!current) return prev;
+        return {
+          ...prev,
+          v2PromptState: typeof update === "function" ? update(current) : update,
+        };
+      });
+    },
+    [],
+  );
+
   const setError = useCallback((message: string, stage?: string) => {
     setCtx((prev) => ({
       ...prev,
@@ -491,7 +541,7 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
   const enterHistoryRestored = useCallback(
     (
       resultFileUrl: string,
-      recipe: VisualRecipe | null,
+      recipe: StoredVisualRecipe | null,
       promptSnapshot: string,
       negativePromptSnapshot: string,
       analysisTaskId: string
@@ -507,6 +557,7 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
         analysisTemplateVariables: [],
         analysisTemplateStatus: null,
         analysisTemplateReason: null,
+        v2PromptState: null,
         analysisTaskId,
         error: null,
       }));
@@ -550,6 +601,7 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
       analysisTemplateStatus: ctx.analysisTemplateStatus,
       analysisTemplateReason: ctx.analysisTemplateReason,
       generationTaskId: ctx.generationTaskId,
+      v2PromptState: ctx.v2PromptState,
     };
 
     persistState(persistedState);
@@ -565,6 +617,7 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
     ctx.analysisTemplateStatus,
     ctx.analysisTemplateReason,
     ctx.generationTaskId,
+    ctx.v2PromptState,
   ]);
 
   return {
@@ -579,6 +632,7 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
     failGeneration,
     setPromptText,
     setNegativePromptText,
+    setV2PromptState,
     setError,
     clearError,
     reset,

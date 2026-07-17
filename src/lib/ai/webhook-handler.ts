@@ -3,6 +3,7 @@ import { findAnalysisTaskByIdInternal, updateAnalysisTask } from '@/lib/reposito
 import { findGenerationTaskByIdInternal, updateGenerationTask } from '@/lib/repositories/generation-task-repository';
 import { findAssetById } from '@/lib/repositories/asset-repository';
 import { structureAnalysis, StructurerError } from './structurer';
+import { toAnalysisCompletionUpdate } from './analysis-completion';
 import { uploadBuffer, getPublicUrl } from '@/lib/r2';
 import { createAsset } from '@/lib/repositories/asset-repository';
 
@@ -280,17 +281,10 @@ async function handleAnalysisWebhook(
       });
 
       // 更新任务为Done状态
-      await updateAnalysisTask(taskId, {
-        status: 'completed',
-        recipe: structured.recipe,
-        promptText: structured.promptText,
-        negativePromptText: structured.negativePromptText,
-        rawResponse: rawAnalysis,
-        analysisTemplateContent: structured.analysisTemplateContent ?? null,
-        analysisTemplateVariables,
-        analysisTemplateStatus,
-        analysisTemplateReason,
-      });
+      await updateAnalysisTask(
+        taskId,
+        toAnalysisCompletionUpdate(structured, rawAnalysis),
+      );
 
       return {
         response: { ok: true, message: 'Analysis completed successfully' },

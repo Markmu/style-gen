@@ -92,7 +92,10 @@ function resolveVariableTone(
   facetId: EvidenceFacetId | null,
   fallbackIndex: number,
 ): VariableHighlightTone {
-  if (facetId) return facetId === "subject" ? "neutral" : facetId;
+  if (facetId === "color" || facetId === "composition" || facetId === "lighting" || facetId === "texture" || facetId === "mood") {
+    return facetId;
+  }
+  if (facetId) return "neutral";
   return VARIABLE_FALLBACK_TONES[fallbackIndex % VARIABLE_FALLBACK_TONES.length];
 }
 
