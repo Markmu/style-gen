@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useState } from "react";
 import {
   Box,
   Brain,
@@ -63,6 +64,7 @@ interface ReferenceCardProps {
   onReplace: () => void;
   onRetry?: () => void;
   onFacetSelect?: (facetId: EvidenceFacetId) => void;
+  onAspectRatioChange?: (aspectRatio: number) => void;
   showSpatialEvidence?: boolean;
 }
 
@@ -80,8 +82,10 @@ export function ReferenceCard({
   onReplace,
   onRetry,
   onFacetSelect,
+  onAspectRatioChange,
   showSpatialEvidence = true,
 }: ReferenceCardProps) {
+  const [referenceAspectRatio, setReferenceAspectRatio] = useState(4 / 5);
   const uploading = isUploading || state === "uploading";
   const hasReference = !!referenceImageUrl && !uploading;
   const isAnalyzing = state === "analyzing";
@@ -147,59 +151,74 @@ export function ReferenceCard({
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         {hasReference ? (
           <div className="space-y-4">
-            <div className="media-lens relative aspect-[4/5] min-h-[22.5rem] overflow-hidden rounded-xl ring-1 ring-[var(--border-static)]">
-              <Image
-                src={referenceImageUrl}
-                alt="Reference"
-                fill
-                className="object-cover"
-                unoptimized
-              />
-              {evidenceFacets.length > 0 && (
-                <>
-                  {evidenceFacets.map((facet) => {
-                    const selected = selectedFacetId === facet.id;
-                    const position =
-                      anchorPositions[facet.anchorIndex % anchorPositions.length];
+            <div className="mx-auto flex w-fit max-w-full justify-center overflow-hidden">
+              <div
+                data-testid="reference-image-stage"
+                className="media-lens relative h-[clamp(18rem,48dvh,32rem)] min-h-[18rem] max-h-[32rem] max-w-full flex-none overflow-hidden rounded-xl bg-[var(--surface-low)] ring-1 ring-inset ring-[var(--border-static)]"
+                style={{ aspectRatio: referenceAspectRatio }}
+              >
+                <Image
+                  src={referenceImageUrl}
+                  alt="Reference"
+                  fill
+                  sizes="(min-width: 1280px) 33vw, (min-width: 768px) 42vw, 100vw"
+                  className="object-contain object-center"
+                  onLoad={(event) => {
+                    const { naturalWidth, naturalHeight } = event.currentTarget;
+                    if (naturalWidth > 0 && naturalHeight > 0) {
+                      const nextAspectRatio = naturalWidth / naturalHeight;
+                      setReferenceAspectRatio(nextAspectRatio);
+                      onAspectRatioChange?.(nextAspectRatio);
+                    }
+                  }}
+                  unoptimized
+                />
+                {evidenceFacets.length > 0 && (
+                  <>
+                    {evidenceFacets.map((facet) => {
+                      const selected = selectedFacetId === facet.id;
+                      const position =
+                        anchorPositions[facet.anchorIndex % anchorPositions.length];
 
-                    return (
+                      return (
+                        <button
+                          key={facet.id}
+                          type="button"
+                          data-testid={`reference-anchor-${facet.id}`}
+                          data-facet={facet.id}
+                          data-selected={selected ? "true" : "false"}
+                          aria-label={`${facet.label} reference anchor`}
+                          onClick={() => onFacetSelect?.(facet.id)}
+                          className={`absolute ${position} flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold shadow-[var(--shadow-ambient)] ring-1 transition ${
+                            selected
+                              ? "bg-[var(--accent-primary)] text-[var(--text-on-primary)] ring-[color-mix(in_oklch,var(--accent-primary)_55%,var(--border-static)_45%)]"
+                              : "bg-[var(--surface-bright)] text-[var(--text-primary)] ring-[var(--border-static)] hover:bg-[var(--accent-primary-soft)]"
+                          }`}
+                        >
+                          {facet.anchorIndex + 1}
+                        </button>
+                      );
+                    })}
+                    <div className="absolute bottom-3 right-3 inline-flex items-center gap-2 rounded-lg bg-[var(--surface-bright)]/90 px-2 py-1 text-xs font-medium text-[var(--text-secondary)] shadow-[var(--shadow-ambient)] backdrop-blur-xl">
                       <button
-                        key={facet.id}
                         type="button"
-                        data-testid={`reference-anchor-${facet.id}`}
-                        data-facet={facet.id}
-                        data-selected={selected ? "true" : "false"}
-                        aria-label={`${facet.label} reference anchor`}
-                        onClick={() => onFacetSelect?.(facet.id)}
-                        className={`absolute ${position} flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold shadow-[var(--shadow-ambient)] ring-1 transition ${
-                          selected
-                            ? "bg-[var(--accent-primary)] text-[var(--text-on-primary)] ring-[color-mix(in_oklch,var(--accent-primary)_55%,var(--border-static)_45%)]"
-                            : "bg-[var(--surface-bright)] text-[var(--text-primary)] ring-[var(--border-static)] hover:bg-[var(--accent-primary-soft)]"
-                        }`}
+                        className="inline-flex h-5 w-5 items-center justify-center"
+                        aria-label="Zoom out"
                       >
-                        {facet.anchorIndex + 1}
+                        <AppIcon icon={Minus} size={16} />
                       </button>
-                    );
-                  })}
-                  <div className="absolute bottom-3 right-3 inline-flex items-center gap-2 rounded-lg bg-[var(--surface-bright)]/90 px-2 py-1 text-xs font-medium text-[var(--text-secondary)] shadow-[var(--shadow-ambient)] backdrop-blur-xl">
-                    <button
-                      type="button"
-                      className="inline-flex h-5 w-5 items-center justify-center"
-                      aria-label="Zoom out"
-                    >
-                      <AppIcon icon={Minus} size={16} />
-                    </button>
-                    <span>100%</span>
-                    <button
-                      type="button"
-                      className="inline-flex h-5 w-5 items-center justify-center"
-                      aria-label="Zoom in"
-                    >
-                      <AppIcon icon={Plus} size={16} />
-                    </button>
-                  </div>
-                </>
-              )}
+                      <span>100%</span>
+                      <button
+                        type="button"
+                        className="inline-flex h-5 w-5 items-center justify-center"
+                        aria-label="Zoom in"
+                      >
+                        <AppIcon icon={Plus} size={16} />
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
 
             {showSpatialEvidence && <div className="rounded-xl bg-[var(--surface-low)]/70 p-3">
@@ -341,27 +360,10 @@ export function ReferenceCard({
             )}
           </div>
         ) : (
-          <div className="flex min-h-0 flex-1 flex-col gap-4">
-            <div className="rounded-xl bg-[var(--surface-low)]/70 p-4">
-              <p className="text-sm font-semibold text-[var(--text-primary)]">
-                AI will read the reference as evidence.
-              </p>
-              <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-                Upload a reference image to extract color, composition, lighting,
-                texture, mood, and subject signals for the prompt.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {["color", "composition", "lighting", "texture", "mood"].map((signal) => (
-                  <span
-                    key={signal}
-                    className="evidence-chip rounded-full bg-[var(--surface-bright)] px-2.5 py-1 text-xs text-[var(--text-secondary)]"
-                    data-facet={signal}
-                  >
-                    {signal}
-                  </span>
-                ))}
-              </div>
-            </div>
+          <div
+            data-testid="reference-empty-state"
+            className="flex min-h-0 flex-1 flex-col gap-4"
+          >
             <div data-testid="reference-upload-panel" className="min-h-0 flex-1">
               <UploadZone
                 referenceImageUrl={null}

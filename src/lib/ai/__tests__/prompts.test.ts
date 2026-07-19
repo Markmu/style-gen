@@ -18,10 +18,12 @@ describe("prompts", () => {
       expect(STRUCTURER_SYSTEM_PROMPT).toContain("contentDescription");
       expect(STRUCTURER_SYSTEM_PROMPT).toContain("styleProfile");
       expect(STRUCTURER_SYSTEM_PROMPT).toContain("styleInvariants");
-      expect(STRUCTURER_SYSTEM_PROMPT).toContain("contentVariables");
       expect(STRUCTURER_SYSTEM_PROMPT).toContain("styleFingerprint");
       expect(STRUCTURER_SYSTEM_PROMPT).toContain("evidence");
       expect(STRUCTURER_SYSTEM_PROMPT).toContain("confidence");
+      expect(STRUCTURER_SYSTEM_PROMPT).toContain("negativeConstraints");
+      expect(STRUCTURER_SYSTEM_PROMPT).not.toContain("contentVariables");
+      expect(STRUCTURER_SYSTEM_PROMPT).not.toContain("optionalModifiers");
       expect(STRUCTURER_SYSTEM_PROMPT).not.toContain('"promptText"');
       expect(STRUCTURER_SYSTEM_PROMPT).not.toContain('"analysisTemplateContent"');
     });

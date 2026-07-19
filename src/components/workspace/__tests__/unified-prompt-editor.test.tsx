@@ -5,6 +5,45 @@ import { UnifiedPromptEditor } from "@/components/workspace/unified-prompt-edito
 import type { PromptProvenanceSpan } from "@/lib/prompt-provenance";
 
 describe("UnifiedPromptEditor", () => {
+  it("keeps the mode switcher and prompt content in one editor surface", () => {
+    render(
+      <UnifiedPromptEditor
+        initialPromptText="initial prompt"
+        onResolvedPromptChange={vi.fn()}
+      />,
+    );
+
+    const editor = screen.getByTestId("unified-prompt-editor");
+    expect(within(editor).getByLabelText("Prompt mode")).toBeInTheDocument();
+    expect(
+      within(editor).getByLabelText("Full Generation Prompt"),
+    ).toBeInTheDocument();
+    const textTitle = within(editor).getByText("Full generation prompt");
+    expect(
+      within(textTitle.parentElement!).getByLabelText("Prompt mode"),
+    ).toBeInTheDocument();
+
+    fireEvent.change(within(editor).getByLabelText("Prompt mode"), {
+      target: { value: "variables" },
+    });
+    const variablesTitle = within(editor).getByText("Variable-linked prompt");
+    expect(
+      within(variablesTitle.parentElement!).getByLabelText("Prompt mode"),
+    ).toBeInTheDocument();
+
+    fireEvent.change(within(editor).getByLabelText("Prompt mode"), {
+      target: { value: "json" },
+    });
+    const jsonTitle = within(editor).getByText("Prompt JSON");
+    expect(
+      within(jsonTitle.parentElement!.parentElement!).getByLabelText("Prompt mode"),
+    ).toBeInTheDocument();
+    expect(within(editor).queryByText("Prompt provenance")).not.toBeInTheDocument();
+    expect(
+      within(editor).queryByText("Variables stay linked across every view"),
+    ).not.toBeInTheDocument();
+  });
+
   it("renders text mode from the initial prompt", () => {
     render(
       <UnifiedPromptEditor
@@ -30,15 +69,14 @@ describe("UnifiedPromptEditor", () => {
       />,
     );
 
-    expect(screen.queryByLabelText("Template Source")).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Template Mode" }));
+    expect(screen.getByLabelText("Prompt mode")).toHaveValue("variables");
     expect(screen.getByLabelText("Template Source")).toHaveValue(
       "Create {{subject}} in {{lighting}}.",
     );
 
     await user.type(screen.getByLabelText("Variable subject"), "glass chair");
     await user.type(screen.getByLabelText("Variable lighting"), "soft daylight");
-    await user.click(screen.getByRole("button", { name: "Text Mode" }));
+    await user.selectOptions(screen.getByLabelText("Prompt mode"), "text");
 
     expect(screen.getByLabelText("Full Generation Prompt")).toHaveValue(
       "Create glass chair in soft daylight.",
@@ -68,7 +106,7 @@ describe("UnifiedPromptEditor", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Template Mode" }));
+    await user.selectOptions(screen.getByLabelText("Prompt mode"), "variables");
 
     const tones = [
       screen.getByTestId("prompt-variable-token-custom_scene").getAttribute("data-variable-tone"),
@@ -97,7 +135,7 @@ describe("UnifiedPromptEditor", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Template Mode" }));
+    await user.selectOptions(screen.getByLabelText("Prompt mode"), "variables");
     expect(screen.getByLabelText("Variable subject")).toHaveValue("glass fox");
     expect(screen.getByLabelText("Variable scene")).toHaveValue("neon garden");
     expect(onTemplateVariablesChange).toHaveBeenLastCalledWith([
@@ -135,6 +173,7 @@ describe("UnifiedPromptEditor", () => {
 
     expect(screen.queryByTestId("prompt-composition-panel")).not.toBeInTheDocument();
     expect(screen.queryByTestId("resolved-prompt-provenance")).not.toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("Prompt mode"), "text");
     const textPromptInput = screen.getByLabelText("Full Generation Prompt");
     const textEditor = screen.getByTestId("text-mode-highlight-editor");
     expect(textEditor).toContainElement(textPromptInput);
@@ -156,7 +195,7 @@ describe("UnifiedPromptEditor", () => {
     expect(lightingProvenance).toHaveClass("prompt-highlight-provenance-marker");
     expect(lightingProvenance).not.toHaveClass("prompt-highlight-token");
 
-    await user.click(screen.getByRole("button", { name: "Template Mode" }));
+    await user.selectOptions(screen.getByLabelText("Prompt mode"), "variables");
     const templateSourceInput = screen.getByLabelText("Template Source");
     const templateEditor = screen.getByTestId("template-mode-highlight-editor");
     expect(templateEditor).toContainElement(templateSourceInput);
@@ -165,7 +204,7 @@ describe("UnifiedPromptEditor", () => {
     );
     await user.clear(screen.getByLabelText("Variable subject"));
     await user.type(screen.getByLabelText("Variable subject"), "crystal fox");
-    await user.click(screen.getByRole("button", { name: "Text Mode" }));
+    await user.selectOptions(screen.getByLabelText("Prompt mode"), "text");
 
     await waitFor(() =>
       expect(screen.getByLabelText("Full Generation Prompt")).toHaveValue(
@@ -193,6 +232,7 @@ describe("UnifiedPromptEditor", () => {
       />,
     );
 
+    await userEvent.selectOptions(screen.getByLabelText("Prompt mode"), "text");
     fireEvent.change(screen.getByLabelText("Full Generation Prompt"), {
       target: { value: "Create crystal heron in soft daylight." },
     });
@@ -210,11 +250,11 @@ describe("UnifiedPromptEditor", () => {
       "Create {{subject}} in {{lighting}}.",
     );
 
-    await userEvent.click(screen.getByRole("button", { name: "Template Mode" }));
+    await userEvent.selectOptions(screen.getByLabelText("Prompt mode"), "variables");
     expect(screen.getByLabelText("Variable subject")).toHaveValue("crystal heron");
   });
 
-  it("keeps compact editors at half of the available editor height", async () => {
+  it("keeps the variable-linked editor at half of the viewport height", async () => {
     const user = userEvent.setup();
 
     render(
@@ -231,6 +271,7 @@ describe("UnifiedPromptEditor", () => {
       />,
     );
 
+    await user.selectOptions(screen.getByLabelText("Prompt mode"), "text");
     expect(screen.getByTestId("text-mode-highlight-editor")).toHaveClass(
       "h-1/2",
       "min-h-0",
@@ -241,10 +282,10 @@ describe("UnifiedPromptEditor", () => {
       ),
     ).toHaveTextContent("glass fox");
 
-    await user.click(screen.getByRole("button", { name: "Template Mode" }));
+    await user.selectOptions(screen.getByLabelText("Prompt mode"), "variables");
     expect(screen.getByTestId("template-mode-highlight-editor")).toHaveClass(
-      "h-1/2",
-      "min-h-0",
+      "h-[50dvh]",
+      "min-h-[15rem]",
     );
   });
 
@@ -261,7 +302,7 @@ describe("UnifiedPromptEditor", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Text Mode" }));
+    await user.selectOptions(screen.getByLabelText("Prompt mode"), "text");
     await user.clear(screen.getByLabelText("Full Generation Prompt"));
     await user.type(screen.getByLabelText("Full Generation Prompt"), "manual draft");
 
@@ -276,8 +317,9 @@ describe("UnifiedPromptEditor", () => {
       />,
     );
 
+    await user.selectOptions(screen.getByLabelText("Prompt mode"), "text");
     expect(screen.getByLabelText("Full Generation Prompt")).toHaveValue("Create crystal heron.");
-    await user.click(screen.getByRole("button", { name: "Template Mode" }));
+    await user.selectOptions(screen.getByLabelText("Prompt mode"), "variables");
     expect(screen.getByLabelText("Variable subject")).toHaveValue("crystal heron");
   });
 
@@ -293,10 +335,10 @@ describe("UnifiedPromptEditor", () => {
 
     await user.clear(screen.getByLabelText("Full Generation Prompt"));
     await user.type(screen.getByLabelText("Full Generation Prompt"), "manual draft");
-    await user.click(screen.getByRole("button", { name: "Template Mode" }));
+    await user.selectOptions(screen.getByLabelText("Prompt mode"), "variables");
     await user.clear(screen.getByLabelText("Template Source"));
     await user.type(screen.getByLabelText("Template Source"), "Template {{subject}}");
-    await user.click(screen.getByRole("button", { name: "Text Mode" }));
+    await user.selectOptions(screen.getByLabelText("Prompt mode"), "text");
 
     expect(screen.getByLabelText("Full Generation Prompt")).toHaveValue("manual draft");
   });
@@ -317,7 +359,7 @@ describe("UnifiedPromptEditor", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Template Mode" }));
+    await user.selectOptions(screen.getByLabelText("Prompt mode"), "variables");
     await user.clear(screen.getByLabelText("Variable subject"));
     await user.type(screen.getByLabelText("Variable subject"), "crystal heron");
 
@@ -330,7 +372,7 @@ describe("UnifiedPromptEditor", () => {
     expect(screen.getByText("hero_subject")).toBeInTheDocument();
     expect(screen.getByLabelText("Variable lighting")).toHaveValue("soft daylight");
 
-    await user.click(screen.getByRole("button", { name: "Text Mode" }));
+    await user.selectOptions(screen.getByLabelText("Prompt mode"), "text");
     expect(screen.getByLabelText("Full Generation Prompt")).toHaveValue(
       "Create crystal heron in soft daylight.",
     );
@@ -349,7 +391,7 @@ describe("UnifiedPromptEditor", () => {
       />,
     );
 
-    await userEvent.click(screen.getByRole("button", { name: "Template Mode" }));
+    await userEvent.selectOptions(screen.getByLabelText("Prompt mode"), "variables");
 
     fireEvent.change(screen.getByLabelText("Template Source"), {
       target: { value: "Create {{}}." },
@@ -379,10 +421,10 @@ describe("UnifiedPromptEditor", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Template Mode" }));
+    await user.selectOptions(screen.getByLabelText("Prompt mode"), "variables");
     await user.type(screen.getByLabelText("Variable var1"), "glass chair");
     await user.type(screen.getByLabelText("Variable var2"), "rim light");
-    await user.click(screen.getByRole("button", { name: "Text Mode" }));
+    await user.selectOptions(screen.getByLabelText("Prompt mode"), "text");
 
     expect(screen.getByLabelText("Full Generation Prompt")).toHaveValue(
       "Create glass chair with rim light.",

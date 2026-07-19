@@ -55,6 +55,10 @@ describe("GeminiStructurerProvider", () => {
         model: "gemini-2.5-flash",
         config: expect.objectContaining({
           responseMimeType: "application/json",
+          responseJsonSchema: expect.objectContaining({
+            type: "object",
+            required: ["recipe"],
+          }),
         }),
       })
     );

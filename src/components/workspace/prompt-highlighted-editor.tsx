@@ -47,6 +47,7 @@ interface PromptHighlightedEditorProps {
   variableValues?: Record<string, string>;
   provenanceSpans?: PromptProvenanceSpan[];
   selectedProvenanceSpan?: PromptProvenanceSpan | null;
+  readOnly?: boolean;
   testId: string;
 }
 
@@ -442,6 +443,7 @@ export function PromptHighlightedEditor({
   variableValues = {},
   provenanceSpans = [],
   selectedProvenanceSpan = null,
+  readOnly = false,
   testId,
 }: PromptHighlightedEditorProps) {
   const highlightLayerRef = useRef<HTMLDivElement>(null);
@@ -490,9 +492,10 @@ export function PromptHighlightedEditor({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         onScroll={handleScroll}
+        readOnly={readOnly}
         className={`prompt-highlight-textarea absolute inset-0 h-full w-full resize-none rounded-t-lg px-3 text-sm leading-6 ${
           compact ? "py-1.5" : "py-3"
-        }`}
+        } ${readOnly ? "cursor-default" : ""}`}
         placeholder={placeholder}
         spellCheck={false}
       />

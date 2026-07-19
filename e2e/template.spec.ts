@@ -304,10 +304,10 @@ test.describe('模板功能', () => {
 
     await expect(page).toHaveURL(/\/workspace/)
     await expect(page.getByTestId('unified-prompt-editor')).toBeVisible({ timeout: 15000 })
-    await page.getByRole('button', { name: 'Template Mode' }).click()
+    await page.getByLabel('Prompt mode').selectOption('variables')
     await expect(page.getByLabel('Variable subject')).toHaveValue('glass sculpture')
     await expect(page.getByLabel('Variable scene')).toHaveValue('white studio')
-    await page.getByRole('button', { name: 'Text Mode' }).click()
+    await page.getByLabel('Prompt mode').selectOption('text')
     await expect(page.getByLabel('Full Generation Prompt')).toHaveValue(
       'Create glass sculpture in white studio with hard rim light.',
     )

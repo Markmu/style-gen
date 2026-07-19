@@ -77,7 +77,7 @@ describe("PromptCard", () => {
         {
           name: "negative_prompt",
           defaultValue: "",
-          label: "Negative Prompt",
+          label: "Negative constraints",
         },
       ]),
     );
@@ -164,7 +164,7 @@ describe("PromptCard", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Template Mode" }));
+    await user.selectOptions(screen.getByLabelText("Prompt mode"), "variables");
     fireEvent.change(screen.getByLabelText("Template Source"), {
       target: { value: "Paint {{subject}}." },
     });

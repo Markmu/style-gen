@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { useState } from "react";
 import { StructuredPromptEditor } from "@/components/workspace/structured-prompt-editor";
 import type { V2PromptWorkspaceState, VisualRecipeV2Success } from "@/types/models";
@@ -62,43 +62,139 @@ function Harness({ onResolved = vi.fn() }: { onResolved?: (value: string) => voi
 }
 
 describe("StructuredPromptEditor", () => {
-  it("defaults to Standard and keeps recipe facts isolated from variable edits", () => {
+  it("keeps the mode switcher, prompt, variables, and constraints in one editor surface", () => {
     render(<Harness />);
 
-    expect(screen.getByRole("tab", { name: "Standard" })).toHaveAttribute("aria-selected", "true");
-    fireEvent.change(screen.getByLabelText("Subject"), { target: { value: "red stool" } });
-    expect(screen.getByText(/Content: red stool/)).toBeInTheDocument();
+    const editor = screen.getByTestId("structured-prompt-editor");
+    expect(within(editor).getByLabelText("Prompt mode")).toBeInTheDocument();
+    expect(
+      within(editor).getByLabelText("Variable-linked prompt preview"),
+    ).toBeInTheDocument();
+    expect(within(editor).getByLabelText("Subject")).toBeInTheDocument();
+    expect(
+      within(editor).getByLabelText("Negative constraints"),
+    ).toHaveAttribute("rows", "2");
+    const variableScroll = within(editor).getByTestId(
+      "structured-variable-scroll",
+    );
+    expect(variableScroll).toHaveClass("overflow-y-auto");
+    expect(within(variableScroll).getByLabelText("Subject")).toBeInTheDocument();
+    expect(
+      within(variableScroll).getByLabelText("Negative constraints"),
+    ).toBeInTheDocument();
+    const variablesTitle = within(editor).getByText("Variable-linked prompt");
+    expect(
+      within(variablesTitle.parentElement!).getByLabelText("Prompt mode"),
+    ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("tab", { name: "Reconstruction" }));
-    expect(screen.getByText(/Content: A blue chair/)).toBeInTheDocument();
-    expect(screen.queryByText(/Content: red stool/)).not.toBeInTheDocument();
+    fireEvent.change(within(editor).getByLabelText("Prompt mode"), {
+      target: { value: "text" },
+    });
+    const textTitle = within(editor).getByText("Full generation prompt");
+    expect(
+      within(textTitle.parentElement!).getByLabelText("Prompt mode"),
+    ).toBeInTheDocument();
+
+    fireEvent.change(within(editor).getByLabelText("Prompt mode"), {
+      target: { value: "json" },
+    });
+    const jsonTitle = within(editor).getByText("Recipe JSON");
+    expect(
+      within(jsonTitle.parentElement!).getByLabelText("Prompt mode"),
+    ).toBeInTheDocument();
+    expect(within(editor).queryByText("Prompt provenance")).not.toBeInTheDocument();
+    expect(
+      within(editor).queryByText("Variables stay linked across every view"),
+    ).not.toBeInTheDocument();
   });
 
-  it("keeps a custom draft across tier switches and disables structured output generation", () => {
+  it("defaults to Variables and resolves edits through the linked prompt", () => {
     const onResolved = vi.fn();
     render(<Harness onResolved={onResolved} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Edit as custom text" }));
-    const custom = screen.getByLabelText("Custom prompt");
-    fireEvent.change(custom, { target: { value: "hand tuned prompt" } });
-    fireEvent.click(screen.getByRole("tab", { name: "Concise" }));
-    fireEvent.click(screen.getByRole("tab", { name: "Custom" }));
-    expect(screen.getByLabelText("Custom prompt")).toHaveValue("hand tuned prompt");
+    expect(screen.getByLabelText("Prompt mode")).toHaveValue("variables");
+    expect(
+      screen.getByTestId("structured-variable-prompt").parentElement,
+    ).toHaveClass("h-[50dvh]", "min-h-[15rem]");
+    fireEvent.change(screen.getByLabelText("Subject"), { target: { value: "red stool" } });
+    expect(
+      (screen.getByLabelText(
+        "Variable-linked prompt preview",
+      ) as HTMLTextAreaElement).value,
+    ).toContain("Content: red stool");
+    expect(onResolved).toHaveBeenLastCalledWith(
+      expect.stringContaining("Content: red stool"),
+    );
 
-    fireEvent.click(screen.getByRole("tab", { name: "Structured" }));
-    expect(screen.getByText(/cannot be sent to generation/i)).toBeInTheDocument();
-    expect(onResolved).toHaveBeenLastCalledWith("");
+    const linkedPrompt = screen.getByLabelText(
+      "Variable-linked prompt preview",
+    ) as HTMLTextAreaElement;
+    fireEvent.change(linkedPrompt, {
+      target: { value: linkedPrompt.value.replace("red stool", "green bench") },
+    });
+    expect(screen.getByLabelText("Subject")).toHaveValue("green bench");
+
+    fireEvent.change(screen.getByLabelText("Variable-linked prompt preview"), {
+      target: { value: "Illustrate green bench with editorial restraint" },
+    });
+    expect(screen.getByLabelText("Variable-linked prompt preview")).toHaveValue(
+      "Illustrate green bench with editorial restraint",
+    );
+    expect(onResolved).toHaveBeenLastCalledWith(
+      "Illustrate green bench with editorial restraint",
+    );
+
+    fireEvent.change(screen.getByLabelText("Subject"), {
+      target: { value: "ivory sofa" },
+    });
+    expect(screen.getByLabelText("Variable-linked prompt preview")).toHaveValue(
+      "Illustrate ivory sofa with editorial restraint",
+    );
+  });
+
+  it("keeps a full-text draft while JSON is inspected", () => {
+    const onResolved = vi.fn();
+    render(<Harness onResolved={onResolved} />);
+
+    fireEvent.change(screen.getByLabelText("Prompt mode"), {
+      target: { value: "text" },
+    });
+    const custom = screen.getByLabelText("Full Generation Prompt");
+    fireEvent.change(custom, { target: { value: "hand tuned prompt" } });
+    fireEvent.change(screen.getByLabelText("Prompt mode"), {
+      target: { value: "json" },
+    });
+    expect(screen.getByTestId("structured-json-output")).toHaveTextContent(
+      "hand tuned prompt",
+    );
+    expect(onResolved).toHaveBeenLastCalledWith("hand tuned prompt");
+
+    fireEvent.change(screen.getByLabelText("Prompt mode"), {
+      target: { value: "text" },
+    });
+    expect(screen.getByLabelText("Full Generation Prompt")).toHaveValue(
+      "hand tuned prompt",
+    );
   });
 
   it("replaces the color dimension only while its modifier is enabled", () => {
-    render(<Harness />);
+    const onResolved = vi.fn();
+    render(<Harness onResolved={onResolved} />);
 
     fireEvent.click(screen.getByRole("checkbox", { name: "Override Primary color" }));
     fireEvent.change(screen.getByLabelText("Primary color"), { target: { value: "signal red" } });
-    expect(screen.getByText(/Color: signal red/)).toBeInTheDocument();
-    expect(screen.queryByText(/Color: cobalt blue palette/)).not.toBeInTheDocument();
+    expect(
+      (screen.getByLabelText("Variable-linked prompt preview") as HTMLTextAreaElement)
+        .value,
+    ).toContain("Color: signal red");
+    expect(onResolved).toHaveBeenLastCalledWith(
+      expect.stringContaining("Color: signal red"),
+    );
 
     fireEvent.click(screen.getByRole("checkbox", { name: "Override Primary color" }));
-    expect(screen.getByText(/Color: cobalt blue palette/)).toBeInTheDocument();
+    expect(
+      (screen.getByLabelText("Variable-linked prompt preview") as HTMLTextAreaElement)
+        .value,
+    ).toContain("Color: cobalt blue palette");
   });
 });

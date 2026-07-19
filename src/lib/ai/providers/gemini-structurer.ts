@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { STRUCTURER_SYSTEM_PROMPT } from "../prompts";
+import { STRUCTURER_RESPONSE_JSON_SCHEMA } from "../structured-output-schema";
 import type { StructurerProvider, StructurerContext } from "./types";
 
 const MODEL = "gemini-2.5-flash";
@@ -46,7 +47,6 @@ export class GeminiStructurerProvider implements StructurerProvider {
             {
               role: "user",
               parts: [
-                { text: STRUCTURER_SYSTEM_PROMPT },
                 ...(params.context?.imageUrl
                   ? [
                       {
@@ -64,7 +64,9 @@ export class GeminiStructurerProvider implements StructurerProvider {
             },
           ],
           config: {
+            systemInstruction: STRUCTURER_SYSTEM_PROMPT,
             responseMimeType: "application/json",
+            responseJsonSchema: STRUCTURER_RESPONSE_JSON_SCHEMA,
           },
         }),
         new Promise<never>((_, reject) =>

@@ -173,6 +173,7 @@ export interface V2PromptWorkspaceState {
   variableValues: Record<string, string>;
   enabledModifierNames: OptionalModifier["name"][];
   modifierValues: Partial<Record<OptionalModifier["name"], string>>;
+  customTemplate?: string;
   customPrompt: string;
 }
 

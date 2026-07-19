@@ -16,7 +16,7 @@ const pixel = Buffer.from(
   'base64',
 )
 
-const orderedFacetIds = ['color', 'composition', 'lighting', 'texture', 'mood', 'subject']
+const orderedFacetIds = ['color', 'composition', 'lighting', 'texture', 'mood']
 
 async function openWorkspace(page: Page) {
   try {
@@ -109,6 +109,7 @@ test.describe('plan-03 Workspace Reference / Evidence / Prompt AI-first contract
     await expect(page.getByTestId('ai-status-header')).toHaveAttribute('data-phase', 'analysis_ready', {
       timeout: 15000,
     })
+    await expect(referenceCard(page).getByAltText('Reference')).toHaveCSS('object-fit', 'contain')
 
     const facetIds = await styleIntelligence(page)
       .locator('[data-testid^="evidence-facet-"]')
@@ -122,11 +123,11 @@ test.describe('plan-03 Workspace Reference / Evidence / Prompt AI-first contract
       const facet = styleIntelligence(page).getByTestId(`evidence-facet-${facetId}`)
       await expect(facet).toBeVisible()
       await expect(facet).toHaveAttribute('data-source-field', facetId)
-      await expect(facet.getByText(/confidence|strong|medium|weak/i)).toBeVisible()
+      await expect(facet.getByText(/AI|\d+%/)).toBeVisible()
     }
   })
 
-  test('TC-3.3 selected facet highlights reference anchor without prompt editor provenance', async ({ page }) => {
+  test('TC-3.3 selected facet highlights the reference anchor and linked prompt text', async ({ page }) => {
     const taskId = 'ai-first-evidence-linked-selection'
     await mockCompletedAnalysis(page, taskId)
 
@@ -145,7 +146,7 @@ test.describe('plan-03 Workspace Reference / Evidence / Prompt AI-first contract
       'data-selected',
       'true',
     )
-    await expect(promptCard(page).getByTestId('prompt-provenance-span-lighting')).toHaveCount(0)
+    await expect(promptCard(page).getByTestId('prompt-provenance-span-lighting')).toBeVisible()
   })
 
   test('TC-3.4 unmatched prompt text does not create an external prompt chip', async ({ page }) => {

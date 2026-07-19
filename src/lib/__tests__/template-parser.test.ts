@@ -5,6 +5,7 @@ import {
   replaceVariables,
   hasVariables,
   reconcileLinkedTextVariableEdit,
+  restoreVariableMarkers,
 } from "@/lib/template-parser";
 
 describe("template-parser", () => {
@@ -261,6 +262,34 @@ describe("template-parser", () => {
           values,
         ),
       ).toBeNull();
+    });
+  });
+
+  describe("restoreVariableMarkers", () => {
+    it("把已填充的变量值恢复为模板标记", () => {
+      expect(
+        restoreVariableMarkers(
+          "Render red ceramic stool in soft daylight.",
+          [
+            { name: "subject", defaultValue: "blue chair" },
+            { name: "lighting", defaultValue: "soft daylight" },
+          ],
+          { subject: "red ceramic stool", lighting: "soft daylight" },
+        ),
+      ).toBe("Render {{subject}} in {{lighting}}.");
+    });
+
+    it("优先恢复更长的重叠变量值", () => {
+      expect(
+        restoreVariableMarkers(
+          "A pale blue chair beside blue glass.",
+          [
+            { name: "subject", defaultValue: "pale blue chair" },
+            { name: "color", defaultValue: "blue" },
+          ],
+          {},
+        ),
+      ).toBe("A {{subject}} beside {{color}} glass.");
     });
   });
 

@@ -17,7 +17,6 @@ import {
 import { composePromptOutputs } from "@/lib/prompt-composer";
 import { hasUnresolvedVariables } from "@/lib/template-parser";
 
-const ID_PATTERN = /^[a-z][a-z0-9_]{0,63}$/;
 const MAX_TEXT = 500;
 const MAX_EVIDENCE = 240;
 
@@ -28,10 +27,8 @@ export interface VisualRecipeSemanticCandidate {
   contentDescription: ContentDescription;
   styleProfile: Record<StyleDimension, CandidateObservation[]>;
   styleInvariants: CandidateInvariant[];
-  contentVariables: ContentVariable[];
-  optionalModifiers: OptionalModifier[];
-  negativeConstraints: string[];
-  styleFingerprint: StyleFingerprint;
+  negativeConstraints?: string[];
+  styleFingerprint?: StyleFingerprint;
 }
 
 export type NormalizedVisualRecipeResult =
@@ -53,15 +50,6 @@ const DIMENSION_ID_PREFIX: Record<StyleDimension, string> = {
   atmosphere: "atmosphere",
   rendering: "rendering",
 };
-
-const CONTENT_SOURCE_FIELDS = new Set([
-  "subject",
-  "subject_attributes",
-  "action",
-  "environment",
-  "supporting_elements",
-  "time_weather",
-]);
 
 function text(value: unknown, max = MAX_TEXT): string | null {
   if (typeof value !== "string") return null;
@@ -127,7 +115,7 @@ function normalizeProfile(
   for (const dimension of STYLE_DIMENSIONS) {
     const candidates = Array.isArray(source[dimension]) ? source[dimension] : [];
     const observations: StyleObservation[] = [];
-    for (const raw of candidates.slice(0, 5)) {
+    for (const [candidateIndex, raw] of candidates.slice(0, 5).entries()) {
       if (!raw || typeof raw !== "object") continue;
       const candidate = raw as Record<string, unknown>;
       const valueText = text(candidate.value);
@@ -139,7 +127,7 @@ function normalizeProfile(
       const id = `${DIMENSION_ID_PREFIX[dimension]}_${observations.length + 1}`;
       const oldId = text(candidate.id, 64);
       if (oldId) idAliases.set(oldId, id);
-      idAliases.set(`${dimension}_${observations.length + 1}`, id);
+      idAliases.set(`${dimension}_${candidateIndex + 1}`, id);
       idAliases.set(id, id);
       observations.push({ id, value: valueText, evidence, confidence: candidate.confidence });
     }
@@ -220,46 +208,131 @@ function normalizeInvariants(
   return invariants;
 }
 
-function normalizeVariables(value: unknown, reasons: string[]) {
-  if (!Array.isArray(value)) return [];
-  const seen = new Set<string>();
-  return value.flatMap((raw): ContentVariable[] => {
-    if (!raw || typeof raw !== "object") return [];
-    const candidate = raw as Record<string, unknown>;
-    const name = text(candidate.name, 64);
-    const label = text(candidate.label, 80);
-    const defaultValue = text(candidate.defaultValue);
-    if (
-      !name || !ID_PATTERN.test(name) || seen.has(name) || !label || !defaultValue ||
-      !CONTENT_SOURCE_FIELDS.has(String(candidate.sourceField))
-    ) {
-      reasons.push("Dropped invalid content variable.");
-      return [];
-    }
-    seen.add(name);
-    return [{ name, label, defaultValue, sourceField: candidate.sourceField as ContentVariable["sourceField"] }];
-  }).slice(0, 8);
+function joinedText(values: string[]): string | null {
+  let result = "";
+  for (const value of values) {
+    const next = result ? `${result}, ${value}` : value;
+    if (next.length > MAX_TEXT) break;
+    result = next;
+  }
+  return text(result);
 }
 
-function normalizeModifiers(value: unknown, reasons: string[]) {
+function deriveContentVariables(content: ContentDescription): ContentVariable[] {
+  const subjectAttributes = joinedText(content.subjectAttributes);
+  const supportingElements = joinedText(content.supportingElements);
+  const candidates: Array<ContentVariable | null> = [
+    {
+      name: "subject",
+      label: "Subject",
+      defaultValue: content.subject ?? content.summary,
+      sourceField: "subject",
+    },
+    subjectAttributes
+      ? {
+          name: "subject_attributes",
+          label: "Subject attributes",
+          defaultValue: subjectAttributes,
+          sourceField: "subject_attributes",
+        }
+      : null,
+    content.actionOrState
+      ? {
+          name: "action",
+          label: "Action or state",
+          defaultValue: content.actionOrState,
+          sourceField: "action",
+        }
+      : null,
+    content.environment
+      ? {
+          name: "environment",
+          label: "Environment",
+          defaultValue: content.environment,
+          sourceField: "environment",
+        }
+      : null,
+    supportingElements
+      ? {
+          name: "supporting_elements",
+          label: "Supporting elements",
+          defaultValue: supportingElements,
+          sourceField: "supporting_elements",
+        }
+      : null,
+    content.timeOrWeather
+      ? {
+          name: "time_weather",
+          label: "Time or weather",
+          defaultValue: content.timeOrWeather,
+          sourceField: "time_weather",
+        }
+      : null,
+  ];
+
+  return candidates.filter((item): item is ContentVariable => item !== null).slice(0, 8);
+}
+
+function highestConfidenceObservation(
+  profile: Record<StyleDimension, StyleObservation[]>,
+  dimension: StyleDimension,
+) {
+  return profile[dimension].reduce<StyleObservation | null>(
+    (selected, observation) =>
+      !selected || observation.confidence > selected.confidence
+        ? observation
+        : selected,
+    null,
+  );
+}
+
+function deriveOptionalModifiers(
+  profile: Record<StyleDimension, StyleObservation[]>,
+): OptionalModifier[] {
+  const atmosphere = highestConfidenceObservation(profile, "atmosphere");
+  const color = highestConfidenceObservation(profile, "color");
+  const modifiers: OptionalModifier[] = [];
+  if (atmosphere) {
+    modifiers.push({
+      name: "mood",
+      label: "Mood",
+      defaultValue: atmosphere.value,
+      dimension: "atmosphere",
+      enabledByDefault: false,
+    });
+  }
+  if (color) {
+    modifiers.push({
+      name: "primary_color",
+      label: "Primary color",
+      defaultValue: color.value,
+      dimension: "color",
+      enabledByDefault: false,
+    });
+  }
+  return modifiers;
+}
+
+function normalizeNegativeConstraints(value: unknown, reasons: string[]) {
   if (!Array.isArray(value)) return [];
   const seen = new Set<string>();
-  return value.flatMap((raw): OptionalModifier[] => {
-    if (!raw || typeof raw !== "object") return [];
-    const candidate = raw as Record<string, unknown>;
-    const name = candidate.name === "mood" || candidate.name === "primary_color"
-      ? candidate.name
-      : null;
-    const expectedDimension = name === "mood" ? "atmosphere" : name === "primary_color" ? "color" : null;
-    const label = text(candidate.label, 80);
-    const defaultValue = text(candidate.defaultValue);
-    if (!name || !expectedDimension || candidate.dimension !== expectedDimension || candidate.enabledByDefault !== false || !label || !defaultValue || seen.has(name)) {
-      reasons.push("Dropped invalid optional modifier.");
-      return [];
+  const constraints: string[] = [];
+  let invalidCount = 0;
+  for (const raw of value.slice(0, 20)) {
+    const constraint = text(raw);
+    if (!constraint) {
+      invalidCount += 1;
+      continue;
     }
-    seen.add(name);
-    return [{ name, label, defaultValue, dimension: expectedDimension, enabledByDefault: false } as OptionalModifier];
-  });
+    const normalized = constraint.toLocaleLowerCase();
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+    constraints.push(constraint);
+  }
+  if (invalidCount > 0) {
+    reasons.push(`Dropped ${invalidCount} invalid negative constraint${invalidCount === 1 ? "" : "s"}; expected strings.`);
+  }
+  return constraints;
 }
 
 function normalizeFingerprint(value: unknown): StyleFingerprint {
@@ -283,11 +356,7 @@ export function normalizeVisualRecipeCandidate(candidate: unknown): NormalizedVi
   const hasCoreShape =
     source.contentDescription !== null && typeof source.contentDescription === "object" &&
     source.styleProfile !== null && typeof source.styleProfile === "object" &&
-    Array.isArray(source.styleInvariants) &&
-    Array.isArray(source.contentVariables) &&
-    Array.isArray(source.optionalModifiers) &&
-    Array.isArray(source.negativeConstraints) &&
-    source.styleFingerprint !== null && typeof source.styleFingerprint === "object";
+    Array.isArray(source.styleInvariants);
   if (!hasCoreShape) {
     return fallback(["The semantic candidate is missing required core fields."], "invalid");
   }
@@ -301,33 +370,40 @@ export function normalizeVisualRecipeCandidate(candidate: unknown): NormalizedVi
     contentDescription,
     reasons,
   );
-  const contentVariables = normalizeVariables(source.contentVariables, reasons);
-  const optionalModifiers = normalizeModifiers(source.optionalModifiers, reasons);
-  const negativeConstraints = textList(source.negativeConstraints, 20);
+  const contentVariables = contentDescription ? deriveContentVariables(contentDescription) : [];
+  const optionalModifiers = deriveOptionalModifiers(styleProfile);
+  const negativeConstraints = normalizeNegativeConstraints(source.negativeConstraints, reasons);
   const styleFingerprint = normalizeFingerprint(source.styleFingerprint);
 
-  if (
-    !contentDescription ||
-    contentVariables.length === 0 ||
-    styleInvariants.length === 0 ||
-    styleFingerprint.tokens.length === 0 ||
-    negativeConstraints.length === 0
-  ) {
-    return fallback([
-      ...reasons,
-      "The response did not contain a usable summary, content variable, and style invariant.",
-    ], contentDescription ? "insufficient" : "invalid");
+  if (styleFingerprint.tokens.length === 0) {
+    reasons.push("No usable style fingerprint tokens were detected.");
+  }
+  if (negativeConstraints.length === 0) {
+    reasons.push("No usable negative constraints were detected.");
+  }
+  if (!contentDescription) {
+    return fallback([...reasons, "No usable content summary was detected."], "invalid");
+  }
+  if (contentVariables.length === 0) {
+    return fallback([...reasons, "No usable content variable was detected."]);
+  }
+  if (styleInvariants.length === 0) {
+    return fallback([...reasons, "No usable style invariant was detected."]);
   }
 
   const nonEmptyDimensions = STYLE_DIMENSIONS.filter((dimension) => styleProfile[dimension].length > 0).length;
   const fingerprintComplete = STYLE_FINGERPRINT_SCORE_KEYS.every(
     (key) => typeof styleFingerprint.scores[key] === "number",
   );
+  if (!fingerprintComplete) {
+    reasons.push("One or more style fingerprint scores are unavailable.");
+  }
   const ready =
     nonEmptyDimensions >= 4 &&
     styleInvariants.length >= 5 &&
     styleFingerprint.tokens.length >= 3 &&
-    fingerprintComplete;
+    fingerprintComplete &&
+    negativeConstraints.length > 0;
   if (!ready) reasons.push("The valid extraction is incomplete and is available as partial.");
 
   const recipe: VisualRecipeV2Success = {

@@ -17,7 +17,7 @@ test.describe('FEAT-0004 structured style extraction', () => {
     await mockGenerationList(page)
   })
 
-  test('shows four scan areas, real textual evidence, and generates the edited Standard prompt', async ({ page }) => {
+  test('shows keyword-first evidence and generates the edited variable prompt', async ({ page }) => {
     let generationRequest: Record<string, unknown> = {}
     await page.route('**/api/generation', async (route) => {
       if (route.request().method() === 'POST') {
@@ -46,14 +46,18 @@ test.describe('FEAT-0004 structured style extraction', () => {
     await expect(page.getByTestId('content-analysis')).toBeVisible()
     await expect(page.getByTestId('style-dna')).toBeVisible()
     await expect(page.getByTestId('style-invariants')).toBeVisible()
-    await expect(page.getByTestId('prompt-outputs')).toBeVisible()
-    await expect(page.getByText('Observed: Natural photographic highlights')).toBeVisible()
-    await expect(page.getByText(/90% model confidence/i)).toBeVisible()
+    await expect(editor(page).getByLabel('Prompt mode')).toHaveValue('variables')
+    await page.getByTestId('evidence-facet-visualMedium').click()
+    await expect(page.getByText('Natural photographic highlights')).toBeVisible()
+    await expect(page.getByText(/Observed:/i)).toHaveCount(0)
+    await expect(page.getByTestId('evidence-facet-visualMedium')).toContainText('90%')
     await expect(page.locator('[data-testid^="reference-anchor-"]')).toHaveCount(0)
 
-    await expect(editor(page).getByRole('tab', { name: 'Standard' })).toHaveAttribute('aria-selected', 'true')
     await editor(page).getByLabel('Subject').fill('red ceramic stool')
-    await expect(editor(page)).toContainText('red ceramic stool')
+    await expect(editor(page).getByLabel('Variable-linked prompt preview')).toHaveValue(/red ceramic stool/)
+    await editor(page).getByLabel('Variable-linked prompt preview').fill(
+      'Render red ceramic stool with soft directional window light and quiet editorial balance.',
+    )
     await generateButton(page).click()
 
     expect(generationRequest.promptText).toContain('red ceramic stool')
@@ -62,30 +66,28 @@ test.describe('FEAT-0004 structured style extraction', () => {
     expect(generationRequest.negativePromptText).toBe('watermark, distorted glass')
   })
 
-  test('isolates custom text, disables Structured generation, restores session edits, and clears on Replace', async ({ page }) => {
+  test('preserves full text while JSON is inspected, restores edits, and clears on Replace', async ({ page }) => {
     await uploadAndCompleteAnalysis(page, {
       analysisTaskId: 'analysis-v2-persistence',
       analysisResponse: response,
     })
 
-    await editor(page).getByRole('button', { name: 'Edit as custom text' }).click()
-    await editor(page).getByLabel('Custom prompt').fill('hand tuned persistent draft')
-    await editor(page).getByRole('tab', { name: 'Concise' }).click()
-    await editor(page).getByRole('tab', { name: 'Custom' }).click()
-    await expect(editor(page).getByLabel('Custom prompt')).toHaveValue('hand tuned persistent draft')
-
-    await editor(page).getByRole('tab', { name: 'Structured' }).click()
-    await expect(generateButton(page)).toBeDisabled()
-    await expect(editor(page)).toContainText(/cannot be sent to generation/i)
-    await editor(page).getByRole('tab', { name: 'Custom' }).click()
+    await editor(page).getByLabel('Prompt mode').selectOption('text')
+    await editor(page).getByLabel('Full Generation Prompt').fill('hand tuned persistent draft')
+    await editor(page).getByLabel('Prompt mode').selectOption('json')
+    await expect(editor(page).getByTestId('structured-json-output')).toContainText('hand tuned persistent draft')
+    await expect(generateButton(page)).toBeEnabled()
+    await editor(page).getByLabel('Prompt mode').selectOption('text')
     await page.waitForTimeout(400)
     await page.reload()
 
     await expect(editor(page)).toBeVisible({ timeout: 15000 })
-    await expect(editor(page).getByLabel('Custom prompt')).toHaveValue('hand tuned persistent draft')
+    await expect(editor(page).getByLabel('Full Generation Prompt')).toHaveValue('hand tuned persistent draft')
     await page.getByTestId('reference-card').getByRole('button', { name: 'Replace' }).click()
     await expect(editor(page)).toHaveCount(0)
-    await expect(page.getByTestId('reference-upload-panel')).toBeVisible()
+    await expect(
+      page.getByTestId('app-shell').getByTestId('reference-upload-panel'),
+    ).toBeVisible()
   })
 
   test('saves reusable tiers with resolved defaults and custom text without variables', async ({ page }) => {
@@ -126,8 +128,8 @@ test.describe('FEAT-0004 structured style extraction', () => {
       expect.objectContaining({ name: 'subject', defaultValue: 'crystal vase' }),
     ]))
 
-    await editor(page).getByRole('button', { name: 'Edit as custom text' }).click()
-    await editor(page).getByLabel('Custom prompt').fill('freeform custom style prompt')
+    await editor(page).getByLabel('Prompt mode').selectOption('text')
+    await editor(page).getByLabel('Full Generation Prompt').fill('freeform custom style prompt')
     await page.getByRole('button', { name: 'Save as Style Memory' }).click()
     dialog = page.getByRole('dialog', { name: 'Save as Template' })
     await expect(dialog.getByText(/Detected Variables/)).toHaveCount(0)

@@ -127,8 +127,6 @@ describe("structurer", () => {
               camera: [], color: [], lighting: [], formLanguage: [], materialTexture: [], atmosphere: [], rendering: [],
             },
             styleInvariants: [{ kind: "hard", dimension: "composition", value: "centered composition", evidence: ["Chair is centered"], confidence: 0.9, sourceObservationIds: ["composition_1"] }],
-            contentVariables: [{ name: "subject", label: "Subject", defaultValue: "blue chair", sourceField: "subject" }],
-            optionalModifiers: [],
             negativeConstraints: ["watermark"],
             styleFingerprint: {
               tokens: ["editorial"],
@@ -154,8 +152,6 @@ describe("structurer", () => {
             contentDescription: { summary: "An indistinct image", subjectAttributes: [], supportingElements: [] },
             styleProfile: { visualMedium: [], composition: [], camera: [], color: [], lighting: [], formLanguage: [], materialTexture: [], atmosphere: [], rendering: [] },
             styleInvariants: [],
-            contentVariables: [],
-            optionalModifiers: [],
             negativeConstraints: ["watermark"],
             styleFingerprint: { tokens: ["indistinct"], scores: {} },
           },

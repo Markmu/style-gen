@@ -16,10 +16,14 @@ describe("WorkspaceThreeColumnLayout", () => {
     expect(layout).toBeInTheDocument();
     expect(layout).toHaveClass("overflow-x-auto");
     expect(layout.firstElementChild).toHaveClass("min-w-[67.5rem]");
-    expect(layout.firstElementChild).toHaveClass(
-      "grid-cols-[minmax(20.625rem,1.08fr)_minmax(17.5rem,0.86fr)_minmax(22.5rem,1.15fr)]",
+    expect(layout.firstElementChild?.getAttribute("style")).toContain(
+      "clamp(max(17.5rem, 25vw), calc(38.4dvh + 2rem), 33.333vw)",
     );
     expect(layout.firstElementChild).toHaveClass("gap-3");
+    expect(screen.getByLabelText("Reference Canvas column")).toHaveClass(
+      "min-w-[17.5rem]",
+      "max-w-[33.333vw]",
+    );
     expect(screen.getByLabelText("Reference Canvas column")).toHaveTextContent("Reference slot");
     expect(screen.getByLabelText("Style Intelligence column")).toHaveTextContent("Recipe slot");
     expect(screen.getByLabelText("Prompt and Render column")).toHaveTextContent("Prompt slot");

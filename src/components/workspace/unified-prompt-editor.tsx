@@ -16,7 +16,8 @@ import type {
 } from "@/types/models";
 import type { LinkedTextVariableState } from "@/lib/template-parser";
 
-type PromptMode = "template" | "text";
+type PromptMode = "variables" | "text" | "json";
+type RenderablePromptMode = Exclude<PromptMode, "json">;
 
 interface ArchivedVariableState {
   value: string;
@@ -153,7 +154,12 @@ export function UnifiedPromptEditor({
     !!normalizedTemplateContent &&
     (templateStatus === "ready" || templateStatus === "partial" || templateStatus === null);
   const initialEditorSource = normalizedTemplateContent || initialPromptText;
-  const [mode, setMode] = useState<PromptMode>("text");
+  const initialMode: RenderablePromptMode = hasUsableTemplate
+    ? "variables"
+    : "text";
+  const [mode, setMode] = useState<PromptMode>(initialMode);
+  const [lastRenderableMode, setLastRenderableMode] =
+    useState<RenderablePromptMode>(initialMode);
   const [templateSource, setTemplateSource] = useState(
     initialEditorSource,
   );
@@ -191,7 +197,8 @@ export function UnifiedPromptEditor({
       lastTemplateRef.current = normalizedTemplateContent;
       lastPromptRef.current = initialPromptText;
       textTouchedRef.current = false;
-      setMode("text");
+      setMode("variables");
+      setLastRenderableMode("variables");
       setTemplateSource(normalizedTemplateContent);
       setVariableMetadata(variablesByName(initialTemplateVariables));
       archivedVariableStateRef.current = new Map();
@@ -213,6 +220,7 @@ export function UnifiedPromptEditor({
       lastPromptRef.current = initialPromptText;
       textTouchedRef.current = false;
       setMode("text");
+      setLastRenderableMode("text");
       setTextPrompt(initialPromptText);
       setTemplateSource(initialPromptText);
       setVariableValues({});
@@ -233,6 +241,7 @@ export function UnifiedPromptEditor({
       setTextPrompt(initialPromptText);
       setTemplateSource(initialPromptText);
       setMode("text");
+      setLastRenderableMode("text");
       archivedVariableStateRef.current = new Map();
       linkedTextVariableRef.current = null;
     }
@@ -279,11 +288,27 @@ export function UnifiedPromptEditor({
     () => replaceVariables(templateSource, combinedVariableValues),
     [combinedVariableValues, templateSource],
   );
-  const resolvedPrompt = mode === "template" ? resolvedTemplatePrompt : textPrompt;
+  const renderableMode = mode === "json" ? lastRenderableMode : mode;
+  const resolvedPrompt =
+    renderableMode === "variables" ? resolvedTemplatePrompt : textPrompt;
   const shouldSaveTemplateSource =
-    mode === "template" ||
+    renderableMode === "variables" ||
     (!textTouchedRef.current && hasUsableTemplate && Boolean(normalizedTemplateContent));
   const saveContent = shouldSaveTemplateSource ? templateSource : textPrompt;
+  const jsonValue = useMemo(
+    () =>
+      JSON.stringify(
+        {
+          template: templateSource,
+          variables: combinedVariableValues,
+          resolvedPrompt,
+          templateStatus,
+        },
+        null,
+        2,
+      ),
+    [combinedVariableValues, resolvedPrompt, templateSource, templateStatus],
+  );
 
   useEffect(() => {
     lastEmittedPromptRef.current = resolvedPrompt;
@@ -357,42 +382,71 @@ export function UnifiedPromptEditor({
 
   const switchToText = useCallback(() => {
     setMode("text");
+    setLastRenderableMode("text");
     if (!textTouchedRef.current) {
       setTextPrompt(resolvedTemplatePrompt);
     }
   }, [resolvedTemplatePrompt]);
 
+  const switchToVariables = useCallback(() => {
+    setMode("variables");
+    setLastRenderableMode("variables");
+  }, []);
+
   return (
     <div
       data-testid="unified-prompt-editor"
       data-compact={compact ? "true" : "false"}
-      className={`surface-panel flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl ${
-        compact ? "p-2" : "p-4"
-      }`}
+      className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-[var(--surface-low)]/56 ring-1 ring-[var(--border-static)]"
     >
-      <PromptModeSwitcher
-        mode={mode}
-        compact={compact}
-        onTemplateMode={() => setMode("template")}
-        onTextMode={switchToText}
-      />
-
-      <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-        {mode === "template" ? (
-          <TemplateModeEditor
-            templateSource={templateSource}
-            variables={variables}
-            variableValues={combinedVariableValues}
-            templateStatus={templateStatus}
-            templateReason={templateReason}
-            provenanceSpans={provenanceSpans}
-            selectedProvenanceSpan={selectedProvenanceSpan}
-            compact={compact}
-            onTemplateChange={handleTemplateChange}
-            onVariableChange={handleVariableChange}
-          />
-        ) : (
+      <div
+        className={`min-h-0 flex-1 overflow-y-auto ${
+          compact ? "p-2" : "p-3"
+        }`}
+      >
+        {mode === "variables" ? (
+          <div className="min-h-full space-y-2">
+            <div className="flex shrink-0 items-center justify-between gap-3">
+              <p className="text-xs font-semibold text-[var(--text-primary)]">
+                Variable-linked prompt
+              </p>
+              <PromptModeSwitcher
+                mode={mode}
+                variableCount={variables.length}
+                onVariablesMode={switchToVariables}
+                onTextMode={switchToText}
+                onJsonMode={() => setMode("json")}
+              />
+            </div>
+            <div>
+              <TemplateModeEditor
+                templateSource={templateSource}
+                variables={variables}
+                variableValues={combinedVariableValues}
+                templateStatus={templateStatus}
+                templateReason={templateReason}
+                provenanceSpans={provenanceSpans}
+                selectedProvenanceSpan={selectedProvenanceSpan}
+                compact={compact}
+                onTemplateChange={handleTemplateChange}
+                onVariableChange={handleVariableChange}
+              />
+            </div>
+          </div>
+        ) : mode === "text" ? (
           <div className="flex h-full min-h-full flex-col gap-3">
+            <div className="flex shrink-0 items-center justify-between gap-3">
+              <p className="text-xs font-semibold text-[var(--text-primary)]">
+                Full generation prompt
+              </p>
+              <PromptModeSwitcher
+                mode={mode}
+                variableCount={variables.length}
+                onVariablesMode={switchToVariables}
+                onTextMode={switchToText}
+                onJsonMode={() => setMode("json")}
+              />
+            </div>
             {templateStatus === "fallback" && (
               <div className="rounded-lg bg-[var(--surface-low)] p-3 text-sm text-[var(--text-secondary)]">
                 <p className="font-medium text-[var(--text-primary)]">
@@ -420,6 +474,41 @@ export function UnifiedPromptEditor({
               </div>
             )}
           </div>
+        ) : (
+          <div className="flex h-full min-h-0 flex-col">
+            <div className="mb-2 flex shrink-0 items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold text-[var(--text-primary)]">
+                  Prompt JSON
+                </p>
+                <p className="mt-0.5 text-[0.68rem] text-[var(--text-muted)]">
+                  Template, values, and resolved generation text
+                </p>
+              </div>
+              <span className="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => void navigator.clipboard?.writeText(jsonValue)}
+                  className="btn-secondary rounded-lg px-2 py-1 text-[0.68rem] font-semibold"
+                >
+                  Copy JSON
+                </button>
+                <PromptModeSwitcher
+                  mode={mode}
+                  variableCount={variables.length}
+                  onVariablesMode={switchToVariables}
+                  onTextMode={switchToText}
+                  onJsonMode={() => setMode("json")}
+                />
+              </span>
+            </div>
+            <pre
+              data-testid="prompt-json-output"
+              className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap rounded-lg bg-[var(--surface-bright)]/72 p-3 font-mono text-[0.7rem] leading-5 text-[var(--text-secondary)]"
+            >
+              {jsonValue}
+            </pre>
+          </div>
         )}
       </div>
     </div>
@@ -428,46 +517,44 @@ export function UnifiedPromptEditor({
 
 interface PromptModeSwitcherProps {
   mode: PromptMode;
-  compact: boolean;
-  onTemplateMode: () => void;
+  variableCount: number;
+  onVariablesMode: () => void;
   onTextMode: () => void;
+  onJsonMode: () => void;
 }
 
 function PromptModeSwitcher({
   mode,
-  compact,
-  onTemplateMode,
+  variableCount,
+  onVariablesMode,
   onTextMode,
+  onJsonMode,
 }: PromptModeSwitcherProps) {
+  const handleChange = (nextMode: PromptMode) => {
+    if (nextMode === "variables") onVariablesMode();
+    if (nextMode === "text") onTextMode();
+    if (nextMode === "json") onJsonMode();
+  };
+
   return (
-    <div
-      className={`${compact ? "mb-2" : "mb-3"} flex shrink-0 items-center justify-between gap-3`}
-    >
-      <p className="label-tech text-[var(--accent-primary)]">Prompt Editor</p>
-      <div className="flex h-7 shrink-0 rounded-md bg-[var(--surface-low)] p-0.5">
-        <button
-          type="button"
-          onClick={onTemplateMode}
-          className={`h-6 rounded-[0.3125rem] px-2.5 text-xs transition-colors ${
-            mode === "template"
-              ? "bg-[var(--accent-primary-soft)] text-[var(--accent-primary)]"
-              : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-          }`}
-        >
-          Template Mode
-        </button>
-        <button
-          type="button"
-          onClick={onTextMode}
-          className={`h-6 rounded-[0.3125rem] px-2.5 text-xs transition-colors ${
-            mode === "text"
-              ? "bg-[var(--accent-primary-soft)] text-[var(--accent-primary)]"
-              : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-          }`}
-        >
-          Text Mode
-        </button>
-      </div>
-    </div>
+    <label className="relative shrink-0">
+      <span className="sr-only">Prompt mode</span>
+      <select
+        aria-label="Prompt mode"
+        value={mode}
+        onChange={(event) => handleChange(event.target.value as PromptMode)}
+        className="render-select h-8 min-w-[8.75rem] appearance-none rounded-lg bg-[var(--surface-bright)] px-3 pr-8 text-xs font-semibold text-[var(--text-primary)] ring-1 ring-[var(--border-static)] transition hover:bg-[var(--surface-control)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]"
+      >
+        <option value="variables">Variables ({variableCount})</option>
+        <option value="text">Full text</option>
+        <option value="json">JSON</option>
+      </select>
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[0.65rem] text-[var(--text-muted)]"
+      >
+        ▾
+      </span>
+    </label>
   );
 }

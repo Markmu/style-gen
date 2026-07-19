@@ -106,7 +106,7 @@ test.describe('analysis template autofill', () => {
     expect(metrics?.tokenPaddingLeft).toBe('0px')
     await expect(page.getByLabel('Template Source')).toHaveCount(0)
 
-    await page.getByRole('button', { name: 'Template Mode' }).click()
+    await page.getByLabel('Prompt mode').selectOption('variables')
     await expect(page.getByLabel('Template Source')).toHaveValue(/{{subject}}/)
     await expect(page.getByLabel('Variable subject')).toHaveValue('glass fox')
     await expect(page.getByLabel('Variable scene')).toHaveValue('neon rain garden')
@@ -176,7 +176,7 @@ test.describe('analysis template autofill', () => {
       analysisResponse: readyTemplateResponse,
     })
 
-    await page.getByRole('button', { name: 'Template Mode' }).click()
+    await page.getByLabel('Prompt mode').selectOption('variables')
     await page.getByLabel('Variable subject').fill('crystal heron')
     await renderGenerateButton(page).click()
 
@@ -195,7 +195,7 @@ test.describe('analysis template autofill', () => {
     )
 
     await expect(page.getByTestId('prompt-variable-token-subject')).toContainText('crystal heron')
-    await page.getByRole('button', { name: 'Template Mode' }).click()
+    await page.getByLabel('Prompt mode').selectOption('variables')
     await expect(page.getByLabel('Variable subject')).toHaveValue('crystal heron')
   })
 
@@ -205,7 +205,7 @@ test.describe('analysis template autofill', () => {
       analysisResponse: readyTemplateResponse,
     })
 
-    await page.getByRole('button', { name: 'Template Mode' }).click()
+    await page.getByLabel('Prompt mode').selectOption('variables')
     await page.getByLabel('Template Source').fill(
       'Create {{subject}} in {{custom_scene}} with {{camera_angle}}.',
     )
@@ -246,11 +246,11 @@ test.describe('analysis template autofill', () => {
       analysisResponse: readyTemplateResponse,
     })
 
-    await page.getByRole('button', { name: 'Text Mode' }).click()
+    await page.getByLabel('Prompt mode').selectOption('text')
     await page.getByLabel('Full Generation Prompt').fill('Manual protected prompt')
-    await page.getByRole('button', { name: 'Template Mode' }).click()
+    await page.getByLabel('Prompt mode').selectOption('variables')
     await page.getByLabel('Variable subject').fill('changed subject')
-    await page.getByRole('button', { name: 'Text Mode' }).click()
+    await page.getByLabel('Prompt mode').selectOption('text')
     await renderGenerateButton(page).click()
 
     expect(requestBody.promptText).toBe('Manual protected prompt')

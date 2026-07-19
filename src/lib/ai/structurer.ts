@@ -84,7 +84,7 @@ export async function structureAnalysis(
   const meta = {
     taskId: context.taskId ?? "unknown",
     source: context.source ?? "unknown",
-    provider: process.env.VISION_PROVIDER || "replicate",
+    provider: process.env.STRUCTURER_PROVIDER || process.env.VISION_PROVIDER || "replicate",
     rawAnalysisLength: rawAnalysis.length,
   };
 

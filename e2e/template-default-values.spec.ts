@@ -80,7 +80,7 @@ test.describe('template default values', () => {
       analysisResponse: autoTemplateResponse,
     })
 
-    await page.getByRole('button', { name: 'Template Mode' }).click()
+    await page.getByLabel('Prompt mode').selectOption('variables')
     await page.getByLabel('Variable subject').fill('brushed steel lily')
     await page.getByRole('button', { name: 'Save as Template' }).click()
     await page.getByLabel('Template Name').fill('Auto template')
@@ -99,7 +99,7 @@ test.describe('template default values', () => {
     )
 
     await page.goto('/workspace?templateId=saved-template-with-defaults', { waitUntil: 'commit' })
-    await page.getByRole('button', { name: 'Template Mode' }).click()
+    await page.getByLabel('Prompt mode').selectOption('variables')
     await expect(page.getByLabel('Variable subject')).toHaveValue('brushed steel lily')
   })
 })

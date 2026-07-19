@@ -61,9 +61,10 @@ export function TemplateVariablePanel({
               {MULTILINE_VARIABLE_NAMES.has(variable.name) ? (
                 <textarea
                   aria-label={`Variable ${variable.name}`}
+                  rows={2}
                   value={values[variable.name] ?? ""}
                   onChange={(event) => onChange(variable.name, event.target.value)}
-                  className="input-precision min-h-[5.25rem] w-full resize-none rounded-t-md px-3 py-2 text-sm leading-6"
+                  className="input-precision min-h-16 w-full resize-y rounded-t-md px-3 py-2 text-sm leading-6"
                   placeholder={`Fill ${variable.name}`}
                 />
               ) : (

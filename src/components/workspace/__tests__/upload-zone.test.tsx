@@ -22,6 +22,15 @@ describe("UploadZone", () => {
 
     expect(screen.getByText("Click or drag to upload a reference image")).toBeInTheDocument();
     expect(screen.getByText(/JPG, PNG, or WebP/)).toBeInTheDocument();
+    expect(screen.getByTestId("reference-upload-dropzone")).toContainElement(
+      screen.getByText("AI will read the reference as evidence."),
+    );
+    expect(
+      screen.getByText("AI will read the reference as evidence.").parentElement,
+    ).not.toHaveClass("border-t");
+    expect(screen.getByTestId("reference-upload-dropzone")).toContainElement(
+      screen.getByText("composition"),
+    );
   });
 
   // 2. 上传中显示进度条 - P0

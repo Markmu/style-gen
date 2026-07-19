@@ -7,7 +7,7 @@ import {
   type DragEvent,
   type ChangeEvent,
 } from "react";
-import { ArrowRight, ImageUp } from "lucide-react";
+import { ImageUp } from "lucide-react";
 import { AppIcon } from "@/components/ui/app-icon";
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -178,6 +178,7 @@ export function UploadZone({
   return (
     <div className="flex h-full min-h-0 w-full flex-col items-center">
       <div
+        data-testid="reference-upload-dropzone"
         role="button"
         tabIndex={0}
         onClick={handleClick}
@@ -202,17 +203,28 @@ export function UploadZone({
         <p className="mt-2 text-sm text-[var(--text-secondary)]">
           JPG, PNG, or WebP, up to 10MB
         </p>
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-[var(--text-secondary)]">
-          <span>Reference</span>
-          <AppIcon icon={ArrowRight} size={14} />
-          <span>Evidence readiness</span>
-          <AppIcon icon={ArrowRight} size={14} />
-          <span>Render-ready prompt</span>
+        <div className="mx-auto mt-5 max-w-md">
+          <p className="text-sm font-semibold text-[var(--text-primary)]">
+            AI will read the reference as evidence.
+          </p>
+          <p className="mt-2 text-xs leading-5 text-[var(--text-secondary)]">
+            Upload a reference image to extract color, composition, lighting,
+            texture, mood, and subject signals for the prompt.
+          </p>
+          <div className="mt-3 flex flex-wrap justify-center gap-1.5">
+            {["color", "composition", "lighting", "texture", "mood"].map(
+              (signal) => (
+                <span
+                  key={signal}
+                  className="evidence-chip rounded-full bg-[var(--surface-bright)] px-2.5 py-1 text-xs text-[var(--text-secondary)] ring-1 ring-inset ring-[var(--border-static)]"
+                  data-facet={signal}
+                >
+                  {signal}
+                </span>
+              ),
+            )}
+          </div>
         </div>
-        <p className="mx-auto mt-3 max-w-md text-xs leading-5 text-[var(--text-secondary)]">
-          AI keeps color, composition, lighting, texture, and mood evidence available
-          for prompt edits, render decisions, and Style Memory.
-        </p>
       </div>
       {error && (
         <p className="mt-3 text-sm text-[var(--color-error)]" role="alert">

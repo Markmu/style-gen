@@ -53,7 +53,9 @@ describe("AiCopilotRibbon", () => {
     expect(screen.getByText("Refine intent or render")).toBeInTheDocument();
     expect(screen.getByText("Services")).toBeInTheDocument();
     expect(screen.getByText("Ready")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /copilot insights/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /copilot insights/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("surfaces service-limited state without changing the shell contract", () => {

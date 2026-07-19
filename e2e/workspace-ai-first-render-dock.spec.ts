@@ -158,7 +158,7 @@ test.describe('plan-04 Render Dock readiness and generation recovery', () => {
     })
 
     await openWithCompletedAnalysis(page, 'render-dock-unresolved-variables', templateAnalysisResponse)
-    await page.getByRole('button', { name: 'Template Mode' }).click()
+    await page.getByLabel('Prompt mode').selectOption('variables')
     await page.getByLabel('Variable subject').fill('{{subject}}')
 
     const dock = renderDock(page)

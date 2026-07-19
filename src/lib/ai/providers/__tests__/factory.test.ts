@@ -98,6 +98,15 @@ describe('Provider Factory', () => {
   });
 
   describe('getStructurerProvider', () => {
+    it('STRUCTURER_PROVIDER 可独立覆盖 VISION_PROVIDER', () => {
+      process.env.VISION_PROVIDER = 'replicate';
+      process.env.STRUCTURER_PROVIDER = 'gemini';
+      process.env.GEMINI_API_KEY = 'test-api-key';
+      const provider = getStructurerProvider();
+      expect(provider).toBeInstanceOf(GeminiStructurerProvider);
+      expect(provider.name).toBe('gemini');
+    });
+
     it('VISION_PROVIDER=gemini 时返回 GeminiStructurerProvider', () => {
       process.env.VISION_PROVIDER = 'gemini';
       process.env.GEMINI_API_KEY = 'test-api-key';

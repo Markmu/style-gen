@@ -303,6 +303,50 @@ export function reconcileLinkedTextVariableEdit(
   };
 }
 
+/**
+ * Restores variable markers inside an edited resolved prompt.
+ *
+ * Variables mode shows concrete values instead of raw `{{variable}}` markers.
+ * When ordinary prompt prose is edited, this converts the still-visible values
+ * back to markers so subsequent variable changes remain linked.
+ */
+export function restoreVariableMarkers(
+  promptText: string,
+  variables: TemplateVariable[],
+  values: Record<string, string>,
+): string {
+  const claimedRanges: LinkedTextVariableRange[] = [];
+  const occurrences: VariableOccurrence[] = [];
+  const candidates = variables
+    .map((variable) => ({
+      variable,
+      visibleValue: (values[variable.name] ?? variable.defaultValue ?? "").trim(),
+    }))
+    .filter((candidate) => candidate.visibleValue.length >= 2)
+    .sort((left, right) => right.visibleValue.length - left.visibleValue.length);
+
+  for (const { variable, visibleValue } of candidates) {
+    for (const range of findOccurrences(promptText, visibleValue)) {
+      if (claimedRanges.some((claimed) => rangesOverlap(claimed, range))) continue;
+
+      claimedRanges.push(range);
+      occurrences.push({ ...range, name: variable.name });
+    }
+  }
+
+  if (occurrences.length === 0) return promptText;
+
+  let cursor = 0;
+  let template = "";
+  for (const occurrence of occurrences.sort((left, right) => left.start - right.start)) {
+    template += promptText.slice(cursor, occurrence.start);
+    template += `{{${occurrence.name}}}`;
+    cursor = occurrence.end;
+  }
+
+  return template + promptText.slice(cursor);
+}
+
 function normalizeProvidedVariable(
   variable: TemplateVariable | undefined,
 ): Omit<TemplateVariable, "name"> {

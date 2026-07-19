@@ -114,6 +114,7 @@ function WorkspacePageInner() {
   const [templateSaveContent, setTemplateSaveContent] = useState("");
   const [currentTemplateVariables, setCurrentTemplateVariables] = useState<TemplateVariable[]>([]);
   const [selectedFacetId, setSelectedFacetId] = useState<EvidenceFacetId | null>(null);
+  const [referenceAspectRatio, setReferenceAspectRatio] = useState(4 / 5);
   const [historyDetailOpen, setHistoryDetailOpen] = useState(false);
   const [historyDetail, setHistoryDetail] = useState<HistoryDetail | null>(null);
   const [restoredSourceContext, setRestoredSourceContext] =
@@ -403,6 +404,7 @@ function WorkspacePageInner() {
     setResolvedPromptText("");
     setCurrentTemplateVariables([]);
     setRestoredSourceContext(null);
+    setReferenceAspectRatio(4 / 5);
     ws.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -702,6 +704,7 @@ function WorkspacePageInner() {
 
         <div className="min-h-0 flex-1 overflow-hidden">
           <WorkspaceThreeColumnLayout
+            referenceAspectRatio={referenceAspectRatio}
             reference={
               <ReferenceCard
                 state={effectiveState}
@@ -719,6 +722,7 @@ function WorkspacePageInner() {
                 onReplace={handleReplace}
                 onRetry={handleAnalysisRetry}
                 onFacetSelect={setSelectedFacetId}
+                onAspectRatioChange={setReferenceAspectRatio}
                 showSpatialEvidence={!hasStructuredRecipe}
               />
             }
@@ -754,6 +758,8 @@ function WorkspacePageInner() {
                 templateKey={effectiveTemplateKey}
                 recipe={effectiveRecipe}
                 v2PromptState={ws.v2PromptState}
+                provenanceSpans={promptProvenanceSpans}
+                selectedFacetId={selectedFacetId}
                 onV2PromptStateChange={ws.setV2PromptState}
                 onResolvedPromptChange={handleResolvedPromptChange}
                 onTemplateVariablesChange={setCurrentTemplateVariables}

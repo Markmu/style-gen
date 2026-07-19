@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Gauge, Lightbulb, Pencil, Sparkles } from "lucide-react";
+import { Gauge, Pencil, Sparkles } from "lucide-react";
 import { AppIcon, type AppIconComponent } from "@/components/ui/app-icon";
 import { extractAnalysisSummary } from "@/lib/analysis-summary";
 import type { DegradationState, WorkspaceState } from "@/hooks/use-workspace-state";
@@ -180,14 +180,6 @@ export function AiCopilotRibbon({
             </p>
           </div>
 
-          <button
-            type="button"
-            className="workspace-copilot-insights inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg px-3 text-xs font-semibold"
-          >
-            <AppIcon icon={Lightbulb} size={16} />
-            Copilot insights
-            <AppIcon icon={ChevronDown} size={16} />
-          </button>
         </div>
       </section>
     </div>

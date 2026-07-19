@@ -14,6 +14,8 @@ import type {
   V2PromptWorkspaceState,
 } from "@/types/models";
 import { isVisualRecipeV2Success } from "@/lib/visual-recipe";
+import type { EvidenceFacetId } from "@/lib/evidence-facets";
+import type { PromptProvenanceSpan } from "@/lib/prompt-provenance";
 
 const NEGATIVE_PROMPT_VARIABLE_NAME = "negative_prompt";
 
@@ -36,6 +38,8 @@ interface PromptCardProps {
   renderDock?: ReactNode;
   recipe?: StoredVisualRecipe | null;
   v2PromptState?: V2PromptWorkspaceState | null;
+  provenanceSpans?: PromptProvenanceSpan[];
+  selectedFacetId?: EvidenceFacetId | null;
   onV2PromptStateChange?: (
     update: (current: V2PromptWorkspaceState) => V2PromptWorkspaceState,
   ) => void;
@@ -60,6 +64,8 @@ export function PromptCard({
   renderDock,
   recipe = null,
   v2PromptState = null,
+  provenanceSpans = [],
+  selectedFacetId = null,
   onV2PromptStateChange,
 }: PromptCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -88,7 +94,7 @@ export function PromptCard({
       {
         name: NEGATIVE_PROMPT_VARIABLE_NAME,
         defaultValue: negativePromptText,
-        label: "Negative Prompt",
+        label: "Negative constraints",
       },
     ],
     [negativePromptText],
@@ -101,8 +107,10 @@ export function PromptCard({
     [negativePromptText],
   );
   const structuredRecipe = isVisualRecipeV2Success(recipe) ? recipe : null;
-  const structuredSaveAllowed = !v2PromptState || ["concise", "standard", "professional", "custom"].includes(v2PromptState.outputMode);
-  const canSaveStyleMemory = prompt && onSaveTemplate && state !== "history_restored" && structuredSaveAllowed;
+  const selectedProvenanceSpan =
+    provenanceSpans.find((span) => span.facetId === selectedFacetId) ?? null;
+  const canSaveStyleMemory =
+    prompt && onSaveTemplate && state !== "history_restored";
   const showRenderDock = Boolean(renderDock) && !isExpanded;
 
   const handleAuxiliaryVariableChange = useCallback(
@@ -204,6 +212,8 @@ export function PromptCard({
                   state={v2PromptState}
                   compact={showRenderDock}
                   negativePromptText={negativePromptText}
+                  provenanceSpans={provenanceSpans}
+                  selectedProvenanceSpan={selectedProvenanceSpan}
                   onStateChange={onV2PromptStateChange}
                   onResolvedPromptChange={onResolvedPromptChange ?? (() => undefined)}
                   onTemplateVariablesChange={onTemplateVariablesChange}
@@ -221,6 +231,8 @@ export function PromptCard({
                 templateReason={templateReason}
                 templateKey={templateKey}
                 compact={showRenderDock}
+                provenanceSpans={provenanceSpans}
+                selectedProvenanceSpan={selectedProvenanceSpan}
                 onResolvedPromptChange={onResolvedPromptChange ?? (() => undefined)}
                 onTemplateContentChange={onTemplateContentChange}
                 onTemplateVariablesChange={onTemplateVariablesChange}
@@ -235,7 +247,7 @@ export function PromptCard({
             <div className="flex min-h-[16.25rem] flex-1 flex-col justify-center rounded-xl bg-[var(--surface-low)] p-6">
               <AppIcon icon={FileText} size={24} className="mb-4 text-[var(--accent-primary)]" />
               <p className="text-sm font-semibold text-[var(--text-primary)]">
-                Prompt provenance will appear here
+                Prompt will appear here
               </p>
               <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
                 {analysisError

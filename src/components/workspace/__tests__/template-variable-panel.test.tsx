@@ -47,5 +47,6 @@ describe("TemplateVariablePanel", () => {
 
     expect(screen.getByLabelText("Variable negative_prompt").tagName).toBe("TEXTAREA");
     expect(screen.getByLabelText("Variable negative_prompt")).toHaveValue("blurry");
+    expect(screen.getByLabelText("Variable negative_prompt")).toHaveAttribute("rows", "2");
   });
 });

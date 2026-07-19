@@ -27,7 +27,7 @@ export function getVisionProvider(): VisionProvider {
  * 默认跟随 VISION_PROVIDER，确保分析链路内的 LLM 调用与启用的 Provider 一致
  */
 export function getStructurerProvider(): StructurerProvider {
-  const provider = process.env.VISION_PROVIDER || 'replicate';
+  const provider = process.env.STRUCTURER_PROVIDER || process.env.VISION_PROVIDER || 'replicate';
   switch (provider) {
     case 'gemini':
       return new GeminiStructurerProvider();

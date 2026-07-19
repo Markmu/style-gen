@@ -34,14 +34,6 @@ function candidate(): VisualRecipeSemanticCandidate {
       { id: "noise", kind: "hard", dimension: "rendering", value: "invented unsupported detail", evidence: [], confidence: 0.99, sourceObservationIds: ["rendering_1"] },
       { id: "content-lock", kind: "hard", dimension: "composition", value: "amber bottle centered on folded linen", evidence: ["The bottle is centered"], confidence: 0.91, sourceObservationIds: ["composition_1"] },
     ],
-    contentVariables: [
-      { name: "subject", label: "Subject", defaultValue: "amber bottle", sourceField: "subject" },
-      { name: "environment", label: "Environment", defaultValue: "quiet studio table", sourceField: "environment" },
-    ],
-    optionalModifiers: [
-      { name: "mood", label: "Mood", defaultValue: "calm", dimension: "atmosphere", enabledByDefault: false },
-      { name: "primary_color", label: "Primary color", defaultValue: "warm amber", dimension: "color", enabledByDefault: false },
-    ],
     negativeConstraints: ["watermark", "distorted glass"],
     styleFingerprint: {
       tokens: ["editorial", "warm neutral", "soft window light"],
@@ -82,9 +74,93 @@ describe("normalizeVisualRecipeCandidate", () => {
     expect(result.recipe.extractionStatus).toBe("partial");
   });
 
-  it("returns a legal fallback envelope when the usable core is missing", () => {
+  it("derives variables and optional modifiers without model-owned derived fields", () => {
     const input = candidate();
-    input.contentVariables = [];
+    const result = normalizeVisualRecipeCandidate(input);
+
+    expect(result.kind).toBe("success");
+    if (result.kind !== "success") return;
+    expect(result.recipe.contentVariables).toEqual([
+      { name: "subject", label: "Subject", defaultValue: "amber bottle", sourceField: "subject" },
+      { name: "subject_attributes", label: "Subject attributes", defaultValue: "ribbed glass", sourceField: "subject_attributes" },
+      { name: "environment", label: "Environment", defaultValue: "quiet studio table", sourceField: "environment" },
+      { name: "supporting_elements", label: "Supporting elements", defaultValue: "folded linen", sourceField: "supporting_elements" },
+    ]);
+    expect(result.recipe.optionalModifiers).toEqual([
+      { name: "mood", label: "Mood", defaultValue: "calm restrained mood", dimension: "atmosphere", enabledByDefault: false },
+      { name: "primary_color", label: "Primary color", defaultValue: "warm amber and sand palette", dimension: "color", enabledByDefault: false },
+    ]);
+    expect(result.recipe.promptOutputs.standardTemplate).toContain("{{subject}}");
+  });
+
+  it("selects the highest-confidence observation for each optional modifier deterministically", () => {
+    const input = candidate();
+    input.styleProfile.atmosphere.push({
+      value: "energetic editorial mood",
+      evidence: ["Dynamic contrast creates energy"],
+      confidence: 0.91,
+    });
+    input.styleProfile.color.push({
+      value: "cool slate accent palette",
+      evidence: ["Slate accents repeat across the frame"],
+      confidence: 0.96,
+    });
+
+    const first = normalizeVisualRecipeCandidate(input);
+    const second = normalizeVisualRecipeCandidate(input);
+
+    expect(first).toEqual(second);
+    expect(first.kind).toBe("success");
+    if (first.kind !== "success") return;
+    expect(first.recipe.optionalModifiers).toMatchObject([
+      { name: "mood", defaultValue: "energetic editorial mood" },
+      { name: "primary_color", defaultValue: "cool slate accent palette" },
+    ]);
+  });
+
+  it("keeps valid style evidence partial when optional fingerprint and negative fields are missing", () => {
+    const input = candidate();
+    input.styleFingerprint.tokens = [];
+    input.negativeConstraints = [];
+
+    const result = normalizeVisualRecipeCandidate(input);
+
+    expect(result.kind).toBe("success");
+    if (result.kind !== "success") return;
+    expect(result.recipe.extractionStatus).toBe("partial");
+    expect(result.recipe.extractionReasons.join(" ")).toMatch(/fingerprint tokens/i);
+    expect(result.recipe.extractionReasons.join(" ")).toMatch(/negative constraints/i);
+  });
+
+  it("ignores deprecated derived fields and reports invalid negative constraint objects", () => {
+    const input = candidate() as unknown as Record<string, unknown>;
+    input.contentVariables = [
+      { name: "subject_character", sourceField: "subject", value: "amber bottle" },
+    ];
+    input.optionalModifiers = [
+      { name: "mood", sourceField: "atmosphere", value: "calm", enabledByDefault: false },
+      { name: "mood", sourceField: "atmosphere", value: "quiet", enabledByDefault: false },
+    ];
+    input.negativeConstraints = [
+      { kind: "soft", value: "no watermark" },
+    ];
+
+    const result = normalizeVisualRecipeCandidate(input);
+
+    expect(result.kind).toBe("success");
+    if (result.kind !== "success") return;
+    expect(result.recipe.contentVariables[0]).toMatchObject({
+      name: "subject",
+      defaultValue: "amber bottle",
+    });
+    expect(result.recipe.optionalModifiers.filter((item) => item.name === "mood")).toHaveLength(1);
+    expect(result.recipe.negativeConstraints).toEqual([]);
+    expect(result.recipe.extractionReasons.join(" ")).toMatch(/invalid negative constraint/i);
+  });
+
+  it("returns a legal fallback envelope when the usable content core is missing", () => {
+    const input = candidate();
+    input.contentDescription.summary = "";
     const result = normalizeVisualRecipeCandidate(input);
 
     expect(result).toMatchObject({
