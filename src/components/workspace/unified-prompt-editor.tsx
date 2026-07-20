@@ -9,6 +9,7 @@ import {
 import { TemplateModeEditor } from "@/components/workspace/template-mode-editor";
 import { TemplateVariablePanel } from "@/components/workspace/template-variable-panel";
 import { TextModeEditor } from "@/components/workspace/text-mode-editor";
+import { CopyJsonButton } from "@/components/ui/copy-json-button";
 import type { PromptProvenanceSpan } from "@/lib/prompt-provenance";
 import type {
   AnalysisTemplateStatus,
@@ -486,13 +487,10 @@ export function UnifiedPromptEditor({
                 </p>
               </div>
               <span className="flex shrink-0 items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => void navigator.clipboard?.writeText(jsonValue)}
+                <CopyJsonButton
+                  value={jsonValue}
                   className="btn-secondary rounded-lg px-2 py-1 text-[0.68rem] font-semibold"
-                >
-                  Copy JSON
-                </button>
+                />
                 <PromptModeSwitcher
                   mode={mode}
                   variableCount={variables.length}

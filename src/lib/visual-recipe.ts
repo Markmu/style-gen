@@ -39,6 +39,12 @@ export type NormalizedVisualRecipeResult =
       recipe: VisualRecipeV2Fallback;
     };
 
+export interface DescriptionRecipeJson {
+  contentDescription: Partial<ContentDescription>;
+  styleProfile: Partial<Record<StyleDimension, string[]>>;
+  negativeConstraints?: string[];
+}
+
 const DIMENSION_ID_PREFIX: Record<StyleDimension, string> = {
   visualMedium: "visual_medium",
   composition: "composition",
@@ -457,6 +463,53 @@ export function isVisualRecipeV2Success(recipe: StoredVisualRecipe | null | unde
 
 export function isLegacyVisualRecipe(recipe: StoredVisualRecipe | null | undefined): recipe is LegacyVisualRecipe {
   return Boolean(recipe && !isVisualRecipeV2(recipe) && "imageSummary" in recipe);
+}
+
+function hasDescription(value: string | undefined): value is string {
+  return Boolean(value?.trim());
+}
+
+function descriptionList(values: string[]) {
+  return values.filter(hasDescription);
+}
+
+export function toDescriptionRecipeJson(
+  recipe: VisualRecipeV2Success,
+): DescriptionRecipeJson {
+  const content = recipe.contentDescription;
+  const subjectAttributes = descriptionList(content.subjectAttributes);
+  const supportingElements = descriptionList(content.supportingElements);
+  const contentDescription: Partial<ContentDescription> = {
+    ...(hasDescription(content.summary) ? { summary: content.summary } : {}),
+    ...(hasDescription(content.subject) ? { subject: content.subject } : {}),
+    ...(subjectAttributes.length > 0 ? { subjectAttributes } : {}),
+    ...(hasDescription(content.actionOrState)
+      ? { actionOrState: content.actionOrState }
+      : {}),
+    ...(hasDescription(content.environment)
+      ? { environment: content.environment }
+      : {}),
+    ...(supportingElements.length > 0 ? { supportingElements } : {}),
+    ...(hasDescription(content.timeOrWeather)
+      ? { timeOrWeather: content.timeOrWeather }
+      : {}),
+  };
+  const styleProfile: Partial<Record<StyleDimension, string[]>> = {};
+
+  for (const dimension of STYLE_DIMENSIONS) {
+    const values = descriptionList(
+      recipe.styleProfile[dimension].map((observation) => observation.value),
+    );
+    if (values.length > 0) styleProfile[dimension] = values;
+  }
+
+  const negativeConstraints = descriptionList(recipe.negativeConstraints);
+
+  return {
+    contentDescription,
+    styleProfile,
+    ...(negativeConstraints.length > 0 ? { negativeConstraints } : {}),
+  };
 }
 
 function valuesFor(recipe: VisualRecipeV2Success, dimension: StyleDimension) {

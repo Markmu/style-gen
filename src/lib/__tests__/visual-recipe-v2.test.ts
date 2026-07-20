@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   normalizeVisualRecipeCandidate,
+  toDescriptionRecipeJson,
   type VisualRecipeSemanticCandidate,
 } from "@/lib/visual-recipe";
 import { deriveEvidenceFacets } from "@/lib/evidence-facets";
@@ -167,5 +168,75 @@ describe("normalizeVisualRecipeCandidate", () => {
       kind: "fallback",
       recipe: { schemaVersion: 2, extractionStatus: "fallback", promptOutputs: null },
     });
+  });
+});
+
+describe("toDescriptionRecipeJson", () => {
+  it("keeps only non-empty content, style values, and negative constraints", () => {
+    const result = normalizeVisualRecipeCandidate(candidate());
+
+    expect(result.kind).toBe("success");
+    if (result.kind !== "success") return;
+
+    expect(toDescriptionRecipeJson(result.recipe)).toEqual({
+      contentDescription: {
+        summary: "An amber bottle on folded linen",
+        subject: "amber bottle",
+        subjectAttributes: ["ribbed glass"],
+        environment: "quiet studio table",
+        supportingElements: ["folded linen"],
+      },
+      styleProfile: {
+        visualMedium: ["editorial product photography"],
+        composition: ["asymmetric thirds composition"],
+        camera: ["normal lens with shallow depth"],
+        color: ["warm amber and sand palette"],
+        lighting: ["soft directional window light"],
+        materialTexture: ["matte linen against polished glass"],
+        atmosphere: ["calm restrained mood"],
+        rendering: ["fine natural detail"],
+      },
+      negativeConstraints: ["watermark", "distorted glass"],
+    });
+  });
+
+  it("omits empty arrays and optional description fields", () => {
+    const result = normalizeVisualRecipeCandidate(candidate());
+
+    expect(result.kind).toBe("success");
+    if (result.kind !== "success") return;
+
+    const recipe = {
+      ...result.recipe,
+      contentDescription: {
+        ...result.recipe.contentDescription,
+        subject: "",
+        subjectAttributes: [],
+        supportingElements: [],
+      },
+      negativeConstraints: [],
+    };
+
+    expect(toDescriptionRecipeJson(recipe)).toMatchObject({
+      contentDescription: {
+        summary: "An amber bottle on folded linen",
+        environment: "quiet studio table",
+      },
+    });
+    expect(toDescriptionRecipeJson(recipe)).not.toHaveProperty(
+      "contentDescription.subject",
+    );
+    expect(toDescriptionRecipeJson(recipe)).not.toHaveProperty(
+      "contentDescription.subjectAttributes",
+    );
+    expect(toDescriptionRecipeJson(recipe)).not.toHaveProperty(
+      "contentDescription.supportingElements",
+    );
+    expect(toDescriptionRecipeJson(recipe)).not.toHaveProperty(
+      "styleProfile.formLanguage",
+    );
+    expect(toDescriptionRecipeJson(recipe)).not.toHaveProperty(
+      "negativeConstraints",
+    );
   });
 });

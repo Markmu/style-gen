@@ -152,7 +152,7 @@ describe("StructuredPromptEditor", () => {
     );
   });
 
-  it("keeps a full-text draft while JSON is inspected", () => {
+  it("keeps a full-text draft isolated while description JSON is inspected", () => {
     const onResolved = vi.fn();
     render(<Harness onResolved={onResolved} />);
 
@@ -164,9 +164,22 @@ describe("StructuredPromptEditor", () => {
     fireEvent.change(screen.getByLabelText("Prompt mode"), {
       target: { value: "json" },
     });
-    expect(screen.getByTestId("structured-json-output")).toHaveTextContent(
-      "hand tuned prompt",
-    );
+    const jsonOutput = screen.getByTestId("structured-json-output");
+    expect(JSON.parse(jsonOutput.textContent ?? "")).toEqual({
+      contentDescription: {
+        summary: "A blue chair",
+        subject: "blue chair",
+      },
+      styleProfile: {
+        visualMedium: ["editorial photography"],
+        composition: ["centered composition"],
+        color: ["cobalt blue palette"],
+      },
+      negativeConstraints: ["watermark"],
+    });
+    expect(jsonOutput).not.toHaveTextContent("hand tuned prompt");
+    expect(jsonOutput).not.toHaveTextContent("confidence");
+    expect(jsonOutput).not.toHaveTextContent("workspace");
     expect(onResolved).toHaveBeenLastCalledWith("hand tuned prompt");
 
     fireEvent.change(screen.getByLabelText("Prompt mode"), {
@@ -174,6 +187,27 @@ describe("StructuredPromptEditor", () => {
     });
     expect(screen.getByLabelText("Full Generation Prompt")).toHaveValue(
       "hand tuned prompt",
+    );
+  });
+
+  it("shows a success toast after copying JSON", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+
+    render(<Harness />);
+
+    fireEvent.change(screen.getByLabelText("Prompt mode"), {
+      target: { value: "json" },
+    });
+    const jsonOutput = screen.getByTestId("structured-json-output");
+    fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+
+    expect(writeText).toHaveBeenCalledWith(jsonOutput.textContent);
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Copied successfully",
     );
   });
 

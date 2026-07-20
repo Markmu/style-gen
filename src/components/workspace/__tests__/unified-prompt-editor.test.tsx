@@ -55,6 +55,32 @@ describe("UnifiedPromptEditor", () => {
     expect(screen.getByLabelText("Full Generation Prompt")).toHaveValue("initial prompt");
   });
 
+  it("shows a success toast after copying JSON", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+
+    render(
+      <UnifiedPromptEditor
+        initialPromptText="initial prompt"
+        onResolvedPromptChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Prompt mode"), {
+      target: { value: "json" },
+    });
+    const jsonOutput = screen.getByTestId("prompt-json-output");
+    fireEvent.click(screen.getByRole("button", { name: "Copy JSON" }));
+
+    expect(writeText).toHaveBeenCalledWith(jsonOutput.textContent);
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Copied successfully",
+    );
+  });
+
   it("renders template variables outside the template body and resolves them", async () => {
     const user = userEvent.setup();
     const onResolvedPromptChange = vi.fn();

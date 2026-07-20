@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Braces, Copy, FileText, SlidersHorizontal } from "lucide-react";
+import { Braces, FileText, SlidersHorizontal } from "lucide-react";
 import { AppIcon } from "@/components/ui/app-icon";
+import { CopyJsonButton } from "@/components/ui/copy-json-button";
 import { PromptHighlightedEditor } from "@/components/workspace/prompt-highlighted-editor";
 import type {
   TemplateVariable,
@@ -13,7 +14,10 @@ import {
   composePromptOutputs,
   getPromptTemplateVariables,
 } from "@/lib/prompt-composer";
-import { renderPromptTemplate } from "@/lib/visual-recipe";
+import {
+  renderPromptTemplate,
+  toDescriptionRecipeJson,
+} from "@/lib/visual-recipe";
 import type { PromptProvenanceSpan } from "@/lib/prompt-provenance";
 import {
   reconcileLinkedTextVariableEdit,
@@ -128,35 +132,8 @@ export function StructuredPromptEditor({
   const renderablePrompt =
     state.outputMode === "custom" ? state.customPrompt : resolvedTemplate;
   const jsonValue = useMemo(
-    () =>
-      JSON.stringify(
-        {
-          recipe,
-          workspace: {
-            variableValues: state.variableValues,
-            enabledInvariantIds: state.enabledInvariantIds,
-            enabledModifiers: state.enabledModifierNames,
-            modifierValues: state.modifierValues,
-            negativeConstraints: splitConstraints(negativePromptText),
-          },
-          prompt: {
-            template,
-            resolved: renderablePrompt,
-          },
-        },
-        null,
-        2,
-      ),
-    [
-      negativePromptText,
-      recipe,
-      renderablePrompt,
-      state.enabledInvariantIds,
-      state.enabledModifierNames,
-      state.modifierValues,
-      state.variableValues,
-      template,
-    ],
+    () => JSON.stringify(toDescriptionRecipeJson(recipe), null, 2),
+    [recipe],
   );
 
   useEffect(() => {
@@ -451,14 +428,12 @@ export function StructuredPromptEditor({
                 Recipe JSON
               </span>
               <span className="flex shrink-0 items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => void navigator.clipboard?.writeText(jsonValue)}
+                <CopyJsonButton
+                  value={jsonValue}
+                  label="Copy"
+                  showIcon
                   className="btn-secondary inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[0.68rem] font-semibold"
-                >
-                  <AppIcon icon={Copy} size={13} />
-                  Copy
-                </button>
+                />
                 <PromptModeSelect
                   mode={mode}
                   variableCount={templateVariables.length}
