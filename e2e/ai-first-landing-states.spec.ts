@@ -150,7 +150,8 @@ test.describe('plan-07 Landing / Auth / global states closure', () => {
     })
     const referenceCard = workspaceReferenceCard(page)
     await expect(referenceCard).toHaveCount(1)
-    await expect(referenceCard.first()).toContainText(/reading|analyzing|style/i)
+    await expect(referenceCard.first().getByAltText('Reference')).toBeVisible()
+    await expect(referenceCard.first().getByLabel('Reference analysis loading')).toHaveCount(0)
 
     expect(apiRequests.map((request) => request.kind)).toEqual([
       '/api/upload/presign',

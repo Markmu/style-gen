@@ -2,24 +2,6 @@
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ReferenceCard } from "@/components/workspace/reference-card";
-import { deriveEvidenceFacets } from "@/lib/evidence-facets";
-import type { VisualRecipe } from "@/types/models";
-
-const mockRecipe: VisualRecipe = {
-  imageSummary: "A serene landscape",
-  subject: "Mountain range",
-  scene: "Alpine meadow",
-  composition: "Rule of thirds",
-  cameraLanguage: "Wide angle",
-  lighting: "Golden hour",
-  color: "Warm palette",
-  texture: "Soft clouds",
-  styleTags: ["landscape", "nature"],
-  mood: "Peaceful",
-  visualKeywords: ["mountain", "meadow"],
-  mustKeep: ["golden light"],
-  replaceable: ["specific flowers"],
-};
 
 const defaultProps = {
   state: "idle" as const,
@@ -49,8 +31,7 @@ describe("ReferenceCard", () => {
     expect(screen.getByText("composition")).toBeInTheDocument();
   });
 
-  it("renders evidence anchors and selected state on the reference image", async () => {
-    const facets = deriveEvidenceFacets(mockRecipe);
+  it("lets the reference image cover the available canvas", async () => {
     const onAspectRatioChange = vi.fn();
 
     render(
@@ -58,28 +39,20 @@ describe("ReferenceCard", () => {
         {...defaultProps}
         state="analysis_ready"
         referenceImageUrl="https://cdn.example.com/reference.png"
-        recipe={mockRecipe}
-        facets={facets}
-        selectedFacetId="lighting"
         onAspectRatioChange={onAspectRatioChange}
       />,
     );
 
     expect(screen.getByTestId("reference-image-stage")).toHaveClass(
-      "h-[clamp(18rem,48dvh,32rem)]",
-      "min-h-[18rem]",
-      "max-h-[32rem]",
-      "max-w-full",
+      "min-h-0",
+      "flex-1",
       "overflow-hidden",
     );
-    expect(screen.getByTestId("reference-image-stage")).toHaveStyle({
-      aspectRatio: "0.8",
-    });
     expect(screen.getByAltText("Reference")).toHaveClass(
-      "object-contain",
+      "object-cover",
       "object-center",
     );
-    expect(screen.getByAltText("Reference")).not.toHaveClass("object-cover");
+    expect(screen.getByAltText("Reference")).not.toHaveClass("object-contain");
     Object.defineProperty(screen.getByAltText("Reference"), "naturalWidth", {
       configurable: true,
       value: 1600,
@@ -89,14 +62,22 @@ describe("ReferenceCard", () => {
       value: 1000,
     });
     fireEvent.load(screen.getByAltText("Reference"));
-    expect(screen.getByTestId("reference-image-stage")).toHaveStyle({
-      aspectRatio: "1.6",
-    });
-    await waitFor(() =>
-      expect(onAspectRatioChange).toHaveBeenCalledWith(1.6),
+    await waitFor(() => expect(onAspectRatioChange).toHaveBeenCalledWith(1.6));
+  });
+
+  it("keeps analysis progress and detected content out of the reference canvas", () => {
+    render(
+      <ReferenceCard
+        {...defaultProps}
+        state="analyzing"
+        referenceImageUrl="https://cdn.example.com/reference.png"
+      />,
     );
-    expect(screen.getByTestId("reference-anchor-color")).toHaveAttribute("data-selected", "false");
-    expect(screen.getByTestId("reference-anchor-lighting")).toHaveAttribute("data-selected", "true");
+
+    expect(screen.queryByLabelText("Reference analysis loading")).not.toBeInTheDocument();
+    expect(screen.queryByText("Detected palette")).not.toBeInTheDocument();
+    expect(screen.queryByText("View overlays")).not.toBeInTheDocument();
+    expect(screen.queryByText("Analysis Match")).not.toBeInTheDocument();
   });
 
   it("keeps recovery actions visible when analysis fails after upload", () => {

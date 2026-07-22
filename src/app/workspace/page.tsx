@@ -713,17 +713,11 @@ function WorkspacePageInner() {
                   isEvidencePreview ? false : isUploading || ws.state === "uploading"
                 }
                 uploadProgress={isEvidencePreview ? 0 : progress}
-                recipe={effectiveLegacyRecipe}
-                facets={hasStructuredRecipe ? [] : evidenceFacets}
-                selectedFacetId={selectedFacetId}
                 error={ws.error}
-                degradation={effectiveDegradation}
                 onFileSelected={handleFileSelected}
                 onReplace={handleReplace}
                 onRetry={handleAnalysisRetry}
-                onFacetSelect={setSelectedFacetId}
                 onAspectRatioChange={setReferenceAspectRatio}
-                showSpatialEvidence={!hasStructuredRecipe}
               />
             }
             recipe={
