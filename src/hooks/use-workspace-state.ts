@@ -319,7 +319,11 @@ export interface WorkspaceActions {
     recipe: StoredVisualRecipe | null,
     promptSnapshot: string,
     negativePromptSnapshot: string,
-    analysisTaskId: string
+    analysisTaskId: string,
+    source?: {
+      sourceAssetId: string | null;
+      sourceImageUrl: string | null;
+    },
   ) => void;
   exitHistoryRestored: () => void;
 }
@@ -544,11 +548,17 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
       recipe: StoredVisualRecipe | null,
       promptSnapshot: string,
       negativePromptSnapshot: string,
-      analysisTaskId: string
+      analysisTaskId: string,
+      source?: {
+        sourceAssetId: string | null;
+        sourceImageUrl: string | null;
+      },
     ) => {
       setCtx((prev) => ({
         ...prev,
         state: "history_restored",
+        assetId: source?.sourceAssetId ?? prev.assetId,
+        referenceImageUrl: source?.sourceImageUrl ?? prev.referenceImageUrl,
         resultImageUrl: resultFileUrl,
         recipe,
         promptText: promptSnapshot,

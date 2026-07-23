@@ -67,6 +67,10 @@ function styleIntelligence(page: Page) {
     .getByTestId('recipe-card')
 }
 
+function referenceCanvas(page: Page) {
+  return appShell(page).getByRole('region', { name: 'Reference Canvas column' })
+}
+
 async function mockCdnImages(page: Page) {
   await page.route('https://cdn.example.com/**', async (route) => {
     if (
@@ -236,6 +240,10 @@ test.describe('plan-05 Iteration Memory and Save Style Memory entry', () => {
 
     await restoreHistoryToWorkspace(page)
 
+    await expect(referenceCanvas(page).getByRole('img', { name: 'Reference' })).toHaveAttribute(
+      'src',
+      restoredSourceImageUrl,
+    )
     await expect(promptCard(page)).toContainText(restoredPrompt)
     await expect(styleIntelligence(page).getByTestId('evidence-facet-lighting')).toBeVisible()
     await expect(renderDock(page).getByLabel(/Aspect Ratio/i)).toHaveValue('16:9')

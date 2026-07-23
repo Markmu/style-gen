@@ -788,4 +788,65 @@ describe("useWorkspaceState", () => {
       retryable: true,
     });
   });
+
+  it("历史恢复写入并持久化对应的 source asset 和 image", () => {
+    const { result, unmount } = renderHook(() => useWorkspaceState());
+
+    act(() => {
+      result.current.enterHistoryRestored(
+        "https://cdn.example.com/generated/result.webp",
+        mockRecipe,
+        "restored prompt",
+        "restored negative prompt",
+        "restored-analysis-task",
+        {
+          sourceAssetId: "restored-source-asset",
+          sourceImageUrl:
+            "https://cdn.example.com/references/restored-source-asset/original.png",
+        },
+      );
+    });
+
+    expect(result.current.state).toBe("history_restored");
+    expect(result.current.assetId).toBe("restored-source-asset");
+    expect(result.current.referenceImageUrl).toBe(
+      "https://cdn.example.com/references/restored-source-asset/original.png",
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    unmount();
+
+    const restored = renderHook(() => useWorkspaceState());
+    expect(restored.result.current.assetId).toBe("restored-source-asset");
+    expect(restored.result.current.referenceImageUrl).toBe(
+      "https://cdn.example.com/references/restored-source-asset/original.png",
+    );
+  });
+
+  it("旧历史缺少 source image 时不会把生成结果图用作参考图", () => {
+    const { result } = renderHook(() => useWorkspaceState());
+
+    act(() => {
+      result.current.completeUpload(
+        "current-source-asset",
+        "https://cdn.example.com/references/current-source/original.png",
+      );
+    });
+    act(() => {
+      result.current.enterHistoryRestored(
+        "https://cdn.example.com/generated/history-result.webp",
+        mockRecipe,
+        "restored prompt",
+        "",
+        "legacy-analysis-task",
+      );
+    });
+
+    expect(result.current.referenceImageUrl).toBe(
+      "https://cdn.example.com/references/current-source/original.png",
+    );
+    expect(result.current.referenceImageUrl).not.toBe(result.current.resultImageUrl);
+  });
 });

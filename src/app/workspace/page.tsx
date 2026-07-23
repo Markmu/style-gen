@@ -412,12 +412,15 @@ function WorkspacePageInner() {
   const applyHistoryRestore = useCallback(
     (restoredData: RestoredData | HistoryDetail) => {
       const restoredVariables = restoredData.variables ?? [];
+      const restoredSourceAssetId = restoredData.sourceAssetId ?? ws.assetId;
+      const restoredSourceImageUrl =
+        restoredData.sourceImageUrl ?? ws.referenceImageUrl;
       setResolvedPromptText(restoredData.promptSnapshot);
       setCurrentTemplateVariables(restoredVariables);
       setRestoredSourceContext({
         sourceAnalysisTaskId: restoredData.analysisTaskId,
-        sourceAssetId: restoredData.sourceAssetId ?? ws.assetId,
-        sourceImageUrl: restoredData.sourceImageUrl ?? ws.referenceImageUrl,
+        sourceAssetId: restoredSourceAssetId,
+        sourceImageUrl: restoredSourceImageUrl,
         variables: restoredVariables,
       });
       setGenerationParams({
@@ -430,6 +433,10 @@ function WorkspacePageInner() {
         restoredData.promptSnapshot,
         restoredData.negativePromptSnapshot,
         restoredData.analysisTaskId,
+        {
+          sourceAssetId: restoredSourceAssetId,
+          sourceImageUrl: restoredSourceImageUrl,
+        },
       );
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -502,7 +509,7 @@ function WorkspacePageInner() {
   const effectiveState = isEvidencePreview ? ("analysis_ready" as const) : ws.state;
   const effectiveReferenceImageUrl = isEvidencePreview
     ? previewReferenceImageUrl
-    : restoredSourceContext?.sourceImageUrl ?? ws.referenceImageUrl;
+    : ws.referenceImageUrl;
   const effectiveRecipe = isEvidencePreview ? previewRecipe : ws.recipe;
   const effectiveLegacyRecipe = toLegacyVisualRecipe(effectiveRecipe);
   const hasStructuredRecipe = isVisualRecipeV2Success(effectiveRecipe);
