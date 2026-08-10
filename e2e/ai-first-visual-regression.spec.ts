@@ -131,26 +131,27 @@ async function expectPageNonEmpty(page: Page) {
   await expect(appShell(page)).toBeVisible({ timeout: 15000 })
   await expect(page.locator('main')).toBeVisible()
 
-  const stats = await appShell(page).evaluate((shell) => {
-    const textLength = (shell.textContent ?? '').replace(/\s+/g, ' ').trim().length
-    const visibleElements = Array.from(shell.querySelectorAll('*')).filter((element) => {
-      const rect = element.getBoundingClientRect()
-      const style = window.getComputedStyle(element)
+  const readPageStats = () =>
+    appShell(page).evaluate((shell) => {
+      const textLength = (shell.textContent ?? '').replace(/\s+/g, ' ').trim().length
+      const visibleElements = Array.from(shell.querySelectorAll('*')).filter((element) => {
+        const rect = element.getBoundingClientRect()
+        const style = window.getComputedStyle(element)
 
-      return (
-        rect.width > 1 &&
-        rect.height > 1 &&
-        style.visibility !== 'hidden' &&
-        style.display !== 'none' &&
-        Number(style.opacity) > 0
-      )
-    }).length
+        return (
+          rect.width > 1 &&
+          rect.height > 1 &&
+          style.visibility !== 'hidden' &&
+          style.display !== 'none' &&
+          Number(style.opacity) > 0
+        )
+      }).length
 
-    return { textLength, visibleElements }
-  })
+      return { textLength, visibleElements }
+    })
 
-  expect(stats.textLength).toBeGreaterThan(80)
-  expect(stats.visibleElements).toBeGreaterThan(8)
+  await expect.poll(async () => (await readPageStats()).textLength).toBeGreaterThan(80)
+  await expect.poll(async () => (await readPageStats()).visibleElements).toBeGreaterThan(8)
 }
 
 async function expectButtonsDoNotOverflow(root: Locator) {

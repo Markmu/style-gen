@@ -36,7 +36,7 @@ describe("LeftSidebar", () => {
     vi.clearAllMocks();
   });
 
-  it("renders the fixed workbench navigation and preview shell data", () => {
+  it("renders the fixed workbench navigation without preview workspace data", () => {
     render(<LeftSidebar />);
 
     const sidebar = screen.getByLabelText("Workspace navigation");
@@ -53,14 +53,11 @@ describe("LeftSidebar", () => {
     expect(library).toHaveTextContent("Library");
     expect(library).toHaveAttribute("href", "/workspace/templates");
 
-    expect(screen.getByText("Recent Workspaces")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Editorial Soft Light" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
-    expect(screen.getByText("Warm Minimal")).toBeInTheDocument();
-    expect(screen.getByText("Film Street Mood")).toBeInTheDocument();
-    expect(screen.getByText("Product Clean")).toBeInTheDocument();
+    expect(screen.queryByText("Recent Workspaces")).not.toBeInTheDocument();
+    expect(screen.queryByText("Editorial Soft Light")).not.toBeInTheDocument();
+    expect(screen.queryByText("Warm Minimal")).not.toBeInTheDocument();
+    expect(screen.queryByText("Film Street Mood")).not.toBeInTheDocument();
+    expect(screen.queryByText("Product Clean")).not.toBeInTheDocument();
 
     expect(screen.getByText("Pro Plan")).toBeInTheDocument();
     expect(screen.getByText("3,240 / 10,000 credits")).toBeInTheDocument();

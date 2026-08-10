@@ -567,55 +567,11 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .workspace-sidebar-nav-item:focus-visible,
-.workspace-sidebar-recent-row:focus-visible,
 .workspace-sidebar-user:focus-visible,
 .workspace-sidebar-icon-button:focus-visible,
 .workspace-top-bar-icon-button:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
-}
-
-.workspace-sidebar-recents {
-  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--border-static) 70%, transparent);
-  padding-top: 1.75rem;
-}
-
-.workspace-sidebar-recent-row {
-  color: var(--text-secondary);
-  transition:
-    background-color 0.15s ease,
-    color 0.15s ease,
-    box-shadow 0.15s ease;
-}
-
-.workspace-sidebar-recent-row:hover {
-  background: color-mix(in oklch, var(--surface-bright) 76%, var(--surface-low) 24%);
-  color: var(--text-primary);
-}
-
-.workspace-sidebar-recent-row[data-active="true"] {
-  background:
-    linear-gradient(
-      135deg,
-      color-mix(in oklch, var(--surface-bright) 66%, var(--accent-primary-soft) 34%),
-      color-mix(in oklch, var(--surface-control) 84%, var(--accent-primary-soft) 16%)
-    );
-  color: var(--text-primary);
-  box-shadow: inset 0 1px 0 oklch(99.5% 0.006 245 / 0.5);
-}
-
-.workspace-sidebar-recent-dot {
-  width: 0.625rem;
-  height: 0.625rem;
-  flex-shrink: 0;
-  border-radius: 9999px;
-  background: color-mix(in oklch, var(--text-muted) 32%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--text-muted) 28%, transparent);
-}
-
-.workspace-sidebar-recent-row[data-active="true"] .workspace-sidebar-recent-dot {
-  background: color-mix(in oklch, var(--accent-primary) 50%, var(--accent-primary-soft) 50%);
-  box-shadow: none;
 }
 
 .workspace-sidebar-plan {

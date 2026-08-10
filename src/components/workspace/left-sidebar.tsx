@@ -28,13 +28,6 @@ const navItems = [
   },
 ] as const;
 
-const recentWorkspaces = [
-  { label: "Editorial Soft Light", active: true },
-  { label: "Warm Minimal", active: false },
-  { label: "Film Street Mood", active: false },
-  { label: "Product Clean", active: false },
-] as const;
-
 const creditsPreview = {
   plan: "Pro Plan",
   used: 3240,
@@ -127,32 +120,6 @@ export function LeftSidebar() {
           );
         })}
       </nav>
-
-      <section
-        className="workspace-sidebar-recents mt-9"
-        aria-labelledby="recent-workspaces-heading"
-      >
-        <h2
-          id="recent-workspaces-heading"
-          className="px-2 text-[0.6875rem] font-bold uppercase text-[var(--text-muted)]"
-        >
-          Recent Workspaces
-        </h2>
-        <div className="mt-3 space-y-1.5">
-          {recentWorkspaces.map((workspace) => (
-            <button
-              key={workspace.label}
-              type="button"
-              data-active={workspace.active}
-              aria-current={workspace.active ? "page" : undefined}
-              className="workspace-sidebar-recent-row flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm"
-            >
-              <span className="workspace-sidebar-recent-dot" aria-hidden="true" />
-              <span className="min-w-0 truncate">{workspace.label}</span>
-            </button>
-          ))}
-        </div>
-      </section>
 
       <div className="mt-auto space-y-2">
         <section className="workspace-sidebar-plan rounded-lg px-3 py-3">
