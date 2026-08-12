@@ -1,0 +1,163 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e4]:
+    - complementary "Workspace navigation" [ref=f1e5]:
+      - link "Visoryn home" [ref=f1e7] [cursor=pointer]:
+        - /url: /
+        - generic [ref=f1e10]: Visoryn
+      - navigation "Workspace primary navigation" [ref=f1e11]:
+        - link "Generate" [ref=f1e12] [cursor=pointer]:
+          - /url: /workspace
+        - link "Style Memory Library" [ref=f1e17] [cursor=pointer]:
+          - /url: /workspace/templates
+          - generic [ref=f1e22]: Library
+      - generic [ref=f1e23]:
+        - generic [ref=f1e24]:
+          - paragraph [ref=f1e25]: Pro Plan
+          - paragraph [ref=f1e26]: 3,240 / 10,000 credits
+        - button "User menu" [ref=f1e30]:
+          - generic [ref=f1e31]: V
+          - generic [ref=f1e33]:
+            - generic [ref=f1e34]: Visual QA
+            - generic [ref=f1e35]: qa@example.com
+    - main "Workspace content" [ref=f1e38]:
+      - generic [ref=f1e39]:
+        - generic [ref=f1e41]:
+          - generic [ref=f1e42]:
+            - heading "Style Memory" [level=1] [ref=f1e43]
+            - paragraph [ref=f1e44]: Keep visual directions you trust, then reuse them with a new subject or scene.
+          - button "Open Workspace" [ref=f1e45]
+        - region "Style Memory search" [ref=f1e48]:
+          - generic [ref=f1e49]:
+            - generic [ref=f1e50]:
+              - generic [ref=f1e51]: Search Style Memory
+              - textbox "Search Style Memory" [ref=f1e55]:
+                - /placeholder: Search by name, style, or source
+            - paragraph [ref=f1e56]: 6 memories
+        - generic [ref=f1e59]:
+          - article [ref=f1e60]:
+            - button "More actions" [ref=f1e62]
+            - generic [ref=f1e68]:
+              - generic [ref=f1e76]: No source preview
+              - paragraph [ref=f1e77]: Prompt structure remains reusable.
+            - generic [ref=f1e78]:
+              - generic [ref=f1e79]:
+                - heading "Editorial Soft Light" [level=3] [ref=f1e80]
+                - paragraph [ref=f1e81]: Prompt-only · 2 variables
+              - generic [ref=f1e82]:
+                - paragraph [ref=f1e83]: Style tags
+                - generic [ref=f1e84]:
+                  - generic [ref=f1e85]: Variable structure
+                  - generic [ref=f1e86]: Editorial
+                  - generic [ref=f1e87]: Soft light
+                  - generic "1 more style tags" [ref=f1e88]: "+1"
+              - generic [ref=f1e89]:
+                - generic [ref=f1e90]:
+                  - paragraph [ref=f1e91]: Reuse intent
+                  - paragraph [ref=f1e92]: Prompt-only memory; reuse the prompt structure directly.
+                - button "Use memory" [ref=f1e93]
+          - article [ref=f1e97]:
+            - button "More actions" [ref=f1e99]
+            - generic [ref=f1e105]:
+              - generic [ref=f1e113]: No source preview
+              - paragraph [ref=f1e114]: Prompt structure remains reusable.
+            - generic [ref=f1e115]:
+              - generic [ref=f1e116]:
+                - heading "Quiet Product Macro" [level=3] [ref=f1e117]
+                - paragraph [ref=f1e118]: Prompt-only · 3 variables
+              - generic [ref=f1e119]:
+                - paragraph [ref=f1e120]: Style tags
+                - generic [ref=f1e121]:
+                  - generic [ref=f1e122]: Variable structure
+                  - generic [ref=f1e123]: Macro
+                  - generic [ref=f1e124]: Product
+                  - generic "1 more style tags" [ref=f1e125]: "+1"
+              - generic [ref=f1e126]:
+                - generic [ref=f1e127]:
+                  - paragraph [ref=f1e128]: Reuse intent
+                  - paragraph [ref=f1e129]: Prompt-only memory; reuse the prompt structure directly.
+                - button "Use memory" [ref=f1e130]
+          - article [ref=f1e134]:
+            - button "More actions" [ref=f1e136]
+            - generic [ref=f1e142]:
+              - generic [ref=f1e150]: No source preview
+              - paragraph [ref=f1e151]: Prompt structure remains reusable.
+            - generic [ref=f1e152]:
+              - generic [ref=f1e153]:
+                - heading "Mineral Blue Studio" [level=3] [ref=f1e154]
+                - paragraph [ref=f1e155]: Prompt-only · 1 variable
+              - generic [ref=f1e156]:
+                - paragraph [ref=f1e157]: Style tags
+                - generic [ref=f1e158]:
+                  - generic [ref=f1e159]: Variable structure
+                  - generic [ref=f1e160]: Studio
+                  - generic [ref=f1e161]: Mineral
+                  - generic "1 more style tags" [ref=f1e162]: "+1"
+              - generic [ref=f1e163]:
+                - generic [ref=f1e164]:
+                  - paragraph [ref=f1e165]: Reuse intent
+                  - paragraph [ref=f1e166]: Prompt-only memory; reuse the prompt structure directly.
+                - button "Use memory" [ref=f1e167]
+          - article [ref=f1e171]:
+            - button "More actions" [ref=f1e173]
+            - generic [ref=f1e179]:
+              - generic [ref=f1e187]: No source preview
+              - paragraph [ref=f1e188]: Prompt structure remains reusable.
+            - generic [ref=f1e189]:
+              - generic [ref=f1e190]:
+                - heading "Warm Paper Editorial" [level=3] [ref=f1e191]
+                - paragraph [ref=f1e192]: Prompt-only · 4 variables
+              - generic [ref=f1e193]:
+                - paragraph [ref=f1e194]: Style tags
+                - generic [ref=f1e195]:
+                  - generic [ref=f1e196]: Variable structure
+                  - generic [ref=f1e197]: Editorial
+                  - generic [ref=f1e198]: Warm
+                  - generic "1 more style tags" [ref=f1e199]: "+1"
+              - generic [ref=f1e200]:
+                - generic [ref=f1e201]:
+                  - paragraph [ref=f1e202]: Reuse intent
+                  - paragraph [ref=f1e203]: Prompt-only memory; reuse the prompt structure directly.
+                - button "Use memory" [ref=f1e204]
+          - article [ref=f1e208]:
+            - button "More actions" [ref=f1e210]
+            - generic [ref=f1e216]:
+              - generic [ref=f1e224]: No source preview
+              - paragraph [ref=f1e225]: Prompt structure remains reusable.
+            - generic [ref=f1e226]:
+              - generic [ref=f1e227]:
+                - heading "Translucent Still Life" [level=3] [ref=f1e228]
+                - paragraph [ref=f1e229]: Prompt-only · 2 variables
+              - generic [ref=f1e230]:
+                - paragraph [ref=f1e231]: Style tags
+                - generic [ref=f1e232]:
+                  - generic [ref=f1e233]: Variable structure
+                  - generic [ref=f1e234]: Glass
+                  - generic [ref=f1e235]: Translucent
+                  - generic "1 more style tags" [ref=f1e236]: "+1"
+              - generic [ref=f1e237]:
+                - generic [ref=f1e238]:
+                  - paragraph [ref=f1e239]: Reuse intent
+                  - paragraph [ref=f1e240]: Prompt-only memory; reuse the prompt structure directly.
+                - button "Use memory" [ref=f1e241]
+          - article [ref=f1e245]:
+            - button "More actions" [ref=f1e247]
+            - generic [ref=f1e253]:
+              - generic [ref=f1e261]: No source preview
+              - paragraph [ref=f1e262]: Prompt structure remains reusable.
+            - generic [ref=f1e263]:
+              - generic [ref=f1e264]:
+                - heading "Graphite Architecture" [level=3] [ref=f1e265]
+                - paragraph [ref=f1e266]: Prompt-only · 0 variables
+              - generic [ref=f1e267]:
+                - paragraph [ref=f1e268]: Style tags
+                - generic [ref=f1e269]:
+                  - generic [ref=f1e270]: Fixed prompt
+                  - generic [ref=f1e271]: Graphite
+                  - generic [ref=f1e272]: Architecture
+              - generic [ref=f1e273]:
+                - generic [ref=f1e274]:
+                  - paragraph [ref=f1e275]: Reuse intent
+                  - paragraph [ref=f1e276]: Prompt-only memory; reuse the prompt structure directly.
+                - button "Use memory" [ref=f1e277]
+  - button "Open Next.js Dev Tools" [ref=f1e286] [cursor=pointer]
+  - alert [ref=f1e290]

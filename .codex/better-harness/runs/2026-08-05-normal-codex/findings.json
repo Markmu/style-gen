@@ -1,0 +1,694 @@
+{
+  "summary": {
+    "projectName": "style-gen",
+    "locale": "zh-CN",
+    "modelId": "agent-work-loop-v4",
+    "reportContractVersion": 25,
+    "overview": "仓库已具备清晰的 owner 导航、分层验证命令、工作流 Skills 与 CI 门禁；主要缺口是这些机制尚未稳定绑定到最终编辑、失败修复与验收结果。优先应先建立最终状态验证绑定、失败诊断—修复—复验门禁，并关闭 workflow_type 的 fail-open 路径。",
+    "dimensions": [
+      {
+        "id": "task-understanding",
+        "label": "任务理解",
+        "score": 57,
+        "summary": "静态 owner 与验收入口较清晰，但执行中新增约束没有可核验地进入最终证据，且部分工作流规则互相冲突。",
+        "findingRefs": [
+          "acceptance-delta-trace",
+          "workflow-type-fail-open",
+          "red-e2e-state-timing-conflict"
+        ]
+      },
+      {
+        "id": "controlled-execution",
+        "label": "可控执行",
+        "score": 58,
+        "summary": "启动、验证和数据库命令可发现，但 doctor 的 profile 语义与破坏性 reset 的边界仍不够明确。",
+        "findingRefs": [
+          "doctor-profile-success-semantics",
+          "database-reset-safety-boundary"
+        ]
+      },
+      {
+        "id": "change-validation",
+        "label": "改动验证",
+        "score": 46,
+        "summary": "检查行为频繁出现，却没有 reviewed relevant check 证明其覆盖最后一次修改；一次失败链和一次 green-E2E 变更均未闭环。",
+        "findingRefs": [
+          "final-change-validation-binding",
+          "failure-repair-revalidation-chain"
+        ]
+      },
+      {
+        "id": "reliable-delivery",
+        "label": "可靠交付",
+        "score": 42,
+        "summary": "本窗口没有修订绑定的交付验收证据，且 plan-task 的 E2E 证据存在两套裁决口径。",
+        "findingRefs": [
+          "plan-e2e-evidence-acceptance-conflict"
+        ]
+      },
+      {
+        "id": "learning-capture",
+        "label": "经验沉淀",
+        "score": 35,
+        "summary": "重复工作扫描缺少 requestRoots 与 candidateRef，无法可靠区分可沉淀流程、一次性摩擦或已被现有 Skills 覆盖的需求。",
+        "findingRefs": [
+          "repeated-workflow-evidence-gap"
+        ]
+      }
+    ],
+    "evidenceMode": "session-rich",
+    "evidenceBoundary": {
+      "manifest": {
+        "schemaVersion": 2,
+        "sourceFingerprint": "0c920c9d9ef3ae36",
+        "adapterVersion": "codex-task-loop-source-v2",
+        "platform": "codex",
+        "selection": {
+          "strategy": "all-eligible",
+          "eligibleCount": 20,
+          "analyzedCount": 20,
+          "confidence": "High"
+        }
+      },
+      "episodeCoverage": {
+        "episodeCount": 113,
+        "editedEpisodeCount": 99,
+        "closedEpisodeCount": 0,
+        "recoveredEpisodeCount": 0
+      },
+      "deliveryEvidenceLevels": [],
+      "sourceGaps": []
+    },
+    "semanticFacets": {
+      "schemaVersion": 1,
+      "status": "supplementary",
+      "entries": [
+        {
+          "id": "session-insight:source-coverage",
+          "kind": "redacted-summary",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "source-coverage",
+            "High"
+          ],
+          "summary": "Analyzed 20 of 20 sessions; 3/5 enabled source roots exist. Use this as the current workspace evidence boundary for final insight cards.",
+          "evidenceRefs": [],
+          "modelVersion": "session-insights-v1"
+        },
+        {
+          "id": "session-insight:validation-behavior",
+          "kind": "redacted-summary",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "validation-behavior",
+            "High"
+          ],
+          "summary": "Observed validation command category: vitest (156). Use observed validation as execution evidence, not just configured command availability.",
+          "evidenceRefs": [
+            {
+              "kind": "codex-session-jsonl",
+              "id": "session-insight-2-1",
+              "type": "tool.call",
+              "line": 15
+            },
+            {
+              "kind": "codex-session-jsonl",
+              "id": "session-insight-2-2",
+              "type": "tool.call",
+              "line": 61
+            },
+            {
+              "kind": "codex-session-jsonl",
+              "id": "session-insight-2-3",
+              "type": "tool.call",
+              "line": 66
+            }
+          ],
+          "modelVersion": "session-insights-v1"
+        },
+        {
+          "id": "session-insight:post-edit-validation",
+          "kind": "rework-correction",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "post-edit-validation",
+            "High"
+          ],
+          "summary": "Observed 738 edit event(s) and later validation: vitest (50). Use this as evidence for validation-after-edit behavior, with the sample boundary still visible.",
+          "evidenceRefs": [
+            {
+              "kind": "codex-session-jsonl",
+              "id": "session-insight-3-1",
+              "type": "tool.result",
+              "line": 152
+            },
+            {
+              "kind": "codex-session-jsonl",
+              "id": "session-insight-3-2",
+              "type": "tool.result",
+              "line": 158
+            },
+            {
+              "kind": "codex-session-jsonl",
+              "id": "session-insight-3-3",
+              "type": "tool.result",
+              "line": 144
+            }
+          ],
+          "modelVersion": "session-insights-v1"
+        },
+        {
+          "id": "session-insight:execution-friction",
+          "kind": "friction-taxonomy",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "execution-friction",
+            "High"
+          ],
+          "summary": "Observed friction category: failed-event (14). Open bounded sessions behind this category before turning it into a user-facing recommendation.",
+          "evidenceRefs": [
+            {
+              "kind": "codex-session-jsonl",
+              "id": "session-insight-4-1",
+              "type": "tool.result",
+              "line": 408
+            },
+            {
+              "kind": "codex-session-jsonl",
+              "id": "session-insight-4-2",
+              "type": "tool.result",
+              "line": 182
+            },
+            {
+              "kind": "codex-session-jsonl",
+              "id": "session-insight-4-3",
+              "type": "tool.result",
+              "line": 467
+            }
+          ],
+          "modelVersion": "session-insights-v1"
+        },
+        {
+          "id": "session-insight:tool-mix",
+          "kind": "redacted-summary",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "tool-mix",
+            "High"
+          ],
+          "summary": "Most observed tool: exec_command (1622). Use this as workflow evidence, then inspect bounded sessions before claiming user intent.",
+          "evidenceRefs": [
+            {
+              "kind": "codex-session-jsonl",
+              "id": "session-insight-5-1",
+              "type": "tool.call",
+              "line": 11
+            }
+          ],
+          "modelVersion": "session-insights-v1"
+        },
+        {
+          "id": "session-insight:planning-workflow",
+          "kind": "goal-workflow",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "planning-workflow",
+            "High"
+          ],
+          "summary": "Observed codex plan-tool: update_plan (54, workspace). Use this as workspace session evidence for Goal/Plan/Spec workflow behavior.",
+          "evidenceRefs": [
+            {
+              "kind": "codex-session-jsonl",
+              "id": "session-insight-6-1",
+              "type": "tool.call",
+              "line": 144
+            },
+            {
+              "kind": "codex-session-jsonl",
+              "id": "session-insight-6-2",
+              "type": "tool.call",
+              "line": 161
+            },
+            {
+              "kind": "codex-session-jsonl",
+              "id": "session-insight-6-3",
+              "type": "tool.call",
+              "line": 288
+            }
+          ],
+          "modelVersion": "session-insights-v1"
+        },
+        {
+          "id": "session-insight:session-complexity",
+          "kind": "redacted-summary",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "session-complexity",
+            "High"
+          ],
+          "summary": "Observed 8 active long session(s); longest active estimate: 3h 50m. Review task family, outcome, and friction before deciding whether this duration reflects a problem or any decomposition, tool, delegation, or model change is needed.",
+          "evidenceRefs": [
+            {
+              "kind": "codex-session-jsonl",
+              "id": "session-insight-7-1",
+              "type": "session_meta",
+              "line": 1
+            }
+          ],
+          "modelVersion": "session-insights-v1"
+        },
+        {
+          "id": "session-insight:session-usage-efficiency",
+          "kind": "redacted-summary",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "session-usage-efficiency",
+            "High"
+          ],
+          "summary": "本次分析覆盖 20 个会话，其中 8 个达到活跃长会话阈值，最长约 230 分钟；另有 3 个长跨度主要来自暂停或恢复。 这些活动证据只描述投入；当前 token 或 credit 证据不足，不能据此推断模型偏好、质量或节省。",
+          "evidenceRefs": [
+            {
+              "kind": "codex-session-jsonl",
+              "id": "session-insight-8-1",
+              "type": "session_meta",
+              "line": 1
+            }
+          ],
+          "modelVersion": "session-insights-v1"
+        }
+      ]
+    },
+    "learningCapture": {
+      "schemaVersion": 1,
+      "state": "N/A",
+      "summary": "暂不适用——需要两个可比的观察窗口和一次改进对比。",
+      "interventions": []
+    },
+    "aiAgentPractice": {
+      "inspectedSurfaces": [
+        "Rules",
+        "Skills",
+        "Workflows"
+      ],
+      "coverageRows": [
+        {
+          "surface": "Rules",
+          "scopes": [
+            "Project"
+          ],
+          "count": 3,
+          "paths": [
+            "AGENTS.md"
+          ]
+        },
+        {
+          "surface": "Skills",
+          "scopes": [
+            "Project"
+          ],
+          "count": 21,
+          "paths": [
+            ".agents/skills/create-dev-plan/SKILL.md",
+            ".agents/skills/auto-dev/SKILL.md",
+            ".agents/skills/task-review/SKILL.md",
+            ".agents/skills/test-e2e/SKILL.md"
+          ]
+        },
+        {
+          "surface": "Workflows",
+          "scopes": [
+            "Project"
+          ],
+          "count": 1,
+          "paths": [
+            ".github/workflows/ci.yml"
+          ]
+        },
+        {
+          "surface": "MCP",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0,
+          "paths": []
+        },
+        {
+          "surface": "Commands",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0,
+          "paths": []
+        },
+        {
+          "surface": "Hooks",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0,
+          "paths": []
+        },
+        {
+          "surface": "Custom Agents",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0
+        },
+        {
+          "surface": "Plugins",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0,
+          "paths": []
+        }
+      ]
+    },
+    "usageActivity": {
+      "schemaVersion": 2,
+      "dateBasis": "UTC",
+      "measurementBasis": "session-starts-active-estimate-model-active-session-days-skill-invocations-and-loads",
+      "truncated": false,
+      "dates": [
+        "2026-07-06",
+        "2026-07-07",
+        "2026-07-08",
+        "2026-07-09",
+        "2026-07-10",
+        "2026-07-11",
+        "2026-07-12",
+        "2026-07-13",
+        "2026-07-14",
+        "2026-07-15",
+        "2026-07-16",
+        "2026-07-17",
+        "2026-07-18",
+        "2026-07-19",
+        "2026-07-20",
+        "2026-07-21",
+        "2026-07-22",
+        "2026-07-23",
+        "2026-07-24",
+        "2026-07-25",
+        "2026-07-26",
+        "2026-07-27",
+        "2026-07-28",
+        "2026-07-29",
+        "2026-07-30",
+        "2026-07-31",
+        "2026-08-01",
+        "2026-08-02",
+        "2026-08-03",
+        "2026-08-04"
+      ],
+      "sessions": {
+        "total": 20,
+        "starts": [
+          1,
+          1,
+          3,
+          1,
+          2,
+          1,
+          1,
+          2,
+          1,
+          0,
+          0,
+          1,
+          0,
+          1,
+          2,
+          0,
+          2,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "activeMinutes": [
+          230.4,
+          64.6,
+          74.8,
+          96.8,
+          85,
+          62.7,
+          7.3,
+          83.7,
+          53.4,
+          0,
+          0,
+          40.7,
+          0,
+          101.8,
+          24.7,
+          0,
+          53.3,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          30.2
+        ]
+      },
+      "models": [],
+      "skills": []
+    },
+    "usageEfficiency": {
+      "schemaVersion": 2,
+      "selection": {
+        "strategy": "all-eligible",
+        "eligibleSessionCount": 20,
+        "analyzedSessionCount": 20,
+        "complete": true
+      },
+      "roles": {
+        "userThreadCandidateCount": 20,
+        "childAgentCandidateCount": 0
+      },
+      "longSessions": {
+        "activeCount": 8,
+        "wallOnlyCount": 3,
+        "longestActiveMinutes": 230.4,
+        "activeRatio": 0.4,
+        "estimate": {
+          "method": "capped-event-gap",
+          "activeThresholdMinutes": 45,
+          "gapCapMinutes": 5,
+          "idleGapMinutes": 30
+        },
+        "samples": [
+          {
+            "alias": "S1",
+            "role": "user-thread-candidate",
+            "activeMinutes": 230.4,
+            "failureCount": 2
+          },
+          {
+            "alias": "S2",
+            "role": "user-thread-candidate",
+            "activeMinutes": 101.8,
+            "failureCount": 4
+          },
+          {
+            "alias": "S3",
+            "role": "user-thread-candidate",
+            "activeMinutes": 96.8,
+            "failureCount": 1
+          },
+          {
+            "alias": "S4",
+            "role": "user-thread-candidate",
+            "activeMinutes": 67.6,
+            "failureCount": 0
+          }
+        ]
+      },
+      "accounting": {
+        "mode": "effort-proxy",
+        "responseCount": 0,
+        "modelAttributedResponseCount": 0,
+        "unattributedResponseCount": 0,
+        "usageFieldObservedCount": 0,
+        "nonZeroUsageCount": 0,
+        "exactCreditsAvailable": false,
+        "pricingVersion": null
+      },
+      "modelUsage": [],
+      "outcomeReview": {
+        "status": "required",
+        "reviewedCandidateCount": 0,
+        "reviewedActiveLongCount": 0,
+        "comparableModelOutcomeEvidence": false,
+        "recommendation": "controlled-a-b-required"
+      },
+      "reviewLead": {
+        "id": "session-usage-outcome-review-gap",
+        "title": "8 个长会话候选仍待结果复核",
+        "reason": "20 个已分析会话中有 8 个（40.0%）超过估算活跃时长阈值，最长估算为 230.4 分钟，其中 0 个已有结果复核；另有 3 个长跨度可能来自空闲或恢复。这只是调查线索，尚未确认存在效率、任务拆分、工具链或模型问题。",
+        "expectedOutcome": "每个展示候选都完成任务族、结果和摩擦分类，让报告能够判断是否真的需要改进。",
+        "aiFixPrompt": "/better-harness 复核这些会话\n\n8 个长会话候选仍待结果复核\n\n## 先核对的会话\n\n- S1：用户会话候选，估算活跃约 230.4 分钟，失败事件 2 次\n- S2：用户会话候选，估算活跃约 101.8 分钟，失败事件 4 次\n- S3：用户会话候选，估算活跃约 96.8 分钟，失败事件 1 次\n- S4：用户会话候选，估算活跃约 67.6 分钟，失败事件 0 次\n- 当前展示 8 个未复核活跃长会话中的 4 个；其余 4 个继续通过同一个有界 review packet 复核。\n\n## 先做什么\n\n在操作系统临时目录创建 <run>，从项目根运行：\n\n```bash\nnode scripts/session-analysis.mjs insights --platform codex --workspace . --selection all-eligible --limit 1000 --format json --output <run>/insights.json\nnode scripts/session-analysis/usage-review-packet.mjs --source <run>/insights.json --workspace . --limit 8 --output <run>/.review-packet.json\n```\n\n私有 review packet 会在本地解析候选；只为 S1, S2, S3, S4 写入 taskFamily、outcome、friction、confidence 和 evidenceReason。先完成复核，不改业务代码，也不创建 Memory、Skill 或 Hook。\n\n## 我们看到了什么\n\n20 个已分析会话中有 8 个（40.0%）超过估算活跃时长阈值，最长估算为 230.4 分钟，其中 0 个已有结果复核；另有 3 个长跨度可能来自空闲或恢复。这只是调查线索，尚未确认存在效率、任务拆分、工具链或模型问题。\n\n## 为什么值得复核\n\n未复核前无法区分复杂任务、工具链摩擦、暂停恢复噪音或正常的长任务。\n\n## 预期结果\n\n每个展示候选都完成任务族、结果和摩擦分类，让报告能够判断是否真的需要改进。\n\n## 范围\n\n只生成隐私安全的会话效率复核和 reader report，不改业务代码，不把墙钟跨度当作活跃成本。持久报告只保留匿名别名；私有 review packet 不得复制进报告。这是 4/8 的有界视图（4/N）；只对展示样本下结论，其余候选保持未复核。\n\n## 怎样算完成\n\n<run>/.review.json 对 S1, S2, S3, S4 各有一条有效复核；语义复核生成 <run>/insights.reviewed.json；<run>/report.md 以 reviewed source 校验通过。复核未确认问题时，不创建优化项。\n\n## 验证\n\n- 运行 `node scripts/session-analysis/usage-semantic-review.mjs --source <run>/insights.json --packet <run>/.review-packet.json --review <run>/.review.json --output <run>/insights.reviewed.json`\n- 运行 `node scripts/session-analysis/validate-usage-report.mjs --source <run>/insights.reviewed.json --report <run>/report.md`，必须返回 `ok: true`\n- 确认 reviewed source 的 `outcomeReview.reviewedActiveLongCount` 等于已复核的展示别名数；通过后删除两个私有临时 review 文件",
+        "sampleCoverage": {
+          "shown": 4,
+          "total": 8,
+          "complete": false
+        }
+      }
+    },
+    "assignmentSummaries": []
+  },
+  "findings": [
+    {
+      "id": "final-change-validation-binding",
+      "title": "最终修改与相关验证没有稳定绑定",
+      "severity": "Medium",
+      "reason": "Codex 的有界会话证据中，发出的 5 个候选里有 4 个出现检查，但 5 个都没有经过复核的相关检查；其中有检查早于最终修改或相关性未知的情形，也有 green-E2E 阶段修改后没有检查事实的情形。项目的 plan-task evidence contract 同时没有显式要求当前 revision 或最后编辑时间，因此 handoff 不能稳定证明最终状态满足目标行为。这是会话证据与静态契约的共同缺口，不代表所有真实测试都未运行。",
+      "dimensionRefs": [
+        "change-validation"
+      ],
+      "aiFixPrompt": "/better-harness 修复此问题\n\n把 plan-task 的验证证据绑定到最终编辑状态，沿用现有 `.agents` 工作流 contract、`auto-dev`、`test-e2e`、`task-review` 和 workflow checker，不创建平行流程。\n\n## 完成条件\n\n- red/green 与普通 focused check 证据记录当前代码 revision 或等价的不可歧义 freshness 标识\n- 每条证据说明覆盖的验收标准或风险，并且必须晚于最后一次相关编辑\n- 状态机拒绝旧 revision、早于最终编辑或无法映射目标行为的证据\n- standalone 与 plan-task 的不同证据规则保持明确\n\n## 验证\n\n- 为旧证据、最后编辑后证据和不相关检查增加 focused negative/positive tests\n- 运行 `pnpm workflow:check`\n- 运行 `pnpm test:workflow`\n- 运行 `pnpm verify:fast`",
+      "expectedArtifact": "Workflow gate",
+      "expectedOutput": [
+        "每次 material edit 后，当前修订、目标检查、覆盖的验收标准与最终结果形成一条可机械拒绝旧证据的记录。"
+      ]
+    },
+    {
+      "id": "failure-repair-revalidation-chain",
+      "title": "测试失败后仍发生 handoff，修复复验链未闭合",
+      "severity": "Medium",
+      "reason": "一个实现阶段 Episode 记录到 Vitest 失败，之后出现检查和最终修改，但没有证据确认失败被复现、定位、以最小 owner 修复并用同一检查或等价检查复验；事实仍记录了 assistant handoff。该证据支持闭环缺失，不支持断言代码缺陷仍存在或修复一定错误。",
+      "dimensionRefs": [
+        "change-validation"
+      ],
+      "aiFixPrompt": "/better-harness 修复此问题\n\n扩展现有 plan-task 失败状态与 evidence contract，使发生相关检查失败后，状态不能继续到 handoff、review 或 done，直到保留完整的 failure → reproduction → diagnosis → bounded repair → same-scope rerun 链。\n\n## 完成条件\n\n- evidence 区分原始失败、可复现命令、诊断依据、修复 owner 和复验结果\n- 复验默认使用原失败检查；替代检查必须说明等价范围\n- 未完成诊断或复验时，`auto-dev` 保持当前步骤并输出可执行阻塞原因\n\n## 验证\n\n- 增加失败后直接 handoff、只重试未诊断、修复后同检查通过三个场景\n- 运行 `pnpm workflow:check`\n- 运行 `pnpm test:workflow`\n- 运行 `pnpm verify:fast`",
+      "expectedArtifact": "Failure gate",
+      "expectedOutput": [
+        "任何相关测试失败都必须在 handoff 前留下可复现、可归因并经过同范围复验的闭环证据。"
+      ]
+    },
+    {
+      "id": "acceptance-delta-trace",
+      "title": "执行中追加的验收约束未进入最终证据映射",
+      "severity": "Medium",
+      "reason": "一个 UI Episode 在执行中新增了“两种模式都显示变量”以及布局位置等约束；随后虽有修改、检查和 handoff，却没有证据把这些新增约束逐条映射到最终行为检查或用户验收。证据说明验收边界不可恢复，不说明 Agent 一定误解了需求。",
+      "dimensionRefs": [
+        "task-understanding"
+      ],
+      "aiFixPrompt": "/better-harness 修复此问题\n\n在现有 standalone spec 与 create-dev-plan 路径中加入轻量的 acceptance-delta 追踪：用户在执行中新增、删除或改写验收约束时，先更新当前任务的验收边界，再继续修改；最终 handoff 逐条映射到文件 owner 和 focused check。\n\n## 完成条件\n\n- 用户修正不会只停留在会话文本中\n- 每条新增约束具有保留、取代或拒绝的明确状态\n- 最终 handoff 能指出对应的实现 owner 与验证结果\n\n## 验证\n\n- 增加“实现中追加跨模式 UI 约束”的 workflow fixture\n- 运行 `pnpm workflow:check`\n- 运行 `pnpm test:workflow`",
+      "expectedArtifact": "Acceptance contract",
+      "expectedOutput": [
+        "执行中发生的需求变化被并入唯一验收边界，并在最终 handoff 中逐条对应到实现与检查证据。"
+      ]
+    },
+    {
+      "id": "workflow-type-fail-open",
+      "title": "工作流文档可因缺失类型标记绕过校验",
+      "severity": "Medium",
+      "reason": "`scripts/check-workflow-consistency.mjs` 只在 `workflow_type` 精确匹配时验证 standalone spec 或计划 README；缺失或拼错时直接返回 false。对符合 `docs/FEAT-*.md` 或计划 README 路径形状的候选文档，这会让必需字段、章节、状态和验收证据完全跳过 fast gate；现有 focused tests 没有覆盖该负路径。",
+      "dimensionRefs": [
+        "task-understanding"
+      ],
+      "aiFixPrompt": "/better-harness 修复此问题\n\n让 workflow checker 先用现有文件命名与目录约定识别候选工作流文档，再校验 `workflow_type`；普通文档仍应被忽略，候选 spec/plan 的缺失或未知类型必须报错。\n\n## 完成条件\n\n- `docs/FEAT-*.md` 候选缺失或拼错 `workflow_type` 时失败\n- 计划目录中的候选 README 缺失或拼错类型时失败\n- 非工作流 README/Markdown 不产生误报\n\n## 验证\n\n- 在 `scripts/__tests__/check-workflow-consistency.test.mjs` 增加上述正负场景\n- 运行 `pnpm test:workflow`\n- 运行 `pnpm workflow:check`\n- 运行 `pnpm verify:fast`",
+      "expectedArtifact": "Validator test",
+      "expectedOutput": [
+        "任何符合项目工作流路径形状的文档都不能仅靠缺失或拼错 discriminator 绕过契约校验。"
+      ]
+    },
+    {
+      "id": "doctor-profile-success-semantics",
+      "title": "doctor 在 Docker 不可用时仍以成功状态退出",
+      "severity": "Low",
+      "reason": "`scripts/doctor.mjs` 在 Docker 不可用时只打印 warning，仍输出 `doctor: pass` 并返回成功；但项目的 fresh-start 路径紧接着需要 `pnpm db:up`。这会让 live/fresh 环境的前置失败被推迟到后续步骤。Mock profile 本来不需要 Docker，因此缺口是 profile 与退出语义未被区分，而不是 Docker 必须成为所有检查的硬依赖。",
+      "dimensionRefs": [
+        "controlled-execution"
+      ],
+      "aiFixPrompt": "/better-harness 修复此问题\n\n在现有 `pnpm doctor` 路径中明确 mocked 与 fresh/live 两种 readiness profile，并让输出与退出码反映所选 profile；保留 mocked checks 不依赖 Docker 的能力。\n\n## 完成条件\n\n- fresh/live profile 在 Docker 或 Compose 不可用时失败并给出下一步\n- mocked profile 可以明确跳过 Docker，同时不输出含混的全局 pass\n- 默认 fresh-start 文档调用的 profile 与下一步 `pnpm db:up` 前置条件一致\n\n## 验证\n\n- 为 Docker 可用、不可用和 mocked profile 增加脚本测试\n- 运行对应 focused test\n- 运行 `pnpm verify:fast`",
+      "expectedArtifact": "Doctor profile",
+      "expectedOutput": [
+        "Agent 能从 doctor 的 profile、消息和退出码准确判断当前环境是否足以进入 mocked 或 live 工作流。"
+      ]
+    },
+    {
+      "id": "database-reset-safety-boundary",
+      "title": "`db:reset` 删除卷前没有仓库级保护边界",
+      "severity": "Medium",
+      "reason": "`pnpm db:reset` 直接执行 `docker compose down -v` 后重建数据库，项目入口没有声明被删除数据必须是可丢弃的本地开发状态，也没有 preview、确认或恢复后置条件。该命令的副作用是确定的；本轮没有证据说明真实数据曾被误删，也没有检查 Compose 的实际卷范围。",
+      "dimensionRefs": [
+        "controlled-execution"
+      ],
+      "aiFixPrompt": "/better-harness 修复此问题\n\n把现有 `pnpm db:reset` 包装为项目拥有、可测试的安全入口。先解析并显示将受影响的本项目 Compose 资源，再要求明确确认；拒绝目标不明确、非本地或无法证明属于当前项目的状态。不要为了验证而真实删除卷。\n\n## 完成条件\n\n- 命令在执行前显示目标与数据丢失后果\n- 未确认或目标范围不明确时安全退出\n- 成功路径说明重建后的健康后置条件和失败恢复步骤\n\n## 验证\n\n- 使用 fixture 或 mock 增加 preview、拒绝和确认后的 argv 测试\n- 只运行非破坏性的 focused tests\n- 运行 `pnpm verify:fast`",
+      "expectedArtifact": "Safe reset script",
+      "expectedOutput": [
+        "数据库 reset 只能在目标明确、用户已确认且恢复后置条件可验证时删除项目范围内的本地卷。"
+      ]
+    },
+    {
+      "id": "red-e2e-state-timing-conflict",
+      "title": "Red E2E 的状态时点在工作流 Skills 中互相冲突",
+      "severity": "Medium",
+      "reason": "`create-dev-plan` 一处要求在 `ready-to-dev` 前生成 red E2E，状态流转却把 red evidence 设为 `ready-to-dev → in-progress` 的前置；`auto-dev` 和 `test-e2e` 进一步只在功能已为 `ready-to-dev` 时执行 red 阶段。不同 Agent 可据此在计划生成期或开发启动期运行同一门禁，导致状态与证据顺序不一致。",
+      "dimensionRefs": [
+        "task-understanding"
+      ],
+      "aiFixPrompt": "/better-harness 修复此问题\n\n统一现有 `create-dev-plan`、`auto-dev` 与 `test-e2e` 的 red E2E 状态语义。沿用当前多数 owner 已表达的边界：计划完成自检后进入 `ready-to-dev`，随后生成有效 red evidence，只有此后才进入 `in-progress`。\n\n## 完成条件\n\n- 三个 Skills 对 red 阶段的进入状态、成功条件和下一状态使用同一表述\n- 生成的 README/任务模板不再要求 `ready-to-dev` 前已有 red evidence\n- 状态机 fixture 能拒绝实现先于 red evidence 的路径\n\n## 验证\n\n- 增加跨 Skill contract 测试或扩展 workflow checker\n- 运行 `pnpm workflow:check`\n- 运行 `pnpm test:workflow`\n- 运行 `pnpm verify:fast`",
+      "expectedArtifact": "Skill contract",
+      "expectedOutput": [
+        "所有 plan-task Agent 都按 ready-to-dev → red evidence → in-progress 的唯一顺序执行。"
+      ]
+    },
+    {
+      "id": "plan-e2e-evidence-acceptance-conflict",
+      "title": "计划任务的 E2E 证据可被两套不同口径验收",
+      "severity": "Medium",
+      "reason": "`auto-dev` 与 `test-e2e` 要求 plan-task 生成固定路径的 red/green evidence 文件；`task-review` 又允许在没有独立文件时用最近一次 E2E 输出和报告路径确认通过，同时仍声明缺少 red 或 green 任一证据应失败。相同任务从自动编排或手工 review 入口进入时，可能得到不同验收裁决。",
+      "dimensionRefs": [
+        "reliable-delivery"
+      ],
+      "aiFixPrompt": "/better-harness 修复此问题\n\n统一 plan-task 的 E2E evidence contract，并保持 standalone spec 的轻量记录规则独立。对 plan-task，`auto-dev`、`test-e2e` 与 `task-review` 应共同要求 red 和 green 两份结构化 evidence；删除无法证明 red 阶段的“最近一次 green 输出”替代口径。\n\n## 完成条件\n\n- plan-task 缺 red 或 green evidence 文件时所有入口都一致阻塞\n- standalone spec 继续使用其验证记录，不被强制创建 plan evidence\n- evidence 必须满足 phase、结果、目标 spec 与最终状态绑定\n\n## 验证\n\n- 增加 auto-dev 与 task-review 对同一 fixture 的一致性测试\n- 运行 `pnpm workflow:check`\n- 运行 `pnpm test:workflow`\n- 运行 `pnpm verify:fast`",
+      "expectedArtifact": "Evidence contract",
+      "expectedOutput": [
+        "同一 plan-task 无论经自动编排还是手工 review，都由同一 red/green 证据规则得出相同裁决。"
+      ]
+    },
+    {
+      "id": "repeated-workflow-evidence-gap",
+      "title": "重复工作识别缺少可比较的会话根与扩展链",
+      "severity": "Low",
+      "reason": "本轮重复流程扫描为 incomplete：供应的 session-core-facts 没有 `requestRoots`，也没有可链接的 `candidateRef`。因此两条看似相近的 UI 变量需求只能保留为 goal lead，两个计划阶段也不能被算作独立可比 workflow runs；当前证据既不能证明存在值得沉淀的新流程，也不能得出干净的 no-candidate 结论。",
+      "dimensionRefs": [
+        "learning-capture"
+      ],
+      "aiFixPrompt": "/better-harness 修复此问题\n\n在 Codex 当前工作区的 production session facts 路由中补足 reader-safe 的 `requestRoots` 与受限 `candidateRef` 扩展，使重复工作评估可以比较独立 Task Episodes。保持 provider、30 天窗口、工作区匹配和隐私边界不变；不得读取 Memory 正文、用户全局配置、其他仓库会话或把 raw prompts 写入报告。\n\n## 完成条件\n\n- root portfolio 暴露 goal、target、稳定输入形状与验收边界的脱敏摘要\n- 至少两个独立 context groups 才能进入 candidate expansion\n- expansion 只携带有界的阶段、检查、恢复与停止边界\n- 不足两次时明确 defer，而不是推断缺少或需要新建 Skill\n\n## 验证\n\n- 用合成 session fixtures 覆盖独立重复、同会话重试、forked root 和无 candidateRef 场景\n- 运行 Better Harness 所属 session-evidence tests\n- 重新生成一次 normal evidence bundle，并确认 scanStatus 可被明确判定",
+      "expectedArtifact": "Session evidence route",
+      "expectedOutput": [
+        "重复流程分析能在不泄露会话正文的前提下区分独立可比流程、一次性摩擦和证据不足。"
+      ]
+    }
+  ]
+}

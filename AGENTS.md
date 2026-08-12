@@ -1,101 +1,154 @@
 # AGENTS.md
 
-This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
+This file is the project-level entrypoint for coding agents working in this repository.
 
 ## Project Overview
 
-style-gen is a visual style extraction and recreation workbench. Core loop: **Reference → Recipe → Render**.
-1. User uploads a reference image (direct-to-R2 via pre-signed URL)
-2. Two-stage AI chain extracts a structured Visual Recipe: Vision model (Gemini) analyzes the image → LLM (Gemini) structures the analysis into a `VisualRecipe` JSON
-3. User edits the generated prompt, then creates a new image via fal.ai/FLUX
+style-gen is a visual style extraction and recreation workbench. The current product loop is **Reference → Evidence → Render**:
+
+1. Upload a reference image directly to Cloudflare R2 with a pre-signed URL.
+2. Analyze observable content and transferable style into a versioned `VisualRecipe`.
+3. Expose evidence, confidence, variables, invariants, and derived prompts for user review.
+4. Generate a new image while preserving editable context and recovery paths.
+
+The AI pipeline supports multiple providers. The repository defaults to Replicate for vision, structuring, and image generation; Gemini and fal.ai remain supported alternatives selected through environment variables.
+
+## Runtime and Fresh Start
+
+Project runtime is pinned by `.node-version` and `package.json`:
+
+- Node.js `25.9.0`
+- pnpm `11.11.0`
+- Docker with Compose v2 for local PostgreSQL
+
+From a fresh clone:
+
+```bash
+pnpm doctor
+pnpm install --frozen-lockfile
+# If no local environment file exists, copy .env.example to .env.local and fill the selected live-provider credentials.
+pnpm db:up
+pnpm db:push
+pnpm dev
+```
+
+Before the first browser test run:
+
+```bash
+pnpm exec playwright install chromium
+```
+
+`pnpm doctor` checks the pinned Node/pnpm versions, project manifests, local environment-file presence, and Docker Compose syntax. It intentionally does not contact external providers, inspect credential values, start PostgreSQL, or install browsers.
 
 ## Commands
 
 ```bash
-pnpm dev              # Start Next.js dev server
-pnpm build            # Production build
+pnpm dev              # Start the Next.js development server
+pnpm build            # Create the production build
+pnpm start            # Start the production build
+pnpm doctor           # Diagnose local toolchain and Compose readiness
+
+pnpm verify           # Alias for the fast repository gate
+pnpm verify:fast      # Workflow contract + type + lint + unit/component tests
+pnpm verify:full      # Fast gate + build + stable critical-path browser smoke suite
+pnpm verify:acceptance # Fast gate + build + complete current targeted acceptance/visual suite
+pnpm workflow:check   # Validate workflow docs, contracts, evidence links, and mirrors
+
+pnpm type-check       # TypeScript production-source checking
 pnpm lint             # ESLint
-pnpm type-check       # TypeScript type checking (tsc --noEmit)
-pnpm test             # Run all unit tests (Vitest)
-pnpm test:watch       # Vitest in watch mode
-pnpm e2e              # Playwright E2E tests (auto-starts dev server)
-pnpm db:up            # Start local PostgreSQL via Docker
-pnpm db:reset         # Reset DB (down -v + up)
-pnpm db:generate      # Generate Drizzle migrations
-pnpm db:push          # Push schema to DB (drizzle-kit push)
+pnpm test             # Unit and component tests (Vitest)
+pnpm test:watch       # Vitest watch mode
+pnpm test:coverage    # Unit-test coverage
+pnpm e2e              # Full Playwright suite; starts configured web servers
+pnpm e2e:smoke        # Stable blocking browser checks used by CI
+pnpm e2e:targeted     # Current AI-first acceptance and visual-regression suite
+pnpm e2e:ui           # Playwright UI mode
+pnpm e2e:report       # Open the last Playwright HTML report
+
+pnpm db:up            # Start local PostgreSQL
+pnpm db:down          # Stop local PostgreSQL
+pnpm db:reset         # Destroy the local volume and recreate PostgreSQL
+pnpm db:logs          # Follow PostgreSQL logs
+pnpm db:generate      # Generate a Drizzle migration from schema changes
+pnpm db:push          # Apply the current schema to a local development database
 pnpm db:studio        # Open Drizzle Studio
 ```
 
-Run a single test file: `pnpm vitest --run src/lib/__tests__/r2.test.ts`
+Run one unit file with `pnpm vitest --run <test-file>`. Run one browser spec with `pnpm e2e -- <spec-file> --project=workspace`.
 
-## Tech Stack
+## Environment Modes
 
-- **Next.js 15** (App Router) + React 19 + TypeScript
-- **Tailwind CSS 4** for styling
-- **PostgreSQL** with **Drizzle ORM** (node-postgres driver) + JSONB for recipes; Docker Compose for local DB (port 5433)
-- **Cloudflare R2** (S3-compatible) for image storage with pre-signed upload URLs
-- **Gemini** (`gemini-3-flash-preview`) for both vision analysis and structural organization
-- **fal.ai / FLUX** for image generation
-- **TanStack React Query** for async task polling
-- **ULIDs** for all entity IDs (lexicographically sortable)
-- **Vitest** for unit tests, **Playwright** for E2E
+`.env.example` is the canonical variable inventory. Do not read or print credential values during routine diagnosis.
 
-## Architecture
+- Mocked unit/component and targeted workspace E2E checks do not require live AI or storage credentials.
+- Live application flows require `DATABASE_URL`, the `R2_*` variables, and Auth.js configuration.
+- Default Replicate flows require `REPLICATE_API_TOKEN`; webhook delivery additionally requires `REPLICATE_WEBHOOK_SECRET` and `WEBHOOK_BASE_URL`.
+- Gemini/fal.ai flows require selecting `VISION_PROVIDER`, `STRUCTURER_PROVIDER`, and `IMAGE_GEN_PROVIDER`, then supplying `GEMINI_API_KEY` and/or `FAL_KEY`.
 
-### Backend (API Routes)
+## Architecture and Canonical Context
 
-All API routes are under `src/app/api/`:
-- `upload/presign/` — generates R2 pre-signed URLs for direct client uploads
-- `analysis/` — creates analysis tasks; `analysis/[id]/` — polls task status
-- `generation/` — creates generation tasks; `generation/[id]/` — polls task status
+Use these owners in priority order:
 
-### AI Pipeline (`src/lib/ai/`)
+1. `PRODUCT.md` — current product purpose and product-level invariants.
+2. `docs/design/DESIGN.md` — canonical UI/UX system, “The Precision Frame”.
+3. The latest numbered PRD/architecture/implementation-plan chain under `docs/` for the scoped feature.
+4. Current executable contracts: `src/lib/ai/providers/index.ts`, `src/lib/db/schema.ts`, API route handlers, and committed Drizzle migrations.
+5. `docs/backup/` — historical context only; never treat it as current truth without confirming the executable owner.
 
-Two-stage chain (ADR-2):
-- `vision.ts` — calls Gemini vision model with the image URL, returns raw analysis text
-- `structurer.ts` — calls Gemini LLM to convert raw text into `VisualRecipe` + prompt/negative prompt (JSON mode)
-- `image-gen.ts` — calls fal.ai FLUX to generate images from prompts
-- `prompts.ts` — system prompts for both stages
+There is no active `docs/01-1-架构文档-参考图风格再创作.md` at the repository root. Do not infer an ADR or data contract from that retired path.
 
-### Data Layer (`src/lib/`)
+### Backend API
 
-- `db/index.ts` — Drizzle ORM 实例 + PostgreSQL 连接池（懒初始化 Proxy）
-- `db/schema.ts` — Drizzle 表定义（assets, analysis_tasks, generation_tasks）
-- `r2.ts` — Cloudflare R2 client for pre-signed URLs
-- `repositories/` — Repository pattern for `assets`, `analysis_tasks`, `generation_tasks`
+All API routes live under `src/app/api/`:
 
-### Frontend
+- `upload/presign/` — R2 pre-signed upload URLs
+- `analysis/` and `analysis/[id]/` — create and poll analysis tasks
+- `generation/` and `generation/[id]/` — create and poll generation tasks
+- `templates/` and `templates/[id]/` — Style Memory/template CRUD and duplication
+- `webhooks/replicate/` — Replicate completion callbacks
+- `auth/[...nextauth]/` — Auth.js routes
 
-- `src/app/workspace/page.tsx` — main workbench page
-- `src/components/` — UI components (landing, workspace, providers)
-- `src/hooks/` — custom hooks for analysis/generation polling
+### AI Pipeline
 
-### Async Processing
+- `src/lib/ai/providers/` — provider interfaces, factory, and Gemini/Replicate/fal implementations
+- `src/lib/ai/vision.ts` — vision-stage orchestration
+- `src/lib/ai/structurer.ts` — semantic structuring orchestration
+- `src/lib/ai/prompts.ts` and `structured-output-schema.ts` — model contracts
+- `src/lib/prompt-composer.ts` — deterministic prompt derivation
+- `src/lib/ai/image-gen.ts` — image-generation orchestration
 
-Long-running AI tasks use DB-based status polling (no message queue — intentional per ADR-3). Task statuses: `pending` → `processing` → `completed` | `failed`.
+### Data and Async Work
 
-## Environment Variables
+- `src/lib/db/schema.ts` and `drizzle/` own the current database shape.
+- `src/lib/repositories/` owns persistence boundaries.
+- Long-running tasks use database polling: `pending → processing → completed | failed`.
 
-See `.env.example`: `DATABASE_URL`, `R2_*`, `GEMINI_API_KEY`, `FAL_KEY`.
+## Change-to-Validation Routing
 
-## Testing Conventions
+Run the smallest relevant checks after the last edit, then escalate with risk:
 
-- Unit tests live in `__tests__/` directories adjacent to source files
-- Test pattern: `src/**/__tests__/**/*.test.{ts,tsx}`
-- E2E tests in `e2e/` directory, run against `localhost:3000`
-- Path alias `@/` maps to `src/` (configured in both tsconfig and vitest)
+| Change | Required focused evidence | Repository gate |
+| --- | --- | --- |
+| Documentation, workflow contract, Skill, or project rule | `pnpm workflow:check` and `pnpm test:workflow` | `pnpm verify:fast` before handoff |
+| Library, hook, provider, repository, or API behavior | Adjacent Vitest file(s), including negative/recovery cases | `pnpm verify:fast` |
+| React component or interaction state | Adjacent component test; add/update targeted Playwright coverage for user-observable behavior | `pnpm verify:fast`; targeted E2E when behavior changed |
+| Layout, styling, typography, color, or motion | Component assertion plus targeted visual-regression spec; follow `docs/design/DESIGN.md` | `pnpm verify:acceptance` |
+| Database schema or migration | Schema/repository tests, generated migration review, and disposable local DB apply/reset evidence | `pnpm verify:fast` plus the scoped DB check |
+| Cross-cutting change | All affected focused checks | `pnpm verify:full` |
+| Release-bound UI or workflow change | Complete targeted acceptance and visual suite | `pnpm verify:acceptance` |
 
-## Documentation
+Do not use an old review document or an earlier green run as evidence for the final edited state.
 
-Architecture and implementation plans are in `docs/`. The architecture doc (`docs/01-1-架构文档-参考图风格再创作.md`) is the source of truth for ADRs and data schemas.
+## Workflow and Delivery Assets
 
-## Design System
+- `.agents/contracts/workflow-schema.json` is the single project workflow-contract SSOT.
+- `.claude/contracts/workflow-schema.json` is a compatibility mirror and must remain structurally identical.
+- `.agents/skills/`, when installed in the workspace, contains the local project workflow Skills. These local packages are not versioned; provider-specific copies may differ in implementation, but both must consume the versioned `.agents` contract.
+- `pnpm workflow:check` validates contracts, active plan state, required sections, evidence links, and forbidden cross-provider owner references.
+- `.github/workflows/ci.yml` is the repository CI entrypoint and runs the same project-owned verification commands used locally.
 
-`docs/design/DESIGN.md` is the canonical system design specification for all UI/UX work. Before changing visual styling, layout, components, interaction states, typography, color, or motion, read and follow this file.
+Pull requests block on `verify:fast`, production build, and `e2e:smoke`. A manual CI `workflow_dispatch` additionally runs the complete targeted suite as the strict release-acceptance gate. If `verify:acceptance` is red, the affected implementation plan must remain `in_review` and release-readiness must not claim acceptance.
 
-Design priority order:
-1. `docs/design/DESIGN.md` — source of truth for the current visual system ("The Precision Frame")
-2. Existing component patterns and tokens in `src/app/globals.css`
-3. Older design docs and implementation plans in `docs/`
+The full document-driven path is PRD → architecture → implementation plan → red E2E → implementation → green E2E → task review → UAT → release readiness → post-release check. Lightweight `workflow_type: new-feature` specs go directly from approval to `implementer` and do not enter the full plan path.
 
-If older docs or existing UI conflict with `docs/design/DESIGN.md`, prefer `docs/design/DESIGN.md` unless the task explicitly asks to preserve legacy behavior.
+Release Skills provide the checklist and evidence contract; they do not by themselves prove deployment, production health, approval, or rollback. Bind release evidence to the actual deployment target and current revision before marking a plan `released`.

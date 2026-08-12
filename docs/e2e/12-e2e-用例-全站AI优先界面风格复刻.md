@@ -57,13 +57,13 @@ created: 2026-07-05
 
 | # | 场景 | 类型 | 前置条件 | 步骤 | 断言 | 目标 spec |
 |---|------|------|---------|------|------|-----------|
-| TC-2.1 | Landing、Workspace、Style Memory 渲染共享 AI-first AppShell | Happy | plan-01 token/status copy 已完成；模板列表和历史列表使用 mock，避免真实后端依赖 | 分别打开 `/`、`/workspace`、`/workspace/templates` | 三个页面都有 `app-shell`、`banner`、`main`、`app-shell-primary-nav`；shell `data-variant` 分别为 `landing/workspace/memory`；导航包含 Workspace 与 Style Memory | `e2e/ai-first-shell.spec.ts` |
-| TC-2.2 | `/workspace/templates` 导航显示 Style Memory 且处于 active | Happy | 模板列表 mock 返回 1 条记忆；当前 route 为 `/workspace/templates` | 打开 `/workspace/templates` | 主导航用户可见文案为 `Style Memory`，该 nav item `aria-current="page"`；主导航不再出现旧 `Template Library` 文案；URL 保持 `/workspace/templates` | `e2e/ai-first-shell.spec.ts` |
-| TC-2.3 | Workspace idle 状态头说明下一步和服务可用性 | Happy | 无 reference、无 prompt；历史列表 mock 为空 | 打开 `/workspace` | `ai-status-header` 可见且 `data-phase="idle"`；可见文案说明上传/参考图、next action 和 service ready/available | `e2e/ai-first-shell.spec.ts` |
-| TC-2.4 | 分析处理中状态头说明 AI 正在读取风格信号 | Happy | 上传/分析 API mock；分析轮询返回 `processing` | 打开 `/workspace`，上传测试图片 | `ai-status-header` 进入 `data-phase="analyzing"`；文案包含 reading/extracting/style signals，并提及 color、composition、lighting、texture、mood 等信号 | `e2e/ai-first-shell.spec.ts` |
-| TC-2.5 | 分析完成状态头说明 evidence/生成就绪方向 | Happy | 上传/分析 API mock；分析轮询返回 completed fixture | 打开 `/workspace`，上传测试图片并等待分析完成 | `ai-status-header` 进入 `data-phase="analysis_ready"`；文案说明 ready/evidence/style signals/generate 和 next action | `e2e/ai-first-shell.spec.ts` |
-| TC-2.6 | 生成中与生成失败状态头保留上下文并提示恢复 | Error | 分析已完成；生成 POST mock 成功；生成轮询先 `processing` 后 `failed` 且错误码 `SERVICE_UNAVAILABLE` | 点击 Render Dock 的 Generate | `ai-status-header` 先进入 `data-phase="generating"` 并显示 rendering/processing；失败后展示 recoverable/failed/unavailable/retry/back to edit；sessionStorage 仍保留 analysisTaskId | `e2e/ai-first-shell.spec.ts` |
-| TC-2.7 | Style Memory 受限时登录入口不清空 Workspace 快照 | 降级 | sessionStorage 已有有效 Workspace 快照；`GET /api/templates` mock 返回 401 | 打开 `/workspace/templates` | `app-shell` 保持可见；`app-shell-auth-entry` 展示 log in/sign in 行动；sessionStorage 中原 Workspace 快照未被删除或覆盖 | `e2e/ai-first-shell.spec.ts` |
+| TC-2.1 | Landing、Workspace、Style Memory 渲染共享 AI-first AppShell | Happy | plan-01 token/status copy 已完成；模板列表和历史列表使用 mock，避免真实后端依赖 | 分别打开 `/`、`/workspace`、`/workspace/templates` | 三个页面都有 `app-shell` 与 `main`；Landing 保留 `banner` 和顶部主导航，Workspace 与 Style Memory 共享左侧工作区导航；shell `data-variant` 分别为 `landing/workspace/memory` | `e2e/ai-first-shell.spec.ts` |
+| TC-2.2 | `/workspace/templates` 导航显示 Library 且处于 active | Happy | 模板列表 mock 返回 1 条记忆；当前 route 为 `/workspace/templates` | 打开 `/workspace/templates` | 工作区左侧导航可见文案为 `Library`、可访问名称为 `Style Memory Library`，且 nav item `aria-current="page"`；URL 保持 `/workspace/templates` | `e2e/ai-first-shell.spec.ts` |
+| TC-2.3 | Workspace idle AI 协作带说明下一步和服务可用性 | Happy | 无 reference、无 prompt；历史列表 mock 为空 | 打开 `/workspace` | `ai-copilot-ribbon` 可见且 `data-phase="idle"`；可见文案说明上传/参考图、next action 和 service ready/available | `e2e/ai-first-shell.spec.ts` |
+| TC-2.4 | 分析处理中 AI 协作带说明正在读取风格信号 | Happy | 上传/分析 API mock；分析轮询返回 `processing` | 打开 `/workspace`，上传测试图片 | `ai-copilot-ribbon` 进入 `data-phase="analyzing"`；文案说明正在读取或提取 style signals；具体 color、composition、lighting、texture、mood facet 由 Style Intelligence 展示 | `e2e/ai-first-shell.spec.ts` |
+| TC-2.5 | 分析完成 AI 协作带说明 evidence/生成就绪方向 | Happy | 上传/分析 API mock；分析轮询返回 completed fixture | 打开 `/workspace`，上传测试图片并等待分析完成 | `ai-copilot-ribbon` 进入 `data-phase="analysis_ready"`；文案说明 ready/evidence/style signals/generate 和 next action | `e2e/ai-first-shell.spec.ts` |
+| TC-2.6 | 生成中状态与生成失败恢复面板保留上下文 | Error | 分析已完成；生成 POST mock 成功；生成轮询先 `processing` 后 `failed` 且错误码 `SERVICE_UNAVAILABLE` | 点击 Render Dock 的 Generate | `ai-copilot-ribbon` 先进入 `data-phase="generating"` 并显示 rendering/processing；失败后 `generation-dialog` 展示 recoverable/failed/unavailable/retry/back to edit；sessionStorage 仍保留 analysisTaskId | `e2e/ai-first-shell.spec.ts` |
+| TC-2.7 | Style Memory 受限时登录入口不清空 Workspace 快照 | 降级 | sessionStorage 已有有效 Workspace v4 快照；`GET /api/templates` mock 返回 401 | 打开 `/workspace/templates` | `app-shell` 保持可见；`workspace-sidebar-auth-entry` 展示 log in 行动且不冒充已登录状态；sessionStorage 中原 Workspace 快照未被删除或覆盖 | `e2e/ai-first-shell.spec.ts` |
 
 ### 需要新增的 mock / fixture
 
@@ -75,9 +75,9 @@ created: 2026-07-05
 ### 需要新增的源码 data-testid
 
 - `src/components/app-shell.tsx` → `data-testid="app-shell"`，并设置 `data-variant="landing|workspace|memory"`。
-- `src/components/app-shell.tsx` → `data-testid="app-shell-primary-nav"`，承载 Workspace / Style Memory 主导航。
-- `src/components/app-shell.tsx` 或 auth slot → `data-testid="app-shell-auth-entry"`，承载登录/用户入口。
-- `src/components/workspace/status-bar.tsx` 或 `src/components/workspace/ai-copilot-ribbon.tsx` → `data-testid="ai-status-header"`，并设置 `data-phase`、`data-service-state` 和可见 next action 文案。
+- `src/components/app-shell.tsx` → Landing 使用 `data-testid="app-shell-primary-nav"`；Workspace 路由使用语义化左侧 navigation。
+- `src/components/workspace/left-sidebar.tsx` → `data-testid="workspace-sidebar-auth-entry"`，承载工作区登录/用户入口。
+- `src/components/workspace/ai-copilot-ribbon.tsx` → `data-testid="ai-copilot-ribbon"`，并设置 `data-phase`、`data-service-state` 和可见 next action 文案。
 
 ## plan-03：Workspace Reference / Evidence / Prompt 风格复刻
 
@@ -86,8 +86,8 @@ created: 2026-07-05
 | # | 场景 | 类型 | 前置条件 | 步骤 | 断言 | 目标 spec |
 |---|------|------|---------|------|------|-----------|
 | TC-3.1 | Workspace 空态解释 AI 将读取的风格信号 | Happy | plan-02 AppShell 和 AI 状态头已完成；无 reference、无 prompt、历史列表 mock 为空 | 打开 `/workspace` | 三栏结构仍可见；Reference Canvas 空态说明 AI 将读取 color、composition、lighting、texture、mood 等信号；页面提供上传 reference 与进入 Style Memory 的开始路径 | `e2e/workspace-ai-first-evidence.spec.ts` |
-| TC-3.2 | 分析完成后按稳定顺序展示 evidence facets | Happy | 上传/分析 API mock；分析轮询返回 completed fixture | 打开 `/workspace`，上传测试图片并等待分析完成 | Style Intelligence 渲染 `color -> composition -> lighting -> texture -> mood -> subject` 顺序的 facet；每个 facet 暴露 label、summary、confidence 和 source field；不渲染空 facet | `e2e/workspace-ai-first-evidence.spec.ts` |
-| TC-3.3 | 点击 facet 同步高亮 Reference anchor 与 Prompt provenance | Happy | 分析已完成，prompt 中存在可匹配 lighting 片段 | 点击 `lighting` facet | 被选中的 facet、Reference Canvas 对应 anchor、Prompt provenance 对应 span 同步 `data-selected="true"`；prompt span 标记 `exact` 或 `keyword` match，不修改用户 prompt 文本 | `e2e/workspace-ai-first-evidence.spec.ts` |
+| TC-3.2 | 分析完成后按稳定顺序展示 evidence facets | Happy | 上传/分析 API mock；分析轮询返回 completed fixture | 打开 `/workspace`，上传测试图片并等待分析完成 | Style Intelligence 渲染 `color -> composition -> lighting -> texture -> mood -> subject` 顺序的 facet；每个 facet 暴露 label、summary、confidence 和 source field；Reference Canvas 以 `cover` 充分利用可用画布；不渲染空 facet | `e2e/workspace-ai-first-evidence.spec.ts` |
+| TC-3.3 | 点击 facet 同步高亮 Prompt provenance，不虚构图像坐标 | Happy | 分析已完成，prompt 中存在可匹配 lighting 片段，但 recipe 没有真实空间坐标 | 点击 `lighting` facet | 被选中的 facet 与 Prompt provenance 对应 span 同步 `data-selected="true"`；prompt span 标记 `exact` 或 `keyword` match，不修改用户 prompt 文本；Reference Canvas 不生成合成 anchor | `e2e/workspace-ai-first-evidence.spec.ts` |
 | TC-3.4 | prompt 无精确片段时显示 facet-only 相关信号 | Edge | 分析 completed mock 中 `texture` summary 不存在于 prompt 文本 | 点击 `texture` facet | Prompt provenance 显示 `matchType="facet_only"` 的 texture chip，并展示“相关信号 / related signal”说明；不得伪造精确文本 span | `e2e/workspace-ai-first-evidence.spec.ts` |
 | TC-3.5 | 分析失败保留 reference/prompt context 并提供恢复行动 | Error | 上传成功后 `POST /api/analysis` mock 返回 retryable failure | 打开 `/workspace`，上传测试图片 | Reference Canvas 仍显示参考图；错误态说明上下文已保留；Retry analysis、Replace、Back to Edit 等继续行动可见；Prompt 区不被清空为死空态 | `e2e/workspace-ai-first-evidence.spec.ts` |
 
@@ -100,7 +100,7 @@ created: 2026-07-05
 ### 需要新增的源码 data-testid
 
 - `src/components/workspace/recipe-card.tsx` 或拆分后的 Style Intelligence facet 组件：`data-testid="evidence-facet-{facetId}"`，并设置 `data-source-field`、`data-selected`。
-- `src/components/workspace/reference-card.tsx` 或拆分后的 Reference Canvas anchor 组件：`data-testid="reference-anchor-{facetId}"`，并设置 `data-selected`。
+- `src/components/workspace/reference-card.tsx` 不为缺少真实空间坐标的 recipe 生成 `reference-anchor-*`；若未来模型 contract 提供坐标，再另立 AC。
 - `src/components/workspace/prompt-card.tsx` / `src/components/workspace/unified-prompt-editor.tsx` provenance 展示区：`data-testid="prompt-provenance-span-{facetId}"`，并设置 `data-selected`、`data-match-type="exact|keyword"`。
 - prompt 无匹配时的 chip：`data-testid="prompt-provenance-facet-only-{facetId}"`，并设置 `data-match-type="facet_only"`。
 - 可选：Reference Canvas 空态教学区 `data-testid="reference-canvas-empty-state"`，用于实现阶段收敛空态选择器。
@@ -194,7 +194,7 @@ created: 2026-07-05
 | # | 场景 | 类型 | 前置条件 | 步骤 | 断言 | 目标 spec |
 |---|------|------|---------|------|------|-----------|
 | TC-7.1 | Landing 第一屏直接解释 Reference -> Evidence -> Render 产品入口 | Happy | plan-02 AppShell 与 plan-06 Style Memory 语义已完成；登录 session mock 返回用户，避免 OAuth 干扰 | 打开 `/`，查看首屏 hero、产品预览和主行动 | `app-shell` 为 `data-variant="landing"`；首屏可见 Reference -> Evidence -> Render 顺序；文案说明 AI 会读取 color、composition、lighting、texture、mood，并辅助 prompt/render；主行动是上传 reference，次行动是浏览 Style Memory；首屏不是旧营销长页或抽象装饰预览 | `e2e/ai-first-landing-states.spec.ts` |
-| TC-7.2 | Landing 上传入口只做 file handoff，Workspace 消费 pending file 后进入上传/分析链路 | Happy | 登录 session mock；`POST /api/upload/presign`、R2 PUT、`POST /api/analysis` 和 history list 使用 mock | 在 `/` 的上传入口选择测试图片 | 选择文件后跳转 `/workspace`；上传/分析请求发生在 Workspace 挂载后，不在 Landing 提前调用；`ai-status-header` 进入 uploading/analyzing；Reference Canvas 保留参考图或上传进度 | `e2e/ai-first-landing-states.spec.ts` |
+| TC-7.2 | Landing 上传入口只做 file handoff，Workspace 消费 pending file 后进入上传/分析链路 | Happy | 登录 session mock；`POST /api/upload/presign`、R2 PUT、`POST /api/analysis` 和 history list 使用 mock | 在 `/` 的上传入口选择测试图片 | 选择文件后跳转 `/workspace`；上传/分析请求发生在 Workspace 挂载后，不在 Landing 提前调用；`ai-copilot-ribbon` 进入 uploading/analyzing；Reference Canvas 保留参考图或上传进度 | `e2e/ai-first-landing-states.spec.ts` |
 | TC-7.3 | 受限/未登录状态显示 login/back action 且不清空 Workspace 快照 | 降级 | sessionStorage 已有 Workspace 快照；`GET /api/templates?search=&limit=20` mock 返回 401 | 打开 `/workspace/templates` | `app-shell` 和登录入口保持可见；`StatePresenter` 或等价状态区为 `data-status="authRequired"`；文案说明需要登录、workspace context 保留，并提供 Login/Sign in 与 Back to Workspace；sessionStorage 原快照不变 | `e2e/ai-first-landing-states.spec.ts` |
 | TC-7.4 | Workspace empty 与 Style Memory empty/noResults 使用统一行动型状态语言 | Edge | Workspace 无 reference/prompt/history；Style Memory 列表 mock 为空并支持搜索无结果 | 先打开 `/workspace` 查看空态，再打开 `/workspace/templates` 和搜索无匹配关键词 | Workspace 空态说明 AI 将读取 reference evidence signals，并提供上传/Style Memory 路径；Style Memory empty 为 `data-status="empty"` 且提供 Create from Reference/Open Workspace；搜索无结果为 `data-status="noResults"` 且提供 Clear Search/Back to Workspace | `e2e/ai-first-landing-states.spec.ts` |
 | TC-7.5 | 旧 Landing/Template 主文案不作为第 12 期主路径出现 | Edge | plan-07 实现后 Landing 已完成最终收口 | 打开 `/`，检查可见首页主路径文案 | 首页主路径不再出现旧 `Reference Image Style Recreation`、`Template Library`、`Visual Recipe`、`Recreate a Style in Three Steps`、孤立 `Generate a New Image in the Same Style` 等旧体系文案；Style Memory 作为用户可见术语出现 | `e2e/ai-first-landing-states.spec.ts` |
@@ -207,7 +207,7 @@ created: 2026-07-05
 
 ### 需要新增的源码 data-testid
 
-- 无。plan-07 red E2E 复用 plan-02/06 已建立的 `app-shell`、`app-shell-primary-nav`、`app-shell-auth-entry`、`ai-status-header`、`reference-card` 和 `StatePresenter[data-status]` 契约；Landing 首屏用可见文案和现有语义角色断言。
+- 无。plan-07 red E2E 复用 plan-02/06 已建立的 `app-shell`、Landing `app-shell-primary-nav`、`workspace-sidebar-auth-entry`、`ai-copilot-ribbon`、`reference-card` 和 `StatePresenter[data-status]` 契约；Landing 首屏用可见文案和现有语义角色断言。
 
 ## plan-08：第 12 期 Targeted E2E 与视觉 QA
 
@@ -223,7 +223,7 @@ created: 2026-07-05
 | # | 场景 | 类型 | 前置条件 | 步骤 | 断言 | 目标 spec |
 |---|------|------|---------|------|------|-----------|
 | TC-8.1 | 第 12 期 targeted E2E 总门覆盖 AC-01..AC-09 | Happy | plan-01..07 targeted specs 已创建；plan-08 尚未实现最终总门 | 运行第 12 期 targeted bundle，并检查本用例文档 AC 覆盖矩阵 | bundle 包含 design system、shell、Workspace evidence、Render Dock、Iteration Memory、Style Memory、Landing states、visual regression；AC-01..AC-09 每条均映射到至少一个 spec 或视觉 QA checklist | `e2e/ai-first-visual-regression.spec.ts` + targeted bundle |
-| TC-8.2 | Landing、Workspace idle、Style Memory populated 在桌面/宽屏/窄屏非空且关键 data-testid 可见 | Happy | 使用 mock auth、history、templates 和 CDN 图片；不依赖真实后端 | 在 1440x900、1280x800、390x844 打开 `/`、`/workspace`、`/workspace/templates` | `app-shell`、主导航、main 可见且非空；Workspace 的 `ai-status-header`、`workspace-three-column-layout`、`reference-card`、`recipe-card`、`prompt-card`、`output-card`、`history-strip` 可见；Style Memory 记忆卡片具备稳定 QA selector | `e2e/ai-first-visual-regression.spec.ts` |
+| TC-8.2 | Landing、Workspace idle、Style Memory populated 在桌面/宽屏/窄屏非空且关键 data-testid 可见 | Happy | 使用 mock auth、history、templates 和 CDN 图片；不依赖真实后端 | 在 1440x900、1280x800、390x844 打开 `/`、`/workspace`、`/workspace/templates` | `app-shell` 与 main 可见且非空；Landing 顶部主导航、Workspace 左侧导航，以及 Workspace 的 `ai-copilot-ribbon`、`workspace-three-column-layout`、`reference-card`、`recipe-card`、`prompt-card`、`output-card`、`history-strip` 可见；Style Memory 记忆卡片具备稳定 QA selector | `e2e/ai-first-visual-regression.spec.ts` |
 | TC-8.3 | Workspace analysis_ready / generation failed 页面几何不重叠且 Render Dock 不遮挡 Prompt | Error | 上传/分析/generation failed 使用 mock；生成失败必须保留 prompt 与参数上下文 | 打开 `/workspace`，上传测试图到 `analysis_ready`，点击 Generate 并让 generation polling 返回 failed | 页面文本元素无明显几何重叠；按钮文本不溢出；`output-card` 不覆盖 `unified-prompt-editor`；`render-recovery-actions` 可见；失败态仍保留 Prompt 编辑区 | `e2e/ai-first-visual-regression.spec.ts` |
 | TC-8.4 | Style Memory populated / empty / noResults / authRequired 状态通过视觉 QA | Edge | `/api/templates` 分别 mock 为 populated、空数组、搜索无结果和 401 | 打开 `/workspace/templates`，切换搜索与错误状态 | populated 卡片展示来源图、变量、Style tags、Reuse intent，且不退回旧文件列表；empty/noResults/authRequired 的 `StatePresenter` action 可见且按钮不溢出；不出现旧 `Template Library` / `No templates yet` 主路径 | `e2e/ai-first-visual-regression.spec.ts` |
 | TC-8.5 | StatePresenter action 在异常/受限状态下保持可见 | 降级 | Style Memory 401、noResults 和 generation failed 均有 mock | 触发 authRequired、noResults、generation failed 三类状态 | 每个状态至少 1 个可见 action；按钮文本不被截断；状态说明包含保留上下文和下一步，不只显示错误码 | `e2e/ai-first-visual-regression.spec.ts` |

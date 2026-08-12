@@ -1,0 +1,112 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - link "Visoryn" [ref=e5] [cursor=pointer]:
+          - /url: /
+        - navigation "Site navigation" [ref=e9]:
+          - link "Home" [ref=e10] [cursor=pointer]:
+            - /url: /
+          - link "Workspace" [ref=e14] [cursor=pointer]:
+            - /url: /workspace
+          - link "Style Memory" [ref=e20] [cursor=pointer]:
+            - /url: /workspace/templates
+        - button "Log in" [ref=e24]
+    - main [ref=e30]:
+      - generic [ref=e32]:
+        - generic [ref=e33]:
+          - generic [ref=e34]: AI evidence workbench
+          - heading "Reference -> Evidence -> Render" [level=1] [ref=e35]
+          - paragraph [ref=e36]: Upload a reference image and let AI read the color, composition, lighting, texture, and mood as evidence. Keep that evidence visible while you edit the prompt and prepare a new render.
+          - generic [ref=e37]:
+            - link "Start from reference" [ref=e38] [cursor=pointer]:
+              - /url: /workspace
+            - link "Browse Style Memory" [ref=e43] [cursor=pointer]:
+              - /url: /workspace/templates
+          - generic [ref=e48]:
+            - generic [ref=e49]: AI keeps the reference on canvas.
+            - generic [ref=e54]: Evidence stays attached to the prompt.
+            - generic [ref=e59]: Readiness shows what is missing before render.
+        - generic "Reference Evidence Render preview" [ref=e62]:
+          - generic [ref=e63]:
+            - generic [ref=e64]:
+              - paragraph [ref=e66]: Reference
+              - paragraph [ref=e72]: Source image remains visible while AI reads style signals.
+            - generic [ref=e73]:
+              - generic [ref=e74]:
+                - paragraph [ref=e75]: Evidence
+                - generic [ref=e76]: prompt-linked
+              - generic [ref=e77]:
+                - generic [ref=e78]:
+                  - generic [ref=e79]: Color
+                  - generic [ref=e80]: warm coral, air blue
+                - generic [ref=e81]:
+                  - generic [ref=e82]: Composition
+                  - generic [ref=e83]: right-weighted subject
+                - generic [ref=e84]:
+                  - generic [ref=e85]: Lighting
+                  - generic [ref=e86]: soft glass daylight
+                - generic [ref=e87]:
+                  - generic [ref=e88]: Texture
+                  - generic [ref=e89]: matte paper grain
+                - generic [ref=e90]:
+                  - generic [ref=e91]: Mood
+                  - generic [ref=e92]: calm editorial focus
+              - generic [ref=e93]:
+                - paragraph [ref=e94]: Prompt draft
+                - paragraph [ref=e95]: soft editorial object study, warm coral accent, airy blue field, glass daylight, matte texture
+            - generic [ref=e96]:
+              - paragraph [ref=e98]: Render
+              - generic [ref=e104]:
+                - generic [ref=e105]: Variables and service are ready.
+                - paragraph [ref=e110]: Generate, compare, then save the direction as Style Memory.
+      - button "Upload a reference image" [ref=e113] [cursor=pointer]:
+        - generic [ref=e114]:
+          - generic [ref=e115]:
+            - paragraph [ref=e120]: Upload a reference image
+            - paragraph [ref=e121]: The file is handed to Workspace first. AI reads it there as evidence before any analysis request starts.
+            - paragraph [ref=e122]: JPG, PNG, or WebP, up to 10MB
+          - generic [ref=e123]: Start from reference
+      - generic [ref=e128]:
+        - heading "The workbench keeps AI decisions inspectable" [level=2] [ref=e129]
+        - paragraph [ref=e130]: Landing, Workspace, and Style Memory now use the same evidence, readiness, and recovery language.
+        - generic [ref=e131]:
+          - generic [ref=e132]:
+            - generic [ref=e133]: AI style reading
+            - heading "Evidence" [level=3] [ref=e134]
+            - paragraph [ref=e135]: Color, composition, lighting, texture, and mood become visible signals instead of hidden prompt guesswork.
+          - generic [ref=e138]:
+            - generic [ref=e139]: Before render
+            - heading "Readiness" [level=3] [ref=e140]
+            - paragraph [ref=e141]: Variables, style signals, prompt edits, and service status stay in one scan path before generation starts.
+          - generic [ref=e144]:
+            - generic [ref=e145]: Reuse direction
+            - heading "Style Memory" [level=3] [ref=e146]
+            - paragraph [ref=e147]: Save source-backed directions and return to them when a prompt structure is worth reusing.
+      - generic [ref=e151]:
+        - generic [ref=e152]:
+          - heading "Every State Stays Clear" [level=2] [ref=e153]
+          - paragraph [ref=e154]: Landing previews, workspace feedback, and template empty states share one clear status voice.
+        - generic [ref=e155]:
+          - generic [ref=e156]:
+            - paragraph [ref=e157]: Analyzing
+            - paragraph [ref=e158]: AI is reading the reference for color, composition, lighting, texture, and mood signals while your prompt remains available.
+          - generic [ref=e159]:
+            - paragraph [ref=e160]: Generation Complete
+            - paragraph [ref=e161]: The result is ready. Your reference, prompt, and generated image are still available for editing, saving, or another render.
+          - generic [ref=e162]:
+            - paragraph [ref=e163]: Recoverable Failure
+            - paragraph [ref=e164]: Analysis, generation, or the service was interrupted, but your reference, prompt, and context are still preserved. Retry or go back to edit before the next attempt.
+      - generic [ref=e166]:
+        - generic [ref=e167]:
+          - paragraph [ref=e168]: Keep the context moving
+          - heading "Start with a reference, or reopen a saved direction." [level=2] [ref=e169]
+          - paragraph [ref=e170]: The workspace keeps reference, evidence, prompt, render readiness, and Style Memory actions in the same product language.
+        - generic [ref=e171]:
+          - link "Start from reference" [ref=e172] [cursor=pointer]:
+            - /url: /workspace
+          - link "Open saved directions" [ref=e177] [cursor=pointer]:
+            - /url: /workspace/templates
+      - paragraph [ref=e183]: © 2026 Visoryn · AI-powered visual style analysis tool
+  - button "Open Next.js Dev Tools" [ref=e189] [cursor=pointer]
+  - alert [ref=e193]

@@ -80,7 +80,11 @@ describe("TemplateCard", () => {
     await user.click(screen.getByRole("button", { name: /use memory/i }));
     expect(onUse).toHaveBeenCalledWith("template-1");
 
-    await user.click(screen.getByRole("button", { name: /more actions/i }));
+    const actionMenuButton = screen.getByRole("button", { name: /more actions/i });
+    expect(actionMenuButton).toHaveAttribute("aria-expanded", "false");
+
+    await user.click(actionMenuButton);
+    expect(actionMenuButton).toHaveAttribute("aria-expanded", "true");
     await user.click(screen.getByRole("button", { name: /^Duplicate$/i }));
     expect(onDuplicate).toHaveBeenCalledWith("template-1");
 

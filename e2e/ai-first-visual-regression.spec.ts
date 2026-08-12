@@ -385,7 +385,7 @@ test.describe('plan-08 targeted visual QA and legacy gate', () => {
       await openRoute(page, '/workspace')
       await expectPageNonEmpty(page)
       await expect(appShell(page)).toHaveAttribute('data-variant', 'workspace')
-      await expect(appShell(page).getByTestId('ai-status-header').first()).toBeVisible()
+      await expect(appShell(page).getByTestId('ai-copilot-ribbon').first()).toBeVisible()
       await expect(appShell(page).getByTestId('workspace-three-column-layout').first()).toBeVisible()
       await expect(appShell(page).getByTestId('reference-card').first()).toBeVisible()
       await expect(appShell(page).getByTestId('recipe-card').first()).toBeVisible()

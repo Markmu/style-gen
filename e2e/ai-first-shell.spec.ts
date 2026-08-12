@@ -79,25 +79,32 @@ function primaryNav(page: Page) {
   return page.getByTestId('app-shell-primary-nav')
 }
 
-function navItem(page: Page, name: RegExp) {
-  return primaryNav(page)
-    .getByRole('link', { name })
-    .or(primaryNav(page).getByRole('button', { name }))
-    .first()
+function workspaceNav(page: Page) {
+  return page.getByRole('complementary', { name: /workspace navigation/i })
 }
 
-function aiStatusHeader(page: Page) {
-  return page.getByTestId('ai-status-header')
+function aiCopilot(page: Page) {
+  return page.getByTestId('ai-copilot-ribbon')
 }
 
-async function expectSharedShell(page: Page, variant: string) {
+async function expectSharedShell(page: Page, variant: string, route: string) {
   await expect(appShell(page)).toBeVisible({ timeout: 5000 })
   await expect(appShell(page)).toHaveAttribute('data-variant', variant)
-  await expect(page.getByRole('banner')).toBeVisible()
-  await expect(primaryNav(page)).toBeVisible()
   await expect(page.locator('main')).toBeVisible()
-  await expect(navItem(page, /^Workspace$/i)).toBeVisible()
-  await expect(navItem(page, /^Style Memory$/i)).toBeVisible()
+
+  if (route === '/') {
+    await expect(page.getByRole('banner')).toBeVisible()
+    await expect(primaryNav(page)).toBeVisible()
+    await expect(primaryNav(page).getByRole('link', { name: /^Workspace$/i })).toBeVisible()
+    await expect(primaryNav(page).getByRole('link', { name: /^Style Memory$/i })).toBeVisible()
+    return
+  }
+
+  await expect(workspaceNav(page)).toBeVisible()
+  await expect(workspaceNav(page).getByRole('link', { name: /^Generate$/i })).toBeVisible()
+  await expect(
+    workspaceNav(page).getByRole('link', { name: /style memory library/i }),
+  ).toBeVisible()
 }
 
 test.describe('plan-02 AppShell and AI status header', () => {
@@ -113,7 +120,7 @@ test.describe('plan-02 AppShell and AI status header', () => {
 
       await openRoute(page, route.path)
 
-      await expectSharedShell(page, route.variant)
+      await expectSharedShell(page, route.variant, route.path)
     })
   }
 
@@ -122,10 +129,13 @@ test.describe('plan-02 AppShell and AI status header', () => {
 
     await openRoute(page, '/workspace/templates')
 
-    const styleMemoryNav = navItem(page, /^Style Memory$/i)
+    const styleMemoryNav = workspaceNav(page).getByRole('link', {
+      name: /style memory library/i,
+    })
     await expect(styleMemoryNav).toBeVisible()
     await expect(styleMemoryNav).toHaveAttribute('aria-current', 'page')
-    await expect(primaryNav(page).getByText(/Template Library/i)).toHaveCount(0)
+    await expect(workspaceNav(page).getByText(/Template Library/i)).toHaveCount(0)
+    await expect(styleMemoryNav).toContainText(/^Library$/i)
     await expect(page).toHaveURL(/\/workspace\/templates$/)
   })
 
@@ -134,11 +144,11 @@ test.describe('plan-02 AppShell and AI status header', () => {
 
     await openRoute(page, '/workspace')
 
-    await expect(aiStatusHeader(page)).toBeVisible({ timeout: 5000 })
-    await expect(aiStatusHeader(page)).toHaveAttribute('data-phase', 'idle')
-    await expect(aiStatusHeader(page)).toContainText(/upload|reference/i)
-    await expect(aiStatusHeader(page)).toContainText(/service|ready|available/i)
-    await expect(aiStatusHeader(page)).toContainText(/next/i)
+    await expect(aiCopilot(page)).toBeVisible({ timeout: 5000 })
+    await expect(aiCopilot(page)).toHaveAttribute('data-phase', 'idle')
+    await expect(aiCopilot(page)).toContainText(/upload|reference/i)
+    await expect(aiCopilot(page)).toContainText(/service|ready|available/i)
+    await expect(aiCopilot(page)).toContainText(/next/i)
   })
 
   test('TC-2.4 updates the AI status header while analysis is processing', async ({ page }) => {
@@ -160,11 +170,11 @@ test.describe('plan-02 AppShell and AI status header', () => {
     await openRoute(page, '/workspace')
     await uploadReference(page)
 
-    await expect(aiStatusHeader(page)).toHaveAttribute('data-phase', 'analyzing', {
+    await expect(aiCopilot(page)).toHaveAttribute('data-phase', 'analyzing', {
       timeout: 15000,
     })
-    await expect(aiStatusHeader(page)).toContainText(/reading|extracting|style signals/i)
-    await expect(aiStatusHeader(page)).toContainText(/color|composition|lighting|texture|mood/i)
+    await expect(aiCopilot(page)).toContainText(/reading|extracting|style signals/i)
+    await expect(aiCopilot(page)).toContainText(/signals detected/i)
   })
 
   test('TC-2.5 updates the AI status header when analysis is ready', async ({ page }) => {
@@ -178,11 +188,11 @@ test.describe('plan-02 AppShell and AI status header', () => {
     await openRoute(page, '/workspace')
     await uploadReference(page)
 
-    await expect(aiStatusHeader(page)).toHaveAttribute('data-phase', 'analysis_ready', {
+    await expect(aiCopilot(page)).toHaveAttribute('data-phase', 'analysis_ready', {
       timeout: 15000,
     })
-    await expect(aiStatusHeader(page)).toContainText(/ready|evidence|style signals|generate/i)
-    await expect(aiStatusHeader(page)).toContainText(/next/i)
+    await expect(aiCopilot(page)).toContainText(/ready|evidence|style signals|generate|editing/i)
+    await expect(aiCopilot(page)).toContainText(/next/i)
   })
 
   test('TC-2.6 shows generating and recoverable failure status without clearing context', async ({ page }) => {
@@ -214,21 +224,20 @@ test.describe('plan-02 AppShell and AI status header', () => {
 
     await openRoute(page, '/workspace')
     await uploadReference(page)
-    await expect(aiStatusHeader(page)).toHaveAttribute('data-phase', 'analysis_ready', {
+    await expect(aiCopilot(page)).toHaveAttribute('data-phase', 'analysis_ready', {
       timeout: 15000,
     })
 
     await page.getByTestId('output-card').getByRole('button', { name: /^Generate$/i }).click()
 
-    await expect(aiStatusHeader(page)).toHaveAttribute('data-phase', 'generating', {
+    await expect(aiCopilot(page)).toHaveAttribute('data-phase', 'generating', {
       timeout: 15000,
     })
-    await expect(aiStatusHeader(page)).toContainText(/rendering|generating|processing|queued/i)
+    await expect(aiCopilot(page)).toContainText(/rendering|generating|processing|queued/i)
 
-    await expect(aiStatusHeader(page)).toContainText(
-      /recoverable|failed|unavailable|retry|back to edit/i,
-      { timeout: 15000 },
-    )
+    const generationDialog = page.getByTestId('generation-dialog')
+    await expect(generationDialog).toContainText(/generation failed/i, { timeout: 15000 })
+    await expect(generationDialog).toContainText(/preserved|retry|back to edit/i)
 
     await expect
       .poll(
@@ -241,7 +250,7 @@ test.describe('plan-02 AppShell and AI status header', () => {
 
   test('TC-2.7 keeps an existing workspace snapshot when Style Memory is auth restricted', async ({ page }) => {
     const workspaceSnapshot = JSON.stringify({
-      version: 3,
+      version: 4,
       assetId: 'persisted-asset-id',
       referenceImageUrl: 'https://cdn.example.com/references/persisted/original.png',
       analysisTaskId: 'persisted-analysis-id',
@@ -253,6 +262,7 @@ test.describe('plan-02 AppShell and AI status header', () => {
       analysisTemplateStatus: null,
       analysisTemplateReason: null,
       generationTaskId: null,
+      v2PromptState: null,
     })
 
     await page.addInitScript(
@@ -267,8 +277,11 @@ test.describe('plan-02 AppShell and AI status header', () => {
     await openRoute(page, '/workspace/templates')
 
     await expect(appShell(page)).toBeVisible({ timeout: 5000 })
-    await expect(page.getByTestId('app-shell-auth-entry')).toBeVisible()
-    await expect(page.getByTestId('app-shell-auth-entry')).toContainText(/log in|sign in/i)
+    await expect(page.getByTestId('workspace-sidebar-auth-entry')).toBeVisible()
+    await expect(
+      page.getByTestId('workspace-sidebar-auth-entry').getByRole('button', { name: /log in/i }).first(),
+    ).toBeVisible()
+    await expect(page.locator('section[data-status="authRequired"]')).toBeVisible()
 
     const stored = await page.evaluate((key) => window.sessionStorage.getItem(key), STORAGE_KEY)
     expect(stored).toBe(workspaceSnapshot)

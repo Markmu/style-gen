@@ -8,6 +8,7 @@ import { ChevronUp, Layers3, LogOut, Sparkles } from "lucide-react";
 import { AppIcon } from "@/components/ui/app-icon";
 import { trackAuthEvent } from "@/components/auth/auth-tracking";
 import { VisorynMark } from "@/components/brand/visoryn-mark";
+import { LoginButton } from "@/components/auth/login-button";
 
 const navItems = [
   {
@@ -80,22 +81,22 @@ export function LeftSidebar() {
   return (
     <aside
       aria-label="Workspace navigation"
-      className="workspace-sidebar surface-panel flex h-full w-[14.125rem] flex-shrink-0 flex-col px-3 pb-3 pt-4"
+      className="workspace-sidebar surface-panel flex h-full w-[4.5rem] flex-shrink-0 flex-col px-2 pb-3 pt-4 md:w-[14.125rem] md:px-3"
     >
-      <div className="flex items-center px-2">
+      <div className="flex items-center justify-center px-1 md:justify-start md:px-2">
         <Link
           href="/"
           className="flex min-w-0 items-center gap-2.5 transition-opacity hover:opacity-80"
           aria-label="Visoryn home"
         >
           <VisorynMark className="workspace-sidebar-brand-mark shrink-0" />
-          <span className="truncate text-lg font-bold text-[var(--text-primary)]">
+          <span className="hidden truncate text-lg font-bold text-[var(--text-primary)] md:inline">
             Visoryn
           </span>
         </Link>
       </div>
 
-      <nav className="mt-10 space-y-2" aria-label="Workspace primary navigation">
+      <nav className="mt-8 space-y-2 md:mt-10" aria-label="Workspace primary navigation">
         {navItems.map((item) => {
           const active = item.match(pathname);
           return (
@@ -106,7 +107,7 @@ export function LeftSidebar() {
               aria-current={active ? "page" : undefined}
               data-tone={item.tone}
               data-active={active}
-              className={`workspace-sidebar-nav-item flex w-full items-center gap-3 rounded-lg px-3.5 py-3 text-sm font-semibold ${
+              className={`workspace-sidebar-nav-item flex w-full items-center justify-center gap-0 rounded-lg px-2 py-3 text-sm font-semibold md:justify-start md:gap-3 md:px-3.5 ${
                 active ? "is-active" : "text-[var(--text-secondary)]"
               }`}
             >
@@ -115,14 +116,16 @@ export function LeftSidebar() {
                 size={18}
                 className="workspace-sidebar-nav-icon"
               />
-              <span className="min-w-0 truncate leading-tight">{item.label}</span>
+              <span className="hidden min-w-0 truncate leading-tight md:inline">
+                {item.label}
+              </span>
             </Link>
           );
         })}
       </nav>
 
       <div className="mt-auto space-y-2">
-        <section className="workspace-sidebar-plan rounded-lg px-3 py-3">
+        <section className="workspace-sidebar-plan hidden rounded-lg px-3 py-3 md:block">
           <p className="text-sm font-semibold text-[var(--text-primary)]">
             {creditsPreview.plan}
           </p>
@@ -142,7 +145,7 @@ export function LeftSidebar() {
 
         <div ref={userMenuRef} className="relative">
           {isUserMenuOpen && (
-            <div className="workspace-sidebar-menu absolute right-0 bottom-full left-0 z-20 mb-2 rounded-lg py-2">
+            <div className="workspace-sidebar-menu absolute bottom-full left-0 z-20 mb-2 w-40 rounded-lg py-2 md:right-0 md:w-auto">
               <button
                 type="button"
                 onClick={handleSignOut}
@@ -155,20 +158,20 @@ export function LeftSidebar() {
           )}
 
           {status === "loading" ? (
-            <div className="workspace-sidebar-user flex items-center gap-3 rounded-lg px-3 py-2.5">
+            <div className="workspace-sidebar-user flex items-center justify-center gap-0 rounded-lg px-1 py-2.5 md:justify-start md:gap-3 md:px-3">
               <div className="h-9 w-9 rounded-full bg-[var(--surface-bright)]" />
-              <div className="min-w-0 flex-1 space-y-2">
+              <div className="hidden min-w-0 flex-1 space-y-2 md:block">
                 <div className="h-3 w-24 rounded-full bg-[var(--surface-bright)]" />
                 <div className="h-2.5 w-32 rounded-full bg-[var(--surface-bright)]" />
               </div>
             </div>
-          ) : (
+          ) : session ? (
             <button
               type="button"
               onClick={() => setIsUserMenuOpen((open) => !open)}
               aria-label="User menu"
               aria-expanded={isUserMenuOpen}
-              className="workspace-sidebar-user flex w-full min-w-0 items-center gap-3 rounded-lg px-3 py-2.5 text-left"
+              className="workspace-sidebar-user flex w-full min-w-0 items-center justify-center gap-0 rounded-lg px-1 py-2.5 text-left md:justify-start md:gap-3 md:px-3"
             >
               <span className="workspace-sidebar-avatar flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-full">
                 {avatarUrl ? (
@@ -184,7 +187,7 @@ export function LeftSidebar() {
                   </span>
                 )}
               </span>
-              <span className="min-w-0 flex-1">
+              <span className="hidden min-w-0 flex-1 md:block">
                 <span className="block truncate text-sm font-semibold text-[var(--text-primary)]">
                   {userName || "Signed in"}
                 </span>
@@ -192,11 +195,21 @@ export function LeftSidebar() {
                   {userEmail || "Workspace user"}
                 </span>
               </span>
-              <AppIcon icon={ChevronUp} size={16} className="text-[var(--text-muted)]" />
+              <AppIcon
+                icon={ChevronUp}
+                size={16}
+                className="hidden text-[var(--text-muted)] md:block"
+              />
             </button>
+          ) : (
+            <div
+              data-testid="workspace-sidebar-auth-entry"
+              className="flex justify-center md:block"
+            >
+              <LoginButton compactOnMobile />
+            </div>
           )}
         </div>
-
       </div>
     </aside>
   );

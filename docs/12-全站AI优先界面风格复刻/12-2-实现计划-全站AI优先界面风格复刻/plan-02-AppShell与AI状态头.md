@@ -47,7 +47,7 @@ depends_on: ["plan-01"]
 在 `src/components/app-shell.tsx` 创建轻量壳层组件：
 
 - props: `children`、`variant?: "landing" | "workspace" | "memory"`、`pageLabel`、`statusSummary?`、`actions?`。
-- 输出 `header`、`nav`、`main` landmarks，避免每个页面重复结构。
+- 输出共享 `main` landmark；Landing 提供顶部 `header`/`nav`，Workspace 路由由左侧栏提供工作区 `nav`，避免重复导航 landmark。
 - 使用 plan-01 token：`.workspace-chromatic`、`.ai-panel`、`.surface-panel`，不新增 UI 框架。
 - 保留 children 的布局自由度，不把 Workspace 三栏放入嵌套卡片。
 - 支持 auth header 或 left sidebar 的插槽，具体 route 仍由现有 Next.js layout/page 控制。
@@ -65,7 +65,7 @@ depends_on: ["plan-01"]
 
 `AuthHeader` 和 `LeftSidebar` 的用户可见文案迁移：
 
-- UI 显示 `Style Memory`，路由仍为 `/workspace/templates`。
+- Landing 顶部导航显示 `Style Memory`；Workspace 左侧栏使用更紧凑的可见文案 `Library`，并以 `Style Memory Library` 作为可访问名称；路由仍为 `/workspace/templates`。
 - 旧 `Template Library` 文案只允许出现在代码/API 命名或兼容测试注释中，不应继续作为主导航文案。
 - 登录入口、用户菜单和导航按钮使用 plan-01 button/input/status token。
 
@@ -82,8 +82,8 @@ depends_on: ["plan-01"]
 
 `e2e/ai-first-shell.spec.ts` 覆盖：
 
-- Landing、Workspace、Style Memory 共享 AI-first shell 和导航。
-- `/workspace/templates` 导航显示 Style Memory 且 active。
+- Landing、Workspace、Style Memory 共享 AI-first shell；Landing 使用顶部导航，Workspace 与 Style Memory 共享左侧工作区导航。
+- `/workspace/templates` 左侧导航显示 Library、可访问名称为 Style Memory Library 且 active。
 - Workspace 状态头在 idle/analyzing/analysis_ready/generating/failed 中有可见文案。
 - 未登录或 auth 入口不清空已存在的 workspace sessionStorage 快照。
 
@@ -94,7 +94,7 @@ depends_on: ["plan-01"]
 | 1 | 编写 `ai-first-shell.spec.ts` red 用例和证据 | frontend | done | 证据写入 `docs/e2e/evidence/plan-02-e2e-red-20260705.md` |
 | 2 | 创建共享 `AppShell` 组件 | frontend | done | 只承担壳层和 landmarks，不承载业务逻辑 |
 | 3 | 改造 root/workspace layout 接入 shell | frontend | done | 保留路由、query 和三栏工作台结构 |
-| 4 | 更新 AuthHeader/LoginButton/LeftSidebar 文案与 token | frontend | done | UI 显示 Style Memory，代码/API 保持 template |
+| 4 | 更新 AuthHeader/LoginButton/LeftSidebar 文案与 token | frontend | done | Landing 显示 Style Memory，Workspace 左侧栏显示 Library，代码/API 保持 template |
 | 5 | 收敛 StatusBar 与 AiCopilotRibbon 状态头 | frontend | done | 映射 phase、readiness、next action、degradation |
 | 6 | 更新导航和状态头组件测试 | frontend | done | 覆盖 active nav、折叠态、aria-label、服务受限 |
 | 7 | 运行 red/green E2E、组件测试、类型检查和构建 | frontend | done | 证据写入 `docs/e2e/evidence/plan-02-e2e-green-20260705.md` |
@@ -105,7 +105,7 @@ depends_on: ["plan-01"]
 
 - [x] AC-02 `/workspace` 渲染共享壳层、Workspace 导航、AI 状态头和三栏内容区域，且不回退旧 two-pane 主体验。
 - [x] AC-07 Landing、Workspace、Style Memory 和登录入口使用一致 surface、button、nav active 和状态语言。
-- [x] AC-07 主导航用户可见文案使用 `Style Memory`，但 `/workspace/templates` 路由和 template API 命名不变。
+- [x] AC-07 Landing 主导航使用 `Style Memory`；Workspace 左侧栏使用 `Library` 并保留 `Style Memory Library` 可访问名称；`/workspace/templates` 路由和 template API 命名不变。
 - [x] AC-08 未登录或受限入口显示可继续行动，不清空 sessionStorage 中有效 Workspace 快照。
 - [x] E2E-TDD：`e2e/ai-first-shell.spec.ts` 先 red 后 green，证据分别写入 `docs/e2e/evidence/plan-02-e2e-red-20260705.md` 与 `docs/e2e/evidence/plan-02-e2e-green-20260705.md`。
 

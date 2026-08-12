@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Search } from "lucide-react";
+import { ArrowLeft, Search, X } from "lucide-react";
 import { AppIcon } from "@/components/ui/app-icon";
 import { StatePresenter } from "@/components/ui/state-presenter";
 import { TemplateCard } from "@/components/workspace/template-card";
@@ -11,7 +11,7 @@ import { useTemplateSearch } from "@/hooks/use-template-search";
 import type { TemplateVariable } from "@/types/models";
 
 const WORKSPACE_STORAGE_KEY = "style-gen-workspace-state";
-const WORKSPACE_STORAGE_VERSION = 3;
+const WORKSPACE_STORAGE_VERSION = 4;
 
 interface TemplateDetailForWorkspace {
   content?: string;
@@ -22,16 +22,24 @@ interface TemplateDetailForWorkspace {
 
 function SkeletonCard() {
   return (
-    <div className="style-memory-card flex min-h-[28rem] flex-col">
-      <div className="style-memory-source aspect-[4/3] w-full animate-pulse" />
+    <div
+      aria-hidden="true"
+      className="style-memory-card flex min-h-[25rem] flex-col"
+    >
+      <div className="style-memory-source aspect-[16/10] w-full animate-pulse motion-reduce:animate-none" />
       <div className="flex flex-1 flex-col gap-4 p-4">
-        <div className="h-4 w-3/4 animate-pulse rounded bg-[var(--surface-low)]" />
-        <div className="h-7 w-28 animate-pulse rounded-full bg-[var(--surface-low)]" />
-        <div className="flex gap-2">
-          <div className="h-7 w-24 animate-pulse rounded-full bg-[var(--surface-low)]" />
-          <div className="h-7 w-20 animate-pulse rounded-full bg-[var(--surface-low)]" />
+        <div className="space-y-2">
+          <div className="h-4 w-3/4 animate-pulse rounded bg-[var(--surface-low)] motion-reduce:animate-none" />
+          <div className="h-3 w-2/5 animate-pulse rounded bg-[var(--surface-low)] motion-reduce:animate-none" />
         </div>
-        <div className="mt-auto h-16 animate-pulse rounded-lg bg-[var(--surface-low)]" />
+        <div className="flex gap-2">
+          <div className="h-6 w-24 animate-pulse rounded-full bg-[var(--surface-low)] motion-reduce:animate-none" />
+          <div className="h-6 w-20 animate-pulse rounded-full bg-[var(--surface-low)] motion-reduce:animate-none" />
+        </div>
+        <div className="mt-auto flex items-end justify-between gap-4">
+          <div className="h-10 w-3/5 animate-pulse rounded bg-[var(--surface-low)] motion-reduce:animate-none" />
+          <div className="h-9 w-24 animate-pulse rounded-md bg-[var(--surface-low)] motion-reduce:animate-none" />
+        </div>
       </div>
     </div>
   );
@@ -74,6 +82,7 @@ async function primeWorkspaceSnapshotFromTemplate(id: string) {
           template.variables && template.variables.length > 0 ? "ready" : null,
         analysisTemplateReason: null,
         generationTaskId: null,
+        v2PromptState: null,
       }),
     );
   } catch {
@@ -123,6 +132,9 @@ export default function StyleMemoryPage() {
   const showNoResults =
     !isLoading && !isFetchFailure && hasSearched && visibleMemories.length === 0;
   const showGrid = !isLoading && !isFetchFailure && hasMemories;
+  const resultLabel = `${visibleMemories.length} ${
+    visibleMemories.length === 1 ? "memory" : "memories"
+  }`;
 
   const goToWorkspace = useCallback(() => {
     router.push("/workspace");
@@ -184,146 +196,172 @@ export default function StyleMemoryPage() {
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="shrink-0 px-6 pb-4 pt-6">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-3xl">
-            <p className="text-sm font-medium text-[var(--accent-primary)]">
-              Reference {"->"} Evidence {"->"} Render
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold text-[var(--text-primary)]">
+    <div
+      className="flex h-full min-h-0 flex-col"
+      data-testid="style-memory-page"
+    >
+      <header className="shrink-0 px-3 pb-4 pt-5 sm:px-4 lg:px-5 lg:pb-5 lg:pt-7">
+        <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="max-w-2xl">
+            <h1 className="text-[2rem] font-semibold leading-tight tracking-[-0.035em] text-[var(--text-primary)] lg:text-[2.25rem]">
               Style Memory
             </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
-              Saved style directions and prompt structure stay here so you can
-              reuse source-backed visual evidence without changing the template
-              API contract.
+            <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--text-secondary)]">
+              Keep visual directions you trust, then reuse them with a new subject or scene.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={goToWorkspace}
-            className="btn-secondary w-fit rounded-md px-4 py-2 text-sm font-medium"
-          >
-            Back to Workspace
-          </button>
-        </div>
-      </div>
-
-      <div className="shrink-0 px-6 pb-4">
-        <div className="surface-panel flex min-h-12 items-center gap-3 rounded-lg px-4 py-2">
-          <AppIcon icon={Search} className="text-[var(--text-secondary)]" />
-          <input
-            type="text"
-            value={search}
-            onChange={(event) => setSearch(event.currentTarget.value)}
-            onInput={(event) => setSearch(event.currentTarget.value)}
-            placeholder="Search Style Memories by direction, source, or prompt structure..."
-            className="input-precision min-w-0 flex-1 rounded-t-md px-0 py-2 text-sm"
-          />
-          {isSearching && (
-            <span className="text-xs text-[var(--text-muted)]">
-              Refining
-            </span>
-          )}
-          {hasSearched && (
+          {showGrid && (
             <button
               type="button"
-              onClick={() => setSearch("")}
-              className="btn-secondary rounded-md px-3 py-1.5 text-xs"
-              aria-label="Clear Search"
+              onClick={goToWorkspace}
+              className="btn-secondary inline-flex w-fit items-center gap-2 rounded-md px-3.5 py-2 text-sm font-medium"
             >
-              Clear Search
+              <AppIcon icon={ArrowLeft} size={16} />
+              Open Workspace
             </button>
           )}
         </div>
-      </div>
+      </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
-        {isLoading && (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {Array.from({ length: 8 }).map((_, index) => (
-              <SkeletonCard key={`style-memory-skeleton-${index}`} />
-            ))}
+      {!isFetchFailure && (
+        <section
+          aria-label="Style Memory search"
+          className="shrink-0 px-3 pb-4 sm:px-4 lg:px-5"
+        >
+          <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <label className="style-memory-search group relative flex min-h-11 min-w-0 flex-1 items-center rounded-lg px-3 sm:max-w-xl">
+              <span className="sr-only">Search Style Memory</span>
+              <AppIcon
+                icon={Search}
+                size={18}
+                className="shrink-0 text-[var(--text-muted)] transition-colors group-focus-within:text-[var(--accent-primary)]"
+              />
+              <input
+                type="text"
+                value={search}
+                onChange={(event) => setSearch(event.currentTarget.value)}
+                placeholder="Search by name, style, or source"
+                className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+              />
+              {isSearching && (
+                <span
+                  className="shrink-0 text-xs text-[var(--text-muted)]"
+                  aria-live="polite"
+                >
+                  Searching
+                </span>
+              )}
+              {hasSearched && !isSearching && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="interactive-lift flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                  aria-label="Clear Search"
+                >
+                  <AppIcon icon={X} size={15} />
+                </button>
+              )}
+            </label>
+
+            {!isLoading && (
+              <p
+                className="shrink-0 text-xs font-medium text-[var(--text-muted)]"
+                aria-live="polite"
+              >
+                {resultLabel}
+              </p>
+            )}
           </div>
-        )}
+        </section>
+      )}
 
-        {showAuthRequired && (
-          <StatePresenter
-            status="authRequired"
-            title="Log in to view Style Memory"
-            description="Log in to view saved Style Memories. Your workspace snapshot stays preserved, so you can return to the same reference and prompt after signing in."
-            primaryActionLabel="Log in"
-            secondaryActionLabel="Back to Workspace"
-            onPrimaryAction={handleLogin}
-            onSecondaryAction={goToWorkspace}
-          />
-        )}
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-6 sm:px-4 lg:px-5 lg:pb-8">
+        <div className="w-full">
+          {isLoading && (
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <SkeletonCard key={`style-memory-skeleton-${index}`} />
+              ))}
+            </div>
+          )}
 
-        {showFailedRecoverable && (
-          <StatePresenter
-            status="failedRecoverable"
-            title="Style Memory service is temporarily unavailable"
-            description={`${error?.message ?? "The Style Memory service could not load."} Your workspace context remains preserved. Retry or return to Workspace before the next attempt.`}
-            primaryActionLabel="Retry"
-            secondaryActionLabel="Back to Workspace"
-            onPrimaryAction={handleRetry}
-            onSecondaryAction={goToWorkspace}
-          />
-        )}
-
-        {showEmpty && (
-          <StatePresenter
-            status="empty"
-            title="No Style Memory saved yet"
-            description="A Style Memory will keep source images, variable structure, and reuse intent. Start from a reference in the workspace, then save a direction when the prompt feels reusable."
-            primaryActionLabel="Create from Reference"
-            secondaryActionLabel="Open Workspace"
-            onPrimaryAction={goToWorkspace}
-            onSecondaryAction={goToWorkspace}
-          />
-        )}
-
-        {showNoResults && (
-          <StatePresenter
-            status="noResults"
-            title="No Style Memories found"
-            description="No saved memory matches this search. The Style Memory context is still here; clear the search or return to Workspace to create a new reusable direction."
-            primaryActionLabel="Clear Search"
-            secondaryActionLabel="Back to Workspace"
-            onPrimaryAction={() => setSearch("")}
-            onSecondaryAction={goToWorkspace}
-          />
-        )}
-
-        {actionError && showGrid && (
-          <div className="mb-4">
+          {showAuthRequired && (
             <StatePresenter
-              compact
+              status="authRequired"
+              title="Log in to view Style Memory"
+              description="Log in to view saved Style Memories. Your workspace snapshot stays preserved, so you can return to the same reference and prompt after signing in."
+              primaryActionLabel="Log in"
+              secondaryActionLabel="Back to Workspace"
+              onPrimaryAction={handleLogin}
+              onSecondaryAction={goToWorkspace}
+            />
+          )}
+
+          {showFailedRecoverable && (
+            <StatePresenter
               status="failedRecoverable"
-              title="Style Memory action did not complete"
-              description={`${actionError} Your Style Memory list remains available, and no workspace context was removed.`}
+              title="Style Memory service is temporarily unavailable"
+              description={`${error?.message ?? "The Style Memory service could not load."} Your workspace context remains preserved. Retry or return to Workspace before the next attempt.`}
               primaryActionLabel="Retry"
               secondaryActionLabel="Back to Workspace"
               onPrimaryAction={handleRetry}
               onSecondaryAction={goToWorkspace}
             />
-          </div>
-        )}
+          )}
 
-        {showGrid && (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {visibleMemories.map((template) => (
-              <TemplateCard
-                key={template.id}
-                template={template}
-                onUse={handleUseTemplate}
-                onDuplicate={handleDuplicate}
-                onDelete={handleDelete}
+          {showEmpty && (
+            <StatePresenter
+              status="empty"
+              title="No Style Memory saved yet"
+              description="A Style Memory will keep source images, variable structure, and reuse intent. Start from a reference in the workspace, then save a direction when the prompt feels reusable."
+              primaryActionLabel="Create from Reference"
+              secondaryActionLabel="Open Workspace"
+              onPrimaryAction={goToWorkspace}
+              onSecondaryAction={goToWorkspace}
+            />
+          )}
+
+          {showNoResults && (
+            <StatePresenter
+              status="noResults"
+              title="No Style Memories found"
+              description="No saved memory matches this search. The Style Memory context is still here; clear the search or return to Workspace to create a new reusable direction."
+              primaryActionLabel="Clear Search"
+              secondaryActionLabel="Back to Workspace"
+              onPrimaryAction={() => setSearch("")}
+              onSecondaryAction={goToWorkspace}
+            />
+          )}
+
+          {actionError && showGrid && (
+            <div className="mb-4">
+              <StatePresenter
+                compact
+                status="failedRecoverable"
+                title="Style Memory action did not complete"
+                description={`${actionError} Your Style Memory list remains available, and no workspace context was removed.`}
+                primaryActionLabel="Retry"
+                secondaryActionLabel="Back to Workspace"
+                onPrimaryAction={handleRetry}
+                onSecondaryAction={goToWorkspace}
               />
-            ))}
-          </div>
-        )}
+            </div>
+          )}
+
+          {showGrid && (
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {visibleMemories.map((template) => (
+                <TemplateCard
+                  key={template.id}
+                  template={template}
+                  onUse={handleUseTemplate}
+                  onDuplicate={handleDuplicate}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

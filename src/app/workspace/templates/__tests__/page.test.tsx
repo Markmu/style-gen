@@ -84,6 +84,9 @@ describe("StyleMemoryPage", () => {
     renderPage();
 
     expect(screen.getByRole("heading", { name: /^Style Memory$/i })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /search style memory/i })).toBeInTheDocument();
+    expect(screen.getByText("1 memory")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /open workspace/i })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /^Template Library$/i })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: memory.name })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: /reference image for editorial soft light memory/i })).toHaveAttribute(
@@ -104,6 +107,8 @@ describe("StyleMemoryPage", () => {
     expect(state).toBeInTheDocument();
     expect(state).toHaveTextContent(/No Style Memory saved yet/i);
     expect(within(state as HTMLElement).getByRole("button", { name: /create from reference/i })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /search style memory/i })).toBeInTheDocument();
+    expect(screen.getByText("0 memories")).toBeInTheDocument();
     expect(screen.queryByText(/No templates yet/i)).not.toBeInTheDocument();
   });
 

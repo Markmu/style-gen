@@ -9,21 +9,27 @@ const navigationMocks = vi.hoisted(() => ({
   pathname: "/workspace",
 }));
 
-vi.mock("next/navigation", () => ({
-  usePathname: () => navigationMocks.pathname,
-}));
-
-vi.mock("next-auth/react", () => ({
-  useSession: () => ({
+const authMocks = vi.hoisted(() => ({
+  session: {
     data: {
       user: {
         name: "Ada Lovelace",
         email: "ada@example.com",
       },
-    },
-    status: "authenticated",
-  }),
+    } as { user: { name: string; email: string } } | null,
+    status: "authenticated" as "authenticated" | "unauthenticated" | "loading",
+  },
+  signIn: vi.fn(),
+}));
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => navigationMocks.pathname,
+}));
+
+vi.mock("next-auth/react", () => ({
+  useSession: () => authMocks.session,
   signOut: vi.fn(),
+  signIn: authMocks.signIn,
 }));
 
 vi.mock("@/components/auth/auth-tracking", () => ({
@@ -33,6 +39,15 @@ vi.mock("@/components/auth/auth-tracking", () => ({
 describe("LeftSidebar", () => {
   beforeEach(() => {
     navigationMocks.pathname = "/workspace";
+    authMocks.session = {
+      data: {
+        user: {
+          name: "Ada Lovelace",
+          email: "ada@example.com",
+        },
+      },
+      status: "authenticated",
+    };
     vi.clearAllMocks();
   });
 
@@ -40,7 +55,8 @@ describe("LeftSidebar", () => {
     render(<LeftSidebar />);
 
     const sidebar = screen.getByLabelText("Workspace navigation");
-    expect(sidebar).toHaveClass("w-[14.125rem]");
+    expect(sidebar).toHaveClass("w-[4.5rem]");
+    expect(sidebar).toHaveClass("md:w-[14.125rem]");
     expect(screen.queryByRole("button", { name: /collapse sidebar/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Workspace appearance" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Sidebar options" })).not.toBeInTheDocument();
@@ -87,5 +103,20 @@ describe("LeftSidebar", () => {
 
     expect(trackAuthEvent).toHaveBeenCalledWith("logout");
     expect(signOut).toHaveBeenCalledWith({ callbackUrl: "/" });
+  });
+
+  it("renders a real login action instead of a signed-in placeholder", async () => {
+    const user = userEvent.setup();
+    authMocks.session = {
+      data: null,
+      status: "unauthenticated",
+    };
+
+    render(<LeftSidebar />);
+
+    expect(screen.queryByText("Signed in")).not.toBeInTheDocument();
+    const loginButton = screen.getByRole("button", { name: "Log in" });
+    await user.click(loginButton);
+    expect(authMocks.signIn).toHaveBeenCalledWith("google");
   });
 });

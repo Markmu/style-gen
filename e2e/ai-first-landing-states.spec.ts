@@ -52,10 +52,6 @@ function primaryNav(page: Page) {
   return page.getByTestId('app-shell-primary-nav')
 }
 
-function authEntry(page: Page) {
-  return page.getByTestId('app-shell-auth-entry')
-}
-
 function statePresenter(page: Page, status: string) {
   return page.locator(`section[data-status="${status}"]`)
 }
@@ -164,7 +160,7 @@ test.describe('plan-07 Landing / Auth / global states closure', () => {
     page,
   }) => {
     const workspaceSnapshot = JSON.stringify({
-      version: 3,
+      version: 4,
       assetId: 'plan-07-persisted-asset',
       referenceImageUrl: 'https://cdn.example.com/references/plan-07/original.png',
       analysisTaskId: 'plan-07-persisted-analysis',
@@ -176,6 +172,7 @@ test.describe('plan-07 Landing / Auth / global states closure', () => {
       analysisTemplateStatus: null,
       analysisTemplateReason: null,
       generationTaskId: null,
+      v2PromptState: null,
     })
 
     await page.addInitScript(
@@ -190,7 +187,9 @@ test.describe('plan-07 Landing / Auth / global states closure', () => {
     await openRoute(page, '/workspace/templates')
 
     await expect(appShell(page)).toHaveAttribute('data-variant', 'memory')
-    await expect(authEntry(page)).toContainText(/log in|sign in/i)
+    await expect(
+      page.getByTestId('workspace-sidebar-auth-entry').getByRole('button', { name: /log in/i }).first(),
+    ).toBeVisible()
 
     const authState = statePresenter(page, 'authRequired')
     await expect(authState).toBeVisible()

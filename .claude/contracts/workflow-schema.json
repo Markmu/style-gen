@@ -1,0 +1,185 @@
+{
+  "version": "2026-08-05",
+  "artifacts": {
+    "review_dir_name": "reviews",
+    "standalone_doc_review_pattern": "{doc-parent}/reviews/{skill}-{doc-basename}-{date}.md",
+    "plan_review_pattern": "{plan-dir}/reviews/{target}-{skill}-{date}.md"
+  },
+  "req_research": {
+    "output_filename_pattern": "{nn}-需求调研-{name}.md",
+    "output_dir": "docs",
+    "optional": true
+  },
+  "new_feature": {
+    "workflow_type": "new-feature",
+    "output_filename_pattern": "FEAT-{NNNN}-{slug}.md",
+    "output_dir": "docs",
+    "frontmatter_status": [
+      "draft",
+      "approved",
+      "in-progress",
+      "done"
+    ],
+    "required_frontmatter_fields": [
+      "workflow_type",
+      "spec_id",
+      "title",
+      "type",
+      "created",
+      "status",
+      "context"
+    ],
+    "required_sections": [
+      "意图",
+      "边界",
+      "需求变更",
+      "代码地图",
+      "任务清单",
+      "验证命令",
+      "验收标准"
+    ]
+  },
+  "prd": {
+    "sections": [
+      "需求分析与确认",
+      "用户旅程和用户故事",
+      "UX/UE 设计",
+      "验收标准",
+      "决策记录"
+    ],
+    "report_filename_pattern": "prd-doc-check-{doc-basename}-{date}.md"
+  },
+  "architecture": {
+    "required_frontmatter_fields": [
+      "workflow_type",
+      "status",
+      "input_documents",
+      "open_questions"
+    ],
+    "frontmatter_status": [
+      "wip",
+      "review_ready",
+      "done"
+    ],
+    "sections": [
+      "系统摘要",
+      "范围、非目标与成功标准",
+      "关键架构决策（ADR）",
+      "用户流程与状态",
+      "系统上下文与模块职责",
+      "运行链路",
+      "领域对象与关键契约",
+      "非功能需求、风险与运行策略",
+      "实施建议与技术选型",
+      "架构结论"
+    ],
+    "report_filename_pattern": "arch-check-{doc-basename}-{date}.md"
+  },
+  "plan": {
+    "readme_frontmatter_status": [
+      "draft",
+      "review_ready",
+      "in_execution",
+      "in_review",
+      "accepted",
+      "released"
+    ],
+    "task_file_status": [
+      "draft",
+      "ready-to-dev",
+      "in-progress",
+      "review",
+      "done",
+      "deprecated"
+    ],
+    "task_step_status": [
+      "todo",
+      "done",
+      "waived"
+    ],
+    "task_step_rules": {
+      "waived_requires_reason": true
+    },
+    "acceptance_status": [
+      "planned",
+      "in-progress",
+      "done",
+      "waived"
+    ],
+    "feature_readme_required_sections": [
+      "计划入口",
+      "执行拓扑",
+      "验收标准追踪矩阵",
+      "功能索引",
+      "开发状态机",
+      "全局护栏",
+      "执行前置与全局验证",
+      "未决策项与变更记录"
+    ],
+    "feature_task_required_sections": [
+      "功能概要",
+      "文件清单",
+      "实现规格",
+      "Task 列表",
+      "验收标准",
+      "验证命令",
+      "交接上下文",
+      "风险与边界"
+    ],
+    "plan_review_filename_pattern": "dev-plan-check-{date}.md",
+    "feature_review_filename_pattern": "{feat_id}-review-{date}.md"
+  },
+  "e2e": {
+    "case_dir": "docs/e2e",
+    "evidence_dir": "docs/e2e/evidence",
+    "source_modes": [
+      "standalone-spec",
+      "plan-task"
+    ],
+    "case_filename_pattern": "{requirement}-e2e-用例-{name}.md",
+    "evidence_filename_pattern": "{feat_id}-e2e-{phase}-{date}.md",
+    "tdd_phases": [
+      "red",
+      "green"
+    ]
+  },
+  "auto_dev": {
+    "readme_section": "5. 开发状态机",
+    "current_steps": [
+      "red-e2e",
+      "implement",
+      "green-e2e",
+      "task-review",
+      "done",
+      "blocked"
+    ],
+    "step_status": [
+      "todo",
+      "running",
+      "done",
+      "failed",
+      "blocked",
+      "waived"
+    ]
+  },
+  "uat": {
+    "registry_dir": "docs/uat",
+    "case_registry_filename": "UAT-用例清单.md",
+    "execution_plan_filename_pattern": "execution-plan-{YYYYMMDD}.md",
+    "evidence_dir": "docs/uat/evidence",
+    "evidence_note_filename_pattern": "{case_id}-{YYYYMMDD-HHMMSS}.md"
+  },
+  "release": {
+    "docs_dir": "docs/releases",
+    "release_readiness_filename_pattern": "release-readiness-{date}.md",
+    "post_release_check_filename_pattern": "post-release-check-{date}.md",
+    "rollback_plan_filename_pattern": "rollback-plan-{date}.md",
+    "retro_filename_pattern": "retro-{date}.md",
+    "artifacts": [
+      "release-readiness",
+      "post-release-check",
+      "rollback-plan",
+      "retro"
+    ]
+  }
+}

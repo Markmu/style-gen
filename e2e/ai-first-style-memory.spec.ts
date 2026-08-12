@@ -111,6 +111,34 @@ test.describe('plan-06 Style Memory template library migration', () => {
     await expect(page.getByRole('heading', { name: /^Style Memory$/i })).toBeVisible()
     await expect(page.getByRole('heading', { name: /^Template Library$/i })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: styleMemories[0].name })).toBeVisible()
+    await expect(page.getByRole('textbox', { name: /search style memory/i })).toBeVisible()
+    await expect(page.getByText('2 memories')).toBeVisible()
+    await expect(page.getByRole('button', { name: /open workspace/i })).toBeVisible()
+  })
+
+  test('TC-6.1 mobile Library uses a compact navigation rail without horizontal overflow', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await mockTemplateCollection(page, styleMemories)
+
+    await openStyleMemory(page)
+
+    const sidebar = page.getByRole('complementary', { name: /workspace navigation/i })
+    const pageFrame = page.getByTestId('style-memory-page')
+    await expect(sidebar).toBeVisible()
+    await expect(pageFrame).toBeVisible()
+
+    const [sidebarBox, pageBox, bodyWidth] = await Promise.all([
+      sidebar.boundingBox(),
+      pageFrame.boundingBox(),
+      page.evaluate(() => document.body.scrollWidth),
+    ])
+
+    expect(sidebarBox?.width).toBeLessThanOrEqual(80)
+    expect(pageBox?.width).toBeGreaterThanOrEqual(300)
+    expect(bodyWidth).toBeLessThanOrEqual(390)
+    await expect(page.getByRole('button', { name: /use memory/i }).first()).toBeVisible()
   })
 
   test('TC-6.1 card source image, fallback preview, tags, and reuse intent are visible', async ({

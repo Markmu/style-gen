@@ -5,6 +5,7 @@ import {
   findByName,
   findAllByUserId,
 } from "@/lib/repositories/template-repository";
+import { findAnalysisTaskById } from "@/lib/repositories/analysis-task-repository";
 import { findAssetById } from "@/lib/repositories/asset-repository";
 import { normalizeVariableName } from "@/lib/template-parser";
 import type { TemplateVariable } from "@/types/models";
@@ -190,9 +191,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let sourceImageUrl = validated.sourceImageUrl;
-    if (validated.sourceAssetId) {
-      const sourceAsset = await findAssetById(validated.sourceAssetId);
+    let sourceAssetId = validated.sourceAssetId;
+
+    if (validated.sourceAnalysisTaskId) {
+      const sourceAnalysisTask = await findAnalysisTaskById(
+        validated.sourceAnalysisTaskId,
+        userId,
+      );
+      if (!sourceAnalysisTask) {
+        return NextResponse.json(
+          { error: "Invalid source analysis task", code: "INVALID_REQUEST", retryable: false },
+          { status: 400 }
+        );
+      }
+      if (sourceAssetId && sourceAssetId !== sourceAnalysisTask.sourceAssetId) {
+        return NextResponse.json(
+          { error: "Source analysis task and asset do not match", code: "INVALID_REQUEST", retryable: false },
+          { status: 400 }
+        );
+      }
+      sourceAssetId = sourceAnalysisTask.sourceAssetId;
+    }
+
+    let sourceImageUrl: string | undefined;
+    if (sourceAssetId) {
+      const sourceAsset = await findAssetById(sourceAssetId);
       if (
         !sourceAsset ||
         sourceAsset.userId !== userId ||
@@ -204,6 +227,11 @@ export async function POST(request: NextRequest) {
         );
       }
       sourceImageUrl = sourceAsset.fileUrl;
+    } else if (validated.sourceImageUrl) {
+      return NextResponse.json(
+        { error: "Source image URL requires a database-backed source", code: "INVALID_REQUEST", retryable: false },
+        { status: 400 }
+      );
     }
 
     // 5. 创建模板
@@ -211,7 +239,7 @@ export async function POST(request: NextRequest) {
       name: validated.name,
       content: validated.content,
       ...(validated.variables !== undefined ? { variables: validated.variables } : {}),
-      ...(validated.sourceAssetId !== undefined ? { sourceAssetId: validated.sourceAssetId } : {}),
+      ...(sourceAssetId !== undefined ? { sourceAssetId } : {}),
       ...(sourceImageUrl !== undefined ? { sourceImageUrl } : {}),
     });
 
@@ -221,7 +249,7 @@ export async function POST(request: NextRequest) {
       variableCount: template.variables.length,
       defaultValueCount: template.variables.filter((variable) => variable.defaultValue).length,
       sourceAnalysisTaskIdPresent: Boolean(validated.sourceAnalysisTaskId),
-      sourceAssetIdPresent: Boolean(validated.sourceAssetId),
+      sourceAssetIdPresent: Boolean(sourceAssetId),
       sourceImageUrlPresent: Boolean(template.sourceImageUrl),
       duration: Date.now() - startTime,
     });

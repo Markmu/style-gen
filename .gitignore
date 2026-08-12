@@ -37,5 +37,9 @@ next-env.d.ts
 playwright-report/
 test-results/
 
-.agents
-.claude
+.agents/*
+!.agents/contracts/
+!.agents/contracts/workflow-schema.json
+.claude/*
+!.claude/contracts/
+!.claude/contracts/workflow-schema.json

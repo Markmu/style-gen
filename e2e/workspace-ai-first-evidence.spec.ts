@@ -109,7 +109,7 @@ test.describe('plan-03 Workspace Reference / Evidence / Prompt AI-first contract
     await expect(page.getByTestId('ai-status-header')).toHaveAttribute('data-phase', 'analysis_ready', {
       timeout: 15000,
     })
-    await expect(referenceCard(page).getByAltText('Reference')).toHaveCSS('object-fit', 'contain')
+    await expect(referenceCard(page).getByAltText('Reference')).toHaveCSS('object-fit', 'cover')
 
     const facetIds = await styleIntelligence(page)
       .locator('[data-testid^="evidence-facet-"]')
@@ -127,7 +127,7 @@ test.describe('plan-03 Workspace Reference / Evidence / Prompt AI-first contract
     }
   })
 
-  test('TC-3.3 selected facet highlights the reference anchor and linked prompt text', async ({ page }) => {
+  test('TC-3.3 selected facet highlights linked prompt text without inventing image coordinates', async ({ page }) => {
     const taskId = 'ai-first-evidence-linked-selection'
     await mockCompletedAnalysis(page, taskId)
 
@@ -142,10 +142,7 @@ test.describe('plan-03 Workspace Reference / Evidence / Prompt AI-first contract
     await lightingFacet.click()
 
     await expect(lightingFacet).toHaveAttribute('data-selected', 'true')
-    await expect(referenceCard(page).getByTestId('reference-anchor-lighting')).toHaveAttribute(
-      'data-selected',
-      'true',
-    )
+    await expect(referenceCard(page).locator('[data-testid^="reference-anchor-"]')).toHaveCount(0)
     await expect(promptCard(page).getByTestId('prompt-provenance-span-lighting')).toBeVisible()
   })
 

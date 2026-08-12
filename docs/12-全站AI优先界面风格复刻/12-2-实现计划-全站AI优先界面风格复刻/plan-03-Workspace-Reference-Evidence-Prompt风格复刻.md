@@ -12,7 +12,7 @@ depends_on: ["plan-02"]
 ## 功能概要
 
 - **目标**: 将 Workspace 的 Reference Canvas、Style Intelligence 和 Prompt 区迁移为 AI-first Evidence Workbench，建立 `VisualRecipe -> EvidenceFacet -> PromptProvenanceSpan` 的前端视图模型和可见交互关系。
-- **完成后可观察结果**: 用户上传参考图并完成分析后，左侧 Reference Canvas 保留图片、锚点、调色和失败恢复入口，中间 Style Intelligence 展示色彩、构图、光线、质感、情绪和主体等 evidence facets，右侧 Prompt 区展示这些判断如何影响当前 prompt。用户点击任一 facet 时，对应参考图锚点和 prompt 相关片段同步高亮；若无法精确匹配 prompt 文本，也会显示“相关信号”而不是伪造因果。空态、分析中和失败态都说明 AI 将读取或已经保留的上下文，并提供继续行动。
+- **完成后可观察结果**: 用户上传参考图并完成分析后，左侧 Reference Canvas 以图片和失败恢复入口为核心，中间 Style Intelligence 展示色彩、构图、光线、质感、情绪和主体等 evidence facets，右侧 Prompt 区展示这些判断如何影响当前 prompt。用户点击任一 facet 时，对应 prompt 相关片段同步高亮；若无法精确匹配 prompt 文本，也会显示“相关信号”而不是伪造因果。Reference Canvas 不使用缺乏模型空间坐标支持的合成锚点。空态、分析中和失败态都说明 AI 将读取或已经保留的上下文，并提供继续行动。
 - **依赖**: plan-02（AppShell 与 AI 状态头）
 - **关联验收标准**: [AC-02, AC-03, AC-08, AC-09]
 - **涉及架构模块**: WorkspaceExperience、Evidence/Prompt/Render 契约、StatePresenter/StatusLanguage
@@ -25,17 +25,17 @@ depends_on: ["plan-02"]
 
 | 动作 | 路径 | 说明 |
 | --- | --- | --- |
-| modify | `src/app/workspace/page.tsx` | 增加 selectedFacetId、evidence facets、prompt provenance 派生和卡片接线 |
+| modify | `src/app/workspace/page.tsx` | 增加 selectedFacetId、evidence facets、prompt provenance 派生和 Style Intelligence / Prompt 接线 |
 | modify | `src/components/workspace/workspace-three-column-layout.tsx` | 微调三栏命名、宽屏层级、overflow、aria-label 和空态可见区域 |
-| modify | `src/components/workspace/reference-card.tsx` | 迁移为 Reference Canvas，增加 anchors/palette/overlay controls/失败恢复表达 |
+| modify | `src/components/workspace/reference-card.tsx` | 迁移为 Reference Canvas，以充分利用画布的参考图和失败恢复表达为核心 |
 | modify | `src/components/workspace/recipe-card.tsx` | 迁移为 Style Intelligence，展示 facets、confidence、selected 状态 |
 | modify | `src/components/workspace/prompt-card.tsx` | 展示 prompt provenance、variables、negative constraints、单一保存 Style Memory 入口 |
 | modify | `src/components/workspace/unified-prompt-editor.tsx` | 保持编辑语义，暴露 provenance/selected span 的非破坏性展示能力 |
 | create | `src/lib/evidence-facets.ts` | 从 `VisualRecipe` 派生 `EvidenceFacet[]` 的纯函数 |
 | create | `src/lib/prompt-provenance.ts` | 从 prompt + facets 派生 `PromptProvenanceSpan[]` 的纯函数 |
-| create | `src/lib/__tests__/evidence-facets.test.ts` | 覆盖字段顺序、缺失字段、confidence/tone/anchorIndex |
+| create | `src/lib/__tests__/evidence-facets.test.ts` | 覆盖字段顺序、缺失字段、confidence/tone 以及兼容排序字段 |
 | create | `src/lib/__tests__/prompt-provenance.test.ts` | 覆盖长文本优先、大小写、无匹配 facet_only |
-| modify | `src/components/workspace/__tests__/reference-card.test.tsx` | 覆盖 anchors、失败恢复、空态教学 |
+| modify | `src/components/workspace/__tests__/reference-card.test.tsx` | 覆盖画布填充、无合成 overlays、失败恢复、空态教学 |
 | modify | `src/components/workspace/__tests__/recipe-card.test.tsx` | 覆盖 facets、selected 高亮、confidence |
 | modify | `src/components/workspace/__tests__/prompt-card.test.tsx` | 覆盖 provenance、variables、保存入口 |
 | create | `e2e/workspace-ai-first-evidence.spec.ts` | Workspace evidence/provenance targeted E2E |
@@ -52,9 +52,9 @@ depends_on: ["plan-02"]
 - 输出：`EvidenceFacet[]`
 - 固定字段顺序：`color -> composition -> lighting -> texture -> mood -> subject`
 - 非空文本才生成 facet，缺失字段不渲染空 facet。
-- 每项包含 `id`、`label`、`summary`、`tone`、`confidenceLabel`、`sourceField`、`anchorIndex`。
+- 每项包含 `id`、`label`、`summary`、`tone`、`confidenceLabel`、`sourceField`、`anchorIndex`；`anchorIndex` 仅保留为兼容排序字段，不代表图像空间坐标。
 - `confidenceLabel` 首版用确定性启发式：文本长度、关键词数量、字段是否存在；不能调用 AI 或 API。
-- `anchorIndex` 首版按数组顺序稳定生成；Reference Canvas 可据此显示非精确锚点。
+- `anchorIndex` 按数组顺序稳定生成，但不得据此在 Reference Canvas 伪造空间锚点；只有模型 contract 提供真实坐标后才能新增此类可视化。
 
 #### 2. Prompt provenance 派生
 
@@ -73,7 +73,7 @@ depends_on: ["plan-02"]
 
 - 增加 `selectedFacetId: EvidenceFacetId | null` 的 UI state，不写入 sessionStorage 或后端。
 - 从 `ws.recipe`、`resolvedPromptText || ws.promptText` 派生 facets 和 spans，使用 `useMemo` 控制计算。
-- 传入 `ReferenceCard`、`RecipeCard`、`PromptCard`，点击 facet 时同步更新 selected 状态。
+- `ReferenceCard` 独立展示参考图；facets/spans 传入 `RecipeCard`、`PromptCard`，点击 facet 时同步更新 selected 状态。
 - 保留现有上传、分析轮询、变量编辑、模板保存、history、generation dialog 和 `templateId` query 行为。
 
 #### 4. Reference Canvas
@@ -81,7 +81,7 @@ depends_on: ["plan-02"]
 `ReferenceCard` 迁移为 Reference Canvas：
 
 - 空态：解释 AI 将读取色彩、构图、光线、质感、情绪，并提供上传入口。
-- 有图态：图片为核心，显示 facet anchors/palette/overlay controls；selected facet 高亮对应 anchor。
+- 有图态：图片以 `object-fit: cover` 充分利用可用画布；不展示缺乏真实空间证据的 facet anchors、palette 或 overlay controls。
 - 分析中：保留参考图，说明正在读取哪些信号；超过 60s 时接收 queued copy。
 - 分析失败：保留 reference、assetId 和可重试上下文，提供 Retry analysis 与 Replace；不得只显示红色错误。
 
@@ -109,7 +109,7 @@ depends_on: ["plan-02"]
 
 - 空态工作台说明 AI 将读取的 signals。
 - mock 分析完成后 facets 出现，字段顺序稳定。
-- 点击 facet 高亮 Reference Canvas 和 Prompt provenance。
+- 点击 facet 高亮 Style Intelligence 与 Prompt provenance，同时确认 Reference Canvas 不虚构图像坐标。
 - 无精确 span 时显示 facet-only 解释。
 - 分析失败时 reference/prompt context 保留，Retry/Replace 可见。
 
@@ -132,7 +132,7 @@ depends_on: ["plan-02"]
 
 - [x] AC-02 `/workspace` 常规宽屏下仍有 Reference Canvas、Style Intelligence、Prompt + Render 结构，三栏层级稳定。
 - [x] AC-03 分析完成后从 `VisualRecipe` 派生主要 style signals，并展示 label、summary、confidence 和 source field。
-- [x] AC-03 点击 facet 后 Reference Canvas anchor 与 Prompt provenance 同步高亮。
+- [x] AC-03 点击 facet 后 Style Intelligence 与 Prompt provenance 同步高亮；Reference Canvas 在缺少真实空间坐标时不生成合成 anchor。
 - [x] AC-03 无可匹配 prompt 片段时展示 facet chip 和“相关信号”说明，不伪造精确 span。
 - [x] AC-03 Prompt provenance 和状态说明只作 UI 展示，不拼入 system prompt；用户 prompt、AI 输出说明和 negative prompt/constraints 边界可见。
 - [x] AC-08 分析失败保留 reference/prompt context，Retry analysis、Replace 和 Back to Edit 行动可见。

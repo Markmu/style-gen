@@ -1,6 +1,6 @@
 ---
 workflow_type: create-dev-plan
-status: accepted
+status: in_review
 source_architecture: "docs/12-全站AI优先界面风格复刻/12-1-架构文档-全站AI优先界面风格复刻.md"
 project_type: brownfield
 org_mode: feature
@@ -56,15 +56,15 @@ graph TD
 
 | AC-ID | 需求原文 | 架构承接 | 计划承接 | 验证方式 | 当前状态 |
 | --- | --- | --- | --- | --- | --- |
-| AC-01 | 团队开始实现任一页面视觉迁移前，能明确页面底色、面板层级、状态表达、证据关系、生成操作区、风格记忆卡片和主要控件反馈规则。 | DesignTokenLayer、StatePresenter/StatusLanguage、WorkspaceExperience、StyleMemoryExperience | plan-01 | plan-01 §5 设计契约验收、§6 验证命令；plan-08 §5 全站 token 回归 | planned |
-| AC-02 | 常规宽屏桌面打开工作台，页面包含工作区导航、AI 协作状态、参考画布、风格理解、提示与生成、近期迭代，并与目标图保持同一信息层级和视觉气质。 | AppShell、WorkspaceExperience | plan-02, plan-03, plan-05 | plan-02 §5 壳层验收；plan-03 §5 Workspace E2E；plan-05 §5 history E2E | planned |
-| AC-03 | 参考图分析完成后，用户能看到主要风格信号、相关证据、可信度提示，并理解这些判断如何影响当前提示内容。 | WorkspaceExperience、Evidence/Prompt/Render 契约 | plan-03 | plan-03 §5 Evidence/Prompt 验收、§6 `e2e/workspace-ai-first-evidence.spec.ts` | planned |
-| AC-04 | 准备生成时，用户能判断变量是否完整、风格信号是否足够、服务是否可用；不可生成时有可见原因和下一步行动。 | WorkspaceExperience、StatePresenter/StatusLanguage | plan-04 | plan-04 §5 Render Dock readiness 验收、§6 `e2e/workspace-ai-first-render-dock.spec.ts` | planned |
-| AC-05 | 至少完成一次生成后，用户可以比较、恢复、继续生成变体，或将满意方向保存为风格记忆。 | WorkspaceExperience | plan-05 | plan-05 §5 Iteration Memory 验收、§6 `e2e/workspace-ai-first-iteration-memory.spec.ts` | planned |
-| AC-06 | 进入风格记忆库后，每条记忆优先展示来源图、风格标签、变量和复用意图；空态或受限状态提供明确下一步。 | StyleMemoryExperience、StatePresenter/StatusLanguage | plan-06 | plan-06 §5 Style Memory 验收、§6 `e2e/ai-first-style-memory.spec.ts` | planned |
-| AC-07 | 首页、工作台、风格记忆库、登录入口和状态页使用同一套 AI 优先视觉语言，导航选中、当前任务层级、状态语言和主要操作反馈保持一致。 | DesignTokenLayer、AppShell、LandingExperience、WorkspaceExperience、StyleMemoryExperience、StatePresenter/StatusLanguage | plan-01, plan-02, plan-07, plan-08 | plan-07 §5 全站收口验收；plan-08 §5 targeted E2E + 视觉回归 | planned |
-| AC-08 | 分析失败、生成失败、未登录、服务不可用或风格记忆库为空时，页面保留上下文，说明原因，并提供可继续行动。 | StatePresenter/StatusLanguage、WorkspaceExperience、StyleMemoryExperience | plan-01, plan-04, plan-06, plan-07 | plan-01 §5 状态 copy 验收；plan-04/06/07 §5 降级验收；plan-08 §5 异常路径 E2E | planned |
-| AC-09 | 首次进入首页或空态页面时，用户能判断 AI 如何理解参考图、拆解风格、辅助编辑并生成新结果，并有明确入口。 | LandingExperience、WorkspaceExperience、StyleMemoryExperience、StatePresenter/StatusLanguage | plan-03, plan-06, plan-07, plan-08 | plan-03/06/07 §5 空态验收；plan-08 §6 `e2e/ai-first-landing-states.spec.ts` | planned |
+| AC-01 | 团队开始实现任一页面视觉迁移前，能明确页面底色、面板层级、状态表达、证据关系、生成操作区、风格记忆卡片和主要控件反馈规则。 | DesignTokenLayer、StatePresenter/StatusLanguage、WorkspaceExperience、StyleMemoryExperience | plan-01 | plan-01 §5 设计契约验收、§6 验证命令；plan-08 §5 全站 token 回归 | done |
+| AC-02 | 常规宽屏桌面打开工作台，页面包含工作区导航、AI 协作状态、参考画布、风格理解、提示与生成、近期迭代，并与目标图保持同一信息层级和视觉气质。 | AppShell、WorkspaceExperience | plan-02, plan-03, plan-05 | plan-02 §5 壳层验收；plan-03 §5 Workspace E2E；plan-05 §5 history E2E | in-progress |
+| AC-03 | 参考图分析完成后，用户能看到主要风格信号、相关证据、可信度提示，并理解这些判断如何影响当前提示内容。 | WorkspaceExperience、Evidence/Prompt/Render 契约 | plan-03 | plan-03 §5 Evidence/Prompt 验收、§6 `e2e/workspace-ai-first-evidence.spec.ts` | in-progress |
+| AC-04 | 准备生成时，用户能判断变量是否完整、风格信号是否足够、服务是否可用；不可生成时有可见原因和下一步行动。 | WorkspaceExperience、StatePresenter/StatusLanguage | plan-04 | plan-04 §5 Render Dock readiness 验收、§6 `e2e/workspace-ai-first-render-dock.spec.ts` | done |
+| AC-05 | 至少完成一次生成后，用户可以比较、恢复、继续生成变体，或将满意方向保存为风格记忆。 | WorkspaceExperience | plan-05 | plan-05 §5 Iteration Memory 验收、§6 `e2e/workspace-ai-first-iteration-memory.spec.ts` | done |
+| AC-06 | 进入风格记忆库后，每条记忆优先展示来源图、风格标签、变量和复用意图；空态或受限状态提供明确下一步。 | StyleMemoryExperience、StatePresenter/StatusLanguage | plan-06 | plan-06 §5 Style Memory 验收、§6 `e2e/ai-first-style-memory.spec.ts` | in-progress |
+| AC-07 | 首页、工作台、风格记忆库、登录入口和状态页使用同一套 AI 优先视觉语言，导航选中、当前任务层级、状态语言和主要操作反馈保持一致。 | DesignTokenLayer、AppShell、LandingExperience、WorkspaceExperience、StyleMemoryExperience、StatePresenter/StatusLanguage | plan-01, plan-02, plan-07, plan-08 | plan-07 §5 全站收口验收；plan-08 §5 targeted E2E + 视觉回归 | in-progress |
+| AC-08 | 分析失败、生成失败、未登录、服务不可用或风格记忆库为空时，页面保留上下文，说明原因，并提供可继续行动。 | StatePresenter/StatusLanguage、WorkspaceExperience、StyleMemoryExperience | plan-01, plan-04, plan-06, plan-07 | plan-01 §5 状态 copy 验收；plan-04/06/07 §5 降级验收；plan-08 §5 异常路径 E2E | in-progress |
+| AC-09 | 首次进入首页或空态页面时，用户能判断 AI 如何理解参考图、拆解风格、辅助编辑并生成新结果，并有明确入口。 | LandingExperience、WorkspaceExperience、StyleMemoryExperience、StatePresenter/StatusLanguage | plan-03, plan-06, plan-07, plan-08 | plan-03/06/07 §5 空态验收；plan-08 §6 `e2e/ai-first-landing-states.spec.ts` | done |
 
 ## 4. 功能索引
 
@@ -116,11 +116,7 @@ graph TD
 全局验证：
 
 ```bash
-pnpm type-check
-pnpm lint
-pnpm test
-pnpm e2e -- e2e/ai-first-design-system.spec.ts e2e/ai-first-shell.spec.ts e2e/workspace-ai-first-evidence.spec.ts e2e/workspace-ai-first-render-dock.spec.ts e2e/workspace-ai-first-iteration-memory.spec.ts e2e/ai-first-style-memory.spec.ts e2e/ai-first-landing-states.spec.ts e2e/ai-first-visual-regression.spec.ts
-pnpm build
+pnpm verify:acceptance
 ```
 
 ## 8. 未决策项与变更记录
@@ -130,5 +126,6 @@ pnpm build
 | 未决策项 | 2026-07-05 | 无。源架构 frontmatter `open_questions: []`，本实现计划未新增阻塞问题。 |
 | 新增 | 2026-07-05 | 基于第 12 期架构文档创建 8 个功能维度 plan 文件，覆盖 Phase A-D 与 AC-01..AC-09。 |
 | 约束 | 2026-07-05 | 计划明确本期不新增后端表/API/Provider/队列/WebSocket；Style Memory 仅为现有 Template Library 的前端产品表达。 |
+| 回归复核 | 2026-08-05 | `pnpm e2e:targeted` 结果为 35 passed / 12 failed；计划回退为 `in_review`，AC-02/03/06/07/08 恢复为 `in-progress`，详见 `docs/e2e/evidence/plan-12-acceptance-audit-red-20260805.md`。 |
 
 <!-- 保留目录：reviews/。当 task-review、dev-plan-check 等开始运行时创建。 -->
