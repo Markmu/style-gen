@@ -7,14 +7,14 @@ describe("WorkspaceTopBar", () => {
     render(
       <WorkspaceTopBar
         title="Editorial Soft Light"
-        subtitle="Updated just now"
+        subtitle="Reference to render workbench"
       />,
     );
 
     expect(
       screen.getByRole("heading", { name: "Editorial Soft Light" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Updated just now")).toBeInTheDocument();
+    expect(screen.getByText("Reference to render workbench")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Rename workspace" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Share workspace" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Workspace settings" })).not.toBeInTheDocument();

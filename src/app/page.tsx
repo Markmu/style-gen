@@ -2,19 +2,17 @@ import { Hero } from "@/components/landing/hero";
 import { UploadEntry } from "@/components/landing/upload-entry";
 import { ValueSection } from "@/components/landing/value-section";
 import { StatsSection } from "@/components/landing/stats-section";
-import { BottomCta } from "@/components/landing/bottom-cta";
 import { Footer } from "@/components/landing/footer";
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-[var(--surface-page)]">
+    <main className="min-h-[100dvh] bg-[var(--surface-page)]">
       <Hero />
-      <div className="relative z-10 -mt-12 pb-8">
+      <div className="relative z-10 pb-6 pt-2">
         <UploadEntry />
       </div>
       <ValueSection />
       <StatsSection />
-      <BottomCta />
       <Footer />
     </main>
   );

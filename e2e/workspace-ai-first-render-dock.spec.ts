@@ -9,6 +9,7 @@ import {
   mockGenerationPolling,
   mockUploadPresign,
 } from './helpers/mock-api'
+import { waitForReactInput } from './helpers/react-ready'
 
 const TEST_IMAGE_PATH = resolve(__dirname, 'fixtures/test-image.png')
 
@@ -69,7 +70,9 @@ async function mockCdnImages(page: Page) {
 
 async function uploadReference(page: Page) {
   const referenceColumn = appShell(page).getByRole('region', { name: 'Reference Canvas column' })
-  await referenceColumn.locator('input[type="file"]').setInputFiles(TEST_IMAGE_PATH)
+  const input = referenceColumn.locator('input[type="file"]')
+  await waitForReactInput(input)
+  await input.setInputFiles(TEST_IMAGE_PATH)
 }
 
 async function openWithCompletedAnalysis(

@@ -9,6 +9,7 @@ import {
   mockTemplateCollection,
   mockUploadPresign,
 } from './helpers/mock-api'
+import { waitForReactInput } from './helpers/react-ready'
 
 const TEST_IMAGE_PATH = resolve(__dirname, 'fixtures/test-image.png')
 const STORAGE_KEY = 'style-gen-workspace-state'
@@ -137,7 +138,9 @@ test.describe('plan-07 Landing / Auth / global states closure', () => {
       timeout: 5000,
     })
 
-    await page.getByRole('main').locator('input[type="file"]').first().setInputFiles(TEST_IMAGE_PATH)
+    const input = page.getByRole('main').locator('input[type="file"]').first()
+    await waitForReactInput(input)
+    await input.setInputFiles(TEST_IMAGE_PATH)
 
     await expect(page).toHaveURL(/\/workspace(?:\?|$)/, { timeout: 15000 })
     await expect(appShell(page)).toHaveAttribute('data-variant', 'workspace')

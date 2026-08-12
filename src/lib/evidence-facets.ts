@@ -87,7 +87,7 @@ export function deriveEvidenceFacets(recipe: StoredVisualRecipe | null): Evidenc
       label,
       summary,
       tone,
-      confidenceLabel: "legacy · no model confidence",
+      confidenceLabel: "legacy / no model confidence",
       confidence: null,
       evidence: [],
       sourceField,

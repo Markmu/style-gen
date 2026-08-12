@@ -61,7 +61,7 @@ export function UserMenu() {
               const parent = e.currentTarget.parentElement;
               if (parent) {
                 parent.textContent = initials;
-                parent.classList.add("text-sm", "font-medium", "text-gray-600");
+                parent.classList.add("text-sm", "font-medium", "text-[var(--text-secondary)]");
               }
             }}
           />
@@ -76,10 +76,9 @@ export function UserMenu() {
             <p className="text-sm font-medium text-[var(--text-primary)]">{userName}</p>
             <p className="text-xs text-[var(--text-secondary)]">{userEmail}</p>
           </div>
-          <hr className="my-1 border-[var(--border)]" />
           <button
             onClick={handleSignOut}
-            className="w-full px-4 py-2 text-left text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-mid)]"
+            className="mt-1 w-full px-4 py-2 text-left text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-mid)]"
           >
             Log out
           </button>

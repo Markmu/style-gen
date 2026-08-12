@@ -8,27 +8,28 @@ const statusItems = [
 
 export function StatsSection() {
   return (
-    <section className="px-4 py-14 md:py-20">
-      <div className="mx-auto max-w-5xl md:flex md:items-center md:gap-12">
+    <section className="px-4 pb-24 pt-10 md:pb-32 md:pt-16">
+      <div className="mx-auto max-w-6xl md:grid md:grid-cols-[0.82fr_1.18fr] md:items-start md:gap-20">
         <div className="mb-10 md:mb-0 md:flex-1">
-          <h2 className="text-2xl font-bold text-[var(--text-primary)] md:text-3xl">
-            Every State Stays Clear
+          <h2 className="max-w-[12ch] text-3xl font-semibold leading-tight tracking-[-0.035em] text-[var(--text-primary)] md:text-5xl">
+            Every state stays clear
           </h2>
-          <p className="mt-4 max-w-lg text-base leading-relaxed text-[var(--text-secondary)]">
-            Landing previews, workspace feedback, and template empty states share one clear status voice.
+          <p className="mt-5 max-w-[36ch] text-base leading-7 text-[var(--text-secondary)]">
+            Processing, success, and recovery use the same direct language across
+            the product.
           </p>
         </div>
 
-        <div className="grid gap-3 md:w-[22.5rem]">
+        <div className="grid gap-2">
           {statusItems.map((item) => (
-            <div className="surface-panel rounded-lg p-4" key={item.status}>
-              <p className="text-sm font-semibold text-[var(--text-primary)]">
+            <article className="landing-status-row rounded-xl px-5 py-5 md:px-6" key={item.status}>
+              <p className="text-base font-semibold text-[var(--text-primary)]">
                 {item.title}
               </p>
-              <p className="mt-1 text-sm text-[var(--text-secondary)]">
+              <p className="mt-2 max-w-[62ch] text-sm leading-6 text-[var(--text-secondary)]">
                 {item.description}
               </p>
-            </div>
+            </article>
           ))}
         </div>
       </div>

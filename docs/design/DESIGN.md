@@ -1,129 +1,165 @@
-# The Design System: Implementation Manual
+# The Precision Frame
 
-> Source: Stitch `Precision Glass` reference, using the `Aether Glass` light design system / "The Ethereal Lens" direction.
- 
-## 1. Overview & Creative North Star: "The Ethereal Lens"
-The creative north star for this design system is **The Ethereal Lens**. In this paradigm, the UI is not a container, but a precision-engineered pane of glass that clarifies and elevates the content beneath it. 
- 
-We move away from the "boxy" nature of standard web design by embracing extreme atmospheric depth, high-contrast editorial typography, and intentional asymmetry. This system draws heavy inspiration from the tactile precision of luxury watchmaking and high-end digital productivity tools. Every pixel must feel intentional; every margin must provide "breathing room" that signals premium quality and calm authority.
- 
----
- 
-## 2. Colors & Atmospheric Tones
-The palette is rooted in a "High-Value Neutral" philosophy. We utilize a spectrum of whites and soft grays to build structure, reserving the **Electric Blue** (`primary`) for moments of functional intent.
- 
-### The "No-Line" Rule
-Traditional 1px solid borders for sectioning are strictly prohibited. Boundaries between major layout sections must be defined through:
-1.  **Background Color Shifts:** A section using `surface-container-low` sitting against a `surface` background.
-2.  **Tonal Transitions:** Using subtle shifts between `surface-bright` and `surface-dim`.
- 
-### Surface Hierarchy & Nesting
-Treat the UI as a physical stack of frosted glass. 
-- **Base Layer:** `surface` (#f7f9fb).
-- **Secondary Content Areas:** `surface-container-low` (#f2f4f6).
-- **Interactive Floating Elements:** `surface-container-lowest` (#ffffff) with 15% opacity and a backdrop blur.
- 
-### The Glass Recipe
-To achieve the signature "Linear-meets-Apple" aesthetic, use the following stack for all floating containers:
-- **Fill:** `surface-container-lowest` at 10–20% opacity.
-- **Backdrop Blur:** Minimum 30px.
-- **Inner Glow:** A 1px inner stroke using `outline-variant` (#c2c6d8) at 15% opacity.
-- **Signature Glow:** For primary actions, use a subtle gradient from `primary` (#0050cb) to `primary-container` (#0066ff) to add "soul" to the interactable area.
- 
----
- 
-## 3. Typography: Editorial Authority
-We utilize **Inter** (or Manrope) with a focus on high-contrast hierarchy. The goal is to make data look like a premium magazine spread.
- 
-- **Display Scale:** Use `display-lg` (3.5rem) with a `letter-spacing` of `-0.02em` for hero statements. This creates a "tight," professional look.
-- **Hierarchy of Importance:** Headlines should use `on-surface` (#191c1e), while supporting body text should use `on-surface-variant` (#424656) to create natural visual weight without needing bold weights.
-- **Functional Labels:** Use `label-sm` (0.6875rem) in all-caps with `+0.05em` tracking for micro-copy or categories. This mimics the technical precision of a high-end instrument.
- 
----
- 
-## 4. Elevation & Depth
-Depth in this system is achieved through **Tonal Layering** rather than structural shadows.
- 
-- **The Layering Principle:** To lift a card, place a `surface-container-lowest` element on top of a `surface-container-high` background. The color shift provides enough "lift" for the eye without creating visual noise.
-- **Ambient Shadows:** When a "floating" effect is mandatory (e.g., a dropdown or modal), use an ultra-diffused shadow. 
-    - *Formula:* `0px 20px 40px rgba(25, 28, 30, 0.06)`. The shadow must be tinted with the `on-surface` color to feel natural.
-- **The Ghost Border:** If a boundary is required for accessibility, use a "Ghost Border"—the `outline-variant` token at 10% opacity. It should feel like a suggestion of a line, not a hard stop.
- 
----
- 
-## 5. Components & Primitives
- 
+> Canonical UI and UX implementation manual for Visoryn.
+
+## 1. Creative North Star
+
+Visoryn is a quiet professional instrument for the Reference -> Evidence -> Render workflow. The interface frames source imagery, model evidence, user edits, and render readiness without competing with them.
+
+The design should feel precise, calm, transparent, and editorially clear. Familiar product controls are a feature. Distinctive character comes from typography, image composition, restrained asymmetry, and excellent state design, not decorative effects.
+
+## 2. Physical Scene And Theme
+
+The default scene is a visual creator reviewing images, evidence, and prompt variables for a long session. A bright studio needs low-glare cool neutrals; a dim editing room needs a smoke-toned dark equivalent with the same hierarchy.
+
+Light and dark are both complete page themes. The shared theme control offers Follow system, Light, and Dark. Follow system resolves from `prefers-color-scheme`; explicit choices override the operating system and persist across routes and reloads. Apply the resolved mode through `data-theme` on the root element so every surface consumes the same semantic tokens. Do not invert individual sections or mix themes inside a page.
+
+Place the theme control beside authentication in the Landing header and above authentication in the Workspace sidebar. Use the same control, labels, and behavior everywhere.
+
+## 3. Color Strategy
+
+Use a restrained product palette:
+
+- Cool tinted neutral surfaces define structure.
+- Electric Blue (`--accent-primary`) is the only functional accent. Use it for primary actions, selection, focus, and active navigation.
+- Evidence facet colors and semantic success, warning, error, and info colors communicate data or state only. They are not decorative accents.
+- Media may contain any source-image colors. Media colors do not become interface colors.
+
+All colors must consume semantic OKLCH tokens from `src/app/globals.css`. Do not add raw grays, isolated Tailwind color families, pure black, or pure white in page code.
+
+## 4. Surface Hierarchy
+
+Use three stable surface roles:
+
+1. `--surface-page`: application canvas.
+2. `--surface-panel`: persistent content regions such as Workspace columns and Style Memory cards.
+3. `--surface-floating`: controls or surfaces that genuinely sit above content, including menus, dialogs, the sticky landing header, and transient status messages.
+
+Prefer tonal layering to cards. A border is allowed when it communicates a real component boundary. Use only 1px ghost borders based on `--border-static` or `--border-interactive`.
+
+Glass is an exception, not the base material. `backdrop-filter` belongs on content overlays, dropdowns, dialogs, and sticky chrome only. Persistent panels should use an opaque or nearly opaque semantic surface. Do not nest glass surfaces.
+
+Shadows must be cool-tinted and diffuse. Persistent panels receive an inner highlight and little or no cast shadow. Floating surfaces may use `--shadow-ambient`.
+
+## 5. Typography
+
+- Use Geist through `next/font` as the single interface and display family.
+- Use Geist Mono only for technical labels, prompt code, and machine-readable metadata.
+- Keep the browser root at 16px. Never scale the entire application through `html { font-size }`.
+- Product UI uses a fixed rem scale with a tight hierarchy. Marketing headlines may use a larger fixed scale at explicit breakpoints.
+- Body text is at least 0.875rem with 1.5 or greater line height. Long prose is limited to 65-75 characters.
+- Headings rely on weight, tracking, and spacing. Do not introduce a second display family.
+- Technical labels use 0.6875rem, 650 weight, 0.14em tracking, and uppercase. Use them sparingly.
+
+Visible copy uses regular hyphens only. Do not use em dashes, en dashes as separators, or repeated middle-dot metadata chains.
+
+## 6. Shape, Spacing, And Layout
+
+Shape rules:
+
+- Cards and major panels: 1rem radius.
+- Controls and buttons: 0.75rem radius.
+- Pills: only chips, tags, avatars, and genuine segmented controls.
+
+Spacing rules:
+
+- Marketing sections vary vertical rhythm from 5rem to 8rem.
+- Product panels use compact, repeatable spacing from 0.5rem to 1.5rem.
+- Do not place every region inside a card. Use open page space and tonal grouping when elevation adds no meaning.
+
+Layout rules:
+
+- Landing uses an asymmetric split hero with one message and a real visual.
+- Workspace preserves the three responsibilities: Reference Canvas, Style Intelligence, and Prompt + Render.
+- Style Memory prioritizes previews, then name, variables, tags, reuse intent, and action.
+- Below 768px, marketing layouts become one column. Workspace remains a horizontally navigable professional canvas until a dedicated mobile editing flow exists; do not silently squeeze all three columns into the viewport.
+- Full-height application shells use `100dvh`, never `100vh` or `h-screen`.
+
+## 7. Components And States
+
 ### Buttons
-- **Primary:** `primary` (#0050cb) fill with `on-primary` (#ffffff) text. Use `md` (0.375rem) corner radius. Add a subtle 1px top-inner-stroke of white at 20% to simulate a light source.
-- **Secondary (Glass):** `surface-container-lowest` at 15% opacity, 30px blur, with a 1px `outline-variant` hairline.
- 
-### Input Fields
-- Avoid full-box borders. Use a `surface-container-highest` bottom-only hairline (1px). 
-- Active state: The hairline transitions to `primary` (#0050cb) with a subtle `primary_fixed` outer glow.
- 
-### Cards & Lists
-- **No Dividers:** Forbid the use of horizontal lines to separate list items. Use vertical white space (`spacing-8` or `spacing-12`) or alternating tonal backgrounds (`surface` to `surface-container-low`).
-- **Lens Effect:** Images within cards should have a 1px inner-border (`outline-variant` at 10%) to ensure they feel "seated" within the glass UI.
- 
-### Precision Chips
-- Use `full` (9999px) roundedness. 
-- Background: `surface-container-high` at 40% opacity. 
-- Text: `label-md` for a technical, utility-first appearance.
+
+- `.btn-primary`: solid Electric Blue, high-contrast text, subtle inner highlight, restrained tinted shadow.
+- `.btn-secondary`: `--surface-floating`, ghost border, no blur unless it overlays content.
+- Buttons move by at most 1px on hover and return on active.
+- Every button needs default, hover, focus-visible, active, disabled, and loading behavior.
+- Keep button labels on one line. Reuse one label for one intent.
+
+### Inputs
+
+- Labels appear above controls. Placeholder text never replaces a label.
+- Use `.input-precision` or `.style-memory-search` before creating page-specific input styles.
+- Focus uses `--focus-ring`; errors use semantic error tokens. Placeholder, helper, and error copy must remain readable against the control surface.
+
+### Panels And Media
+
+- Use `.surface-panel` for persistent product surfaces.
+- Use `.ai-panel` only when a region communicates model output, provenance, or model state.
+- Use `.media-lens` and `.style-memory-source` for image seating. Real media is preferred over decorative CSS mockups.
+- Empty media surfaces must state what is missing and what remains usable.
 
 ### Iconography
-- Use Lucide Outline for every functional product icon through the shared `AppIcon` component.
-- Default to 18px with a 1.75px absolute stroke width. Use 16px beside text, 20px for prominent toolbar actions, and 24px for upload or empty-state illustrations.
-- Icons inherit `currentColor`. Express hover, active, disabled, and semantic state through the surrounding control rather than switching to filled icons or adding gradients.
-- Keep the custom Visoryn brand mark as the only non-Lucide interface symbol. Status dots, progress rings, confidence meters, and evidence anchors remain data components rather than decorative icons.
- 
----
- 
-## 6. Do's and Don'ts
- 
-### Do:
-- **Embrace White Space:** If a layout feels "crowded," double the padding. Premium design requires "room to breathe."
-- **Focus on Hairlines:** Use 1px widths exclusively for any decorative lines. Never use 2px or 3px.
-- **Use Intentional Asymmetry:** Align text to the left but allow imagery or secondary data to float with generous, asymmetrical margins to break the "grid template" look.
- 
-### Don't:
-- **Avoid Opaque Grays:** Never use solid #CCCCCC or #888888. Always use the themed neutral tokens (`outline`, `surface-variant`) to ensure the color temperature remains consistent.
-- **No Heavy Shadows:** If the shadow is immediately obvious, it is too dark. It should feel like an atmospheric "vibe," not a black smudge.
-- **No Generic Gradients:** Avoid "top-to-bottom" dark-to-light gradients. If using a gradient, keep it nearly flat (e.g., a 2% shift in hue/value) to maintain the "quiet" aesthetic.
-- **No "Web" Dividers:** Never use `<hr>` style lines to separate content. Use space and color-blocking.
 
- 
----
- 
-## 7. Director's Closing Note
-This design system is about **restraint**. Our goal is to create a digital environment that feels as silent and expensive as a gallery. Trust the typography and the white space to do the heavy lifting. Every time you are tempted to add a border or a shadow, ask if a shift in background tone or a 1px inner glow could achieve the same goal with more elegance.
+- Use Lucide Outline through `AppIcon` only.
+- Default icon size is 18px with 1.75px absolute stroke width. Use 16px beside text, 20px in toolbars, and 24px for upload or empty-state illustrations.
+- The Visoryn lens mark is the only custom interface symbol.
+- Status dots are allowed only when they communicate a real state. Never use them as decoration.
 
----
+### Motion
 
-## 8. Phase 12 AI-First Evidence Workbench Appendix
+- Product transitions run for 150-220ms and communicate feedback or state change.
+- Animate transform and opacity only.
+- Loading skeletons and progress animation must honor `prefers-reduced-motion`.
+- Do not choreograph product page loads or add decorative perpetual motion.
 
-The Phase 12 interface uses the existing Precision Glass foundation to make AI work visible. Every page should explain what the AI has read, what evidence supports the current prompt or render decision, what context is preserved, and which action is available next. The shared contract is Reference -> Evidence -> Render.
+## 8. Evidence Workbench Contracts
+
+Every page should explain what AI has read, what evidence supports the current prompt or render decision, what context remains preserved, and which action is available next.
 
 ### Evidence Facets
 
-Evidence facets represent color, composition, lighting, texture, mood, subject, and neutral supporting signals. Use `.evidence-chip` with `data-facet` whenever a page labels an AI observation. A facet should include a short label, confidence or strength when available, a reference anchor when it points back to the image, and prompt provenance when it explains a prompt phrase. Do not invent decorative facet colors in page code; consume `--evidence-color-*`, `--evidence-composition-*`, `--evidence-lighting-*`, `--evidence-texture-*`, `--evidence-mood-*`, and `--evidence-neutral-*`.
+Evidence facets represent color, composition, lighting, texture, mood, subject, and neutral supporting signals. Use `.evidence-chip` with `data-facet`. A facet includes a short label, confidence or strength only when supplied by the model, a reference anchor when available, and prompt provenance when it explains a prompt phrase.
+
+Consume `--evidence-color-*`, `--evidence-composition-*`, `--evidence-lighting-*`, `--evidence-texture-*`, `--evidence-mood-*`, and `--evidence-neutral-*`. Do not invent facet colors in page code.
 
 ### Render Dock Readiness
 
-Render Dock is the visible source for generation readiness. It must show the readiness list, output parameters, busy state, service availability, disabled reason, and the primary render action in one scanning area. Use `.readiness-row` with `data-state="ready" | "waiting" | "blocked" | "processing"` and the matching `--readiness-*` tokens. Disabled generation controls must explain why generation is blocked and what can still be edited or saved.
+Render Dock is the visible source for generation readiness. It shows output parameters, busy state, service availability, disabled reason, and the primary render action in one scanning area. Use `.readiness-row` with `data-state="ready" | "waiting" | "blocked" | "processing"` when a full readiness explanation is required.
 
-### Style Memory Cards
+Disabled generation controls must explain why generation is blocked and what can still be edited or saved.
 
-Style Memory is the user-facing name for saved prompt templates. Cards should prioritize the source image or a clear no-preview surface, then the memory name, derived tags, variable count, and reuse intent. Use `.style-memory-card`, `.style-memory-source`, and `--style-memory-*` tokens. Empty, no-result, auth, and service-limited states should use `StatePresenter` rather than a blank template grid.
+### Style Memory
+
+Style Memory is the user-facing name for saved prompt templates. Cards prioritize the source image or a clear no-preview surface, then the memory name, derived tags, variable count, reuse intent, and action.
+
+Use `.style-memory-card`, `.style-memory-source`, and `--style-memory-*` tokens. Empty, no-result, auth, and service-limited states use `StatePresenter` rather than a blank grid.
 
 ### Status Language
 
-All empty, queued, processing, recoverable failure, auth required, no result, and service-limited states follow a three-part sentence model:
+Empty, queued, processing, recoverable failure, auth required, no-result, and service-limited states follow a three-part model:
+
 1. What happened.
 2. What context remains preserved.
 3. What the user can do next.
 
-This model covers the L1-L5 degradation ladder: queued work over 60 seconds, temporary service unavailability, recoverable analysis or generation failure, auth restriction, and empty or no-result states. `failedRecoverable` plus page override is the default way to describe service unavailability; do not add a new backend-facing status for visual copy alone. `StatePresenter` uses `aria-live="assertive"` for recoverable failures and `polite` for every other state.
+Use `failedRecoverable` plus a page override for service unavailability. Do not add a backend-facing status for visual copy alone. `StatePresenter` uses `aria-live="assertive"` for recoverable failures and `polite` for every other state.
 
-### Control Feedback And Phase D Cleanup
+## 9. Content And Trust Rules
 
-Continue to use `.surface-panel`, `.ai-panel`, `.btn-primary`, `.btn-secondary`, `.input-precision`, `.evidence-chip`, `.readiness-row`, `.style-memory-card`, and `.status-tone-dot` before adding page-specific classes. Phase D must remove obvious old-system leftovers: hard structural dividers, isolated SVG text buttons where an icon or normal button is expected, disabled controls without explanation, visible "Template Library" product copy, and old two-pane workspace visuals that conflict with the Evidence Workbench hierarchy.
+- Never display invented confidence, provenance, coordinates, account plans, quotas, or usage values.
+- Do not build fake screenshots from generic rectangles. Use real product components, real screenshots, generated media, or an explicit empty media surface.
+- Do not use generic AI gradients, neon glows, gradient text, decorative glass cards, or identical feature-card rows.
+- Preserve route slugs, primary navigation labels, form names, and analytics-sensitive actions unless a separate approved change owns them.
+- Visible copy must be direct, grammatical, and consistent with the Reference -> Evidence -> Render vocabulary.
+
+## 10. Required Validation
+
+For changes to layout, typography, color, tokens, or motion:
+
+1. Run adjacent component tests.
+2. Run the targeted Playwright visual-regression scenarios at 1440x900, 1280x800, and 390x844.
+3. Check landing, Workspace, Style Memory, loading, empty, error, and auth-required states.
+4. Check text overlap, horizontal overflow, button wrapping, focus visibility, and reduced-motion behavior.
+5. Run `pnpm verify:acceptance` before release-bound handoff.
+
+Use `.surface-panel`, `.ai-panel`, `.btn-primary`, `.btn-secondary`, `.input-precision`, `.evidence-chip`, `.readiness-row`, `.style-memory-card`, and `.status-tone-dot` before adding page-specific classes.

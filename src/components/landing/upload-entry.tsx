@@ -93,7 +93,7 @@ export function UploadEntry() {
   );
 
   return (
-    <div className="flex flex-col items-center px-4">
+    <div id="upload-reference" className="flex scroll-mt-24 flex-col items-center px-4">
       <div
         role="button"
         tabIndex={0}
@@ -105,7 +105,7 @@ export function UploadEntry() {
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`glass-panel interactive-lift w-full max-w-3xl cursor-pointer rounded-lg p-6 text-left sm:p-8 ${
+        className={`landing-upload interactive-lift w-full max-w-5xl cursor-pointer rounded-xl p-6 text-left sm:p-8 ${
           isDragOver
             ? "bg-[var(--accent-primary-soft)]"
             : "hover:bg-[var(--surface-panel)]"
@@ -113,23 +113,20 @@ export function UploadEntry() {
       >
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-[var(--accent-primary-soft)]">
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-lg bg-[var(--accent-primary-soft)]">
               <AppIcon icon={CloudUpload} size={24} className="text-[var(--accent-primary)]" />
             </div>
             <p className="text-lg font-semibold text-[var(--text-primary)]">
               Upload a reference image
             </p>
             <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--text-secondary)]">
-              The file is handed to Workspace first. AI reads it there as
-              evidence before any analysis request starts.
-            </p>
-            <p className="mt-3 text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
-              JPG, PNG, or WebP, up to 10MB
+              JPG, PNG, or WebP up to 10MB. Analysis begins inside the Workspace,
+              where your source remains visible.
             </p>
           </div>
-          <div className="readiness-row shrink-0" data-state="waiting">
+          <div className="btn-primary inline-flex shrink-0 items-center gap-2 rounded-lg px-4 py-2.5" data-state="waiting">
             <AppIcon icon={ArrowRight} size={16} />
-            <span className="text-sm font-medium">Start from reference</span>
+            <span className="text-sm font-medium">Upload reference</span>
           </div>
         </div>
       </div>

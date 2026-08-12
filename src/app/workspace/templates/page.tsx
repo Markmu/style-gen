@@ -24,7 +24,7 @@ function SkeletonCard() {
   return (
     <div
       aria-hidden="true"
-      className="style-memory-card flex min-h-[25rem] flex-col"
+      className="style-memory-card flex min-h-[24rem] flex-col"
     >
       <div className="style-memory-source aspect-[16/10] w-full animate-pulse motion-reduce:animate-none" />
       <div className="flex flex-1 flex-col gap-4 p-4">
@@ -200,10 +200,10 @@ export default function StyleMemoryPage() {
       className="flex h-full min-h-0 flex-col"
       data-testid="style-memory-page"
     >
-      <header className="shrink-0 px-3 pb-4 pt-5 sm:px-4 lg:px-5 lg:pb-5 lg:pt-7">
+      <header className="shrink-0 px-4 pb-5 pt-6 sm:px-6 lg:px-8 lg:pb-6 lg:pt-8">
         <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="max-w-2xl">
-            <h1 className="text-[2rem] font-semibold leading-tight tracking-[-0.035em] text-[var(--text-primary)] lg:text-[2.25rem]">
+            <h1 className="text-[2.25rem] font-semibold leading-tight tracking-[-0.045em] text-[var(--text-primary)] lg:text-[2.75rem]">
               Style Memory
             </h1>
             <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--text-secondary)]">
@@ -226,7 +226,7 @@ export default function StyleMemoryPage() {
       {!isFetchFailure && (
         <section
           aria-label="Style Memory search"
-          className="shrink-0 px-3 pb-4 sm:px-4 lg:px-5"
+          className="shrink-0 px-4 pb-5 sm:px-6 lg:px-8"
         >
           <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <label className="style-memory-search group relative flex min-h-11 min-w-0 flex-1 items-center rounded-lg px-3 sm:max-w-xl">
@@ -275,10 +275,10 @@ export default function StyleMemoryPage() {
         </section>
       )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-6 sm:px-4 lg:px-5 lg:pb-8">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6 sm:px-6 lg:px-8 lg:pb-8">
         <div className="w-full">
           {isLoading && (
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
               {Array.from({ length: 6 }).map((_, index) => (
                 <SkeletonCard key={`style-memory-skeleton-${index}`} />
               ))}
@@ -349,7 +349,7 @@ export default function StyleMemoryPage() {
           )}
 
           {showGrid && (
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
               {visibleMemories.map((template) => (
                 <TemplateCard
                   key={template.id}

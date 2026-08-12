@@ -5,7 +5,7 @@ import { AppIcon } from "@/components/ui/app-icon";
 
 interface WorkspaceTopBarProps {
   title: string;
-  subtitle: string;
+  subtitle?: string;
 }
 
 export function WorkspaceTopBar({ title, subtitle }: WorkspaceTopBarProps) {
@@ -24,9 +24,11 @@ export function WorkspaceTopBar({ title, subtitle }: WorkspaceTopBarProps) {
             <AppIcon icon={Pencil} size={16} />
           </button>
         </div>
-        <p className="mt-1 truncate text-xs font-medium text-[var(--text-secondary)]">
-          {subtitle}
-        </p>
+        {subtitle && (
+          <p className="mt-1 truncate text-xs font-medium text-[var(--text-secondary)]">
+            {subtitle}
+          </p>
+        )}
       </div>
     </header>
   );

@@ -94,7 +94,7 @@ export function ResultDisplay({
         <a
           href={resultImageUrl}
           download
-          className="flex-1 rounded-lg bg-[var(--accent-primary)] px-4 py-2 text-center text-sm font-medium text-white ring-1 ring-[var(--border-interactive)] transition-colors hover:bg-[var(--accent-primary-dim)]"
+          className="btn-primary flex-1 rounded-lg px-4 py-2 text-center text-sm font-medium ring-1 ring-[var(--border-interactive)]"
         >
           Download Image
         </a>
@@ -112,7 +112,7 @@ export function ResultDisplay({
       {/* Fullscreen overlay */}
       {isExpanded && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[oklch(16%_0.025_263/0.84)]"
           onClick={() => setIsExpanded(false)}
         >
           {/* Close button */}
@@ -122,7 +122,7 @@ export function ResultDisplay({
               e.stopPropagation();
               setIsExpanded(false);
             }}
-            className="absolute top-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm transition-colors hover:bg-white/20"
+            className="absolute top-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--surface-floating)]/20 text-[var(--text-on-primary)] backdrop-blur-sm transition-colors hover:bg-[var(--surface-floating)]/30"
             aria-label="Close fullscreen preview"
           >
             <AppIcon icon={X} size={24} />
@@ -155,7 +155,7 @@ export function ResultError({ errorMessage, onRetry }: ResultErrorProps) {
       <button
         type="button"
         onClick={onRetry}
-        className="mt-3 rounded-md bg-[var(--color-error)] px-4 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[var(--color-error)]/80"
+        className="mt-3 rounded-md bg-[var(--color-error)] px-4 py-1.5 text-xs font-medium text-[var(--text-on-primary)] transition-opacity hover:opacity-85"
       >
         Retry
       </button>

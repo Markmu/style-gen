@@ -6,6 +6,7 @@ import {
   mockTemplateCollection,
   type MockTemplateMemoryRecord,
 } from './helpers/mock-api'
+import { waitForReactInput } from './helpers/react-ready'
 
 const STORAGE_KEY = 'style-gen-workspace-state'
 
@@ -243,8 +244,8 @@ test.describe('plan-06 Style Memory template library migration', () => {
 
     await openStyleMemory(page)
     const searchBox = page.getByRole('textbox')
-    await searchBox.click()
-    await page.keyboard.type('brutalist neon collage')
+    await waitForReactInput(searchBox)
+    await searchBox.fill('brutalist neon collage')
     await expect(searchBox).toHaveValue('brutalist neon collage')
 
     const noResultsState = statePresenter(page, 'noResults')

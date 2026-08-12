@@ -13,6 +13,7 @@ import {
   mockUploadPresign,
   type MockTemplateMemoryRecord,
 } from './helpers/mock-api'
+import { waitForReactInput } from './helpers/react-ready'
 
 const TEST_IMAGE_PATH = resolve(__dirname, 'fixtures/test-image.png')
 
@@ -92,10 +93,9 @@ async function uploadReference(page: Page) {
   await expect(page.getByText(/click or drag to upload a reference image/i).first()).toBeVisible({
     timeout: 10000,
   })
-  const chooserPromise = page.waitForEvent('filechooser')
-  await page.getByText(/click or drag to upload a reference image/i).first().click()
-  const chooser = await chooserPromise
-  await chooser.setFiles(TEST_IMAGE_PATH)
+  const input = page.locator('input[type="file"]').first()
+  await waitForReactInput(input)
+  await input.setInputFiles(TEST_IMAGE_PATH)
 }
 
 async function openWorkspaceWithAnalysisReady(page: Page, taskId: string) {
@@ -491,8 +491,8 @@ test.describe('plan-08 targeted visual QA and legacy gate', () => {
     await mockVisualQaBase(noResultsPage, styleMemories)
     await openRoute(noResultsPage, '/workspace/templates')
     const searchBox = noResultsPage.getByRole('textbox')
-    await searchBox.click()
-    await noResultsPage.keyboard.type('no matching visual qa memory')
+    await waitForReactInput(searchBox)
+    await searchBox.fill('no matching visual qa memory')
     await expect(searchBox).toHaveValue('no matching visual qa memory')
 
     const noResultsState = statePresenter(noResultsPage, 'noResults')

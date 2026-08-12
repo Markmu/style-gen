@@ -72,7 +72,7 @@ export function TemplateCard({
       <article
         data-testid="style-memory-card"
         data-has-source-image={memory.sourceImageUrl ? "true" : "false"}
-        className="style-memory-card group relative flex min-h-[25rem] flex-col transition-[transform,box-shadow,border-color] duration-200 ease-out hover:-translate-y-0.5 motion-reduce:transform-none motion-reduce:transition-none"
+        className="style-memory-card group relative flex min-h-[24rem] flex-col transition-[transform,box-shadow,border-color] duration-200 ease-out hover:-translate-y-0.5 motion-reduce:transform-none motion-reduce:transition-none"
       >
         <div className="absolute right-3 top-3 z-10">
           <button
@@ -167,7 +167,7 @@ export function TemplateCard({
             </h3>
             <p className="mt-1 text-xs text-[var(--text-muted)]">
               <span>{sourceLabel}</span>
-              <span aria-hidden="true"> · </span>
+              <span aria-hidden="true"> / </span>
               <span>{memory.variableLabel}</span>
             </p>
           </div>
@@ -243,7 +243,7 @@ export function TemplateCard({
                 type="button"
                 onClick={handleDelete}
                 disabled={deleting}
-                className="rounded-md px-3 py-1.5 text-sm font-medium text-red-500 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-md px-3 py-1.5 text-sm font-medium text-[var(--color-error)] transition-colors hover:bg-[var(--color-error-soft)] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {deleting ? "Deleting..." : memory.actions.deleteLabel}
               </button>

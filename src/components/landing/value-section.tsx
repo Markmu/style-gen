@@ -2,21 +2,18 @@ const capabilities = [
   {
     title: "Evidence",
     facet: "color",
-    eyebrow: "AI style reading",
     description:
       "Color, composition, lighting, texture, and mood become visible signals instead of hidden prompt guesswork.",
   },
   {
     title: "Readiness",
     facet: "lighting",
-    eyebrow: "Before render",
     description:
       "Variables, style signals, prompt edits, and service status stay in one scan path before generation starts.",
   },
   {
     title: "Style Memory",
     facet: "mood",
-    eyebrow: "Reuse direction",
     description:
       "Save source-backed directions and return to them when a prompt structure is worth reusing.",
   },
@@ -24,38 +21,32 @@ const capabilities = [
 
 export function ValueSection() {
   return (
-    <section className="px-4 py-14 md:py-20">
-      <div className="mx-auto max-w-5xl">
-        <h2 className="text-2xl font-bold text-[var(--text-primary)] md:text-3xl">
+    <section className="px-4 py-20 md:py-28">
+      <div className="mx-auto max-w-6xl">
+        <h2 className="max-w-[18ch] text-3xl font-semibold leading-tight tracking-[-0.035em] text-[var(--text-primary)] md:text-5xl">
           The workbench keeps AI decisions inspectable
         </h2>
-        <p className="mt-4 max-w-lg text-base text-[var(--text-secondary)]">
-          Landing, Workspace, and Style Memory now use the same evidence,
-          readiness, and recovery language.
+        <p className="mt-5 max-w-[58ch] text-base leading-7 text-[var(--text-secondary)]">
+          See what the model observed, what remains editable, and what is ready
+          before committing to a render.
         </p>
 
-        <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-3">
-          {capabilities.map((item) => (
-            <div
+        <div className="mt-12 grid gap-4 md:grid-cols-[1.2fr_0.8fr] md:grid-rows-2">
+          {capabilities.map((item, index) => (
+            <article
               key={item.title}
-              className="surface-panel interactive-lift flex min-h-52 flex-col rounded-lg p-5"
+              className={`landing-capability flex flex-col justify-between rounded-xl p-6 md:p-8 ${
+                index === 0 ? "md:row-span-2 md:min-h-[28rem]" : "md:min-h-[13.5rem]"
+              }`}
+              data-facet={item.facet}
             >
-              <span
-                className="evidence-chip w-fit"
-                data-facet={item.facet}
-              >
-                {item.eyebrow}
-              </span>
-              <h3 className="mt-4 text-base font-bold text-[var(--text-primary)]">
+              <h3 className="text-xl font-semibold tracking-[-0.02em] text-[var(--text-primary)] md:text-2xl">
                 {item.title}
               </h3>
-              <p className="mt-3 text-sm leading-relaxed text-[var(--text-secondary)]">
+              <p className="mt-10 max-w-[42ch] text-sm leading-6 text-[var(--text-secondary)] md:text-base md:leading-7">
                 {item.description}
               </p>
-              <div className="mt-auto pt-5">
-                <span className="status-tone-dot inline-flex h-2.5 w-2.5" data-tone="accent" />
-              </div>
-            </div>
+            </article>
           ))}
         </div>
       </div>

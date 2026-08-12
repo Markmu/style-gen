@@ -141,7 +141,7 @@ export function GeneratePanel({
               disabled={isGenerating}
               className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                 aspectRatio === option.value
-                  ? "bg-[var(--accent-primary)] text-white"
+                  ? "bg-[var(--accent-primary)] text-[var(--text-on-primary)]"
                   : "bg-[var(--surface-bright)] text-[var(--text-secondary)] hover:bg-[var(--border)]"
               } ${isGenerating ? "cursor-not-allowed opacity-50" : ""}`}
             >
@@ -165,7 +165,7 @@ export function GeneratePanel({
               disabled={isGenerating}
               className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                 quality === option.value
-                  ? "bg-[var(--accent-primary)] text-white"
+                  ? "bg-[var(--accent-primary)] text-[var(--text-on-primary)]"
                   : "bg-[var(--surface-bright)] text-[var(--text-secondary)] hover:bg-[var(--border)]"
               } ${isGenerating ? "cursor-not-allowed opacity-50" : ""}`}
             >
@@ -182,7 +182,7 @@ export function GeneratePanel({
         disabled={!canGenerate || isGenerating}
         className={`w-full rounded-lg px-6 py-3 text-sm font-medium transition-colors ${
           canGenerate && !isGenerating
-            ? "btn-primary text-white"
+            ? "btn-primary"
             : "cursor-not-allowed bg-[var(--surface-bright)] text-[var(--text-secondary)]"
         }`}
       >

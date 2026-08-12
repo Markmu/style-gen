@@ -123,10 +123,10 @@ export function WorkspaceCanvas({
           <div className="relative">
             {/* Analyzing的视觉反馈 */}
             {state === "analyzing" && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-black/30 backdrop-blur-[0.125rem]">
+              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-[oklch(18%_0.025_263/0.36)] backdrop-blur-[0.125rem]">
                 <div className="flex flex-col items-center gap-3">
                   <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--accent-primary)] border-t-transparent" />
-                  <p className="text-sm font-medium text-white">
+                  <p className="text-sm font-medium text-[var(--text-on-primary)]">
                     AI is analyzing style features...
                   </p>
                 </div>
@@ -252,7 +252,7 @@ export function WorkspaceCanvas({
       {/* 全屏查看 overlay */}
       {isExpanded && resultImageUrl && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[oklch(16%_0.025_263/0.84)]"
           onClick={() => setIsExpanded(false)}
         >
           <button
@@ -261,7 +261,7 @@ export function WorkspaceCanvas({
               e.stopPropagation();
               setIsExpanded(false);
             }}
-            className="absolute top-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm transition-colors hover:bg-white/20"
+            className="absolute top-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--surface-floating)]/20 text-[var(--text-on-primary)] backdrop-blur-sm transition-colors hover:bg-[var(--surface-floating)]/30"
             aria-label="Close fullscreen preview"
           >
             <AppIcon icon={X} size={24} />

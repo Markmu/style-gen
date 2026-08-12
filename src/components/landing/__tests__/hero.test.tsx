@@ -12,7 +12,7 @@ describe("Hero", () => {
   it("explains AI evidence, prompt editing, and render readiness", () => {
     render(<Hero />);
     expect(
-      screen.getByText(/let AI read the color, composition, lighting, texture, and mood as evidence/i),
+      screen.getByText(/upload a reference\. inspect the evidence/i),
     ).toBeInTheDocument();
     expect(screen.getAllByText(/prompt/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/render/i).length).toBeGreaterThan(0);

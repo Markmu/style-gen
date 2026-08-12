@@ -9,6 +9,7 @@ import { AppIcon } from "@/components/ui/app-icon";
 import { trackAuthEvent } from "@/components/auth/auth-tracking";
 import { VisorynMark } from "@/components/brand/visoryn-mark";
 import { LoginButton } from "@/components/auth/login-button";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 const navItems = [
   {
@@ -29,16 +30,6 @@ const navItems = [
   },
 ] as const;
 
-const creditsPreview = {
-  plan: "Pro Plan",
-  used: 3240,
-  limit: 10000,
-};
-
-function formatCredits(value: number) {
-  return new Intl.NumberFormat("en-US").format(value);
-}
-
 export function LeftSidebar() {
   const { data: session, status } = useSession();
   const pathname = usePathname();
@@ -49,11 +40,6 @@ export function LeftSidebar() {
   const avatarUrl = session?.user.avatarUrl ?? session?.user.image;
   const initials =
     userName.charAt(0).toUpperCase() || userEmail.charAt(0).toUpperCase() || "U";
-  const creditsPercent = Math.min(
-    100,
-    Math.round((creditsPreview.used / creditsPreview.limit) * 100),
-  );
-
   const handleClickOutside = useCallback((event: MouseEvent) => {
     if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
       setIsUserMenuOpen(false);
@@ -125,24 +111,7 @@ export function LeftSidebar() {
       </nav>
 
       <div className="mt-auto space-y-2">
-        <section className="workspace-sidebar-plan hidden rounded-lg px-3 py-3 md:block">
-          <p className="text-sm font-semibold text-[var(--text-primary)]">
-            {creditsPreview.plan}
-          </p>
-          <p className="mt-1 text-xs text-[var(--text-secondary)]">
-            {formatCredits(creditsPreview.used)} / {formatCredits(creditsPreview.limit)} credits
-          </p>
-          <div
-            className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--surface-low)]"
-            aria-hidden="true"
-          >
-            <div
-              className="h-full rounded-full bg-[var(--accent-primary)]"
-              style={{ width: `${creditsPercent}%` }}
-            />
-          </div>
-        </section>
-
+        <ThemeToggle placement="sidebar" />
         <div ref={userMenuRef} className="relative">
           {isUserMenuOpen && (
             <div className="workspace-sidebar-menu absolute bottom-full left-0 z-20 mb-2 w-40 rounded-lg py-2 md:right-0 md:w-auto">

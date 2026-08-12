@@ -12,6 +12,7 @@ import {
   mockGenerationPolling,
   mockUploadPresign,
 } from './helpers/mock-api'
+import { waitForReactInput } from './helpers/react-ready'
 
 const TEST_IMAGE_PATH = `${process.cwd()}/e2e/fixtures/test-image.png`
 
@@ -98,10 +99,11 @@ async function openWorkspace(page: Page) {
 }
 
 async function uploadReference(page: Page) {
-  await appShell(page)
+  const input = appShell(page)
     .getByRole('region', { name: 'Reference Canvas column' })
     .locator('input[type="file"]')
-    .setInputFiles(TEST_IMAGE_PATH)
+  await waitForReactInput(input)
+  await input.setInputFiles(TEST_IMAGE_PATH)
 }
 
 async function openWithCompletedAnalysis(page: Page, taskId: string) {

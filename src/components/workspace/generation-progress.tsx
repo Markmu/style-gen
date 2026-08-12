@@ -35,7 +35,7 @@ export function GenerationProgress({ isGenerating }: GenerationProgressProps) {
             Generating image...
           </p>
           <p className="text-xs text-[var(--accent-primary)]/70">
-            Waited {elapsed}s · usually takes 10-60s
+            Waited {elapsed}s, usually takes 10-60s.
           </p>
         </div>
       </div>

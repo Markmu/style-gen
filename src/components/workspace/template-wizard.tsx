@@ -98,7 +98,7 @@ export function TemplateWizard({
         <button
           type="button"
           onClick={handleApply}
-          className="rounded-lg bg-[var(--accent-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+          className="btn-primary rounded-lg px-4 py-2 text-sm font-medium"
         >
           Apply and Generate
         </button>

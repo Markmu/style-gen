@@ -697,7 +697,7 @@ function WorkspacePageInner() {
     <div className="h-full overflow-hidden">
       {/* 中央Workspace */}
       <div className="flex h-full min-w-0 flex-col overflow-hidden">
-        <WorkspaceTopBar title={workspaceTitle} subtitle="Updated just now" />
+        <WorkspaceTopBar title={workspaceTitle} subtitle="Reference to render workbench" />
 
         <AiCopilotRibbon
           state={effectiveState}

@@ -54,6 +54,7 @@ describe("AuthHeader", () => {
     expect(styleMemory).toHaveAttribute("href", "/workspace/templates");
     expect(styleMemory).toHaveAttribute("aria-current", "page");
     expect(nav).not.toHaveTextContent(/Template Library/i);
+    expect(screen.getByRole("button", { name: /theme:/i })).toBeInTheDocument();
   });
 
   it("exposes the shell auth entry and keeps login feedback on the shared button", async () => {
@@ -80,5 +81,14 @@ describe("AuthHeader", () => {
       "aria-current",
       "page",
     );
+  });
+
+  it("keeps navigation stable while login status loads", () => {
+    mocks.status = "loading";
+
+    render(<AuthHeader />);
+
+    expect(screen.getByTestId("app-shell-primary-nav")).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: /checking login status/i })).toBeInTheDocument();
   });
 });

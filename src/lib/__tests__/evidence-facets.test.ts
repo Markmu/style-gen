@@ -65,13 +65,13 @@ describe("deriveEvidenceFacets", () => {
 
     expect(facets.find((facet) => facet.id === "color")).toMatchObject({
       tone: "color",
-      confidenceLabel: "legacy · no model confidence",
+      confidenceLabel: "legacy / no model confidence",
       confidence: null,
       legacy: true,
     });
     expect(facets.find((facet) => facet.id === "subject")).toMatchObject({
       tone: "neutral",
-      confidenceLabel: "legacy · no model confidence",
+      confidenceLabel: "legacy / no model confidence",
     });
   });
 

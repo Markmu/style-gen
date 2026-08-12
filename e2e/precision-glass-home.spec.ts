@@ -11,13 +11,14 @@ test.describe('Phase 12 AI-first home compatibility', () => {
     await expect(
       page.getByRole('heading', { level: 1, name: /Reference\s*->\s*Evidence\s*->\s*Render/ }),
     ).toBeVisible()
-    await expect(page.getByRole('link', { name: /Start from reference/ }).first()).toBeVisible()
+    await expect(page.getByRole('link', { name: /Upload reference/ }).first()).toBeVisible()
     await expect(page.getByRole('link', { name: /Browse Style Memory/ }).first()).toBeVisible()
     await expect(page.getByText(/Template Library/i)).toHaveCount(0)
-    await expect(page.getByText('Reference', { exact: true })).toBeVisible()
-    await expect(page.getByText('Evidence', { exact: true })).toBeVisible()
-    await expect(page.getByText('Render', { exact: true })).toBeVisible()
-    await expect(page.getByText('Click or drag to upload a reference image')).toBeVisible()
+    const productPreview = page.getByLabel('Reference Evidence Render preview')
+    await expect(productPreview.getByText('Reference', { exact: true })).toBeVisible()
+    await expect(productPreview.getByText('Evidence', { exact: true })).toBeVisible()
+    await expect(productPreview.getByText('Render', { exact: true })).toBeVisible()
+    await expect(page.getByText('Upload a reference image')).toBeVisible()
   })
 
   test('invalid upload stays in place and offers recovery', async ({ page }) => {

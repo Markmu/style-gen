@@ -75,8 +75,9 @@ describe("LeftSidebar", () => {
     expect(screen.queryByText("Film Street Mood")).not.toBeInTheDocument();
     expect(screen.queryByText("Product Clean")).not.toBeInTheDocument();
 
-    expect(screen.getByText("Pro Plan")).toBeInTheDocument();
-    expect(screen.getByText("3,240 / 10,000 credits")).toBeInTheDocument();
+    expect(screen.queryByText("Pro Plan")).not.toBeInTheDocument();
+    expect(screen.queryByText(/credits/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /theme:/i })).toBeInTheDocument();
   });
 
   it("marks Library active on the template route", () => {

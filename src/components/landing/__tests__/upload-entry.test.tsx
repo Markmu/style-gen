@@ -34,13 +34,13 @@ describe("UploadEntry", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Upload a reference image")).toBeInTheDocument();
     expect(
-      screen.getByText(/handed to Workspace first/i),
+      screen.getByText(/analysis begins inside the Workspace/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Start from reference/i),
+      screen.getByText(/Upload reference/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("JPG, PNG, or WebP, up to 10MB"),
+      screen.getByText(/JPG, PNG, or WebP up to 10MB/i),
     ).toBeInTheDocument();
   });
 

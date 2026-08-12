@@ -12,6 +12,7 @@ import {
   mockTemplateList,
   mockUploadPresign,
 } from './helpers/mock-api'
+import { waitForReactInput } from './helpers/react-ready'
 
 const TEST_IMAGE_PATH = resolve(__dirname, 'fixtures/test-image.png')
 const STORAGE_KEY = 'style-gen-workspace-state'
@@ -65,10 +66,9 @@ async function mockCdnImages(page: Page) {
 }
 
 async function uploadReference(page: Page) {
-  const chooserPromise = page.waitForEvent('filechooser')
-  await page.getByText(/click or drag to upload a reference image/i).first().click()
-  const chooser = await chooserPromise
-  await chooser.setFiles(TEST_IMAGE_PATH)
+  const input = appShell(page).locator('input[type="file"]').first()
+  await waitForReactInput(input)
+  await input.setInputFiles(TEST_IMAGE_PATH)
 }
 
 function appShell(page: Page) {

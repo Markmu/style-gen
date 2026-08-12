@@ -31,7 +31,7 @@ export function extractRecipeCategories(
       category: "structure",
       label: "Structure",
       description: fallback(
-        [recipe.subject, recipe.scene, recipe.composition].filter(Boolean).join(" · "),
+        [recipe.subject, recipe.scene, recipe.composition].filter(Boolean).join(" / "),
         "Core subject and composition will appear after analysis.",
       ),
     },
@@ -39,7 +39,7 @@ export function extractRecipeCategories(
       category: "materials",
       label: "Materials",
       description: fallback(
-        [recipe.texture, joinList(recipe.mustKeep, "")].filter(Boolean).join(" · "),
+        [recipe.texture, joinList(recipe.mustKeep, "")].filter(Boolean).join(" / "),
         "Material and texture guidance will appear after analysis.",
       ),
     },
@@ -47,7 +47,7 @@ export function extractRecipeCategories(
       category: "lighting",
       label: "Lighting",
       description: fallback(
-        [recipe.lighting, recipe.cameraLanguage].filter(Boolean).join(" · "),
+        [recipe.lighting, recipe.cameraLanguage].filter(Boolean).join(" / "),
         "Lighting and camera language will appear after analysis.",
       ),
     },
@@ -55,7 +55,7 @@ export function extractRecipeCategories(
       category: "color",
       label: "Color Palette",
       description: fallback(
-        [recipe.color, joinList(recipe.styleTags, "")].filter(Boolean).join(" · "),
+        [recipe.color, joinList(recipe.styleTags, "")].filter(Boolean).join(" / "),
         "Color palette guidance will appear after analysis.",
       ),
     },
@@ -63,7 +63,7 @@ export function extractRecipeCategories(
       category: "mood",
       label: "Mood & Atmosphere",
       description: fallback(
-        [recipe.mood, recipe.imageSummary].filter(Boolean).join(" · "),
+        [recipe.mood, recipe.imageSummary].filter(Boolean).join(" / "),
         "Mood and atmosphere will appear after analysis.",
       ),
     },

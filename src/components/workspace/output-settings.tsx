@@ -176,11 +176,11 @@ export function OutputSettings({
 
       {/* L2: generation service unavailable */}
       {showL2Unavailable && !showGenerationError && (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
-          <p className="text-sm font-medium text-amber-400">
+        <div className="rounded-lg border border-[var(--readiness-waiting-border)] bg-[var(--color-warning-soft)] p-4">
+          <p className="text-sm font-medium text-[var(--readiness-waiting-text)]">
             Image generation is temporarily unavailable
           </p>
-          <p className="mt-1 text-xs text-amber-400/70">
+          <p className="mt-1 text-xs text-[var(--readiness-waiting-text)]/80">
             Analysis results and the prompt editor remain available.
           </p>
         </div>
@@ -188,14 +188,14 @@ export function OutputSettings({
 
       {/* L1: generation queueing */}
       {showL1Queueing && (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
+        <div className="rounded-lg border border-[var(--readiness-waiting-border)] bg-[var(--color-warning-soft)] p-4">
           <div className="flex items-center gap-3">
-            <div className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-amber-400 border-t-transparent" />
+            <div className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-[var(--color-warning)] border-t-transparent motion-reduce:animate-none" />
             <div>
-              <p className="text-sm font-medium text-amber-400">
+              <p className="text-sm font-medium text-[var(--readiness-waiting-text)]">
                 Generation is queued. Thanks for waiting
               </p>
-              <p className="text-xs text-amber-400/70">
+              <p className="text-xs text-[var(--readiness-waiting-text)]/80">
                 High demand may make generation take longer
               </p>
             </div>
@@ -223,7 +223,7 @@ export function OutputSettings({
               aria-disabled={isGenerating}
               className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                 aspectRatio === option.value
-                  ? "bg-[var(--accent-primary)] text-white"
+                  ? "bg-[var(--accent-primary)] text-[var(--text-on-primary)]"
                   : "bg-[var(--surface-bright)] text-[var(--text-secondary)] hover:bg-[var(--border)]"
               } ${isGenerating ? "cursor-not-allowed opacity-50" : ""}`}
             >
@@ -248,7 +248,7 @@ export function OutputSettings({
               aria-disabled={isGenerating}
               className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                 quality === option.value
-                  ? "bg-[var(--accent-primary)] text-white"
+                  ? "bg-[var(--accent-primary)] text-[var(--text-on-primary)]"
                   : "bg-[var(--surface-bright)] text-[var(--text-secondary)] hover:bg-[var(--border)]"
               } ${isGenerating ? "cursor-not-allowed opacity-50" : ""}`}
             >
@@ -265,7 +265,7 @@ export function OutputSettings({
         disabled={!canGenerate || isGenerating}
         className={`w-full rounded-lg px-6 py-3 text-sm font-medium transition-colors ${
           canGenerate && !isGenerating
-            ? "btn-primary text-white"
+            ? "btn-primary"
             : "cursor-not-allowed bg-[var(--surface-bright)] text-[var(--text-secondary)]"
         }`}
       >

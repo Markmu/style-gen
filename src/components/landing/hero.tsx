@@ -1,11 +1,8 @@
+import Image from "next/image";
 import Link from "next/link";
 import {
-  CircleCheck,
-  Eye,
-  ImageUp,
+  ArrowDown,
   Layers3,
-  SlidersHorizontal,
-  Sparkles,
 } from "lucide-react";
 import { AppIcon } from "@/components/ui/app-icon";
 
@@ -19,123 +16,99 @@ const evidenceFacets = [
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden px-4 pb-20 pt-14 md:pb-24 md:pt-20">
-      <div className="mx-auto grid max-w-6xl items-start gap-10 lg:grid-cols-[minmax(0,0.82fr)_minmax(30rem,1fr)]">
-        <div className="max-w-2xl">
-          <span className="label-tech mb-4 inline-block rounded-full bg-[var(--surface-low)] px-3 py-1 text-[var(--accent-primary)]">
-            AI evidence workbench
+    <section className="landing-hero relative overflow-hidden px-4 pb-16 pt-10 md:pb-20 md:pt-16">
+      <div className="mx-auto grid max-w-[90rem] items-center gap-10 lg:grid-cols-[minmax(31rem,0.9fr)_minmax(38rem,1.1fr)] lg:gap-14">
+        <div className="max-w-[41rem]">
+          <span className="label-tech mb-5 inline-block text-[var(--accent-primary)]">
+            Evidence-led image making
           </span>
-          <h1 className="text-4xl font-extrabold tracking-tight text-[var(--text-primary)] md:text-6xl lg:text-7xl">
-            Reference {"->"} Evidence {"->"} Render
+          <h1
+            aria-label="Reference -> Evidence -> Render"
+            className="text-[3.35rem] font-semibold leading-[0.94] tracking-[-0.065em] text-[var(--text-primary)] sm:text-[3.75rem] lg:text-[4rem]"
+          >
+            <span className="block">Reference {"->"}</span>
+            <span className="block"> Evidence {"->"} Render</span>
           </h1>
-          <p className="mt-6 text-lg leading-relaxed text-[var(--text-secondary)] md:text-xl">
-            Upload a reference image and let AI read the color, composition,
-            lighting, texture, and mood as evidence. Keep that evidence visible
-            while you edit the prompt and prepare a new render.
+          <p className="mt-6 max-w-[48ch] text-base leading-7 text-[var(--text-secondary)] md:text-lg">
+            Upload a reference. Inspect the evidence. Edit what matters, then
+            render a new image without losing context.
           </p>
-          <div className="mt-10 flex flex-col gap-4 sm:flex-row">
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link
-              href="/workspace"
-              className="btn-primary inline-flex items-center justify-center gap-2 rounded-lg px-8 py-3 text-base font-semibold"
+              href="#upload-reference"
+              className="btn-primary inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg px-6 py-3 text-sm font-semibold"
             >
-              <AppIcon icon={ImageUp} />
-              Start from reference
+              <AppIcon icon={ArrowDown} />
+              Upload reference
             </Link>
             <Link
               href="/workspace/templates"
-              className="btn-secondary inline-flex items-center justify-center gap-2 rounded-lg px-6 py-3 text-base font-medium"
+              className="btn-secondary inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg px-6 py-3 text-sm font-semibold"
             >
               <AppIcon icon={Layers3} />
               Browse Style Memory
             </Link>
           </div>
-
-          <div className="mt-8 grid gap-3 text-sm text-[var(--text-secondary)] sm:grid-cols-3">
-            <div className="readiness-row" data-state="ready">
-              <AppIcon icon={Eye} size={16} />
-              <span>AI keeps the reference on canvas.</span>
-            </div>
-            <div className="readiness-row" data-state="processing">
-              <AppIcon icon={Sparkles} size={16} />
-              <span>Evidence stays attached to the prompt.</span>
-            </div>
-            <div className="readiness-row" data-state="waiting">
-              <AppIcon icon={SlidersHorizontal} size={16} />
-              <span>Readiness shows what is missing before render.</span>
-            </div>
-          </div>
         </div>
 
         <div
-          className="glass-panel rounded-lg p-4 sm:p-5"
+          className="landing-workbench-preview relative"
           aria-label="Reference Evidence Render preview"
         >
-          <div className="grid gap-4 md:grid-cols-[0.95fr_1.12fr_0.95fr]">
-            <div className="media-lens flex min-h-64 flex-col rounded-lg p-4">
-              <div className="flex items-center justify-between gap-3">
-                <p className="label-tech text-[var(--text-muted)]">Reference</p>
-                <span className="status-tone-dot h-2.5 w-2.5" data-tone="accent" />
-              </div>
-              <div className="mt-5 aspect-[4/5] overflow-hidden rounded-lg bg-[linear-gradient(145deg,#f9d5c0,#bfd9ff_52%,#fff8ea)] p-3">
-                <div className="flex h-full flex-col justify-between rounded-md bg-[rgba(255,255,255,0.42)] p-3">
-                  <div className="mx-auto aspect-square w-[74%] rounded-full bg-[#f4a88f]" />
-                  <div className="h-[28%] rounded-md bg-[#2b4f7f]/70" />
-                </div>
-              </div>
-              <p className="mt-3 text-sm leading-5 text-[var(--text-secondary)]">
-                Source image remains visible while AI reads style signals.
-              </p>
-            </div>
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(13rem,0.72fr)_minmax(0,1fr)] items-stretch gap-2 sm:gap-3">
+            <figure className="landing-media-frame relative min-h-[24rem] overflow-hidden rounded-xl sm:min-h-[31rem]">
+              <Image
+                src="/landing/reference-still-life.webp"
+                alt="Coral glass vessel and folded blue paper used as the reference image"
+                fill
+                priority
+                className="object-cover"
+                sizes="(min-width: 1024px) 25vw, 36vw"
+              />
+              <figcaption className="landing-media-caption">Reference</figcaption>
+            </figure>
 
-            <div className="ai-panel surface-panel rounded-lg p-4">
-              <div className="flex items-center justify-between gap-3">
+            <div className="surface-panel flex flex-col rounded-xl p-3 sm:p-4">
+              <div>
                 <p className="label-tech text-[var(--accent-primary)]">Evidence</p>
-                <span className="text-xs font-medium text-[var(--text-muted)]">
-                  prompt-linked
-                </span>
+                <p className="mt-2 text-xs leading-5 text-[var(--text-secondary)]">
+                  Observable style signals, attached to the prompt.
+                </p>
               </div>
-              <div className="mt-5 space-y-3">
+              <div className="mt-4 space-y-2">
                 {evidenceFacets.map((item) => (
                   <div
-                    className="evidence-chip w-full justify-between rounded-lg px-3 py-2"
+                    className="evidence-chip w-full flex-col items-start rounded-lg px-2.5 py-2 sm:flex-row sm:items-center sm:justify-between"
                     data-facet={item.facet}
                     key={item.label}
                   >
                     <span>{item.label}</span>
-                    <span className="font-medium">{item.detail}</span>
+                    <span className="text-[0.68rem] font-medium leading-4 sm:text-right">
+                      {item.detail}
+                    </span>
                   </div>
                 ))}
               </div>
-              <div className="mt-5 rounded-lg bg-[var(--surface-control)] p-3">
+              <div className="mt-auto pt-4">
                 <p className="label-tech text-[var(--text-muted)]">Prompt draft</p>
-                <p className="mt-2 text-sm leading-6 text-[var(--text-primary)]">
-                  soft editorial object study, warm coral accent, airy blue
-                  field, glass daylight, matte texture
+                <p className="mt-2 text-xs leading-5 text-[var(--text-primary)]">
+                  Soft editorial still life, glass daylight, mineral surface,
+                  coral and cobalt balance.
                 </p>
               </div>
             </div>
 
-            <div className="media-lens flex min-h-64 flex-col rounded-lg p-4">
-              <div className="flex items-center justify-between gap-3">
-                <p className="label-tech text-[var(--status-success-text)]">Render</p>
-                <span className="status-tone-dot h-2.5 w-2.5" data-tone="success" />
-              </div>
-              <div className="mt-5 aspect-[4/5] overflow-hidden rounded-lg bg-[linear-gradient(145deg,#eef7ff,#ffffff_48%,#d7ecff)] p-3">
-                <div className="flex h-full flex-col justify-between rounded-md bg-[rgba(0,80,203,0.08)] p-3">
-                  <div className="mx-auto aspect-square w-[70%] rounded-full bg-[#bfd9ff]" />
-                  <div className="mx-auto h-[18%] w-[78%] rounded-md bg-[#f4a88f]/80" />
-                </div>
-              </div>
-              <div className="mt-3 space-y-2 text-sm text-[var(--text-secondary)]">
-                <div className="readiness-row" data-state="ready">
-                  <AppIcon icon={CircleCheck} size={16} />
-                  <span>Variables and service are ready.</span>
-                </div>
-                <p className="leading-5">
-                  Generate, compare, then save the direction as Style Memory.
-                </p>
-              </div>
-            </div>
+            <figure className="landing-media-frame relative min-h-[24rem] overflow-hidden rounded-xl sm:min-h-[31rem]">
+              <Image
+                src="/landing/render-still-life.webp"
+                alt="Blue glass ring and coral textile rendered with the reference style"
+                fill
+                priority
+                className="object-cover"
+                sizes="(min-width: 1024px) 25vw, 36vw"
+              />
+              <figcaption className="landing-media-caption">Render</figcaption>
+            </figure>
           </div>
         </div>
       </div>

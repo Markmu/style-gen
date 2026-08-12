@@ -68,8 +68,8 @@ export function AppShell({
       data-page-label={resolvedPageLabel}
       className={`workspace-chromatic ${
         isWorkspaceRoute
-          ? "flex h-screen min-h-0 flex-col overflow-hidden"
-          : "min-h-screen"
+          ? "flex h-[100dvh] min-h-0 flex-col overflow-hidden"
+          : "min-h-[100dvh]"
       }`}
     >
       {!isWorkspaceRoute && (
@@ -87,7 +87,7 @@ export function AppShell({
 
       <div
         className={
-          isWorkspaceRoute ? "min-h-0 flex-1 overflow-hidden" : "min-h-screen"
+          isWorkspaceRoute ? "min-h-0 flex-1 overflow-hidden" : "min-h-[100dvh]"
         }
       >
         {children}

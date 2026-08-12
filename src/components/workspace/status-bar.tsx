@@ -236,7 +236,7 @@ export function StatusBar({
       <div className="flex min-w-0 items-center justify-end gap-2">
         <div className="hidden min-w-0 text-right lg:block">
           <p className="label-tech mb-1 text-[var(--text-muted)]">
-            Phase · {status.phaseLabel}
+            Phase / {status.phaseLabel}
           </p>
           <p className="truncate text-xs font-semibold text-[var(--text-primary)]">
             {status.readiness}

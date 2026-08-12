@@ -327,7 +327,7 @@ function EvidenceFacetGroup({
               <span className={`h-1.5 w-1.5 rounded-full ${tone.dot}`} />
             </span>
           </span>
-          <span className="mt-1 block truncate text-xs text-[var(--text-secondary)]">
+          <span className="mt-1 block break-words text-xs leading-4 text-[var(--text-secondary)] line-clamp-2">
             {keywords.join(", ")}
           </span>
         </span>
@@ -462,7 +462,7 @@ function StyleRules({
                   {invariant.value}
                 </span>
                 <span className="mt-1 block text-[0.7rem] text-[var(--text-muted)]">
-                  {invariant.kind} · {Math.round(invariant.confidence * 100)}% ·{" "}
+                  {invariant.kind} / {Math.round(invariant.confidence * 100)}% /{" "}
                   {invariant.dimension}
                 </span>
               </span>

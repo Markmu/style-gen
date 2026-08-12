@@ -10,6 +10,7 @@ import { LoginButton } from "./login-button";
 import { UserMenu } from "./user-menu";
 import { trackAuthEvent } from "./auth-tracking";
 import { VisorynMark } from "@/components/brand/visoryn-mark";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 function getOAuthErrorMessage(error: string): string {
   switch (error) {
@@ -52,8 +53,6 @@ export function AuthHeader() {
     }
     prevStatusRef.current = status;
   }, [status]);
-
-  if (status === "loading") return null; // Avoid flicker.
 
   const navItems: Array<{
     label: string;
@@ -113,8 +112,21 @@ export function AuthHeader() {
             ))}
           </nav>
 
-          <div data-testid="app-shell-auth-entry">
-            {session ? <UserMenu /> : <LoginButton />}
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <div data-testid="app-shell-auth-entry">
+              {status === "loading" ? (
+                <div
+                  aria-label="Checking login status"
+                  className="h-9 w-9 animate-pulse rounded-lg bg-[var(--surface-low)] motion-reduce:animate-none"
+                  role="status"
+                />
+              ) : session ? (
+                <UserMenu />
+              ) : (
+                <LoginButton />
+              )}
+            </div>
           </div>
         </div>
       </header>
