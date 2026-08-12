@@ -145,4 +145,27 @@ test.describe('plan-01 AI-first design system baseline', () => {
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
     await expect(page.locator('html')).toHaveAttribute('data-theme-preference', 'system')
   })
+
+  test('TC-1.5 keeps the Workspace type scale compact without changing Landing', async ({ page }) => {
+    await openWorkspace(page)
+
+    await expect(page.getByRole('heading', { name: /^Workspace$/i })).toHaveCSS(
+      'font-size',
+      '16px',
+    )
+    await expect(page.getByText('AI Copilot', { exact: true })).toHaveCSS(
+      'font-size',
+      '15px',
+    )
+    await expect(page.getByRole('link', { name: 'Generate' })).toHaveCSS(
+      'font-size',
+      '13px',
+    )
+
+    await page.goto('/', { waitUntil: 'commit' })
+    await expect(page.getByRole('link', { name: /^Home$/i })).toHaveCSS(
+      'font-size',
+      '14px',
+    )
+  })
 })

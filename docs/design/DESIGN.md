@@ -47,7 +47,8 @@ Shadows must be cool-tinted and diffuse. Persistent panels receive an inner high
 - Use Geist Mono only for technical labels, prompt code, and machine-readable metadata.
 - Keep the browser root at 16px. Never scale the entire application through `html { font-size }`.
 - Product UI uses a fixed rem scale with a tight hierarchy. Marketing headlines may use a larger fixed scale at explicit breakpoints.
-- Body text is at least 0.875rem with 1.5 or greater line height. Long prose is limited to 65-75 characters.
+- The `/workspace` workbench uses a compact fixed scale: 1rem for page-level UI headings, 0.9375rem for emphasized panel copy, 0.8125rem for standard controls and body copy, and 0.75rem for supporting metadata. Do not apply this compact scale to Landing or Style Memory.
+- Marketing and prose body text is at least 0.875rem with 1.5 or greater line height. The compact Workspace UI may use the 0.8125rem standard-control size defined above; long-form descriptions within it remain at least 0.875rem. Long prose is limited to 65-75 characters.
 - Headings rely on weight, tracking, and spacing. Do not introduce a second display family.
 - Technical labels use 0.6875rem, 650 weight, 0.14em tracking, and uppercase. Use them sparingly.
 

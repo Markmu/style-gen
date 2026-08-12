@@ -177,6 +177,19 @@
   background: var(--surface-page);
 }
 
+/* Workspace uses a denser product type scale than the marketing surface. */
+.workspace-chromatic[data-variant="workspace"] :where(.text-lg) {
+  font-size: 1rem;
+}
+
+.workspace-chromatic[data-variant="workspace"] :where(.text-base) {
+  font-size: 0.9375rem;
+}
+
+.workspace-chromatic[data-variant="workspace"] :where(.text-sm) {
+  font-size: 0.8125rem;
+}
+
 .workspace-lane-analysis {
   --surface-panel: oklch(99.2% 0.006 245 / 0.72);
   --surface-low: oklch(94.8% 0.015 245);
