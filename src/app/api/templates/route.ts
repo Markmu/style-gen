@@ -6,6 +6,10 @@ import {
   findAllByUserId,
 } from "@/lib/repositories/template-repository";
 import { findAnalysisTaskById } from "@/lib/repositories/analysis-task-repository";
+import {
+  findGenerationTaskById,
+  linkTemplateToGenerationTask,
+} from "@/lib/repositories/generation-task-repository";
 import { findAssetById } from "@/lib/repositories/asset-repository";
 import { normalizeVariableName } from "@/lib/template-parser";
 import type { TemplateVariable } from "@/types/models";
@@ -60,6 +64,8 @@ interface CreateTemplateRequest {
   sourceAnalysisTaskId?: string;
   sourceAssetId?: string;
   sourceImageUrl?: string;
+  /** plan-01（AC-06）: 来源迭代 id，保存成功迭代为 Style Memory 时携带 */
+  sourceGenerationTaskId?: string;
 }
 
 const VALID_SOURCE_FIELDS = new Set([
@@ -112,6 +118,18 @@ function validateSourceAssetId(value: unknown): string | undefined | null {
   return trimmed;
 }
 
+/** plan-01: sourceGenerationTaskId 与来源资产同规格（26 位 ULID） */
+function validateSourceGenerationTaskId(
+  value: unknown
+): string | undefined | null {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.length > 26) return null;
+  return trimmed;
+}
+
 function validateSourceImageUrl(value: unknown): string | undefined | null {
   if (value === undefined) return undefined;
   if (typeof value !== "string") return null;
@@ -143,6 +161,8 @@ function validateCreateBody(body: unknown): CreateTemplateRequest | null {
   if (sourceAssetId === null) return null;
   const sourceImageUrl = validateSourceImageUrl(obj.sourceImageUrl);
   if (sourceImageUrl === null) return null;
+  const sourceGenerationTaskId = validateSourceGenerationTaskId(obj.sourceGenerationTaskId);
+  if (sourceGenerationTaskId === null) return null;
 
   return {
     name: obj.name.trim(),
@@ -151,6 +171,7 @@ function validateCreateBody(body: unknown): CreateTemplateRequest | null {
     sourceAnalysisTaskId: obj.sourceAnalysisTaskId as string | undefined,
     ...(sourceAssetId !== undefined ? { sourceAssetId } : {}),
     ...(sourceImageUrl !== undefined ? { sourceImageUrl } : {}),
+    ...(sourceGenerationTaskId !== undefined ? { sourceGenerationTaskId } : {}),
   };
 }
 
@@ -234,6 +255,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // plan-01（AC-06）: 来源迭代校验——归属当前用户、completed 且有结果资产
+    if (validated.sourceGenerationTaskId) {
+      const sourceGenerationTask = await findGenerationTaskById(
+        validated.sourceGenerationTaskId,
+        userId,
+      );
+      if (
+        !sourceGenerationTask ||
+        sourceGenerationTask.status !== "completed" ||
+        !sourceGenerationTask.resultAssetId
+      ) {
+        return NextResponse.json(
+          { error: "Invalid source generation task", code: "INVALID_REQUEST", retryable: false },
+          { status: 400 }
+        );
+      }
+    }
+
     // 5. 创建模板
     const template = await createTemplate(userId, {
       name: validated.name,
@@ -243,6 +282,15 @@ export async function POST(request: NextRequest) {
       ...(sourceImageUrl !== undefined ? { sourceImageUrl } : {}),
     });
 
+    // plan-01（ADR-5）: 保存动作是来源迭代关联的唯一写入点
+    if (validated.sourceGenerationTaskId) {
+      await linkTemplateToGenerationTask(
+        template.id,
+        validated.sourceGenerationTaskId,
+        userId,
+      );
+    }
+
     log("template_created", {
       templateId: template.id,
       name: template.name,
@@ -251,6 +299,7 @@ export async function POST(request: NextRequest) {
       sourceAnalysisTaskIdPresent: Boolean(validated.sourceAnalysisTaskId),
       sourceAssetIdPresent: Boolean(sourceAssetId),
       sourceImageUrlPresent: Boolean(template.sourceImageUrl),
+      sourceGenerationTaskIdPresent: Boolean(validated.sourceGenerationTaskId),
       duration: Date.now() - startTime,
     });
 

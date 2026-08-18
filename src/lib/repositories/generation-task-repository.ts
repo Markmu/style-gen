@@ -1,19 +1,28 @@
-import { eq, sql, and, desc, lt, or } from "drizzle-orm";
+import { eq, sql, and, desc, lt, or, inArray, ilike } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/lib/db";
-import { generationTasks, assets, analysisTasks } from "@/lib/db/schema";
+import {
+  generationTasks,
+  assets,
+  analysisTasks,
+  templates,
+} from "@/lib/db/schema";
 import { generateId } from "@/lib/ulid";
 import type {
   GenerationParams,
   GenerationTask,
   GenerationTaskStatus,
   ImageGenProviderName,
-  TemplateVariable,
+  IterationContextSource,
+  IterationDisplayStatus,
+  IterationStatusFilter,
   StoredVisualRecipe,
+  TemplateVariable,
 } from "@/types/models";
 
 type GenerationTaskRow = typeof generationTasks.$inferSelect;
 const sourceAssets = alias(assets, "source_assets");
+const sourceTemplates = alias(templates, "source_templates");
 
 /** 数据库行 → GenerationTask 领域对象 */
 function rowToGenerationTask(row: GenerationTaskRow): GenerationTask {
@@ -30,12 +39,15 @@ function rowToGenerationTask(row: GenerationTaskRow): GenerationTask {
     resultAssetId: row.resultAssetId,
     errorMessage: row.errorMessage,
     userId: row.userId,
+    recipeSnapshot: row.recipeSnapshot ?? null,
+    variablesSnapshot: row.variablesSnapshot ?? null,
+    sourceTemplateId: row.sourceTemplateId ?? null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
 }
 
-/** 创建一条 pending 状态的 GenerationTask */
+/** 创建一条 pending 状态的 GenerationTask（plan-01: 同时固化提交时上下文快照） */
 export async function createGenerationTask(
   userId: string,
   data: {
@@ -45,6 +57,12 @@ export async function createGenerationTask(
     params: GenerationParams;
     modelName: string;
     provider?: ImageGenProviderName;
+    /** ADR-2: 服务端从所引用 analysis task 固化的配方快照 */
+    recipeSnapshot?: StoredVisualRecipe | null;
+    /** ADR-2: 服务端从所引用 analysis task 固化的变量快照 */
+    variablesSnapshot?: TemplateVariable[] | null;
+    /** AC-02: 工作台当前应用的 Style Memory id */
+    sourceTemplateId?: string | null;
   }
 ): Promise<GenerationTask> {
   const id = generateId();
@@ -59,6 +77,15 @@ export async function createGenerationTask(
       modelName: data.modelName,
       provider: data.provider ?? "fal",
       userId,
+      ...(data.recipeSnapshot !== undefined
+        ? { recipeSnapshot: data.recipeSnapshot }
+        : {}),
+      ...(data.variablesSnapshot !== undefined
+        ? { variablesSnapshot: data.variablesSnapshot }
+        : {}),
+      ...(data.sourceTemplateId !== undefined
+        ? { sourceTemplateId: data.sourceTemplateId }
+        : {}),
     })
     .returning();
   return rowToGenerationTask(row);
@@ -278,4 +305,275 @@ export async function findByIdWithRecipe(
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
+}
+
+// ─── plan-01: Iteration Memory 读链路 ─────────────────────────────────
+
+/** 仓库层迭代列表条目（DTO 同形，createdAt 为 Date，路由负责 ISO 序列化） */
+export interface IterationListItemRow {
+  id: string;
+  status: IterationDisplayStatus;
+  promptSummary: string;
+  resultFileUrl: string | null;
+  params: GenerationParams;
+  createdAt: Date;
+}
+
+/** 仓库层迭代详情（DTO 同形，createdAt/updatedAt 为 Date） */
+export interface IterationDetailRow {
+  id: string;
+  analysisTaskId: string;
+  status: IterationDisplayStatus;
+  promptSnapshot: string;
+  negativePromptSnapshot: string;
+  params: GenerationParams;
+  modelName: string;
+  resultAssetId: string | null;
+  resultFileUrl: string | null;
+  errorMessage: string | null;
+  recipe: StoredVisualRecipe | null;
+  recipeSource: IterationContextSource;
+  variables: TemplateVariable[];
+  variablesSource: IterationContextSource;
+  sourceImageUrl: string | null;
+  sourceAssetId: string | null;
+  sourceTemplateId: string | null;
+  sourceTemplateName: string | null;
+  savedTemplate: { id: string; name: string } | null;
+  analysisTemplateVariables: TemplateVariable[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/** 数据库四值状态 → 展示态三值（pending 归并 processing，架构 §7.6） */
+function toDisplayStatus(status: string): IterationDisplayStatus {
+  if (status === "completed") return "completed";
+  if (status === "failed") return "failed";
+  return "processing";
+}
+
+/**
+ * plan-01: 全状态迭代列表（架构 §6.1）
+ * - 状态过滤：all 不加条件；processing → IN ('pending','processing')
+ * - q 非空时 prompt_snapshot / 来源模板名 ILIKE 双字段命中（LEFT JOIN templates）
+ * - 排序 created_at DESC, id DESC；keyset 游标沿用 listCompleted 的 "createdAt::id"
+ */
+export async function listIterations(params: {
+  userId: string;
+  q?: string;
+  status?: IterationStatusFilter;
+  cursor?: string | null;
+  pageSize?: number;
+}): Promise<{ items: IterationListItemRow[]; nextCursor: string | null }> {
+  const { userId, q, cursor } = params;
+  const status = params.status ?? "completed";
+  // clamp pageSize 到 [1, 50]（架构 §8.3）
+  const size = Math.max(1, Math.min(50, Math.trunc(params.pageSize ?? 20)));
+
+  const conditions = [eq(generationTasks.userId, userId)];
+
+  if (status === "processing") {
+    conditions.push(
+      inArray(generationTasks.status, ["pending", "processing"])
+    );
+  } else if (status === "completed" || status === "failed") {
+    conditions.push(eq(generationTasks.status, status));
+  }
+  // status === "all" 不加状态条件
+
+  const trimmedQ = q?.trim();
+  if (trimmedQ) {
+    const pattern = `%${trimmedQ}%`;
+    const qCondition = or(
+      ilike(generationTasks.promptSnapshot, pattern),
+      ilike(templates.name, pattern)
+    );
+    if (qCondition) conditions.push(qCondition);
+  }
+
+  // cursor 解码：格式为 "createdAt::id"（与 listCompleted 一致）
+  if (cursor) {
+    const parts = cursor.split("::");
+    if (parts.length === 2) {
+      const [cursorAt, cursorId] = parts;
+      const cursorDate = new Date(cursorAt);
+      if (Number.isNaN(cursorDate.getTime()) || !cursorId) {
+        return { items: [], nextCursor: null };
+      }
+      // keyset 分页：排序为 created_at DESC, id DESC，下一页取游标之后的数据
+      const cursorCondition = or(
+        lt(generationTasks.createdAt, cursorDate),
+        and(
+          eq(generationTasks.createdAt, cursorDate),
+          lt(generationTasks.id, cursorId)
+        )
+      );
+      if (cursorCondition) conditions.push(cursorCondition);
+    } else {
+      return { items: [], nextCursor: null };
+    }
+  }
+
+  const rows = await db
+    .select({
+      id: generationTasks.id,
+      status: generationTasks.status,
+      promptSnapshot: generationTasks.promptSnapshot,
+      params: generationTasks.params,
+      resultFileUrl: assets.fileUrl,
+      createdAt: generationTasks.createdAt,
+    })
+    .from(generationTasks)
+    .leftJoin(assets, eq(generationTasks.resultAssetId, assets.id))
+    .leftJoin(templates, eq(generationTasks.sourceTemplateId, templates.id))
+    .where(and(...conditions))
+    .orderBy(desc(generationTasks.createdAt), desc(generationTasks.id))
+    .limit(size + 1); // 多查一条判断是否有下一页
+
+  const items: IterationListItemRow[] = rows.slice(0, size).map((row) => ({
+    id: row.id,
+    status: toDisplayStatus(row.status),
+    promptSummary: row.promptSnapshot.slice(0, 120),
+    resultFileUrl:
+      row.status === "completed" ? row.resultFileUrl ?? null : null,
+    params: row.params,
+    createdAt: row.createdAt,
+  }));
+
+  const nextCursor =
+    rows.length > size
+      ? `${rows[size - 1].createdAt.toISOString()}::${rows[size - 1].id}`
+      : null;
+
+  return { items, nextCursor };
+}
+
+/**
+ * plan-01: 全状态迭代详情（架构 §6.2）
+ * 单条联表：活引用 analysis task、结果资产、来源资产、来源模板、最新已保存模板；
+ * 组装算法逐字段显式：快照优先 → 活引用回退 → 缺失标记。
+ */
+export async function findIterationDetail(
+  id: string,
+  userId: string
+): Promise<IterationDetailRow | null> {
+  // 每个来源迭代取 created_at 最新一条模板（ADR-5，容忍 1:N 只呈现最新）
+  const latestSavedTemplates = db
+    .selectDistinctOn([templates.sourceGenerationTaskId], {
+      id: templates.id,
+      name: templates.name,
+      sourceGenerationTaskId: templates.sourceGenerationTaskId,
+    })
+    .from(templates)
+    .orderBy(templates.sourceGenerationTaskId, desc(templates.createdAt))
+    .as("latest_saved_templates");
+
+  const rows = await db
+    .select({
+      id: generationTasks.id,
+      analysisTaskId: generationTasks.analysisTaskId,
+      status: generationTasks.status,
+      promptSnapshot: generationTasks.promptSnapshot,
+      negativePromptSnapshot: generationTasks.negativePromptSnapshot,
+      params: generationTasks.params,
+      modelName: generationTasks.modelName,
+      resultAssetId: generationTasks.resultAssetId,
+      resultFileUrl: assets.fileUrl,
+      errorMessage: generationTasks.errorMessage,
+      recipeSnapshot: generationTasks.recipeSnapshot,
+      analysisRecipe: analysisTasks.recipe,
+      variablesSnapshot: generationTasks.variablesSnapshot,
+      analysisTemplateVariables: analysisTasks.analysisTemplateVariables,
+      sourceAssetId: analysisTasks.sourceAssetId,
+      sourceImageUrl: sourceAssets.fileUrl,
+      sourceTemplateId: generationTasks.sourceTemplateId,
+      sourceTemplateName: sourceTemplates.name,
+      savedTemplateId: latestSavedTemplates.id,
+      savedTemplateName: latestSavedTemplates.name,
+      createdAt: generationTasks.createdAt,
+      updatedAt: generationTasks.updatedAt,
+    })
+    .from(generationTasks)
+    .leftJoin(assets, eq(generationTasks.resultAssetId, assets.id))
+    .leftJoin(
+      analysisTasks,
+      eq(generationTasks.analysisTaskId, analysisTasks.id)
+    )
+    .leftJoin(sourceAssets, eq(analysisTasks.sourceAssetId, sourceAssets.id))
+    .leftJoin(
+      sourceTemplates,
+      eq(generationTasks.sourceTemplateId, sourceTemplates.id)
+    )
+    .leftJoin(
+      latestSavedTemplates,
+      eq(
+        latestSavedTemplates.sourceGenerationTaskId,
+        generationTasks.id
+      )
+    )
+    .where(and(eq(generationTasks.id, id), eq(generationTasks.userId, userId)));
+
+  if (rows.length === 0) return null;
+
+  const row = rows[0];
+
+  // 上下文组装算法（架构 §6.2，逐字段显式）
+  const recipe = row.recipeSnapshot ?? row.analysisRecipe ?? null;
+  const recipeSource: IterationContextSource = row.recipeSnapshot
+    ? "snapshot"
+    : row.analysisRecipe
+      ? "fallback"
+      : "missing";
+  const variables = row.variablesSnapshot ?? row.analysisTemplateVariables ?? [];
+  const variablesSource: IterationContextSource = row.variablesSnapshot
+    ? "snapshot"
+    : row.analysisTemplateVariables
+      ? "fallback"
+      : "missing";
+
+  return {
+    id: row.id,
+    analysisTaskId: row.analysisTaskId,
+    status: toDisplayStatus(row.status),
+    promptSnapshot: row.promptSnapshot,
+    negativePromptSnapshot: row.negativePromptSnapshot,
+    params: row.params,
+    modelName: row.modelName,
+    resultAssetId: row.resultAssetId ?? null,
+    resultFileUrl:
+      row.status === "completed" ? row.resultFileUrl ?? null : null,
+    errorMessage: row.errorMessage,
+    recipe,
+    recipeSource,
+    variables,
+    variablesSource,
+    sourceImageUrl: row.sourceImageUrl ?? null,
+    sourceAssetId: row.sourceAssetId ?? null,
+    sourceTemplateId: row.sourceTemplateId ?? null,
+    sourceTemplateName: row.sourceTemplateName ?? null,
+    savedTemplate: row.savedTemplateId
+      ? { id: row.savedTemplateId, name: row.savedTemplateName ?? "" }
+      : null,
+    analysisTemplateVariables: row.analysisTemplateVariables ?? [],
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+/**
+ * plan-01: 将已创建模板关联为迭代沉淀产物（templates.source_generation_task_id，ADR-5）。
+ * 写入点唯一（保存动作创建模板后调用），模板被删除时关联自然消失。
+ */
+export async function linkTemplateToGenerationTask(
+  templateId: string,
+  generationTaskId: string,
+  userId: string
+): Promise<void> {
+  await db
+    .update(templates)
+    .set({
+      sourceGenerationTaskId: generationTaskId,
+      updatedAt: sql`NOW()`,
+    })
+    .where(and(eq(templates.id, templateId), eq(templates.userId, userId)));
 }

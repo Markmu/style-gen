@@ -1,19 +1,25 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   refresh: vi.fn(),
+  replace: vi.fn(),
   useTemplateSearch: vi.fn(),
+  pathname: "/workspace/templates",
+  searchParams: new URLSearchParams(),
 }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: mocks.push,
     refresh: mocks.refresh,
+    replace: mocks.replace,
   }),
+  usePathname: () => mocks.pathname,
+  useSearchParams: () => mocks.searchParams,
 }));
 
 vi.mock("@/hooks/use-template-search", () => ({
@@ -76,7 +82,9 @@ describe("StyleMemoryPage", () => {
   beforeEach(() => {
     mocks.push.mockClear();
     mocks.refresh.mockClear();
+    mocks.replace.mockClear();
     mocks.useTemplateSearch.mockReset();
+    mocks.searchParams = new URLSearchParams();
     setTemplateSearch();
   });
 
@@ -168,3 +176,54 @@ function renderPageWithState(overrides: Record<string, unknown>) {
   const rendered = renderPage();
   return { ...result, ...rendered };
 }
+
+describe("StyleMemoryPage — focus 定位（plan-05 / 架构 §6.4 步骤 4）", () => {
+  beforeEach(() => {
+    mocks.push.mockClear();
+    mocks.refresh.mockClear();
+    mocks.replace.mockClear();
+    mocks.useTemplateSearch.mockReset();
+    mocks.searchParams = new URLSearchParams();
+    setTemplateSearch();
+  });
+
+  it("focus=<id> 命中时目标卡片获得 data-focused 高亮，且参数消费后从 URL 清除（replace）", async () => {
+    mocks.searchParams = new URLSearchParams("focus=memory-1");
+    renderPage();
+
+    const card = screen.getByTestId("style-memory-card");
+    await waitFor(() =>
+      expect(card).toHaveAttribute("data-focused", "true"),
+    );
+    // 仅目标卡片被高亮
+    expect(
+      document.querySelectorAll(
+        '[data-testid="style-memory-card"][data-focused="true"]',
+      ),
+    ).toHaveLength(1);
+    // 参数一次性消费：replace 清除 focus，不污染历史栈
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenCalledWith("/workspace/templates", {
+        scroll: false,
+      }),
+    );
+  });
+
+  it("focus 目标不在当前列表时静默忽略：无高亮，页面正常渲染，参数仍被消费", async () => {
+    mocks.searchParams = new URLSearchParams("focus=missing-memory");
+    renderPage();
+
+    expect(screen.getByTestId("style-memory-card")).not.toHaveAttribute(
+      "data-focused",
+    );
+    expect(
+      screen.getByRole("heading", { name: memory.name }),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(mocks.replace).toHaveBeenCalled());
+    expect(
+      document.querySelectorAll(
+        '[data-testid="style-memory-card"][data-focused="true"]',
+      ),
+    ).toHaveLength(0);
+  });
+});

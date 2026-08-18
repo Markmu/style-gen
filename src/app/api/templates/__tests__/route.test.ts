@@ -26,6 +26,14 @@ vi.mock("@/lib/repositories/analysis-task-repository", () => ({
   findAnalysisTaskById: (...args: unknown[]) => mockFindAnalysisTaskById(...args),
 }));
 
+const mockFindGenerationTaskById = vi.fn();
+const mockLinkTemplateToGenerationTask = vi.fn();
+vi.mock("@/lib/repositories/generation-task-repository", () => ({
+  findGenerationTaskById: (...args: unknown[]) => mockFindGenerationTaskById(...args),
+  linkTemplateToGenerationTask: (...args: unknown[]) =>
+    mockLinkTemplateToGenerationTask(...args),
+}));
+
 function makeRequest(url: string, body?: unknown): NextRequest {
   return new NextRequest(url, {
     method: body === undefined ? "GET" : "POST",
@@ -76,6 +84,26 @@ const TEMPLATE: PromptTemplate = {
   sourceAssetId: "asset-1",
   sourceImageUrl: "https://cdn.example.com/reference.png",
   userId: "user-1",
+  createdAt: new Date("2026-06-01T00:00:00.000Z"),
+  updatedAt: new Date("2026-06-01T00:00:00.000Z"),
+};
+
+const COMPLETED_GENERATION_TASK = {
+  id: "gen-1",
+  analysisTaskId: "analysis-1",
+  status: "completed" as const,
+  promptSnapshot: "A glass fox at dawn",
+  negativePromptSnapshot: "",
+  params: { aspectRatio: "1:1", quality: "standard" },
+  modelName: "flux.2",
+  provider: "fal" as const,
+  externalId: null,
+  resultAssetId: "asset-gen-1",
+  errorMessage: null,
+  userId: "user-1",
+  recipeSnapshot: null,
+  variablesSnapshot: null,
+  sourceTemplateId: null,
   createdAt: new Date("2026-06-01T00:00:00.000Z"),
   updatedAt: new Date("2026-06-01T00:00:00.000Z"),
 };
@@ -280,5 +308,100 @@ describe("/api/templates", () => {
     expect(response.status).toBe(200);
     expect(data.items[0].sourceAssetId).toBe("asset-1");
     expect(data.items[0].sourceImageUrl).toBe("https://cdn.example.com/reference.png");
+  });
+
+  // ─── plan-01: sourceGenerationTaskId 来源迭代关联 ────────────────────
+
+  describe("sourceGenerationTaskId (plan-01)", () => {
+    const iterationSaveBody = {
+      name: "Saved Direction",
+      content: "Create {{subject}}.",
+      sourceGenerationTaskId: "gen-1",
+      sourceAssetId: "asset-1",
+    };
+
+    it("校验通过后落库来源迭代关联并返回 201", async () => {
+      mockFindByName.mockResolvedValue(null);
+      mockFindGenerationTaskById.mockResolvedValue(COMPLETED_GENERATION_TASK);
+      mockFindAssetById.mockResolvedValue(REFERENCE_ASSET);
+      mockCreateTemplate.mockResolvedValue(TEMPLATE);
+      mockLinkTemplateToGenerationTask.mockResolvedValue(undefined);
+
+      const response = await POST(
+        makeRequest("http://localhost:3000/api/templates", iterationSaveBody),
+      );
+
+      expect(response.status).toBe(201);
+      expect(mockFindGenerationTaskById).toHaveBeenCalledWith("gen-1", "user-1");
+      expect(mockLinkTemplateToGenerationTask).toHaveBeenCalledWith(
+        "template-1",
+        "gen-1",
+        "user-1",
+      );
+    });
+
+    it("任务不存在或不属于当前用户时返回 400 INVALID_REQUEST", async () => {
+      mockFindByName.mockResolvedValue(null);
+      mockFindGenerationTaskById.mockResolvedValue(null);
+
+      const response = await POST(
+        makeRequest("http://localhost:3000/api/templates", iterationSaveBody),
+      );
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.code).toBe("INVALID_REQUEST");
+      expect(mockCreateTemplate).not.toHaveBeenCalled();
+      expect(mockLinkTemplateToGenerationTask).not.toHaveBeenCalled();
+    });
+
+    it("任务非 completed 时返回 400 INVALID_REQUEST", async () => {
+      mockFindByName.mockResolvedValue(null);
+      mockFindGenerationTaskById.mockResolvedValue({
+        ...COMPLETED_GENERATION_TASK,
+        status: "processing" as const,
+      });
+
+      const response = await POST(
+        makeRequest("http://localhost:3000/api/templates", iterationSaveBody),
+      );
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.code).toBe("INVALID_REQUEST");
+      expect(mockCreateTemplate).not.toHaveBeenCalled();
+    });
+
+    it("任务 completed 但无结果资产时返回 400 INVALID_REQUEST", async () => {
+      mockFindByName.mockResolvedValue(null);
+      mockFindGenerationTaskById.mockResolvedValue({
+        ...COMPLETED_GENERATION_TASK,
+        resultAssetId: null,
+      });
+
+      const response = await POST(
+        makeRequest("http://localhost:3000/api/templates", iterationSaveBody),
+      );
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.code).toBe("INVALID_REQUEST");
+      expect(mockCreateTemplate).not.toHaveBeenCalled();
+    });
+
+    it("sourceGenerationTaskId 非字符串类型返回 400 INVALID_REQUEST", async () => {
+      const response = await POST(
+        makeRequest("http://localhost:3000/api/templates", {
+          name: "Saved Direction",
+          content: "Create {{subject}}.",
+          sourceGenerationTaskId: 12345,
+        }),
+      );
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.code).toBe("INVALID_REQUEST");
+      expect(mockFindGenerationTaskById).not.toHaveBeenCalled();
+    });
   });
 });

@@ -7,13 +7,9 @@ vi.mock("@/auth", () => ({
   auth: (...args: unknown[]) => mockAuth(...args),
 }));
 
-const mockFindGenerationTaskById = vi.fn();
-const mockFindByIdWithRecipe = vi.fn();
+const mockFindIterationDetail = vi.fn();
 vi.mock("@/lib/repositories/generation-task-repository", () => ({
-  findGenerationTaskById: (...args: unknown[]) =>
-    mockFindGenerationTaskById(...args),
-  findByIdWithRecipe: (...args: unknown[]) =>
-    mockFindByIdWithRecipe(...args),
+  findIterationDetail: (...args: unknown[]) => mockFindIterationDetail(...args),
 }));
 
 const mockFindAssetById = vi.fn();
@@ -31,36 +27,6 @@ function createGetRequest(): NextRequest {
   });
 }
 
-const baseTask = {
-  id: "gen-1",
-  analysisTaskId: "analysis-1",
-  promptSnapshot: "a beautiful sunset",
-  negativePromptSnapshot: "ugly",
-  params: { aspectRatio: "16:9", quality: "high" },
-  modelName: "flux.2",
-  resultAssetId: null,
-  errorMessage: null,
-  createdAt: new Date("2025-01-01"),
-  updatedAt: new Date("2025-01-01"),
-};
-
-const completedTask = {
-  ...baseTask,
-  status: "completed" as const,
-  resultAssetId: "asset-gen-1",
-};
-
-const generatedAsset = {
-  id: "asset-gen-1",
-  type: "generated" as const,
-  fileUrl: "https://r2.example.com/generated/gen-1/result.webp",
-  thumbnailUrl: null,
-  width: 1024,
-  height: 1024,
-  mimeType: "image/webp",
-  createdAt: new Date("2025-01-01"),
-};
-
 const templateVariables = [
   {
     name: "subject",
@@ -70,24 +36,35 @@ const templateVariables = [
   },
 ];
 
-const completedDetail = {
-  id: "gen-1",
-  analysisTaskId: "analysis-1",
-  status: "completed" as const,
-  promptSnapshot: "a beautiful sunset",
-  negativePromptSnapshot: "ugly",
-  params: { aspectRatio: "16:9", quality: "high" },
-  modelName: "flux.2",
-  resultAssetId: "asset-gen-1",
-  resultFileUrl: "https://r2.example.com/generated/gen-1/result.webp",
-  recipe: null,
-  sourceAssetId: "source-asset-1",
-  sourceImageUrl: "https://r2.example.com/references/source-asset-1/original.png",
-  variables: templateVariables,
-  analysisTemplateVariables: templateVariables,
-  createdAt: new Date("2025-01-01"),
-  updatedAt: new Date("2025-01-01"),
-};
+const sampleRecipe = { imageSummary: "A glass flower study" };
+
+function makeDetail(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "gen-1",
+    analysisTaskId: "analysis-1",
+    status: "completed" as const,
+    promptSnapshot: "a beautiful sunset",
+    negativePromptSnapshot: "ugly",
+    params: { aspectRatio: "16:9", quality: "high" },
+    modelName: "flux.2",
+    resultAssetId: "asset-gen-1",
+    resultFileUrl: "https://r2.example.com/generated/gen-1/result.webp",
+    errorMessage: null,
+    recipe: sampleRecipe,
+    recipeSource: "snapshot" as const,
+    variables: templateVariables,
+    variablesSource: "snapshot" as const,
+    sourceImageUrl: "https://r2.example.com/references/source-asset-1/original.png",
+    sourceAssetId: "source-asset-1",
+    sourceTemplateId: "template-1",
+    sourceTemplateName: "Glass Study",
+    savedTemplate: { id: "template-saved", name: "Saved Direction" },
+    analysisTemplateVariables: templateVariables,
+    createdAt: new Date("2025-01-01"),
+    updatedAt: new Date("2025-01-01"),
+    ...overrides,
+  };
+}
 
 // ---- Tests ----
 
@@ -96,16 +73,12 @@ describe("GET /api/generation/[id]", () => {
     vi.restoreAllMocks();
     mockAuth.mockReset();
     mockAuth.mockResolvedValue({ user: { id: "user-1" } });
-    mockFindGenerationTaskById.mockReset();
-    mockFindByIdWithRecipe.mockReset();
-    mockFindByIdWithRecipe.mockResolvedValue(null);
+    mockFindIterationDetail.mockReset();
     mockFindAssetById.mockReset();
   });
 
-  // 1. P0: 查询 completed 任务含 resultFileUrl
-  it("查询 completed 任务应包含 resultFileUrl", async () => {
-    mockFindGenerationTaskById.mockResolvedValueOnce(completedTask);
-    mockFindAssetById.mockResolvedValueOnce(generatedAsset);
+  it("completed 详情返回完整上下文（既有字段超集 + 快照来源标记）", async () => {
+    mockFindIterationDetail.mockResolvedValueOnce(makeDetail());
 
     const res = await GET(createGetRequest(), {
       params: Promise.resolve({ id: "gen-1" }),
@@ -113,61 +86,56 @@ describe("GET /api/generation/[id]", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(json.id).toBe("gen-1");
-    expect(json.status).toBe("completed");
-    expect(json.resultFileUrl).toBe(
-      "https://r2.example.com/generated/gen-1/result.webp"
-    );
+    expect(mockFindIterationDetail).toHaveBeenCalledWith("gen-1", "user-1");
+    expect(json).toEqual({
+      id: "gen-1",
+      analysisTaskId: "analysis-1",
+      status: "completed",
+      promptSnapshot: "a beautiful sunset",
+      negativePromptSnapshot: "ugly",
+      params: { aspectRatio: "16:9", quality: "high" },
+      modelName: "flux.2",
+      resultAssetId: "asset-gen-1",
+      resultFileUrl: "https://r2.example.com/generated/gen-1/result.webp",
+      errorMessage: null,
+      recipe: sampleRecipe,
+      recipeSource: "snapshot",
+      variables: templateVariables,
+      variablesSource: "snapshot",
+      sourceImageUrl: "https://r2.example.com/references/source-asset-1/original.png",
+      sourceAssetId: "source-asset-1",
+      sourceTemplateId: "template-1",
+      sourceTemplateName: "Glass Study",
+      savedTemplate: { id: "template-saved", name: "Saved Direction" },
+      analysisTemplateVariables: templateVariables,
+      createdAt: new Date("2025-01-01").toISOString(),
+      updatedAt: new Date("2025-01-01").toISOString(),
+    });
   });
 
-  it("查询 completed 详情应包含 restored source context 和 variables", async () => {
-    mockFindGenerationTaskById.mockResolvedValueOnce(completedTask);
-    mockFindByIdWithRecipe.mockResolvedValueOnce(completedDetail);
+  it("既有轮询消费字段 resultAssetId / analysisTemplateVariables 保留（use-history-restore 兼容）", async () => {
+    mockFindIterationDetail.mockResolvedValueOnce(makeDetail());
 
     const res = await GET(createGetRequest(), {
       params: Promise.resolve({ id: "gen-1" }),
     });
     const json = await res.json();
 
-    expect(res.status).toBe(200);
-    expect(json).toEqual(
-      expect.objectContaining({
-        id: "gen-1",
-        status: "completed",
-        resultFileUrl: "https://r2.example.com/generated/gen-1/result.webp",
-        sourceAssetId: "source-asset-1",
-        sourceImageUrl: "https://r2.example.com/references/source-asset-1/original.png",
-        variables: templateVariables,
-        analysisTemplateVariables: templateVariables,
-      })
-    );
-    expect(mockFindByIdWithRecipe).toHaveBeenCalledWith("gen-1", "user-1");
+    expect(json.resultAssetId).toBe("asset-gen-1");
+    expect(json.analysisTemplateVariables).toEqual(templateVariables);
+    // 单条资产回查已由仓库联表完成
     expect(mockFindAssetById).not.toHaveBeenCalled();
   });
 
-  // 2. P0: 查询 pending 任务 (resultFileUrl: null)
-  it("查询 pending 任务 resultFileUrl 应为 null", async () => {
-    mockFindGenerationTaskById.mockResolvedValueOnce({
-      ...baseTask,
-      status: "pending",
-    });
-
-    const res = await GET(createGetRequest(), {
-      params: Promise.resolve({ id: "gen-1" }),
-    });
-    const json = await res.json();
-
-    expect(res.status).toBe(200);
-    expect(json.status).toBe("pending");
-    expect(json.resultFileUrl).toBeNull();
-  });
-
-  // 3. P0: 查询 processing 任务
-  it("查询 processing 任务 resultFileUrl 应为 null", async () => {
-    mockFindGenerationTaskById.mockResolvedValueOnce({
-      ...baseTask,
-      status: "processing",
-    });
+  it("pending 任务归并为 processing 展示态", async () => {
+    mockFindIterationDetail.mockResolvedValueOnce(
+      makeDetail({
+        status: "processing",
+        resultAssetId: null,
+        resultFileUrl: null,
+        savedTemplate: null,
+      })
+    );
 
     const res = await GET(createGetRequest(), {
       params: Promise.resolve({ id: "gen-1" }),
@@ -179,13 +147,32 @@ describe("GET /api/generation/[id]", () => {
     expect(json.resultFileUrl).toBeNull();
   });
 
-  // 4. P0: 查询 failed 任务
-  it("查询 failed 任务应返回 errorMessage", async () => {
-    mockFindGenerationTaskById.mockResolvedValueOnce({
-      ...baseTask,
-      status: "failed",
-      errorMessage: "model crashed",
+  it("processing 任务返回保留上下文与 null resultFileUrl", async () => {
+    mockFindIterationDetail.mockResolvedValueOnce(
+      makeDetail({ status: "processing", resultFileUrl: null, resultAssetId: null })
+    );
+
+    const res = await GET(createGetRequest(), {
+      params: Promise.resolve({ id: "gen-1" }),
     });
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.status).toBe("processing");
+    expect(json.resultFileUrl).toBeNull();
+    expect(json.errorMessage).toBeNull();
+    expect(json.recipeSource).toBe("snapshot");
+  });
+
+  it("failed 任务返回 errorMessage 与保留上下文", async () => {
+    mockFindIterationDetail.mockResolvedValueOnce(
+      makeDetail({
+        status: "failed",
+        resultFileUrl: null,
+        resultAssetId: null,
+        errorMessage: "model crashed",
+      })
+    );
 
     const res = await GET(createGetRequest(), {
       params: Promise.resolve({ id: "gen-1" }),
@@ -196,11 +183,54 @@ describe("GET /api/generation/[id]", () => {
     expect(json.status).toBe("failed");
     expect(json.errorMessage).toBe("model crashed");
     expect(json.resultFileUrl).toBeNull();
+    expect(json.promptSnapshot).toBe("a beautiful sunset");
   });
 
-  // 5. P0: 任务不存在 -> 404 NOT_FOUND
-  it("任务不存在应返回 404 NOT_FOUND", async () => {
-    mockFindGenerationTaskById.mockResolvedValueOnce(null);
+  it("存量旧行快照回退：recipeSource / variablesSource 为 fallback", async () => {
+    mockFindIterationDetail.mockResolvedValueOnce(
+      makeDetail({ recipeSource: "fallback", variablesSource: "fallback" })
+    );
+
+    const res = await GET(createGetRequest(), {
+      params: Promise.resolve({ id: "gen-1" }),
+    });
+    const json = await res.json();
+
+    expect(json.recipeSource).toBe("fallback");
+    expect(json.variablesSource).toBe("fallback");
+  });
+
+  it("来源资产缺失时 sourceAssetId / sourceImageUrl 为 null", async () => {
+    mockFindIterationDetail.mockResolvedValueOnce(
+      makeDetail({ sourceAssetId: null, sourceImageUrl: null })
+    );
+
+    const res = await GET(createGetRequest(), {
+      params: Promise.resolve({ id: "gen-1" }),
+    });
+    const json = await res.json();
+
+    expect(json.sourceAssetId).toBeNull();
+    expect(json.sourceImageUrl).toBeNull();
+  });
+
+  it("成功路径输出 iteration_detail_queried 结构化日志", async () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    mockFindIterationDetail.mockResolvedValueOnce(makeDetail());
+
+    await GET(createGetRequest(), {
+      params: Promise.resolve({ id: "gen-1" }),
+    });
+
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining("iteration_detail_queried")
+    );
+
+    logSpy.mockRestore();
+  });
+
+  it("任务不存在或跨用户访问返回 404 NOT_FOUND", async () => {
+    mockFindIterationDetail.mockResolvedValueOnce(null);
 
     const res = await GET(createGetRequest(), {
       params: Promise.resolve({ id: "non-existent" }),
@@ -211,44 +241,23 @@ describe("GET /api/generation/[id]", () => {
     expect(json.code).toBe("NOT_FOUND");
   });
 
-  // 6. P1: completed 但 resultAssetId 为 null
-  it("completed 但 resultAssetId 为 null 时 resultFileUrl 应为 null", async () => {
-    mockFindGenerationTaskById.mockResolvedValueOnce({
-      ...baseTask,
-      status: "completed",
-      resultAssetId: null,
-    });
+  it("未登录返回 401 { error, code: UNAUTHORIZED, retryable: false }", async () => {
+    mockAuth.mockResolvedValueOnce(null);
 
     const res = await GET(createGetRequest(), {
       params: Promise.resolve({ id: "gen-1" }),
     });
     const json = await res.json();
 
-    expect(res.status).toBe(200);
-    expect(json.status).toBe("completed");
-    expect(json.resultFileUrl).toBeNull();
-    // 不应查询 Asset
-    expect(mockFindAssetById).not.toHaveBeenCalled();
+    expect(res.status).toBe(401);
+    expect(json).toEqual(
+      expect.objectContaining({ code: "UNAUTHORIZED", retryable: false })
+    );
+    expect(mockFindIterationDetail).not.toHaveBeenCalled();
   });
 
-  // 7. P1: completed 但 Asset 不存在
-  it("completed 且有 resultAssetId 但 Asset 不存在时 resultFileUrl 应为 null", async () => {
-    mockFindGenerationTaskById.mockResolvedValueOnce(completedTask);
-    mockFindAssetById.mockResolvedValueOnce(null);
-
-    const res = await GET(createGetRequest(), {
-      params: Promise.resolve({ id: "gen-1" }),
-    });
-    const json = await res.json();
-
-    expect(res.status).toBe(200);
-    expect(json.status).toBe("completed");
-    expect(json.resultFileUrl).toBeNull();
-  });
-
-  // 8. P1: 查询异常 -> 500 SERVICE_UNAVAILABLE
-  it("查询异常应返回 500 SERVICE_UNAVAILABLE", async () => {
-    mockFindGenerationTaskById.mockRejectedValueOnce(
+  it("查询异常返回 500 SERVICE_UNAVAILABLE", async () => {
+    mockFindIterationDetail.mockRejectedValueOnce(
       new Error("database connection lost")
     );
 
@@ -260,34 +269,5 @@ describe("GET /api/generation/[id]", () => {
     expect(res.status).toBe(500);
     expect(json.code).toBe("SERVICE_UNAVAILABLE");
     expect(json.retryable).toBe(true);
-  });
-
-  // 9. P1: 响应包含所有字段
-  it("响应应包含所有必要字段", async () => {
-    mockFindGenerationTaskById.mockResolvedValueOnce(completedTask);
-    mockFindAssetById.mockResolvedValueOnce(generatedAsset);
-
-    const res = await GET(createGetRequest(), {
-      params: Promise.resolve({ id: "gen-1" }),
-    });
-    const json = await res.json();
-
-    expect(json).toEqual(
-      expect.objectContaining({
-        id: "gen-1",
-        analysisTaskId: "analysis-1",
-        status: "completed",
-        promptSnapshot: "a beautiful sunset",
-        negativePromptSnapshot: "ugly",
-        params: { aspectRatio: "16:9", quality: "high" },
-        modelName: "flux.2",
-        resultAssetId: "asset-gen-1",
-        resultFileUrl: "https://r2.example.com/generated/gen-1/result.webp",
-        errorMessage: null,
-      })
-    );
-    // createdAt and updatedAt should be present
-    expect(json.createdAt).toBeDefined();
-    expect(json.updatedAt).toBeDefined();
   });
 });

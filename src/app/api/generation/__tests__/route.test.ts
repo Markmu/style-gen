@@ -15,10 +15,17 @@ vi.mock("@/lib/repositories/analysis-task-repository", () => ({
 const mockCreateGenerationTask = vi.fn();
 const mockUpdateGenerationTask = vi.fn();
 const mockListCompleted = vi.fn();
+const mockListIterations = vi.fn();
 vi.mock("@/lib/repositories/generation-task-repository", () => ({
   createGenerationTask: (...args: unknown[]) => mockCreateGenerationTask(...args),
   updateGenerationTask: (...args: unknown[]) => mockUpdateGenerationTask(...args),
   listCompleted: (...args: unknown[]) => mockListCompleted(...args),
+  listIterations: (...args: unknown[]) => mockListIterations(...args),
+}));
+
+const mockFindTemplateById = vi.fn();
+vi.mock("@/lib/repositories/template-repository", () => ({
+  findById: (...args: unknown[]) => mockFindTemplateById(...args),
 }));
 
 const mockCreateAsset = vi.fn();
@@ -78,12 +85,25 @@ const completedAnalysisTask = {
   id: "analysis-1",
   sourceAssetId: "asset-1",
   status: "completed" as const,
-  recipe: null,
+  recipe: { imageSummary: "Glass flower study" },
   promptText: "a beautiful sunset",
   negativePromptText: "ugly",
   rawResponse: null,
   errorMessage: null,
   errorStage: null,
+  userId: "user-1",
+  analysisTemplateVariables: [{ name: "subject", defaultValue: "Glass flower" }],
+  createdAt: new Date("2025-01-01"),
+  updatedAt: new Date("2025-01-01"),
+};
+
+const ownedTemplate = {
+  id: "template-1",
+  name: "Glass Study",
+  content: "Create {{subject}}",
+  variables: [],
+  sourceAssetId: null,
+  sourceImageUrl: null,
   userId: "user-1",
   createdAt: new Date("2025-01-01"),
   updatedAt: new Date("2025-01-01"),
@@ -102,6 +122,9 @@ const createdTask = {
   resultAssetId: null,
   errorMessage: null,
   userId: "user-1",
+  recipeSnapshot: completedAnalysisTask.recipe,
+  variablesSnapshot: completedAnalysisTask.analysisTemplateVariables,
+  sourceTemplateId: null,
   createdAt: new Date("2025-01-01"),
   updatedAt: new Date("2025-01-01"),
 };
@@ -120,22 +143,25 @@ const mockReplicateProvider = {
 // ---- Tests ----
 
 describe("GET /api/generation", () => {
+  const sampleIterationItem = {
+    id: "gen-history-1",
+    status: "completed" as const,
+    promptSummary: "a beautiful sunset",
+    resultFileUrl: "https://cdn.example.com/result.webp",
+    params: { aspectRatio: "16:9", quality: "high" },
+    createdAt: new Date("2026-05-11T05:00:00.000Z"),
+  };
+
   beforeEach(() => {
     vi.restoreAllMocks();
     mockAuth.mockReset();
     mockAuth.mockResolvedValue({ user: { id: "user-1" } });
-    mockListCompleted.mockReset();
+    mockListIterations.mockReset();
   });
 
-  it("返回当前用户的生成历史列表", async () => {
-    mockListCompleted.mockResolvedValueOnce({
-      items: [
-        {
-          id: "gen-history-1",
-          resultFileUrl: "https://cdn.example.com/result.webp",
-          createdAt: new Date("2026-05-11T05:00:00.000Z"),
-        },
-      ],
+  it("返回当前用户的迭代列表（条目为既有字段超集）", async () => {
+    mockListIterations.mockResolvedValueOnce({
+      items: [sampleIterationItem],
       nextCursor: "2026-05-11T05:00:00.000Z::gen-history-1",
     });
 
@@ -143,12 +169,14 @@ describe("GET /api/generation", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(mockListCompleted).toHaveBeenCalledWith("user-1", null, 20);
     expect(json).toEqual({
       items: [
         {
           id: "gen-history-1",
+          status: "completed",
+          promptSummary: "a beautiful sunset",
           resultFileUrl: "https://cdn.example.com/result.webp",
+          params: { aspectRatio: "16:9", quality: "high" },
           createdAt: "2026-05-11T05:00:00.000Z",
         },
       ],
@@ -156,34 +184,165 @@ describe("GET /api/generation", () => {
     });
   });
 
-  it("未Log in时返回 401 且不查询历史", async () => {
+  it("无 status 参数默认 completed（近期迭代条 useHistoryList 兼容）", async () => {
+    mockListIterations.mockResolvedValue({ items: [], nextCursor: null });
+
+    await GET(createGetRequest("http://localhost:3000/api/generation?pageSize=20"));
+
+    expect(mockListIterations).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "user-1", status: "completed" })
+    );
+  });
+
+  it("status=all / processing / completed / failed 白名单值透传给仓库", async () => {
+    mockListIterations.mockResolvedValue({ items: [], nextCursor: null });
+
+    await GET(createGetRequest("http://localhost:3000/api/generation?status=all"));
+    await GET(createGetRequest("http://localhost:3000/api/generation?status=processing"));
+    await GET(createGetRequest("http://localhost:3000/api/generation?status=failed"));
+    await GET(createGetRequest("http://localhost:3000/api/generation?status=completed"));
+
+    expect(mockListIterations).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ status: "all" })
+    );
+    expect(mockListIterations).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ status: "processing" })
+    );
+    expect(mockListIterations).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({ status: "failed" })
+    );
+    expect(mockListIterations).toHaveBeenNthCalledWith(
+      4,
+      expect.objectContaining({ status: "completed" })
+    );
+  });
+
+  it("非法 status 值返回 400 INVALID_REQUEST 且不查询仓库", async () => {
+    const res = await GET(
+      createGetRequest("http://localhost:3000/api/generation?status=done")
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(json.code).toBe("INVALID_REQUEST");
+    expect(mockListIterations).not.toHaveBeenCalled();
+  });
+
+  it("q trim 后透传，可与 status 组合生效", async () => {
+    mockListIterations.mockResolvedValue({ items: [], nextCursor: null });
+
+    await GET(
+      createGetRequest(
+        "http://localhost:3000/api/generation?q=%20sunset%20&status=all"
+      )
+    );
+
+    expect(mockListIterations).toHaveBeenCalledWith(
+      expect.objectContaining({ q: "sunset", status: "all" })
+    );
+  });
+
+  it("q trim 后超过 100 字符返回 400，不做静默截断", async () => {
+    const longQ = "x".repeat(101);
+
+    const res = await GET(
+      createGetRequest(`http://localhost:3000/api/generation?q=${longQ}`)
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(json.code).toBe("INVALID_REQUEST");
+    expect(mockListIterations).not.toHaveBeenCalled();
+  });
+
+  it("q trim 后恰好 100 字符可接受", async () => {
+    mockListIterations.mockResolvedValue({ items: [], nextCursor: null });
+
+    const q = "x".repeat(100);
+    const res = await GET(
+      createGetRequest(`http://localhost:3000/api/generation?q=%20${q}%20`)
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockListIterations).toHaveBeenCalledWith(
+      expect.objectContaining({ q })
+    );
+  });
+
+  it("q 为空串或纯空白视为无搜索条件", async () => {
+    mockListIterations.mockResolvedValue({ items: [], nextCursor: null });
+
+    await GET(createGetRequest("http://localhost:3000/api/generation?q="));
+    await GET(createGetRequest("http://localhost:3000/api/generation?q=%20%20"));
+
+    expect(mockListIterations).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ q: undefined })
+    );
+    expect(mockListIterations).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ q: undefined })
+    );
+  });
+
+  it("未Log in时返回 401 且不查询列表", async () => {
     mockAuth.mockResolvedValueOnce(null);
 
     const res = await GET(createGetRequest());
     const json = await res.json();
 
     expect(res.status).toBe(401);
-    expect(json.code).toBe("UNAUTHORIZED");
-    expect(mockListCompleted).not.toHaveBeenCalled();
+    expect(json).toEqual(
+      expect.objectContaining({ code: "UNAUTHORIZED", retryable: false })
+    );
+    expect(mockListIterations).not.toHaveBeenCalled();
   });
 
   it("pageSize 会限制在 1 到 50 之间", async () => {
-    mockListCompleted.mockResolvedValue({ items: [], nextCursor: null });
+    mockListIterations.mockResolvedValue({ items: [], nextCursor: null });
 
     await GET(createGetRequest("http://localhost:3000/api/generation?pageSize=100"));
     await GET(createGetRequest("http://localhost:3000/api/generation?pageSize=0"));
     await GET(createGetRequest("http://localhost:3000/api/generation?pageSize=abc"));
     await GET(createGetRequest("http://localhost:3000/api/generation?pageSize=1.5"));
 
-    expect(mockListCompleted).toHaveBeenNthCalledWith(1, "user-1", null, 50);
-    expect(mockListCompleted).toHaveBeenNthCalledWith(2, "user-1", null, 1);
-    expect(mockListCompleted).toHaveBeenNthCalledWith(3, "user-1", null, 20);
-    expect(mockListCompleted).toHaveBeenNthCalledWith(4, "user-1", null, 1);
+    expect(mockListIterations).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ pageSize: 50 })
+    );
+    expect(mockListIterations).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ pageSize: 1 })
+    );
+    expect(mockListIterations).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({ pageSize: 20 })
+    );
+    expect(mockListIterations).toHaveBeenNthCalledWith(
+      4,
+      expect.objectContaining({ pageSize: 1 })
+    );
+  });
+
+  it("成功路径输出 iteration_list_queried 结构化日志", async () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    mockListIterations.mockResolvedValueOnce({ items: [sampleIterationItem], nextCursor: null });
+
+    await GET(createGetRequest("http://localhost:3000/api/generation?status=all&q=sun"));
+
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining("iteration_list_queried")
+    );
+
+    logSpy.mockRestore();
   });
 
   it("查询异常时打印结构化错误日志", async () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    mockListCompleted.mockRejectedValueOnce(new Error("connect ECONNREFUSED 127.0.0.1:5433"));
+    mockListIterations.mockRejectedValueOnce(new Error("connect ECONNREFUSED 127.0.0.1:5433"));
 
     const res = await GET(createGetRequest());
     const json = await res.json();
@@ -209,6 +368,8 @@ describe("POST /api/generation", () => {
     mockCreateGenerationTask.mockReset();
     mockUpdateGenerationTask.mockReset();
     mockListCompleted.mockReset();
+    mockListIterations.mockReset();
+    mockFindTemplateById.mockReset();
     mockCreateAsset.mockReset();
     mockGetImageGenProvider.mockReset();
     mockBuildWebhookUrl.mockReset();
@@ -726,6 +887,82 @@ describe("POST /api/generation", () => {
 
       expect(res.status).toBe(500);
       expect(json.code).toBe("SERVICE_UNAVAILABLE");
+    });
+  });
+
+  // ===== plan-01: 提交时快照固化与 sourceTemplateId =====
+
+  describe("POST 快照固化与 sourceTemplateId (plan-01)", () => {
+    it("创建任务时服务端固化 recipe/variables 快照（ADR-2）", async () => {
+      mockFindAnalysisTaskById.mockResolvedValueOnce(completedAnalysisTask);
+      mockCreateGenerationTask.mockResolvedValueOnce(createdTask);
+      mockFalProvider.generate.mockResolvedValueOnce({
+        mode: "sync" as const,
+        imageUrl: "https://fal.ai/tmp/result.webp",
+        width: 1024,
+        height: 1024,
+      });
+      mockFalProvider.generate.mockReturnValueOnce(new Promise(() => {}));
+
+      const res = await POST(createRequest(validBody));
+
+      expect(res.status).toBe(201);
+      expect(mockCreateGenerationTask).toHaveBeenCalledWith(
+        "user-1",
+        expect.objectContaining({
+          recipeSnapshot: completedAnalysisTask.recipe,
+          variablesSnapshot: completedAnalysisTask.analysisTemplateVariables,
+        })
+      );
+    });
+
+    it("携带合法 sourceTemplateId 时校验归属并写入创建参数", async () => {
+      mockFindAnalysisTaskById.mockResolvedValueOnce(completedAnalysisTask);
+      mockFindTemplateById.mockResolvedValueOnce(ownedTemplate);
+      mockCreateGenerationTask.mockResolvedValueOnce(createdTask);
+      mockFalProvider.generate.mockResolvedValueOnce({
+        mode: "sync" as const,
+        imageUrl: "https://fal.ai/tmp/result.webp",
+        width: 1024,
+        height: 1024,
+      });
+      mockFalProvider.generate.mockReturnValueOnce(new Promise(() => {}));
+
+      const res = await POST(
+        createRequest({ ...validBody, sourceTemplateId: "template-1" })
+      );
+
+      expect(res.status).toBe(201);
+      expect(mockFindTemplateById).toHaveBeenCalledWith("template-1", "user-1");
+      expect(mockCreateGenerationTask).toHaveBeenCalledWith(
+        "user-1",
+        expect.objectContaining({ sourceTemplateId: "template-1" })
+      );
+    });
+
+    it("sourceTemplateId 不存在或不属于当前用户时返回 400 INVALID_REQUEST", async () => {
+      mockFindAnalysisTaskById.mockResolvedValueOnce(completedAnalysisTask);
+      mockFindTemplateById.mockResolvedValueOnce(null);
+
+      const res = await POST(
+        createRequest({ ...validBody, sourceTemplateId: "template-other" })
+      );
+      const json = await res.json();
+
+      expect(res.status).toBe(400);
+      expect(json.code).toBe("INVALID_REQUEST");
+      expect(mockCreateGenerationTask).not.toHaveBeenCalled();
+    });
+
+    it("sourceTemplateId 非字符串类型返回 400 INVALID_REQUEST", async () => {
+      const res = await POST(
+        createRequest({ ...validBody, sourceTemplateId: 12345 })
+      );
+      const json = await res.json();
+
+      expect(res.status).toBe(400);
+      expect(json.code).toBe("INVALID_REQUEST");
+      expect(mockFindAnalysisTaskById).not.toHaveBeenCalled();
     });
   });
 });

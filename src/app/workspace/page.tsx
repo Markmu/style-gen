@@ -4,7 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from "rea
 import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useFileStore } from "@/components/landing/use-file-store";
-import { useWorkspaceState } from "@/hooks/use-workspace-state";
+import {
+  consumePendingIterationRestore,
+  useWorkspaceState,
+} from "@/hooks/use-workspace-state";
 import { useUpload } from "@/hooks/use-upload";
 import { useAnalysis } from "@/hooks/use-analysis";
 import { useGeneration } from "@/hooks/use-generation";
@@ -87,7 +90,12 @@ function WorkspacePageInner() {
   const fileStore = useFileStore();
   const ws = useWorkspaceState();
   const { upload, progress, isUploading } = useUpload();
-  const { data: analysisData } = useAnalysis(ws.analysisTaskId);
+  // plan-04: 恢复态（history_restored）不再轮询分析端点——快照已完整落地，
+  // 轮询只会用过期分析结果覆盖恢复内容（或触发会话过期跳转）。
+  // 上传新参考图/新分析开始后状态离开恢复态，轮询自然恢复。
+  const { data: analysisData } = useAnalysis(
+    ws.state === "history_restored" ? null : ws.analysisTaskId,
+  );
   const { data: generationData } = useGeneration(ws.generationTaskId);
   const searchParams = useSearchParams();
   const browserPreviewParam =
@@ -159,6 +167,14 @@ function WorkspacePageInner() {
         setCurrentTemplateVariables(template.variables ?? []);
         setResolvedPromptText(template.content);
         ws.setPromptText(template.content);
+        // plan-04（AC-02）：从 Style Memory 进入加载模板时记录 currentTemplateId，
+        // 后续生成请求携带 sourceTemplateId（保障记录可按来源模板名搜索）
+        ws.setRestoreContext({
+          currentIterationId: null,
+          currentTemplateId: templateId,
+          previousResultUrl: null,
+          restoredParams: null,
+        });
       } catch {
         // Template not found或加载失败，静默处理（不阻塞用户）
         console.error("Failed to load template:", templateId);
@@ -443,6 +459,47 @@ function WorkspacePageInner() {
     [ws.assetId, ws.referenceImageUrl],
   );
 
+  // plan-04: 消费 Iteration Memory 恢复载荷（模式与既有 useHistoryRestore 一致）。
+  // ws 初始状态已按恢复快照以 history_restored 挂载（提示/排除项/配方/来源/
+  // currentIterationId / currentTemplateId / 上一轮结果），这里应用页面级状态：
+  // 输出参数、变量与来源上下文。恢复动作本身不触发任何生成请求（ADR-4）。
+  const didConsumeIterationRestoreRef = useRef(false);
+  const iterationRestoreAppliedRef = useRef(false);
+  useEffect(() => {
+    if (didConsumeIterationRestoreRef.current) return;
+    didConsumeIterationRestoreRef.current = true;
+
+    const payload = consumePendingIterationRestore();
+    if (!payload) return;
+    iterationRestoreAppliedRef.current = true;
+
+    setResolvedPromptText(payload.promptSnapshot);
+    setCurrentTemplateVariables(payload.variables);
+    setRestoredSourceContext({
+      sourceAnalysisTaskId: payload.analysisTaskId,
+      sourceAssetId: payload.sourceAssetId,
+      sourceImageUrl: payload.sourceImageUrl,
+      variables: payload.variables,
+    });
+    setGenerationParams({
+      aspectRatio: payload.params.aspectRatio as AspectRatio,
+      quality: payload.params.quality as Quality,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // plan-04（架构 §6.3）: 恢复载荷应用后同步 flush——固化应用后的快照，
+  // 确保通道中不再残留待应用标记（防重复应用）。
+  const didFlushIterationRestoreRef = useRef(false);
+  useEffect(() => {
+    if (!iterationRestoreAppliedRef.current) return;
+    if (ws.currentIterationId === null) return;
+    if (didFlushIterationRestoreRef.current) return;
+    didFlushIterationRestoreRef.current = true;
+    ws.flush();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ws.currentIterationId]);
+
   const handleHistorySelect = useCallback(
     async (id: string) => {
       try {
@@ -599,6 +656,12 @@ function WorkspacePageInner() {
               aspectRatio: params.aspectRatio,
               quality: params.quality,
             },
+            // plan-04（AC-02 / PRD 业务规则 4）：从 Style Memory 进入（?templateId=）
+            // 或恢复携带来源模板的迭代时，记录本次生成的来源模板，
+            // 保障记录可按来源 Style Memory 名称搜索
+            ...(ws.currentTemplateId
+              ? { sourceTemplateId: ws.currentTemplateId }
+              : {}),
           }),
         });
 
@@ -622,6 +685,7 @@ function WorkspacePageInner() {
       renderReadiness.canGenerate,
       ws.analysisTaskId,
       ws.negativePromptText,
+      ws.currentTemplateId,
     ],
   );
 
@@ -783,6 +847,30 @@ function WorkspacePageInner() {
           />
         </div>
 
+        {/* plan-04: 上一轮结果展示位——恢复携带 resultFileUrl 的迭代时保留可见 */}
+        {ws.previousResultUrl && (
+          <div
+            data-testid="previous-result-preview"
+            className="mx-4 mb-2 flex shrink-0 items-center gap-3 rounded-lg bg-[var(--surface-low)]/72 p-2 ring-1 ring-[var(--border-static)] sm:mx-6 lg:mx-8"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={ws.previousResultUrl}
+              alt="Previous iteration result"
+              className="h-12 w-12 shrink-0 rounded-md object-cover"
+            />
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-[var(--text-primary)]">
+                Previous result
+              </p>
+              <p className="truncate text-[0.6875rem] leading-5 text-[var(--text-secondary)]">
+                Kept from the restored iteration for reference. Your next render
+                creates a new iteration.
+              </p>
+            </div>
+          </div>
+        )}
+
         <WorkspaceBottomBar
           history={
             <HistoryStrip
@@ -793,7 +881,7 @@ function WorkspacePageInner() {
               onSelect={
                 isEvidencePreview ? handlePreviewHistorySelect : handleHistorySelect
               }
-              onViewAll={() => router.push("/history")}
+              onViewAll={() => router.push("/workspace/iterations?status=all")}
             />
           }
         />

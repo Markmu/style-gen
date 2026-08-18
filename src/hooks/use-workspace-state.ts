@@ -3,17 +3,40 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   AnalysisTemplateStatus,
+  GenerationParams,
   StoredVisualRecipe,
   TemplateVariable,
   V2PromptWorkspaceState,
 } from "@/types/models";
 import { isVisualRecipeV2Success } from "@/lib/visual-recipe";
+import type { WorkspaceSnapshot } from "@/lib/iterations/restore-guard";
 
 /** sessionStorage key */
 const STORAGE_KEY = "style-gen-workspace-state";
 
 /** 当前持久化数据版本号 */
 const STORAGE_VERSION = 4;
+
+/**
+ * plan-04（架构 §6.3 / ADR-4）：跨路由传递的迭代恢复载荷。
+ * 由 `/workspace/iterations` 详情动作经 sessionStorage 通道写入，
+ * 工作台挂载时一次性消费；字段为 `IterationDetail` 的字段子集。
+ */
+export interface IterationRestorePayload {
+  iterationId: string;
+  promptSnapshot: string;
+  negativePromptSnapshot: string;
+  params: GenerationParams;
+  analysisTaskId: string;
+  recipe: StoredVisualRecipe | null;
+  variables: TemplateVariable[];
+  sourceAssetId: string | null;
+  sourceImageUrl: string | null;
+  /** 提交时应用的 Style Memory id（还原工作台 currentTemplateId，AC-02） */
+  sourceTemplateId: string | null;
+  /** 上一轮结果；failed / processing 为 null */
+  resultFileUrl: string | null;
+}
 
 /** 持久化状态结构（仅包含需要跨页面恢复的关键数据） */
 export interface WorkspacePersistedState {
@@ -30,6 +53,16 @@ export interface WorkspacePersistedState {
   analysisTemplateReason: string | null;
   generationTaskId: string | null;
   v2PromptState: V2PromptWorkspaceState | null;
+  /** plan-04: 工作台当前恢复自的 Iteration id（守卫豁免②依据）；缺失视为 null */
+  currentIterationId?: string | null;
+  /** plan-04: 当前应用的 Style Memory id（生成请求 sourceTemplateId 来源，AC-02） */
+  currentTemplateId?: string | null;
+  /** plan-04: 恢复携带的上一轮结果 URL（工作台“上一轮结果”展示位） */
+  previousResultUrl?: string | null;
+  /** plan-04: 工作台当前输出参数快照（守卫豁免③比较字段） */
+  restoredParams?: GenerationParams | null;
+  /** plan-04: 待工作台挂载消费的一次性恢复载荷（消费后即从通道清除，防重复应用） */
+  pendingIterationRestore?: IterationRestorePayload | null;
 }
 
 export type WorkspaceState =
@@ -81,6 +114,14 @@ export interface WorkspaceContext {
   degradation: DegradationState;
   isRecipeExpanded: boolean;
   v2PromptState: V2PromptWorkspaceState | null;
+  /** plan-04: 工作台当前恢复自的 Iteration id；非恢复态为 null */
+  currentIterationId: string | null;
+  /** plan-04: 当前应用的 Style Memory id（生成请求 sourceTemplateId 来源） */
+  currentTemplateId: string | null;
+  /** plan-04: 恢复携带的上一轮结果 URL（“上一轮结果”展示位） */
+  previousResultUrl: string | null;
+  /** plan-04: 工作台当前输出参数快照（守卫豁免③比较字段） */
+  restoredParams: GenerationParams | null;
 }
 
 interface WorkspaceAnalysisTemplatePayload {
@@ -154,6 +195,10 @@ const initialContext: WorkspaceContext = {
   degradation: initialDegradation,
   isRecipeExpanded: false,
   v2PromptState: null,
+  currentIterationId: null,
+  currentTemplateId: null,
+  previousResultUrl: null,
+  restoredParams: null,
 };
 
 export function createInitialV2PromptState(
@@ -242,6 +287,80 @@ function createPersistWriter() {
 
 const persistState = createPersistWriter();
 
+/** 同步写入 sessionStorage（取消挂起的防抖写入后立即落盘，架构 §6.3 flush 语义） */
+function writePersistedStateSync(state: WorkspacePersistedState): void {
+  if (typeof window === "undefined") return;
+  persistState.cancel();
+  try {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (err) {
+    console.error("[workspace] Failed to flush sessionStorage:", err);
+  }
+}
+
+/**
+ * plan-04: 读取守卫输入快照（当前工作区内容 + 恢复上下文）。
+ * 无持久化条目或条目缺少有效来源（等同空工作台）时返回 null。
+ */
+export function readWorkspaceSnapshot(): WorkspaceSnapshot | null {
+  if (typeof window === "undefined") return null;
+  const persisted = loadPersistedState();
+  if (!persisted || !persisted.assetId || !persisted.referenceImageUrl) {
+    return null;
+  }
+  return {
+    currentIterationId: persisted.currentIterationId ?? null,
+    promptText: persisted.promptText ?? "",
+    negativePromptText: persisted.negativePromptText ?? "",
+    params: persisted.restoredParams ?? null,
+  };
+}
+
+/**
+ * plan-04: 应用迭代恢复载荷到持久化通道并同步 flush（架构 §6.3：防抖窗口内
+ * 必须显式落盘，导航前完成）。恢复为纯客户端动作（ADR-4），不发出任何请求。
+ */
+export function writeIterationRestoreSnapshot(
+  payload: IterationRestorePayload,
+): void {
+  if (typeof window === "undefined") return;
+  const entry: WorkspacePersistedState = {
+    version: STORAGE_VERSION,
+    assetId: payload.sourceAssetId,
+    referenceImageUrl: payload.sourceImageUrl,
+    analysisTaskId: payload.analysisTaskId,
+    recipe: payload.recipe,
+    promptText: payload.promptSnapshot,
+    negativePromptText: payload.negativePromptSnapshot,
+    analysisTemplateContent: null,
+    analysisTemplateVariables: [],
+    analysisTemplateStatus: null,
+    analysisTemplateReason: null,
+    generationTaskId: null,
+    v2PromptState: null,
+    currentIterationId: payload.iterationId,
+    currentTemplateId: payload.sourceTemplateId,
+    previousResultUrl: payload.resultFileUrl,
+    restoredParams: payload.params,
+    pendingIterationRestore: payload,
+  };
+  writePersistedStateSync(entry);
+}
+
+/**
+ * plan-04: 工作台挂载时消费通道中待应用的一次性恢复载荷。
+ * 读取后立即从通道清除标记（防重复应用），载荷本体随 ctx 应用重新持久化。
+ */
+export function consumePendingIterationRestore(): IterationRestorePayload | null {
+  if (typeof window === "undefined") return null;
+  const persisted = loadPersistedState();
+  if (!persisted?.pendingIterationRestore) return null;
+
+  const { pendingIterationRestore: _cleared, ...rest } = persisted;
+  writePersistedStateSync(rest as WorkspacePersistedState);
+  return persisted.pendingIterationRestore;
+}
+
 /** 清除 workspace 的 sessionStorage 快照 */
 export function clearWorkspacePersistedState(): void {
   if (typeof window === "undefined") return;
@@ -257,31 +376,79 @@ export function clearWorkspacePersistedState(): void {
 function restoreFromPersistedState(
   persisted: Partial<WorkspacePersistedState>,
 ): WorkspaceContext | null {
-  // 数据校验：至少需要有 assetId 和 referenceImageUrl 才算有效状态
-  if (!persisted.assetId || !persisted.referenceImageUrl) {
+  // plan-04: 恢复链路（待应用载荷或已恢复的工作区）以恢复态挂载——
+  // 快照即真相：不重建 V2 结构化视图（提示为纯文本快照）、不恢复分析模板、
+  // 不进入分析轮询，避免过期分析结果覆盖恢复内容。
+  const isIterationRestored =
+    !!persisted.pendingIterationRestore || !!persisted.currentIterationId;
+
+  // 数据校验：普通状态至少需要有 assetId 和 referenceImageUrl 才算有效；
+  // 恢复态豁免该校验——来源图缺失（旧记录）时其余字段照常恢复，
+  // 来源位保持空态占位（plan-04 边界场景）。
+  if (
+    !isIterationRestored &&
+    (!persisted.assetId || !persisted.referenceImageUrl)
+  ) {
     return null;
   }
 
   return {
-    state: "analysis_ready", // Resume directly into the analysis-complete state.
-    assetId: persisted.assetId,
-    referenceImageUrl: persisted.referenceImageUrl,
+    state: isIterationRestored ? "history_restored" : "analysis_ready",
+    assetId: persisted.assetId ?? null,
+    referenceImageUrl: persisted.referenceImageUrl ?? null,
     analysisTaskId: persisted.analysisTaskId ?? null,
     recipe: persisted.recipe ?? null,
     promptText: persisted.promptText ?? "",
     negativePromptText: persisted.negativePromptText ?? "",
-    analysisTemplateContent: persisted.analysisTemplateContent ?? null,
-    analysisTemplateVariables: persisted.analysisTemplateVariables ?? [],
-    analysisTemplateStatus: persisted.analysisTemplateStatus ?? null,
-    analysisTemplateReason: persisted.analysisTemplateReason ?? null,
+    analysisTemplateContent: isIterationRestored
+      ? null
+      : persisted.analysisTemplateContent ?? null,
+    analysisTemplateVariables: isIterationRestored
+      ? []
+      : persisted.analysisTemplateVariables ?? [],
+    analysisTemplateStatus: isIterationRestored
+      ? null
+      : persisted.analysisTemplateStatus ?? null,
+    analysisTemplateReason: isIterationRestored
+      ? null
+      : persisted.analysisTemplateReason ?? null,
     generationTaskId: persisted.generationTaskId ?? null,
-    resultImageUrl: null, // 不恢复 resultImageUrl，因为 URL 可能已失效
+    // 恢复态保留上一轮结果可见；普通恢复不恢复 resultImageUrl（URL 可能已失效）
+    resultImageUrl: isIterationRestored ? persisted.previousResultUrl ?? null : null,
     mimeType: null,
     error: null,
     degradation: initialDegradation,
     isRecipeExpanded: false,
-    v2PromptState:
-      persisted.v2PromptState ?? createInitialV2PromptState(persisted.recipe ?? null),
+    v2PromptState: isIterationRestored
+      ? null
+      : persisted.v2PromptState ?? createInitialV2PromptState(persisted.recipe ?? null),
+    currentIterationId: persisted.currentIterationId ?? null,
+    currentTemplateId: persisted.currentTemplateId ?? null,
+    previousResultUrl: persisted.previousResultUrl ?? null,
+    restoredParams: persisted.restoredParams ?? null,
+  };
+}
+
+/** 由 ctx 组装持久化条目（plan-04 恢复上下文随自动持久化一并落盘） */
+function toPersistedState(ctx: WorkspaceContext): WorkspacePersistedState {
+  return {
+    version: STORAGE_VERSION,
+    assetId: ctx.assetId,
+    referenceImageUrl: ctx.referenceImageUrl,
+    analysisTaskId: ctx.analysisTaskId,
+    recipe: ctx.recipe,
+    promptText: ctx.promptText,
+    negativePromptText: ctx.negativePromptText,
+    analysisTemplateContent: ctx.analysisTemplateContent,
+    analysisTemplateVariables: ctx.analysisTemplateVariables,
+    analysisTemplateStatus: ctx.analysisTemplateStatus,
+    analysisTemplateReason: ctx.analysisTemplateReason,
+    generationTaskId: ctx.generationTaskId,
+    v2PromptState: ctx.v2PromptState,
+    currentIterationId: ctx.currentIterationId,
+    currentTemplateId: ctx.currentTemplateId,
+    previousResultUrl: ctx.previousResultUrl,
+    restoredParams: ctx.restoredParams,
   };
 }
 
@@ -314,6 +481,15 @@ export interface WorkspaceActions {
   setGenerationUnavailable: (unavailable: boolean) => void;
   setAnalysisUnavailable: (unavailable: boolean) => void;
   toggleRecipeExpanded: () => void;
+  /** plan-04: 更新迭代恢复上下文（仅覆盖传入的键；undefined 归一为 null） */
+  setRestoreContext: (context: {
+    currentIterationId?: string | null;
+    currentTemplateId?: string | null;
+    previousResultUrl?: string | null;
+    restoredParams?: GenerationParams | null;
+  }) => void;
+  /** plan-04: 同步落盘当前工作区状态（绕过 300ms 防抖，架构 §6.3） */
+  flush: () => void;
   enterHistoryRestored: (
     resultFileUrl: string,
     recipe: StoredVisualRecipe | null,
@@ -346,6 +522,9 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
 
   const [ctx, setCtx] = useState<WorkspaceContext>(getInitialState);
   const didSkipInitialPersistRef = useRef(false);
+  // flush 需要读取最新 ctx 而不随每次渲染重建回调（plan-04）
+  const ctxRef = useRef(ctx);
+  ctxRef.current = ctx;
 
   const startUpload = useCallback((mimeType?: string) => {
     setCtx((prev) => ({
@@ -363,6 +542,11 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
       assetId,
       referenceImageUrl: fileUrl,
       error: null,
+      // plan-04: 新参考图 = 新方向——迭代恢复上下文作废；
+      // currentTemplateId 保留（从 Style Memory 进入后上传参考仍归属该模板，AC-02）
+      currentIterationId: null,
+      previousResultUrl: null,
+      restoredParams: null,
     }));
   }, []);
 
@@ -443,6 +627,8 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
       resultImageUrl,
       error: null,
       isRecipeExpanded: false,
+      // plan-04: 新结果生成后，恢复携带的“上一轮结果”不再作为上一轮保留
+      previousResultUrl: null,
     }));
   }, []);
 
@@ -542,6 +728,31 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
     }));
   }, []);
 
+  const setRestoreContext = useCallback<
+    WorkspaceActions["setRestoreContext"]
+  >((context) => {
+    setCtx((prev) => {
+      const next: WorkspaceContext = { ...prev };
+      if ("currentIterationId" in context) {
+        next.currentIterationId = context.currentIterationId ?? null;
+      }
+      if ("currentTemplateId" in context) {
+        next.currentTemplateId = context.currentTemplateId ?? null;
+      }
+      if ("previousResultUrl" in context) {
+        next.previousResultUrl = context.previousResultUrl ?? null;
+      }
+      if ("restoredParams" in context) {
+        next.restoredParams = context.restoredParams ?? null;
+      }
+      return next;
+    });
+  }, []);
+
+  const flush = useCallback(() => {
+    writePersistedStateSync(toPersistedState(ctxRef.current));
+  }, []);
+
   const enterHistoryRestored = useCallback(
     (
       resultFileUrl: string,
@@ -594,27 +805,15 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
     }
 
     if (!ctx.assetId || !ctx.referenceImageUrl) {
-      clearWorkspacePersistedState();
-      return;
+      // plan-04: 恢复态豁免——来源缺失的恢复快照仍保留在通道中
+      //（守卫读取与来源模板标记依赖该上下文）
+      if (!ctx.currentIterationId) {
+        clearWorkspacePersistedState();
+        return;
+      }
     }
 
-    const persistedState: WorkspacePersistedState = {
-      version: STORAGE_VERSION,
-      assetId: ctx.assetId,
-      referenceImageUrl: ctx.referenceImageUrl,
-      analysisTaskId: ctx.analysisTaskId,
-      recipe: ctx.recipe,
-      promptText: ctx.promptText,
-      negativePromptText: ctx.negativePromptText,
-      analysisTemplateContent: ctx.analysisTemplateContent,
-      analysisTemplateVariables: ctx.analysisTemplateVariables,
-      analysisTemplateStatus: ctx.analysisTemplateStatus,
-      analysisTemplateReason: ctx.analysisTemplateReason,
-      generationTaskId: ctx.generationTaskId,
-      v2PromptState: ctx.v2PromptState,
-    };
-
-    persistState(persistedState);
+    persistState(toPersistedState(ctx));
   }, [
     ctx.assetId,
     ctx.referenceImageUrl,
@@ -628,6 +827,10 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
     ctx.analysisTemplateReason,
     ctx.generationTaskId,
     ctx.v2PromptState,
+    ctx.currentIterationId,
+    ctx.currentTemplateId,
+    ctx.previousResultUrl,
+    ctx.restoredParams,
   ]);
 
   return {
@@ -651,6 +854,8 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
     setGenerationUnavailable,
     setAnalysisUnavailable,
     toggleRecipeExpanded,
+    setRestoreContext,
+    flush,
     enterHistoryRestored,
     exitHistoryRestored,
   };

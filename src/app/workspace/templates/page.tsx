@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Search, X } from "lucide-react";
 import { AppIcon } from "@/components/ui/app-icon";
@@ -90,8 +90,10 @@ async function primeWorkspaceSnapshotFromTemplate(id: string) {
   }
 }
 
-export default function StyleMemoryPage() {
+function StyleMemoryPageInner() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const [actionError, setActionError] = useState<string | null>(null);
   const {
@@ -104,6 +106,54 @@ export default function StyleMemoryPage() {
     setSearch,
     isSearching,
   } = useTemplateSearch();
+
+  // plan-05（Task 5）: `focus` 查询参数定位——迭代详情"打开"跳转
+  // `/workspace/templates?focus=<id>` 后，列表加载完成时高亮目标卡片并滚动
+  // 进入视口；参数消费后从 URL 清除（replace，不污染历史栈）。目标不在当前
+  // 列表时静默忽略，页面正常渲染。
+  const focusParam = searchParams.get("focus");
+  const [pendingFocusId, setPendingFocusId] = useState<string | null>(null);
+  const [focusedId, setFocusedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (focusParam) {
+      setPendingFocusId(focusParam);
+    }
+  }, [focusParam]);
+
+  useEffect(() => {
+    if (!pendingFocusId || isLoading) return;
+
+    const target =
+      (templates ?? []).find((template) => template.id === pendingFocusId) ??
+      null;
+    if (target) {
+      setFocusedId(target.id);
+    }
+    // 定位失败（目标不在当前列表页）静默忽略；参数一次性消费并从 URL 清除
+    setPendingFocusId(null);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("focus");
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }, [
+    pendingFocusId,
+    isLoading,
+    templates,
+    router,
+    pathname,
+    searchParams,
+  ]);
+
+  useEffect(() => {
+    if (!focusedId) return;
+    requestAnimationFrame(() => {
+      // 可选调用：jsdom 等无滚动环境静默跳过（浏览器始终存在）
+      document
+        .querySelector('[data-testid="style-memory-card"][data-focused="true"]')
+        ?.scrollIntoView?.({ block: "center" });
+    });
+  }, [focusedId]);
 
   const hasSearched = search.trim().length > 0;
   const memories = useMemo(() => templates ?? [], [templates]);
@@ -354,6 +404,7 @@ export default function StyleMemoryPage() {
                 <TemplateCard
                   key={template.id}
                   template={template}
+                  focused={focusedId === template.id}
                   onUse={handleUseTemplate}
                   onDuplicate={handleDuplicate}
                   onDelete={handleDelete}
@@ -364,5 +415,14 @@ export default function StyleMemoryPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+/** plan-05: useSearchParams 需要 Suspense 边界（Next.js 15 要求） */
+export default function StyleMemoryPage() {
+  return (
+    <Suspense fallback={null}>
+      <StyleMemoryPageInner />
+    </Suspense>
   );
 }

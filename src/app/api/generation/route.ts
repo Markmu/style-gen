@@ -3,18 +3,28 @@ import { findAnalysisTaskById } from "@/lib/repositories/analysis-task-repositor
 import {
   createGenerationTask,
   updateGenerationTask,
-  listCompleted,
+  listIterations,
 } from "@/lib/repositories/generation-task-repository";
+import { findById as findTemplateById } from "@/lib/repositories/template-repository";
 import { createAsset } from "@/lib/repositories/asset-repository";
 import { uploadBuffer, getPublicUrl } from "@/lib/r2";
 import { auth } from "@/auth";
 import { getImageGenProvider } from "@/lib/ai/providers";
 import { buildWebhookUrl, startTimeoutTimer } from "@/lib/ai/webhook-utils";
+import type { IterationStatusFilter } from "@/types/models";
 
 /** fal.ai 同步模式超时 120s */
 const SYNC_GENERATION_TIMEOUT_MS = 120_000;
 
-// ─── GET /api/generation：历史列表 ─────────────────────────────────────
+// ─── GET /api/generation：迭代列表（近期条与完整页面共用，架构 §6.1）────
+
+/** status 白名单（默认 completed 兼容近期迭代条，架构 §7.3） */
+const ITERATION_STATUS_FILTERS: ReadonlySet<string> = new Set([
+  "all",
+  "processing",
+  "completed",
+  "failed",
+]);
 
 export async function GET(request: NextRequest) {
   try {
@@ -30,6 +40,38 @@ export async function GET(request: NextRequest) {
     const { searchParams } = request.nextUrl;
     const rawPageSize = searchParams.get("pageSize");
     const cursor = searchParams.get("cursor") ?? null;
+    const rawQ = searchParams.get("q");
+    const rawStatus = searchParams.get("status");
+
+    // q: trim 后 ≤ 100 字符，超出 400，不做静默截断（架构 §8.3）
+    const trimmedQ = rawQ?.trim() ?? "";
+    if (trimmedQ.length > 100) {
+      return NextResponse.json(
+        {
+          error: "q must be 100 characters or fewer after trimming",
+          code: "INVALID_REQUEST",
+          retryable: false,
+        },
+        { status: 400 }
+      );
+    }
+    const q = trimmedQ.length > 0 ? trimmedQ : undefined;
+
+    // status: 白名单校验；缺省默认 completed（近期迭代条兼容）
+    let status: IterationStatusFilter = "completed";
+    if (rawStatus !== null) {
+      if (!ITERATION_STATUS_FILTERS.has(rawStatus)) {
+        return NextResponse.json(
+          {
+            error: "status must be one of: all, processing, completed, failed",
+            code: "INVALID_REQUEST",
+            retryable: false,
+          },
+          { status: 400 }
+        );
+      }
+      status = rawStatus as IterationStatusFilter;
+    }
 
     // pageSize clamp 到 [1, 50]
     let pageSize = 20;
@@ -41,15 +83,24 @@ export async function GET(request: NextRequest) {
     }
 
     const startTime = Date.now();
-    const result = await listCompleted(userId, cursor, pageSize);
+    const result = await listIterations({ userId, q, status, cursor, pageSize });
     const duration = Date.now() - startTime;
 
-    log("generation_history_list", { duration, itemCount: result.items.length, userId });
+    log("iteration_list_queried", {
+      duration,
+      itemCount: result.items.length,
+      hasQ: Boolean(q),
+      statusFilter: status,
+      userId,
+    });
 
     return NextResponse.json({
       items: result.items.map((item) => ({
         id: item.id,
+        status: item.status,
+        promptSummary: item.promptSummary,
         resultFileUrl: item.resultFileUrl,
+        params: item.params,
         createdAt: item.createdAt.toISOString(),
       })),
       nextCursor: result.nextCursor,
@@ -78,6 +129,8 @@ interface GenerationRequestBody {
     aspectRatio: string;
     quality: string;
   };
+  /** plan-01（AC-02）: 工作台当前应用的 Style Memory id，可选 */
+  sourceTemplateId?: string;
 }
 
 /** 校验请求体 */
@@ -95,6 +148,19 @@ function validateBody(body: unknown): GenerationRequestBody | null {
   if (typeof params.aspectRatio !== "string" || !params.aspectRatio) return null;
   if (typeof params.quality !== "string" || !params.quality) return null;
 
+  // sourceTemplateId 可选；提供时必须是字符串且长度合法
+  let sourceTemplateId: string | undefined;
+  if (obj.sourceTemplateId !== undefined) {
+    if (
+      typeof obj.sourceTemplateId !== "string" ||
+      obj.sourceTemplateId.length === 0 ||
+      obj.sourceTemplateId.length > 26
+    ) {
+      return null;
+    }
+    sourceTemplateId = obj.sourceTemplateId;
+  }
+
   return {
     analysisTaskId: obj.analysisTaskId,
     promptText: obj.promptText,
@@ -103,6 +169,7 @@ function validateBody(body: unknown): GenerationRequestBody | null {
       aspectRatio: params.aspectRatio,
       quality: params.quality,
     },
+    ...(sourceTemplateId !== undefined ? { sourceTemplateId } : {}),
   };
 }
 
@@ -231,6 +298,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 1.5 plan-01: sourceTemplateId 服务端归属校验（架构 §8.3）
+    if (validated.sourceTemplateId) {
+      const sourceTemplate = await findTemplateById(
+        validated.sourceTemplateId,
+        userId
+      );
+      if (!sourceTemplate) {
+        return NextResponse.json(
+          { error: "Invalid source template", code: "INVALID_REQUEST", retryable: false },
+          { status: 400 }
+        );
+      }
+    }
+
     // 2. 获取 Provider
     const imageGenProvider = getImageGenProvider();
 
@@ -241,6 +322,7 @@ export async function POST(request: NextRequest) {
     });
 
     // 3. 创建 GenerationTask 记录（status: 'pending'）
+    // plan-01（ADR-2）: 服务端从所引用 analysis task 固化提交时上下文快照
     const task = await createGenerationTask(userId, {
       analysisTaskId: validated.analysisTaskId,
       promptSnapshot: validated.promptText,
@@ -248,6 +330,11 @@ export async function POST(request: NextRequest) {
       params: validated.params,
       modelName: imageGenProvider.name === 'replicate' ? 'black-forest-labs/flux-2-dev' : 'flux.2',
       provider: imageGenProvider.name,
+      recipeSnapshot: analysisTask.recipe ?? null,
+      variablesSnapshot: analysisTask.analysisTemplateVariables ?? [],
+      ...(validated.sourceTemplateId !== undefined
+        ? { sourceTemplateId: validated.sourceTemplateId }
+        : {}),
     });
 
     log("generation_task_created", {

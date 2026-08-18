@@ -8,6 +8,7 @@ import {
   index,
   check,
   uniqueIndex,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import type {
@@ -142,6 +143,15 @@ export const generationTasks = pgTable(
     ),
     errorMessage: text("error_message"),
     userId: varchar("user_id", { length: 26 }).references(() => users.id),
+    // plan-01（ADR-2）: 提交时服务端固化的上下文快照，存量行为 NULL，详情回退活引用
+    recipeSnapshot: jsonb("recipe_snapshot").$type<StoredVisualRecipe | null>(),
+    variablesSnapshot: jsonb("variables_snapshot")
+      .$type<TemplateVariable[] | null>(),
+    // plan-01（AC-02）: 提交时工作台应用的 Style Memory，支撑按模板名检索。
+    // AnyPgColumn 注解打断与 templates 的循环类型推断（循环 FK 的既定处理方式）
+    sourceTemplateId: varchar("source_template_id", { length: 26 }).references(
+      (): AnyPgColumn => templates.id
+    ),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -162,6 +172,12 @@ export const generationTasks = pgTable(
     index("idx_generation_tasks_status")
       .on(table.status)
       .where(sql`status IN ('pending', 'processing')`),
+    // plan-01（架构 §6.1）: 支撑列表 keyset 游标查询
+    index("idx_generation_tasks_user_created").on(
+      table.userId,
+      table.createdAt.desc(),
+      table.id.desc()
+    ),
   ]
 );
 
@@ -176,6 +192,10 @@ export const templates = pgTable(
     sourceAssetId: varchar("source_asset_id", { length: 26 }).references(() => assets.id),
     sourceImageUrl: text("source_image_url"),
     userId: varchar("user_id", { length: 26 }).references(() => users.id).notNull(),
+    // plan-01（ADR-5）: 来源迭代反向关联，详情反查"已保存为 Style Memory"状态
+    sourceGenerationTaskId: varchar("source_generation_task_id", {
+      length: 26,
+    }).references((): AnyPgColumn => generationTasks.id),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -187,5 +207,6 @@ export const templates = pgTable(
     index("idx_templates_user_id").on(table.userId),
     index("idx_templates_user_name").on(table.userId, table.name),
     index("idx_templates_source_asset").on(table.sourceAssetId),
+    index("idx_templates_source_generation").on(table.sourceGenerationTaskId),
   ]
 );

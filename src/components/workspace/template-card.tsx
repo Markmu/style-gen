@@ -20,6 +20,8 @@ interface TemplateCardProps {
   onEdit?: (id: string) => void | Promise<void>;
   onDuplicate?: (id: string) => void | Promise<void>;
   onDelete?: (id: string) => void | Promise<void>;
+  /** plan-05: `/workspace/templates?focus=<id>` 定位命中时的高亮态 */
+  focused?: boolean;
 }
 
 export function TemplateCard({
@@ -28,6 +30,7 @@ export function TemplateCard({
   onEdit,
   onDuplicate,
   onDelete,
+  focused = false,
 }: TemplateCardProps) {
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState(false);
@@ -72,7 +75,12 @@ export function TemplateCard({
       <article
         data-testid="style-memory-card"
         data-has-source-image={memory.sourceImageUrl ? "true" : "false"}
-        className="style-memory-card group relative flex min-h-[24rem] flex-col transition-[transform,box-shadow,border-color] duration-200 ease-out hover:-translate-y-0.5 motion-reduce:transform-none motion-reduce:transition-none"
+        data-focused={focused ? "true" : undefined}
+        className={`style-memory-card group relative flex min-h-[24rem] flex-col transition-[transform,box-shadow,border-color] duration-200 ease-out hover:-translate-y-0.5 motion-reduce:transform-none motion-reduce:transition-none${
+          focused
+            ? " ring-2 ring-[var(--accent-primary)] ring-offset-2 ring-offset-[var(--surface-page)]"
+            : ""
+        }`}
       >
         <div className="absolute right-3 top-3 z-10">
           <button

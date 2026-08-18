@@ -250,8 +250,66 @@ export interface GenerationTask {
   resultAssetId: string | null;
   errorMessage: string | null;
   userId: string | null;
+  /** plan-01（ADR-2）: 提交时服务端固化的配方快照；存量旧行为 null，详情回退活引用 */
+  recipeSnapshot: StoredVisualRecipe | null;
+  /** plan-01（ADR-2）: 提交时服务端固化的变量快照；存量旧行为 null */
+  variablesSnapshot: TemplateVariable[] | null;
+  /** plan-01（AC-02）: 提交时工作台应用的 Style Memory id，可空 */
+  sourceTemplateId: string | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/** 迭代展示态状态（数据库 pending 归并为 processing，架构 §7.6） */
+export type IterationDisplayStatus = "processing" | "completed" | "failed";
+
+/** 迭代列表查询参数状态（GET /api/generation?status=，默认 completed 兼容近期迭代条） */
+export type IterationStatusFilter = "all" | "processing" | "completed" | "failed";
+
+/** 迭代上下文来源标记（快照优先 / 活引用回退 / 缺失，架构 §6.2） */
+export type IterationContextSource = "snapshot" | "fallback" | "missing";
+
+/** 迭代列表条目（GET /api/generation 条目 DTO，架构 §7.2；既有字段 id/resultFileUrl/createdAt 保留） */
+export interface IterationListItem {
+  id: string;
+  status: IterationDisplayStatus;
+  /** 服务端截断前 120 字符 */
+  promptSummary: string;
+  resultFileUrl: string | null;
+  params: GenerationParams;
+  /** ISO 8601 */
+  createdAt: string;
+}
+
+/** 迭代详情（GET /api/generation/[id] DTO，架构 §7.2；为既有轮询消费字段的超集） */
+export interface IterationDetail {
+  id: string;
+  analysisTaskId: string;
+  status: IterationDisplayStatus;
+  promptSnapshot: string;
+  negativePromptSnapshot: string;
+  params: GenerationParams;
+  modelName: string;
+  resultFileUrl: string | null;
+  errorMessage: string | null;
+  recipe: StoredVisualRecipe | null;
+  recipeSource: IterationContextSource;
+  variables: TemplateVariable[];
+  variablesSource: IterationContextSource;
+  /** null 即来源图缺失标记（前端缺失提示依据） */
+  sourceImageUrl: string | null;
+  /** 所引用 analysis task 的来源资产 id；保存预填依赖，缺失为 null */
+  sourceAssetId: string | null;
+  /** 提交时应用的 Style Memory id（恢复链路还原"当前应用模板"，消费方见 plan-04） */
+  sourceTemplateId: string | null;
+  sourceTemplateName: string | null;
+  savedTemplate: { id: string; name: string } | null;
+  /** 兼容字段：use-history-restore 依赖其做变量回退 */
+  analysisTemplateVariables: TemplateVariable[];
+  /** ISO 8601 */
+  createdAt: string;
+  /** ISO 8601 */
+  updatedAt: string;
 }
 
 /** 模板Variables定义 */

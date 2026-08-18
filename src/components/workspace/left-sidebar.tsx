@@ -4,7 +4,7 @@ import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronUp, Layers3, LogOut, Sparkles } from "lucide-react";
+import { ChevronUp, History, Layers3, LogOut, Sparkles } from "lucide-react";
 import { AppIcon } from "@/components/ui/app-icon";
 import { trackAuthEvent } from "@/components/auth/auth-tracking";
 import { VisorynMark } from "@/components/brand/visoryn-mark";
@@ -27,6 +27,14 @@ const navItems = [
     tone: "library",
     icon: Layers3,
     match: (pathname: string) => pathname.startsWith("/workspace/templates"),
+  },
+  {
+    label: "Iterations",
+    ariaLabel: "Iterations",
+    href: "/workspace/iterations",
+    tone: "iterations",
+    icon: History,
+    match: (pathname: string) => pathname.startsWith("/workspace/iterations"),
   },
 ] as const;
 

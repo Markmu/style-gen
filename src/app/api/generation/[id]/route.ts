@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { findGenerationTaskById, findByIdWithRecipe } from "@/lib/repositories/generation-task-repository";
-import { findAssetById } from "@/lib/repositories/asset-repository";
+import { findIterationDetail } from "@/lib/repositories/generation-task-repository";
 import { auth } from "@/auth";
+
+/** 结构化日志 [架构 8.5 可观测性] */
+function log(event: string, data: Record<string, unknown>) {
+  console.log(JSON.stringify({ event, timestamp: new Date().toISOString(), ...data }));
+}
 
 export async function GET(
   _request: NextRequest,
@@ -27,63 +31,48 @@ export async function GET(
       );
     }
 
-    const task = await findGenerationTaskById(id, userId);
+    // plan-01（架构 §6.2）: 全状态详情，快照优先、活引用回退、缺失标记、已保存关联
+    const detail = await findIterationDetail(id, userId);
 
-    if (!task) {
+    if (!detail) {
       return NextResponse.json(
         { error: "Generation task not found", code: "NOT_FOUND", retryable: false },
         { status: 404 }
       );
     }
 
-    // 如果是 completed 状态，使用 findByIdWithRecipe 获取含 recipe 的详情
-    if (task.status === "completed") {
-      const detail = await findByIdWithRecipe(id, userId);
-      if (detail) {
-        return NextResponse.json({
-          id: detail.id,
-          analysisTaskId: detail.analysisTaskId,
-          status: detail.status,
-          promptSnapshot: detail.promptSnapshot,
-          negativePromptSnapshot: detail.negativePromptSnapshot,
-          params: detail.params,
-          modelName: detail.modelName,
-          resultAssetId: detail.resultAssetId,
-          resultFileUrl: detail.resultFileUrl,
-          recipe: detail.recipe ?? null,
-          sourceAssetId: detail.sourceAssetId,
-          sourceImageUrl: detail.sourceImageUrl,
-          variables: detail.variables,
-          analysisTemplateVariables: detail.analysisTemplateVariables,
-          errorMessage: null,
-          createdAt: detail.createdAt.toISOString(),
-          updatedAt: detail.updatedAt.toISOString(),
-        });
-      }
-    }
+    log("iteration_detail_queried", {
+      taskId: detail.id,
+      status: detail.status,
+      recipeSource: detail.recipeSource,
+      hasSavedTemplate: Boolean(detail.savedTemplate),
+    });
 
-    // 非 completed 状态或 findByIdWithRecipe 未返回结果：走原有逻辑
-    let resultFileUrl: string | null = null;
-    if (task.status === "completed" && task.resultAssetId) {
-      const asset = await findAssetById(task.resultAssetId);
-      if (asset) {
-        resultFileUrl = asset.fileUrl;
-      }
-    }
-
+    // 响应为既有字段超集（架构 §7.3）：resultAssetId、analysisTemplateVariables 等
+    // 既有轮询/恢复消费字段保留，新增快照来源标记与已保存关联只增不删
     return NextResponse.json({
-      id: task.id,
-      analysisTaskId: task.analysisTaskId,
-      status: task.status,
-      promptSnapshot: task.promptSnapshot,
-      negativePromptSnapshot: task.negativePromptSnapshot,
-      params: task.params,
-      modelName: task.modelName,
-      resultAssetId: task.resultAssetId,
-      resultFileUrl,
-      errorMessage: task.errorMessage,
-      createdAt: task.createdAt,
-      updatedAt: task.updatedAt,
+      id: detail.id,
+      analysisTaskId: detail.analysisTaskId,
+      status: detail.status,
+      promptSnapshot: detail.promptSnapshot,
+      negativePromptSnapshot: detail.negativePromptSnapshot,
+      params: detail.params,
+      modelName: detail.modelName,
+      resultAssetId: detail.resultAssetId,
+      resultFileUrl: detail.resultFileUrl,
+      errorMessage: detail.errorMessage,
+      recipe: detail.recipe,
+      recipeSource: detail.recipeSource,
+      variables: detail.variables,
+      variablesSource: detail.variablesSource,
+      sourceImageUrl: detail.sourceImageUrl,
+      sourceAssetId: detail.sourceAssetId,
+      sourceTemplateId: detail.sourceTemplateId,
+      sourceTemplateName: detail.sourceTemplateName,
+      savedTemplate: detail.savedTemplate,
+      analysisTemplateVariables: detail.analysisTemplateVariables,
+      createdAt: detail.createdAt.toISOString(),
+      updatedAt: detail.updatedAt.toISOString(),
     });
   } catch (error) {
     const message =
