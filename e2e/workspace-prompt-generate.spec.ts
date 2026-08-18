@@ -6,9 +6,11 @@ import {
   mockAnalysisPolling,
   mockAuthSession,
   mockGenerationCreate,
+  mockGenerationList,
   mockGenerationPolling,
   mockUploadPresign,
 } from './helpers/mock-api'
+import { waitForReactInput } from './helpers/react-ready'
 
 const TEST_IMAGE_PATH = resolve(__dirname, 'fixtures/test-image.png')
 
@@ -44,22 +46,24 @@ async function mockCdnImages(page: Page) {
 }
 
 async function uploadReference(page: Page) {
-  const chooserPromise = page.waitForEvent('filechooser')
-  await page
-    .getByRole('region', { name: 'Reference column' })
-    .getByText('Click or drag to upload a reference image')
-    .click()
-  const chooser = await chooserPromise
-  await chooser.setFiles(TEST_IMAGE_PATH)
+  const referenceColumn = page.getByRole('region', { name: 'Reference Canvas column' })
+  const input = referenceColumn.locator('input[type="file"]')
+  await waitForReactInput(input)
+  await input.setInputFiles(TEST_IMAGE_PATH)
 }
 
 function promptCard(page: Page) {
-  return page.getByRole('region', { name: 'Prompt column' }).getByTestId('prompt-card')
+  return page.getByRole('region', { name: 'Prompt and Render column' }).getByTestId('prompt-card')
 }
 
-test.describe('PLAN-03 prompt editing and floating generation', () => {
+function renderDock(page: Page) {
+  return page.getByRole('region', { name: 'Prompt and Render column' }).getByTestId('output-card')
+}
+
+test.describe('PLAN-03 prompt editing and Render Dock generation', () => {
   test.beforeEach(async ({ page }) => {
     await mockAuthSession(page)
+    await mockGenerationList(page)
     await mockCdnImages(page)
   })
 
@@ -74,14 +78,16 @@ test.describe('PLAN-03 prompt editing and floating generation', () => {
 
     await expect(promptCard(page).getByTestId('unified-prompt-editor')).toBeVisible({ timeout: 15000 })
     await expect(promptCard(page).getByLabel(/full generation prompt/i)).toBeVisible()
-    await expect(promptCard(page).getByLabel(/negative prompt/i)).toBeVisible()
+    await expect(promptCard(page).getByLabel('Variable negative_prompt')).toBeVisible()
+    // Output parameters live in the Render Dock, mounted inside the PromptCard slot
+    await expect(promptCard(page).getByTestId('output-card')).toBeVisible()
     await expect(promptCard(page).getByLabel(/aspect ratio/i)).toBeVisible()
     await expect(promptCard(page).getByLabel(/quality/i)).toBeVisible()
   })
 
-  test('TC-3.2 uses the floating generate button to open the generation dialog', async ({ page }) => {
-    const analysisTaskId = 'floating-generate-analysis-task'
-    const generationTaskId = 'floating-generate-task'
+  test('TC-3.2 uses the Render Dock generate button to open the generation dialog', async ({ page }) => {
+    const analysisTaskId = 'render-dock-generate-analysis-task'
+    const generationTaskId = 'render-dock-generate-task'
     await mockUploadPresign(page)
     await mockAnalysisCreate(page, analysisTaskId)
     await mockAnalysisPolling(page, analysisTaskId, loadFixture('analysis-completed.json'))
@@ -91,7 +97,7 @@ test.describe('PLAN-03 prompt editing and floating generation', () => {
     await openWorkspace(page)
     await uploadReference(page)
 
-    const generateButton = page.getByTestId('floating-generate-button')
+    const generateButton = renderDock(page).getByRole('button', { name: /^Generate$/i })
     await expect(generateButton).toBeVisible({ timeout: 15000 })
     await expect(generateButton).toBeEnabled()
     await generateButton.click()

@@ -1,8 +1,34 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
+import { mockAuthSession, mockGenerationList } from './helpers/mock-api'
 import { uploadAndCompleteAnalysis } from './helpers/workspace-actions'
+
+const pixel = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+  'base64',
+)
+
+async function mockCdnImages(page: Page) {
+  await page.route('https://cdn.example.com/**', async (route) => {
+    if (
+      route.request().resourceType() === 'image' ||
+      /\.(png|jpg|jpeg|webp)$/.test(route.request().url())
+    ) {
+      await route.fulfill({ status: 200, contentType: 'image/png', body: pixel })
+      return
+    }
+    await route.continue()
+  })
+}
 
 test.describe('workspace card expansion', () => {
   test.use({ viewport: { width: 1366, height: 900 } })
+
+  test.beforeEach(async ({ page }) => {
+    await mockAuthSession(page)
+    // History strip（底部 Recent iterations）挂载即 GET 生成列表
+    await mockGenerationList(page)
+    await mockCdnImages(page)
+  })
 
   test('enlarges Style Intelligence and Prompt editor without losing workspace state', async ({ page }) => {
     await uploadAndCompleteAnalysis(page, {
@@ -20,6 +46,8 @@ test.describe('workspace card expansion', () => {
     expect(styleBox!.width).toBeLessThanOrEqual(1366 - 32)
     expect(styleBox!.height).toBeLessThanOrEqual(900 - 32)
 
+    // 图像摘要位于 Content 折叠区内，现行需先展开 Content 再断言不被裁切
+    await styleDialog.getByTestId('content-analysis').click()
     const summaryIsUnclipped = await styleDialog
       .getByTestId('style-intelligence-image-summary')
       .evaluate((element) => element.scrollHeight <= element.clientHeight)
@@ -64,6 +92,9 @@ test.describe('workspace card expansion', () => {
     expect(promptBox!.width).toBeLessThanOrEqual(1366 - 32)
     expect(promptBox!.height).toBeLessThanOrEqual(900 - 32)
 
+    // 保存弹窗关闭后焦点回到 body；Escape 由面板内 keydown 捕获，
+    // 先聚焦面板内编辑器再按 Escape（真实用户收起路径）
+    await promptDialog.getByLabel('Full Generation Prompt').click()
     await page.keyboard.press('Escape')
     await expect(promptDialog).toHaveCount(0)
     await expect(page.getByTestId('output-card')).toBeVisible()

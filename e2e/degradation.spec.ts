@@ -1,20 +1,87 @@
-import { test, expect } from '@playwright/test'
-import { resolve } from 'path'
+import { expect, test, type Page } from '@playwright/test'
 import {
-  mockUploadPresign,
+  loadFixture,
   mockAnalysisCreate,
   mockAnalysisPolling,
-  mockGenerationCreate,
-  mockGenerationPolling,
   mockApiError,
-  loadFixture,
+  mockAuthSession,
+  mockGenerationCreate,
+  mockGenerationList,
+  mockGenerationPolling,
+  mockUploadPresign,
 } from './helpers/mock-api'
+import { waitForReactInput } from './helpers/react-ready'
+import {
+  gotoWorkspace,
+  TEST_IMAGE_PATH,
+  uploadAndCompleteAnalysis,
+} from './helpers/workspace-actions'
 
-const TEST_IMAGE_PATH = resolve(__dirname, 'fixtures/test-image.png')
+const pixel = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+  'base64',
+)
+
+async function mockCdnImages(page: Page) {
+  await page.route('https://cdn.example.com/**', async (route) => {
+    if (
+      route.request().resourceType() === 'image' ||
+      /\.(png|jpg|webp)$/.test(route.request().url())
+    ) {
+      await route.fulfill({ status: 200, contentType: 'image/png', body: pixel })
+      return
+    }
+    await route.continue()
+  })
+}
+
+/** 现行三栏布局：Reference Canvas / Style Intelligence / Prompt and Render */
+function referenceColumn(page: Page) {
+  return page.getByRole('region', { name: 'Reference Canvas column' })
+}
+
+function styleIntelligenceColumn(page: Page) {
+  return page.getByRole('region', { name: 'Style Intelligence column' })
+}
+
+function promptColumn(page: Page) {
+  return page.getByRole('region', { name: 'Prompt and Render column' })
+}
+
+/** 现行生成入口：Prompt and Render 列内的 Render Dock（output-card） */
+function renderDock(page: Page) {
+  return promptColumn(page).getByTestId('output-card')
+}
+
+function generateButton(page: Page) {
+  return renderDock(page).getByRole('button', { name: /^Generate$/i })
+}
+
+const SERVICE_UNAVAILABLE_BODY = {
+  error: 'Service Temporarily Unavailable',
+  code: 'SERVICE_UNAVAILABLE',
+  retryable: true,
+}
 
 test.describe('Degradation', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockAuthSession(page)
+    // History strip（底部 Recent iterations）挂载即 GET 生成列表
+    await mockGenerationList(page)
+    await mockCdnImages(page)
+  })
+
+  /**
+   * L1 分析排队（>60s）。
+   * 旧 UI 的 “Analysis is queued. Thanks for waiting.” 提示卡（RecipeStep/
+   * RecipeEditor）已随三栏重构移除，且现行挂载组件均不消费
+   * analysisQueueing（分析侧已无提示等价物，参见 workspace-degradation.spec.ts
+   * 的同结论注释）。保留 fake-clock 快进 60s 阈值的触发方式与“分析侧”侧重，
+   * 断言排队超阈值后工作台仍稳定停留在分析等待态：不失败、不降级、
+   * Style Intelligence 保持加载骨架、参考上下文保留。
+   */
   test('L1 分析排队提示', async ({ page }) => {
-    const taskId = 'mock-analysis-task-id'
+    const taskId = 'degradation-l1-analysis-queueing-task'
 
     await mockUploadPresign(page)
     await mockAnalysisCreate(page, taskId)
@@ -30,183 +97,220 @@ test.describe('Degradation', () => {
       errorStage: null,
     })
 
-    await page.goto('/workspace')
+    await gotoWorkspace(page)
 
-    // Install fake clock to fast-forward time
+    // Install fake clock（保持真实走时），保留 60s 阈值的快进触发方式
     await page.clock.install()
 
-    const fileInput = page.locator('input[type="file"]')
-    await fileInput.setInputFiles(TEST_IMAGE_PATH)
+    const referenceInput = referenceColumn(page).locator('input[type="file"]')
+    await waitForReactInput(referenceInput)
+    await referenceInput.setInputFiles(TEST_IMAGE_PATH)
 
-    // Wait for analysis to start
-    await expect(page.getByText('AI is analyzing the image style...')).toBeVisible({ timeout: 15000 })
+    // 分析进行中：AI 状态带进入 analyzing phase，Style Intelligence 呈现加载骨架
+    await expect(page.getByTestId('ai-status-header')).toHaveAttribute(
+      'data-phase',
+      'analyzing',
+      { timeout: 15000 },
+    )
+    const recipeCard = styleIntelligenceColumn(page).getByTestId('recipe-card')
+    await expect(recipeCard.getByLabel('Visual Recipe loading')).toBeVisible()
 
-    // Fast-forward 61 seconds to trigger L1 queueing
+    // Fast-forward 61 seconds to trigger the L1 queueing threshold
     await page.clock.fastForward(61000)
 
-    // Should show queueing hint
-    await expect(page.getByText('Analysis is queued. Thanks for waiting.')).toBeVisible({ timeout: 5000 })
+    // 长时间排队后仍保持分析等待态：未失败（Reference 卡无错误三段式）、
+    // 未降级（Services 仍 ready）、骨架仍在
+    await expect(page.getByTestId('ai-status-header')).toHaveAttribute(
+      'data-phase',
+      'analyzing',
+    )
+    await expect(recipeCard.getByLabel('Visual Recipe loading')).toBeVisible()
+    await expect(page.getByTestId('ai-copilot-ribbon')).toHaveAttribute(
+      'data-service',
+      'ready',
+    )
+    await expect(
+      referenceColumn(page).getByTestId('reference-card'),
+    ).not.toContainText('Analysis failed')
   })
 
+  /**
+   * L1 生成排队（>60s）：排队提示现于生成任务弹窗（GenerationDialog）内呈现。
+   */
   test('L1 生成排队提示', async ({ page }) => {
-    const analysisTaskId = 'mock-analysis-task-id'
-    const genTaskId = 'mock-generation-task-id'
-    const analysisCompleted = loadFixture('analysis-completed.json')
-
-    await mockUploadPresign(page)
-    await mockAnalysisCreate(page, analysisTaskId)
-    await mockAnalysisPolling(page, analysisTaskId, analysisCompleted)
-    await mockGenerationCreate(page, genTaskId)
-
-    // Mock generation polling always returns processing
-    await mockGenerationPolling(page, genTaskId, {
-      id: genTaskId,
+    const generationTaskId = 'degradation-l1-generation-queueing-task'
+    await mockGenerationCreate(page, generationTaskId)
+    await mockGenerationPolling(page, generationTaskId, {
+      id: generationTaskId,
       status: 'processing',
-      analysisTaskId,
-      promptSnapshot: 'test',
-      negativePromptSnapshot: '',
-      params: { aspectRatio: '1:1', quality: 'standard' },
-      modelName: 'flux.2',
-      resultAssetId: null,
       resultFileUrl: null,
       errorMessage: null,
     })
 
-    await page.goto('/workspace')
-
-    const fileInput = page.locator('input[type="file"]')
-    await fileInput.setInputFiles(TEST_IMAGE_PATH)
-    await expect(page.getByText('Ready to Generate')).toBeVisible({ timeout: 15000 })
-
-    // Install clock before generate
+    // Install fake clock（保持真实走时）
     await page.clock.install()
 
-    // Click generate
-    await page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' }).click()
+    await uploadAndCompleteAnalysis(page, {
+      analysisTaskId: 'degradation-l1-generation-queueing-analysis-task',
+    })
+
+    await generateButton(page).click()
 
     // Wait for generation progress
-    await expect(page.getByText('Generating image...')).toBeVisible({ timeout: 15000 })
+    const dialog = page.getByTestId('generation-dialog')
+    await expect(
+      page.getByRole('dialog', { name: 'Generation Task' }),
+    ).toBeVisible()
+    await expect(dialog).toContainText('Generating image...', { timeout: 15000 })
 
-    // Fast-forward 61 seconds
+    // Fast-forward 61 seconds to trigger the L1 queueing hint
     await page.clock.fastForward(61000)
 
-    // Should show generation queueing hint
-    await expect(page.getByText('Generation is queued. Thanks for waiting')).toBeVisible({ timeout: 5000 })
+    await expect(dialog).toContainText('Generation is queued. Thanks for waiting')
   })
 
+  /**
+   * L2 生成不可用：POST /api/generation 500 → 生成任务弹窗以三段式
+   * （发生了什么 / 保留了什么 / 下一步）呈现服务不可用错误。
+   */
   test('L2 生成服务不可用', async ({ page }) => {
-    const analysisTaskId = 'mock-analysis-task-id'
-    const analysisCompleted = loadFixture('analysis-completed.json')
+    await mockApiError(page, '**/api/generation', 500, SERVICE_UNAVAILABLE_BODY)
 
-    await mockUploadPresign(page)
-    await mockAnalysisCreate(page, analysisTaskId)
-    await mockAnalysisPolling(page, analysisTaskId, analysisCompleted)
-
-    // Mock generation POST returning SERVICE_UNAVAILABLE
-    await mockApiError(page, '**/api/generation', 500, {
-      error: 'Service Temporarily Unavailable',
-      code: 'SERVICE_UNAVAILABLE',
-      retryable: true,
+    await uploadAndCompleteAnalysis(page, {
+      analysisTaskId: 'degradation-l2-unavailable-analysis-task',
     })
+    await expect(generateButton(page)).toBeEnabled()
 
-    await page.goto('/workspace')
-    const fileInput = page.locator('input[type="file"]')
-    await fileInput.setInputFiles(TEST_IMAGE_PATH)
-    await expect(page.getByText('Ready to Generate')).toBeVisible({ timeout: 15000 })
+    await generateButton(page).click()
 
-    // Click generate
-    await page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' }).click()
-
-    // Should show L2 degradation message
-    await expect(page.getByText('Service Temporarily Unavailable').first()).toBeVisible({ timeout: 15000 })
+    const dialog = page.getByTestId('generation-dialog')
+    await expect(dialog).toContainText('Generation Failed', { timeout: 15000 })
+    await expect(dialog).toContainText('Service Temporarily Unavailable')
+    await expect(dialog).toContainText('are preserved')
   })
 
+  /**
+   * L2 降级后保留分析和编辑：生成失败返回编辑态后，分析结果
+   * （旧 style-breakdown-panel → 现行 Style Intelligence 的 recipe-card）与
+   * Prompt 编辑器均保留可用，仅生成入口因 generationUnavailable 降级。
+   */
   test('L2 降级后保留分析和编辑', async ({ page }) => {
-    const analysisTaskId = 'mock-analysis-task-id'
-    const analysisCompleted = loadFixture('analysis-completed.json')
+    await mockApiError(page, '**/api/generation', 500, SERVICE_UNAVAILABLE_BODY)
 
-    await mockUploadPresign(page)
-    await mockAnalysisCreate(page, analysisTaskId)
-    await mockAnalysisPolling(page, analysisTaskId, analysisCompleted)
-    await mockApiError(page, '**/api/generation', 500, {
-      error: 'Service Temporarily Unavailable',
-      code: 'SERVICE_UNAVAILABLE',
-      retryable: true,
+    await uploadAndCompleteAnalysis(page, {
+      analysisTaskId: 'degradation-l2-preserve-analysis-task',
     })
 
-    await page.goto('/workspace')
-    const fileInput = page.locator('input[type="file"]')
-    await fileInput.setInputFiles(TEST_IMAGE_PATH)
-    await expect(page.getByText('Ready to Generate')).toBeVisible({ timeout: 15000 })
-    await page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' }).click()
-    await expect(page.getByText('Service Temporarily Unavailable').first()).toBeVisible({ timeout: 15000 })
+    await generateButton(page).click()
+    const dialog = page.getByTestId('generation-dialog')
+    await expect(dialog).toContainText('Generation Failed', { timeout: 15000 })
 
-    // Recipe step should still be visible
-    await expect(page.getByTestId('style-breakdown-panel')).toBeVisible()
+    // 返回编辑态：上下文保留是本用例的核心断言
+    await dialog.getByRole('button', { name: 'Back to Edit' }).click()
+    await expect(page.getByTestId('generation-dialog')).toHaveCount(0)
 
-    // Prompt editor should still be usable — use heading selector to avoid matching degradation message
-    await expect(page.getByTestId('unified-prompt-editor')).toBeVisible()
-    const promptTextarea = page.getByLabel('Full Generation Prompt')
-    await expect(promptTextarea).not.toBeDisabled()
+    // 分析结果保留：Style Intelligence 仍展示结构化配方（Style DNA 维度）
+    const recipeCard = styleIntelligenceColumn(page).getByTestId('recipe-card')
+    await expect(recipeCard).toBeVisible()
+    await expect(recipeCard.getByTestId('style-dna')).toContainText(
+      '5 dimensions',
+    )
+
+    // Prompt editor should still be usable
+    const promptCard = promptColumn(page).getByTestId('prompt-card')
+    await expect(promptCard.getByTestId('unified-prompt-editor')).toBeVisible()
+    await expect(promptCard.getByLabel('Full Generation Prompt')).toBeEditable()
+
+    // 生成服务降级的现行可观察标记：Render Dock disabled + title=disabledReason
+    await expect(renderDock(page)).toHaveAttribute(
+      'data-readiness-can-generate',
+      'false',
+    )
+    await expect(generateButton(page)).toBeDisabled()
+    await expect(generateButton(page)).toHaveAttribute(
+      'title',
+      'Generation service is temporarily unavailable. Retry service when ready.',
+    )
   })
 
+  /**
+   * L3 LLM 失败降级展示：analysisTemplateStatus=fallback → Prompt 编辑器展示
+   * 降级提示及原因（旧 “AI structuring failed…” 文案 → 现行
+   * “No stable replaceable variables…” + templateReason），recipe 为 null 时
+   * Style Intelligence 呈现空态而非配方摘要。
+   */
   test('L3 LLM 失败降级展示', async ({ page }) => {
-    const taskId = 'mock-analysis-task-id'
-    const analysisDegraded = loadFixture('analysis-degraded.json')
+    await uploadAndCompleteAnalysis(page, {
+      analysisTaskId: 'degradation-l3-analysis-task',
+      analysisResponse: loadFixture('analysis-degraded.json'),
+    })
 
-    await mockUploadPresign(page)
-    await mockAnalysisCreate(page, taskId)
-    await mockAnalysisPolling(page, taskId, analysisDegraded)
-
-    await page.goto('/workspace')
-    const fileInput = page.locator('input[type="file"]')
-    await fileInput.setInputFiles(TEST_IMAGE_PATH)
-
-    // Should show L3 degradation message
+    const promptCard = promptColumn(page).getByTestId('prompt-card')
     await expect(
-      page.getByText('AI structuring failed, so raw analysis is shown instead.'),
+      promptCard.getByText(
+        'No stable replaceable variables were detected this time.',
+      ),
     ).toBeVisible({ timeout: 15000 })
+    await expect(promptCard.getByTestId('unified-prompt-editor')).toContainText(
+      'Structure analysis failed: Invalid JSON',
+    )
 
     // Prompt editor should show the raw analysis text
-    const promptTextarea = page.getByLabel('Full Generation Prompt')
+    const promptTextarea = promptCard.getByLabel('Full Generation Prompt')
     await expect(promptTextarea).toHaveValue(/Raw visual analysis/)
+    await expect(promptTextarea).toBeEditable()
 
-    // Recipe summary should NOT be shown when recipe is null.
-    await expect(page.getByTestId('style-breakdown-panel')).not.toContainText('Subject')
+    // Recipe summary should NOT be shown when recipe is null（旧断言的现行等价物：
+    // recipe-card 空态，无 Content 结构化摘要）
+    const recipeCard = styleIntelligenceColumn(page).getByTestId('recipe-card')
+    await expect(recipeCard.getByText('Waiting for style signals')).toBeVisible()
+    await expect(recipeCard.getByTestId('content-analysis')).toHaveCount(0)
   })
 
+  /**
+   * L3 降级后仍可编辑和生成：降级态下 Prompt 可编辑，生成成功后现行结果
+   * 呈现于生成任务弹窗内（旧 h3 “Generated Result” 的现行等价位置）。
+   */
   test('L3 降级后仍可编辑和生成', async ({ page }) => {
-    const taskId = 'mock-analysis-task-id'
-    const genTaskId = 'mock-generation-task-id'
-    const analysisDegraded = loadFixture('analysis-degraded.json')
+    const genTaskId = 'degradation-l3-generation-task'
     const generationCompleted = loadFixture('generation-completed.json')
 
-    await mockUploadPresign(page)
-    await mockAnalysisCreate(page, taskId)
-    await mockAnalysisPolling(page, taskId, analysisDegraded)
     await mockGenerationCreate(page, genTaskId)
     await mockGenerationPolling(page, genTaskId, generationCompleted)
 
-    await page.goto('/workspace')
-    const fileInput = page.locator('input[type="file"]')
-    await fileInput.setInputFiles(TEST_IMAGE_PATH)
+    await uploadAndCompleteAnalysis(page, {
+      analysisTaskId: 'degradation-l3-edit-analysis-task',
+      analysisResponse: loadFixture('analysis-degraded.json'),
+    })
 
-    // Wait for L3 degradation
+    // Wait for L3 degradation hint
+    const promptCard = promptColumn(page).getByTestId('prompt-card')
     await expect(
-      page.getByText('AI structuring failed, so raw analysis is shown instead.'),
+      promptCard.getByText(
+        'No stable replaceable variables were detected this time.',
+      ),
     ).toBeVisible({ timeout: 15000 })
 
     // Edit prompt
-    const promptTextarea = page.getByLabel('Full Generation Prompt')
+    const promptTextarea = promptCard.getByLabel('Full Generation Prompt')
     await promptTextarea.fill('Manually edited prompt for generation')
 
     // Click generate
-    await page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' }).click()
+    await expect(generateButton(page)).toBeEnabled()
+    await generateButton(page).click()
 
-    // Should successfully generate
-    await expect(page.locator('h3').filter({ hasText: /^Generated Result$/ })).toBeVisible({ timeout: 15000 })
+    // Should successfully generate（结果标题在生成任务弹窗内）
+    const dialog = page.getByTestId('generation-dialog')
+    await expect(
+      dialog.getByRole('heading', { name: 'Generated Result' }),
+    ).toBeVisible({ timeout: 15000 })
   })
 
+  /**
+   * L4 分析不可用：POST /api/analysis 500 → Reference Canvas 以三段式
+   * （发生了什么 / 保留了什么 / 下一步）呈现失败，现行直接展示 API 错误详情
+   * （旧按 code 映射的 “Service Temporarily Unavailable” 标题已不存在）。
+   */
   test('L4 分析服务不可用', async ({ page }) => {
     await mockUploadPresign(page)
 
@@ -217,13 +321,36 @@ test.describe('Degradation', () => {
       retryable: true,
     })
 
-    await page.goto('/workspace')
-    const fileInput = page.locator('input[type="file"]')
-    await fileInput.setInputFiles(TEST_IMAGE_PATH)
+    await gotoWorkspace(page)
+    const referenceInput = referenceColumn(page).locator('input[type="file"]')
+    await waitForReactInput(referenceInput)
+    await referenceInput.setInputFiles(TEST_IMAGE_PATH)
 
-    // Should show error display (SERVICE_UNAVAILABLE triggers ErrorDisplay with title "Service Temporarily Unavailable")
+    // Reference Canvas 失败三段式 + 下一步（Retry analysis）
+    const referenceCard = referenceColumn(page).getByTestId('reference-card')
+    await expect(referenceCard.getByText('Analysis failed')).toBeVisible({
+      timeout: 15000,
+    })
     await expect(
-      page.getByText('Service Temporarily Unavailable').first(),
-    ).toBeVisible({ timeout: 15000 })
+      referenceCard.getByText(
+        'Analysis is temporarily unavailable. Please try again later.',
+      ),
+    ).toBeVisible()
+    await expect(
+      referenceCard.getByText(/Reference context preserved/),
+    ).toBeVisible()
+    await expect(
+      referenceCard.getByRole('button', { name: 'Retry analysis' }),
+    ).toBeVisible()
+
+    // AI 状态带标记服务降级：failure phase + Services Limited
+    await expect(page.getByTestId('ai-status-header')).toHaveAttribute(
+      'data-phase',
+      'failure',
+    )
+    await expect(page.getByTestId('ai-copilot-ribbon')).toHaveAttribute(
+      'data-service',
+      'limited',
+    )
   })
 })

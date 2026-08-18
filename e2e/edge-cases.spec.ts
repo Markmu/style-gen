@@ -1,112 +1,149 @@
-import { test, expect } from '@playwright/test'
-import { resolve } from 'path'
+import { test, expect, type Page } from '@playwright/test'
 import {
-  mockUploadPresign,
-  mockAnalysisCreate,
-  mockAnalysisPolling,
-  mockGenerationCreate,
   mockGenerationPolling,
-  loadFixture,
+  mockAuthSession,
+  mockGenerationList,
 } from './helpers/mock-api'
+import {
+  completeFullFlow,
+  uploadAndStartAnalysis,
+  uploadAndCompleteAnalysis,
+} from './helpers/workspace-actions'
 
-const TEST_IMAGE_PATH = resolve(__dirname, 'fixtures/test-image.png')
+const pixel = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+  'base64',
+)
+
+async function mockCdnImages(page: Page) {
+  await page.route('https://cdn.example.com/**', async (route) => {
+    if (
+      route.request().resourceType() === 'image' ||
+      /\.(png|jpg|webp)$/.test(route.request().url())
+    ) {
+      await route.fulfill({ status: 200, contentType: 'image/png', body: pixel })
+      return
+    }
+    await route.continue()
+  })
+}
+
+/** 现行三栏布局：Reference Canvas / Prompt and Render */
+function referenceColumn(page: Page) {
+  return page.getByRole('region', { name: 'Reference Canvas column' })
+}
+
+function promptColumn(page: Page) {
+  return page.getByRole('region', { name: 'Prompt and Render column' })
+}
+
+/** 现行生成入口：Prompt and Render 列内的 Render Dock（output-card） */
+function renderDock(page: Page) {
+  return promptColumn(page).getByTestId('output-card')
+}
+
+function generateButton(page: Page) {
+  return renderDock(page).getByRole('button', { name: /^Generate$/i })
+}
 
 test.describe('Edge Cases', () => {
-  test('替换Reference清空结果', async ({ page }) => {
-    const analysisTaskId = 'mock-analysis-task-id'
-    const genTaskId = 'mock-generation-task-id'
-    const analysisCompleted = loadFixture('analysis-completed.json')
-    const generationCompleted = loadFixture('generation-completed.json')
-
-    // Setup all mocks
-    await mockUploadPresign(page)
-    await mockAnalysisCreate(page, analysisTaskId)
-    await mockAnalysisPolling(page, analysisTaskId, analysisCompleted)
-    await mockGenerationCreate(page, genTaskId)
-    await mockGenerationPolling(page, genTaskId, generationCompleted)
-
-    // Complete full flow
-    await page.goto('/workspace')
-    const fileInput = page.locator('input[type="file"]')
-    await fileInput.setInputFiles(TEST_IMAGE_PATH)
-    await expect(page.getByText('Ready to Generate')).toBeVisible({ timeout: 15000 })
-    await page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' }).click()
-    await expect(page.locator('h3').filter({ hasText: /^Generated Result$/ })).toBeVisible({ timeout: 15000 })
-    await page.getByText('Close Dialog', { exact: true }).click()
-
-    // Click "Replace Reference"
-    const replaceBtn = page.getByRole('button', { name: 'Replace Reference' })
-    await expect(replaceBtn).toBeVisible()
-    await replaceBtn.click()
-
-    // Results should be cleared — back to idle state with drop zone
-    await expect(page.getByText('Click or drag to upload a reference image')).toBeVisible({ timeout: 5000 })
-
-    // Recipe and generation result should be gone
-    await expect(page.getByText('Ready to Generate', { exact: true })).not.toBeVisible()
-    await expect(page.locator('h3').filter({ hasText: /^Generated Result$/ })).not.toBeVisible()
+  test.beforeEach(async ({ page }) => {
+    await mockAuthSession(page)
+    // History strip（底部 Recent iterations）挂载即 GET 生成列表
+    await mockGenerationList(page)
+    await mockCdnImages(page)
   })
 
-  test('Analyzing刷新页面回到 idle', async ({ page }) => {
-    const taskId = 'mock-analysis-task-id'
+  test('替换Reference清空结果', async ({ page }) => {
+    // Complete full flow: upload → analysis → generation result
+    await completeFullFlow(page, { generationTaskId: 'mock-generation-task-id' })
+    await page.getByText('Close Dialog', { exact: true }).click()
 
-    await mockUploadPresign(page)
-    await mockAnalysisCreate(page, taskId)
+    // Reference 卡头部 Replace → 重置回 idle
+    await referenceColumn(page)
+      .getByTestId('reference-card')
+      .getByRole('button', { name: 'Replace', exact: true })
+      .click()
 
-    // Mock polling returning processing (never completes)
-    await mockAnalysisPolling(page, taskId, {
-      id: taskId,
-      status: 'processing',
-      recipe: null,
-      promptText: null,
-      negativePromptText: null,
-      errorMessage: null,
-      errorStage: null,
+    // Results should be cleared — back to idle state with drop zone
+    await expect(
+      referenceColumn(page).getByText('Click or drag to upload a reference image'),
+    ).toBeVisible({ timeout: 5000 })
+    await expect(page.getByTestId('ai-copilot-ribbon')).toHaveAttribute('data-phase', 'idle')
+    await expect(page.getByTestId('ai-copilot-ribbon')).toContainText('Upload a reference image')
+
+    // Recipe and generation result should be gone
+    await expect(promptColumn(page).getByTestId('unified-prompt-editor')).toHaveCount(0)
+    await expect(generateButton(page)).toBeDisabled()
+  })
+
+  /**
+   * 旧行为（sessionStorage 持久化之前的版本）：Analyzing 中刷新回到 idle 空态。
+   * 现行架构（docs/11 §6.1/§7：use-workspace-state 初始化优先从 sessionStorage
+   * 恢复，刷新直接跳转到 analysis_ready）：分析进行中刷新不悬挂在 Analyzing，
+   * 而是按快照恢复为可编辑的 analysis_ready，参考图上下文保留。
+   * 先用 expect.poll 等待防抖快照（300ms）落盘再刷新，保证恢复路径确定。
+   */
+  test('Analyzing刷新页面不悬挂：按快照恢复到可编辑状态', async ({ page }) => {
+    const STORAGE_KEY = 'style-gen-workspace-state'
+
+    // Polling returns processing forever — analysis never completes
+    await uploadAndStartAnalysis(page, { analysisTaskId: 'mock-analysis-task-id' })
+
+    // Wait for the analyzing phase on the AI status header
+    await expect(page.getByTestId('ai-status-header')).toHaveAttribute('data-phase', 'analyzing', {
+      timeout: 15000,
     })
 
-    await page.goto('/workspace')
-    const fileInput = page.locator('input[type="file"]')
-    await fileInput.setInputFiles(TEST_IMAGE_PATH)
-
-    // Wait for analysis progress indicator
-    await expect(page.getByText('AI is analyzing the image style...')).toBeVisible({ timeout: 15000 })
+    // Wait for the debounced workspace snapshot to land before refreshing
+    await expect
+      .poll(
+        () => page.evaluate((key) => window.sessionStorage.getItem(key), STORAGE_KEY),
+        { timeout: 10000 },
+      )
+      .not.toBe(null)
 
     // Refresh the page
     await page.reload()
 
-    // Should be back to idle state
-    await expect(page.getByText('Click or drag to upload a reference image')).toBeVisible({ timeout: 10000 })
+    // 不再停留在 Analyzing：恢复到 analysis_ready，参考图保留，不回到上传空态
+    await expect(page.getByTestId('ai-copilot-ribbon')).toHaveAttribute(
+      'data-phase',
+      'analysis_ready',
+      { timeout: 10000 },
+    )
+    await expect(page.getByTestId('ai-copilot-ribbon')).toContainText('Editing')
+    await expect(referenceColumn(page).getByTestId('reference-card').getByAltText('Reference')).toBeVisible()
+    await expect(
+      referenceColumn(page).getByText('Click or drag to upload a reference image'),
+    ).toHaveCount(0)
   })
 
   test('快速连续点击生成只发一次请求', async ({ page }) => {
     const analysisTaskId = 'mock-analysis-task-id'
     const genTaskId = 'mock-generation-task-id'
-    const analysisCompleted = loadFixture('analysis-completed.json')
-
-    await mockUploadPresign(page)
-    await mockAnalysisCreate(page, analysisTaskId)
-    await mockAnalysisPolling(page, analysisTaskId, analysisCompleted)
 
     // Track generation POST calls
     let generationPostCount = 0
     await page.route('**/api/generation', async (route) => {
-      if (route.request().method() === 'POST') {
-        generationPostCount++
-        await route.fulfill({
-          status: 201,
-          contentType: 'application/json',
-          body: JSON.stringify({ id: genTaskId, status: 'pending' }),
-        })
-      } else {
+      if (route.request().method() !== 'POST') {
         await route.continue()
+        return
       }
+
+      generationPostCount++
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({ id: genTaskId, status: 'pending' }),
+      })
     })
 
     // Mock generation polling (stays processing)
     await mockGenerationPolling(page, genTaskId, {
       id: genTaskId,
-      status: 'processing',
       analysisTaskId,
+      status: 'processing',
       promptSnapshot: 'test',
       negativePromptSnapshot: '',
       params: { aspectRatio: '1:1', quality: 'standard' },
@@ -117,17 +154,14 @@ test.describe('Edge Cases', () => {
     })
 
     // Upload and wait for analysis
-    await page.goto('/workspace')
-    const fileInput = page.locator('input[type="file"]')
-    await fileInput.setInputFiles(TEST_IMAGE_PATH)
-    await expect(page.getByText('Ready to Generate')).toBeVisible({ timeout: 15000 })
+    await uploadAndCompleteAnalysis(page, { analysisTaskId })
 
-    // Click generate button rapidly
-    const generateBtn = page.getByTestId('floating-generate-window').getByRole('button', { name: 'GENERATE' })
-    await generateBtn.click()
-    // After first click, button changes to "GENERATING..." and is disabled
-    // So subsequent clicks should not go through
-    await expect(page.getByRole('button', { name: 'GENERATING...' })).toBeDisabled()
+    // Click generate from the Render Dock; the task dialog takes over and the
+    // button switches to the disabled "Rendering..." state, so repeat clicks
+    // cannot fire another POST.
+    await generateButton(page).click()
+    await expect(page.getByRole('dialog', { name: 'Generation Task' })).toBeVisible()
+    await expect(renderDock(page).getByRole('button', { name: 'Rendering...' })).toBeDisabled()
 
     // Only 1 POST request should have been made
     expect(generationPostCount).toBe(1)

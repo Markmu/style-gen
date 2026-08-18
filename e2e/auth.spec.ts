@@ -9,8 +9,10 @@ test.describe('认证流程 - 未Log in拦截', () => {
     expect(page.url()).not.toContain('/workspace')
     expect(new URL(page.url()).pathname).toBe('/')
 
-    // 验证Home正常加载
-    await expect(page.locator('h1')).toContainText('Reference Image Style Recreation')
+    // 验证Home正常加载（现行 hero 主标题：Reference -> Evidence -> Render）
+    await expect(
+      page.getByRole('heading', { level: 1, name: /Reference\s*->\s*Evidence\s*->\s*Render/ }),
+    ).toBeVisible()
 
     // 验证 response 表明发生了重定向
     // middleware 返回 302 重定向，Playwright 自动跟随
@@ -85,12 +87,15 @@ test.describe('Home展示', () => {
   test('Home正常展示标题和描述', async ({ page }) => {
     await page.goto('/')
 
-    // 验证Home标题
-    await expect(page.locator('h1')).toContainText('Reference Image Style Recreation')
-
-    // 验证描述文案
+    // 验证Home标题：页面 metadata 标题 + 现行 hero 主标题（Reference -> Evidence -> Render）
+    await expect(page).toHaveTitle(/Reference Image Style Recreation/)
     await expect(
-      page.getByText('Upload a reference image to get an editable visual recipe, prompt, and same-style generation workflow.')
+      page.getByRole('heading', { level: 1, name: /Reference\s*->\s*Evidence\s*->\s*Render/ }),
+    ).toBeVisible()
+
+    // 验证描述文案（现行 hero 描述）
+    await expect(
+      page.getByText('Upload a reference. Inspect the evidence. Edit what matters, then render a new image without losing context.')
     ).toBeVisible()
   })
 

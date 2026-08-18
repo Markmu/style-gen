@@ -5,8 +5,10 @@ import {
   mockAnalysisCreate,
   mockAnalysisPolling,
   mockAuthSession,
+  mockGenerationList,
   mockUploadPresign,
 } from './helpers/mock-api'
+import { waitForReactInput } from './helpers/react-ready'
 
 const TEST_IMAGE_PATH = resolve(__dirname, 'fixtures/test-image.png')
 
@@ -14,6 +16,15 @@ const pixel = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
   'base64',
 )
+
+/** 现行 Style Intelligence 的五个结构化维度（legacy 配方派生，subject 单列于 Content） */
+const STYLE_DIMENSIONS: Array<{ id: string; label: string }> = [
+  { id: 'color', label: 'Color' },
+  { id: 'composition', label: 'Composition' },
+  { id: 'lighting', label: 'Lighting' },
+  { id: 'texture', label: 'Texture' },
+  { id: 'mood', label: 'Mood' },
+]
 
 async function openWorkspace(page: Page) {
   try {
@@ -42,26 +53,32 @@ async function mockCdnImages(page: Page) {
 }
 
 async function uploadReference(page: Page) {
-  const chooserPromise = page.waitForEvent('filechooser')
-  await page
-    .getByRole('region', { name: 'Reference column' })
-    .getByText('Click or drag to upload a reference image')
-    .click()
-  const chooser = await chooserPromise
-  await chooser.setFiles(TEST_IMAGE_PATH)
+  const input = page
+    .getByRole('region', { name: 'Reference Canvas column' })
+    .locator('input[type="file"]')
+  await waitForReactInput(input)
+  await input.setInputFiles(TEST_IMAGE_PATH)
 }
 
 function referenceCard(page: Page) {
-  return page.getByRole('region', { name: 'Reference column' }).getByTestId('reference-card')
+  return page.getByRole('region', { name: 'Reference Canvas column' }).getByTestId('reference-card')
 }
 
-function recipeCard(page: Page) {
-  return page.getByRole('region', { name: 'Visual Recipe column' }).getByTestId('recipe-card')
+/** 参考图分析维度与结构化配方现统一收敛在 Style Intelligence 列 */
+function styleIntelligence(page: Page) {
+  return page.getByRole('region', { name: 'Style Intelligence column' }).getByTestId('recipe-card')
+}
+
+function promptCard(page: Page) {
+  return page
+    .getByRole('region', { name: 'Prompt and Render column' })
+    .getByTestId('prompt-card')
 }
 
 test.describe('PLAN-02 reference and visual recipe cards', () => {
   test.beforeEach(async ({ page }) => {
     await mockAuthSession(page)
+    await mockGenerationList(page)
     await mockCdnImages(page)
   })
 
@@ -75,13 +92,21 @@ test.describe('PLAN-02 reference and visual recipe cards', () => {
     await uploadReference(page)
 
     await expect(referenceCard(page).getByAltText('Reference')).toBeVisible({ timeout: 15000 })
-    for (const label of ['Style', 'Material', 'Lighting', 'Composition', 'Mood']) {
-      await expect(referenceCard(page).getByText(label, { exact: true })).toBeVisible()
+    for (const dimension of STYLE_DIMENSIONS) {
+      const facet = styleIntelligence(page).getByTestId(`evidence-facet-${dimension.id}`)
+      await expect(facet).toBeVisible({ timeout: 15000 })
+      await expect(facet).toHaveAttribute('data-source-field', dimension.id)
     }
-    await expect(referenceCard(page).getByRole('link', { name: /view full analysis/i })).toBeVisible()
+    // 完整分析按需展开：点开维度查看该维度的分析摘要（替代旧 "view full analysis" 链接）
+    const lightingFacet = styleIntelligence(page).getByTestId('evidence-facet-lighting')
+    await lightingFacet.click()
+    await expect(lightingFacet).toHaveAttribute('aria-expanded', 'true')
+    await expect(styleIntelligence(page).getByTestId('evidence-summary-lighting')).toContainText(
+      'Golden hour, warm backlight',
+    )
   })
 
-  test('TC-2.3 renders five structured recipe categories after analysis', async ({ page }) => {
+  test('TC-2.3 renders five structured recipe dimensions after analysis', async ({ page }) => {
     const taskId = 'recipe-categories-completed-task'
     await mockUploadPresign(page)
     await mockAnalysisCreate(page, taskId)
@@ -90,15 +115,19 @@ test.describe('PLAN-02 reference and visual recipe cards', () => {
     await openWorkspace(page)
     await uploadReference(page)
 
-    for (const label of [
-      'Structure',
-      'Materials',
-      'Lighting',
-      'Color Palette',
-      'Mood & Atmosphere',
-    ]) {
-      await expect(recipeCard(page).getByText(label, { exact: true })).toBeVisible({ timeout: 15000 })
+    await expect(styleIntelligence(page).getByTestId('style-dna')).toContainText('5 dimensions', {
+      timeout: 15000,
+    })
+    for (const dimension of STYLE_DIMENSIONS) {
+      await expect(
+        styleIntelligence(page)
+          .getByTestId(`evidence-facet-${dimension.id}`)
+          .getByText(dimension.label, { exact: true }),
+      ).toBeVisible()
     }
-    await expect(recipeCard(page).getByRole('button', { name: /copy recipe to prompt/i })).toBeVisible()
+    // 配方→提示词的流转已自动化：结构化配方分析结果直接落在提示词编辑器中
+    await expect(promptCard(page).getByLabel(/full generation prompt/i)).toHaveValue(/sunset/i, {
+      timeout: 15000,
+    })
   })
 })

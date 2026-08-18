@@ -61,20 +61,36 @@ const emptyVariableReadyResponse = {
   analysisTemplateReason: null,
 }
 
+// 现行编辑器默认以 variables 模式渲染 analysisTemplateContent，
+// 切到 text 模式时未手动改动则展示按默认值解析后的模板结果。
+const resolvedTemplatePrompt =
+  'Create glass fox inside neon rain garden with editorial glass realism and blue rim light and soft silver fill.'
+
 function renderGenerateButton(page: Page) {
   return page.getByTestId('output-card').first().getByRole('button', { name: /^Generate$/i })
 }
 
 test.describe('analysis template autofill', () => {
-  test('defaults to text mode and keeps variables available in template mode', async ({ page }) => {
+  test('defaults to variables mode and keeps the rendered text available in text mode', async ({ page }) => {
     await uploadAndCompleteAnalysis(page, {
       analysisTaskId: 'analysis-template-ready-task',
       analysisResponse: readyTemplateResponse,
     })
 
+    // 现行默认：可用模板直接以 variables 模式呈现，模板源与变量输入立即可用
     await expect(page.getByTestId('unified-prompt-editor')).toBeVisible()
+    await expect(page.getByLabel('Full Generation Prompt')).toHaveCount(0)
+    await expect(page.getByTestId('template-mode-highlight-editor')).toBeVisible()
+    await expect(page.getByLabel('Template Source')).toHaveValue(/{{subject}}/)
+    await expect(page.getByLabel('Variable subject')).toHaveValue('glass fox')
+    await expect(page.getByLabel('Variable scene')).toHaveValue('neon rain garden')
+    await expect(page.getByLabel('Variable visual_style')).toHaveValue('editorial glass realism')
+    await expect(page.getByLabel('Variable lighting_color')).toHaveValue('blue rim light and soft silver fill')
+
+    // 切到 text 模式：未手动改动时展示按默认值解析后的完整提示词
+    await page.getByLabel('Prompt mode').selectOption('text')
     await expect(page.getByLabel('Full Generation Prompt')).toHaveValue(
-      readyTemplateResponse.promptText,
+      resolvedTemplatePrompt,
     )
     await expect(page.getByTestId('text-mode-highlight-editor')).toBeVisible()
     await expect(page.getByTestId('prompt-variable-token-subject')).toContainText('glass fox')
@@ -104,14 +120,11 @@ test.describe('analysis template autofill', () => {
     expect(metrics?.tokenBorderLeftWidth).toBe('0px')
     expect(metrics?.tokenMarginLeft).toBe('0px')
     expect(metrics?.tokenPaddingLeft).toBe('0px')
+    // text 模式下模板源不可见，切回 variables 模式后模板与变量保持可用
     await expect(page.getByLabel('Template Source')).toHaveCount(0)
-
     await page.getByLabel('Prompt mode').selectOption('variables')
     await expect(page.getByLabel('Template Source')).toHaveValue(/{{subject}}/)
     await expect(page.getByLabel('Variable subject')).toHaveValue('glass fox')
-    await expect(page.getByLabel('Variable scene')).toHaveValue('neon rain garden')
-    await expect(page.getByLabel('Variable visual_style')).toHaveValue('editorial glass realism')
-    await expect(page.getByLabel('Variable lighting_color')).toHaveValue('blue rim light and soft silver fill')
   })
 
   test('generates from default values without unresolved template markers', async ({ page }) => {
@@ -190,8 +203,10 @@ test.describe('analysis template autofill', () => {
       analysisResponse: readyTemplateResponse,
     })
 
+    // 现行默认 variables 模式，需先切到 text 模式再编辑解析后的提示词
+    await page.getByLabel('Prompt mode').selectOption('text')
     await page.getByLabel('Full Generation Prompt').fill(
-      readyTemplateResponse.promptText.replace('glass fox', 'crystal heron'),
+      resolvedTemplatePrompt.replace('glass fox', 'crystal heron'),
     )
 
     await expect(page.getByTestId('prompt-variable-token-subject')).toContainText('crystal heron')

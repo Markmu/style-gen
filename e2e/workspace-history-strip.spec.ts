@@ -89,8 +89,13 @@ test.describe('PLAN-04 history strip and restore', () => {
     })
 
     await uploadAndCompleteAnalysis(page, { analysisTaskId: 'history-strip-analysis-task' })
-    await page.getByTestId('floating-generate-button').click()
-    await expect(page.getByTestId('generation-dialog')).toContainText(/Generated Result/i)
+    await page
+      .getByTestId('output-card')
+      .getByRole('button', { name: /^Generate$/i })
+      .click()
+    await expect(page.getByTestId('generation-dialog')).toContainText(/Generated Result/i, {
+      timeout: 15000,
+    })
 
     await expect(page.getByTestId('history-strip')).toBeVisible()
     await expect(page.getByTestId('generate-history-bar')).toHaveCount(0)
@@ -109,9 +114,10 @@ test.describe('PLAN-04 history strip and restore', () => {
 
     await expect(page.getByTestId('history-detail-dialog')).toHaveCount(0)
     await expect(page.getByTestId('prompt-card')).toContainText('Restored ocean prompt snapshot')
-    await expect(page.getByTestId('top-mode-switcher').getByRole('button', { name: 'Editing' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    )
+    // Restore lands the workspace in the editing phase: the AI status header
+    // reports analysis_ready (the current phase value for history_restored) and
+    // the copilot ribbon's phase metric reads "Editing".
+    await expect(page.getByTestId('ai-status-header')).toHaveAttribute('data-phase', 'analysis_ready')
+    await expect(page.getByTestId('ai-copilot-ribbon')).toContainText('Editing')
   })
 })

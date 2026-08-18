@@ -43,12 +43,28 @@ async function mockHistoryList(page: Page) {
   })
 }
 
+const pixel = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+  'base64',
+)
+
 async function mockTemplateApi(page: Page, initialTemplates: MockTemplate[] = []) {
   const templates = [...initialTemplates]
   const createdBodies: Record<string, unknown>[] = []
 
   await mockAuthSession(page)
   await mockHistoryList(page)
+  // 卡片与 Use memory 后工作台的参考图都指向 cdn.example.com
+  await page.route('https://cdn.example.com/**', async (route) => {
+    if (
+      route.request().resourceType() === 'image' ||
+      /\.(png|jpg|jpeg|webp)$/.test(route.request().url())
+    ) {
+      await route.fulfill({ status: 200, contentType: 'image/png', body: pixel })
+      return
+    }
+    await route.continue()
+  })
 
   await page.route('**/api/templates**', async (route) => {
     const request = route.request()
@@ -204,7 +220,8 @@ async function mockTemplateApi(page: Page, initialTemplates: MockTemplate[] = []
 
 async function reachPromptEditor(page: Page, analysisTaskId = 'template-analysis-task') {
   await uploadAndCompleteAnalysis(page, { analysisTaskId })
-  await expect(page.getByRole('button', { name: 'Save as Template' })).toBeVisible({ timeout: 15000 })
+  // 触发按钮在 prompt-card 内，现行为 "Save as Style Memory"；弹窗仍名为 "Save as Template"
+  await expect(page.getByRole('button', { name: 'Save as Style Memory' })).toBeVisible({ timeout: 15000 })
 }
 
 test.describe('模板功能', () => {
@@ -212,7 +229,7 @@ test.describe('模板功能', () => {
     const api = await mockTemplateApi(page)
     await reachPromptEditor(page, 'template-save-source-task')
 
-    await page.getByRole('button', { name: 'Save as Template' }).click()
+    await page.getByRole('button', { name: 'Save as Style Memory' }).click()
     await expect(page.getByRole('dialog', { name: 'Save as Template' })).toBeVisible()
     await page.getByLabel('Template Name').fill('Saved prompt template')
     await page.getByRole('button', { name: 'Save Template' }).click()
@@ -231,7 +248,7 @@ test.describe('模板功能', () => {
     const api = await mockTemplateApi(page)
     await reachPromptEditor(page)
 
-    await page.getByRole('button', { name: 'Save as Template' }).click()
+    await page.getByRole('button', { name: 'Save as Style Memory' }).click()
     await page.getByLabel('Template Name').fill('Variable template')
     await page.getByRole('button', { name: /\{\{\}\} Insert Variable/ }).click()
     await page.getByPlaceholder('Variable name').fill('subject')
@@ -251,7 +268,7 @@ test.describe('模板功能', () => {
     await mockTemplateApi(page)
     await reachPromptEditor(page)
 
-    await page.getByRole('button', { name: 'Save as Template' }).click()
+    await page.getByRole('button', { name: 'Save as Style Memory' }).click()
     await page.getByRole('button', { name: 'Save Template' }).click()
 
     await expect(page.getByText('Enter a template name')).toBeVisible()
@@ -261,7 +278,7 @@ test.describe('模板功能', () => {
     await mockTemplateApi(page, [templateRecord({ id: 'existing-template', name: 'Duplicate name' })])
     await reachPromptEditor(page)
 
-    await page.getByRole('button', { name: 'Save as Template' }).click()
+    await page.getByRole('button', { name: 'Save as Style Memory' }).click()
     await page.getByLabel('Template Name').fill('Duplicate name')
     await page.getByRole('button', { name: 'Save Template' }).click()
 
@@ -289,20 +306,32 @@ test.describe('模板功能', () => {
     await expect(page.getByText(/Style tags/i).first()).toBeVisible()
     await expect(page.getByText(/Reuse intent/i).first()).toBeVisible()
 
-    await page.getByPlaceholder(/Search Style Memories/i).fill('glass')
+    // 搜索框现为 sr-only label "Search Style Memory"（placeholder 为行为提示文案）
+    const searchBox = page.getByRole('textbox', { name: /Search Style Memory/i })
+    await searchBox.fill('glass')
     await expect(page.getByText('Editorial Glass Poster')).toBeVisible()
     await expect(page.getByText('Soft Product Macro')).not.toBeVisible()
   })
 
   test('Use memory 跳转Workspace并按默认值加载变量', async ({ page }) => {
-    const template = templateRecord({ id: 'library-template-use', name: 'Default Value Template' })
+    // 现行 Use memory 通过 source-backed 快照（sourceAssetId+sourceImageUrl+content）
+    // 预写工作台快照，再经 /workspace?templateId= 进入，变量按 defaultValue 加载
+    const template = templateRecord({
+      id: 'library-template-use',
+      name: 'Default Value Template',
+      sourceAssetId: 'use-memory-source-asset',
+      sourceImageUrl: 'https://cdn.example.com/references/use-memory-source/original.png',
+    })
     await mockTemplateApi(page, [template])
 
     await page.goto('/workspace/templates', { waitUntil: 'commit' })
     await page.getByRole('heading', { name: template.name }).hover()
-    await page.getByRole('button', { name: 'Use memory' }).click({ force: true })
+    const useMemoryButton = page.getByRole('button', { name: 'Use memory' })
+    await expect(useMemoryButton).toBeVisible({ timeout: 5000 })
+    await useMemoryButton.click()
 
-    await expect(page).toHaveURL(/\/workspace/)
+    // templateId 参数被消费后 URL 回落到 /workspace（区别于 /workspace/templates）
+    await expect(page).toHaveURL(/\/workspace$/, { timeout: 15000 })
     await expect(page.getByTestId('unified-prompt-editor')).toBeVisible({ timeout: 15000 })
     await page.getByLabel('Prompt mode').selectOption('variables')
     await expect(page.getByLabel('Variable subject')).toHaveValue('glass sculpture')

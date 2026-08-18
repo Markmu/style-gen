@@ -14,17 +14,21 @@ async function mockShellApis(page: Page) {
 test.describe('Phase 12 AI-first shell compatibility', () => {
   test.use({ viewport: { width: 1280, height: 900 } })
 
-  test('workspace top navigation uses unified Visoryn brand and page entries', async ({ page }) => {
+  // 现行 workspace 外壳：站点级顶栏仅存在于非 workspace 路由，workspace 的
+  // 统一品牌与页面入口由左侧 "Workspace navigation" 侧栏承载
+  test('workspace navigation uses unified Visoryn brand and page entries', async ({ page }) => {
     await mockShellApis(page)
     await page.goto('/workspace')
 
-    const header = page.getByRole('banner')
-    await expect(header.getByRole('link', { name: /Visoryn/ })).toBeVisible()
-    await expect(header.getByRole('link', { name: /Home/ })).toBeVisible()
-    await expect(header.getByRole('link', { name: /Workspace/ })).toBeVisible()
-    await expect(header.getByRole('link', { name: /Style Memory/ })).toBeVisible()
-    await expect(header.getByText(/Template Library/i)).toHaveCount(0)
-    await expect(header.getByText('StyleGen')).toHaveCount(0)
+    const sidebar = page.getByRole('complementary', { name: /Workspace navigation/ })
+    const brandLink = sidebar.getByRole('link', { name: /Visoryn/ })
+    await expect(brandLink).toBeVisible()
+    await expect(brandLink).toHaveAttribute('href', '/')
+    await expect(sidebar.getByRole('link', { name: 'Generate' })).toBeVisible()
+    await expect(sidebar.getByRole('link', { name: 'Style Memory Library' })).toBeVisible()
+    await expect(sidebar.getByRole('link', { name: 'Iterations' })).toBeVisible()
+    await expect(sidebar.getByText(/Template Library/i)).toHaveCount(0)
+    await expect(page.getByText('StyleGen')).toHaveCount(0)
   })
 
   test('workspace sidebar marks Style Memory as current on templates page', async ({ page }) => {
@@ -32,11 +36,10 @@ test.describe('Phase 12 AI-first shell compatibility', () => {
     await page.goto('/workspace/templates')
 
     const sidebar = page.getByRole('complementary', { name: /Workspace navigation/ })
-    await expect(sidebar.getByRole('button', { name: /Style Memory/ })).toHaveAttribute(
-      'aria-current',
-      'page',
-    )
-    await expect(sidebar.getByRole('button', { name: /Generate/ })).not.toHaveAttribute(
+    const styleMemoryNav = sidebar.getByRole('link', { name: 'Style Memory Library' })
+    await expect(styleMemoryNav).toHaveAttribute('aria-current', 'page')
+    await expect(styleMemoryNav).toHaveAttribute('data-active', 'true')
+    await expect(sidebar.getByRole('link', { name: 'Generate' })).not.toHaveAttribute(
       'aria-current',
       'page',
     )
