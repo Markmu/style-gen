@@ -120,7 +120,7 @@ export function SaveStyleMemoryDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(25,28,30,0.32)] p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-md sm:p-6"
       onClick={onClose}
     >
       <div
@@ -128,17 +128,20 @@ export function SaveStyleMemoryDialog({
         role="dialog"
         aria-modal="true"
         aria-label="Save as Style Memory"
-        className="flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-[var(--surface-bright)] ring-1 ring-[var(--border-static)] shadow-[var(--shadow-ambient)]"
+        className="glass-panel flex max-h-[calc(100dvh-2.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl shadow-[var(--shadow-ambient)]"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex shrink-0 items-center justify-between gap-4 px-6 pt-6">
-          <h2 className="text-lg font-bold text-[var(--text-primary)]">
-            Save as Style Memory
-          </h2>
+        <div className="flex shrink-0 items-center justify-between gap-4 border-b border-[var(--border-static)] bg-[var(--surface-panel)] px-6 py-5">
+          <div>
+            <p className="label-tech text-[var(--text-muted)]">Save direction</p>
+            <h2 className="mt-0.5 text-lg font-semibold tracking-[-0.015em] text-[var(--text-primary)]">
+              Save as Style Memory
+            </h2>
+          </div>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-mid)] hover:text-[var(--text-primary)]"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
             aria-label="Close"
           >
             <AppIcon icon={X} size={16} />
@@ -155,7 +158,7 @@ export function SaveStyleMemoryDialog({
           <div className="space-y-1.5">
             <label
               htmlFor="style-memory-name"
-              className="block text-sm font-medium text-[var(--text-secondary)]"
+              className="label-tech text-[0.6875rem] text-[var(--text-secondary)]"
             >
               Name
             </label>
@@ -170,22 +173,26 @@ export function SaveStyleMemoryDialog({
               placeholder="Example: Neon dusk direction"
               maxLength={MAX_NAME_LENGTH}
               required
-              className="input-precision w-full rounded-t-md px-3 py-2 text-sm"
+              className="input-precision w-full rounded-lg px-3.5 py-2.5 text-sm"
             />
-            <p className="text-right text-xs text-[var(--text-secondary)]/60">
-              {name.length}/{MAX_NAME_LENGTH}
-            </p>
-            {isNameEmpty && (
-              <p className="text-xs text-[var(--color-error)]">
-                A name is required before saving.
+            <div className="flex items-center justify-between text-xs">
+              {isNameEmpty ? (
+                <p className="text-xs text-[var(--color-error)]">
+                  A name is required before saving.
+                </p>
+              ) : (
+                <span />
+              )}
+              <p className="text-right text-[0.6875rem] font-mono text-[var(--text-muted)]">
+                {name.length}/{MAX_NAME_LENGTH}
               </p>
-            )}
+            </div>
           </div>
 
           <div className="space-y-1.5">
             <label
               htmlFor="style-memory-content"
-              className="block text-sm font-medium text-[var(--text-secondary)]"
+              className="label-tech text-[0.6875rem] text-[var(--text-secondary)]"
             >
               Prompt content
             </label>
@@ -195,20 +202,20 @@ export function SaveStyleMemoryDialog({
               onChange={(event) => setContent(event.target.value)}
               rows={6}
               maxLength={MAX_CONTENT_LENGTH}
-              className="input-precision min-h-[10rem] w-full resize-y rounded-t-lg px-3 py-3 text-sm leading-6"
+              className="input-precision min-h-[10rem] w-full resize-y rounded-lg px-3.5 py-3 text-sm leading-6"
             />
-            <p className="text-right text-xs text-[var(--text-secondary)]/60">
+            <p className="text-right font-mono text-[0.6875rem] text-[var(--text-muted)]">
               {content.length} / {MAX_CONTENT_LENGTH.toLocaleString()}
             </p>
           </div>
 
           {initialVariables.length > 0 && (
-            <div className="space-y-3">
+            <div className="space-y-2.5 rounded-xl border border-[var(--border-static)] bg-[var(--surface-low)]/50 p-4">
               <div>
-                <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+                <h3 className="text-xs font-semibold text-[var(--text-primary)]">
                   Variables from this iteration ({initialVariables.length})
                 </h3>
-                <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
+                <p className="mt-0.5 text-[0.6875rem] leading-4 text-[var(--text-secondary)]">
                   Prefilled defaults are submitted with this memory as frozen
                   from the iteration.
                 </p>
@@ -217,12 +224,12 @@ export function SaveStyleMemoryDialog({
                 {initialVariables.map((variable) => (
                   <div
                     key={variable.name}
-                    className="rounded-md bg-[var(--surface-low)] px-2.5 py-1.5"
+                    className="rounded-lg border border-[var(--border-static)] bg-[var(--surface-floating)] p-2.5 shadow-2xs"
                   >
-                    <dt className="text-[0.65rem] font-medium text-[var(--text-muted)]">
+                    <dt className="label-tech text-[0.625rem] text-[var(--text-muted)]">
                       {variable.label || variable.name}
                     </dt>
-                    <dd className="mt-0.5 break-words text-[0.6875rem] leading-5 text-[var(--text-secondary)]">
+                    <dd className="mt-1 break-words font-mono text-[0.6875rem] font-medium leading-5 text-[var(--text-primary)]">
                       {variable.defaultValue}
                     </dd>
                   </div>
@@ -234,19 +241,19 @@ export function SaveStyleMemoryDialog({
           {error && (
             <p
               role="alert"
-              className="rounded-lg bg-[var(--color-error-soft)] px-3 py-2 text-sm text-[var(--color-error)]"
+              className="rounded-lg border border-[var(--color-error)]/30 bg-[var(--color-error-soft)] px-3.5 py-2.5 text-xs text-[var(--color-error)]"
             >
               {error}
             </p>
           )}
         </div>
 
-        <div className="flex shrink-0 items-center justify-end gap-3 px-6 pb-6">
+        <div className="flex shrink-0 items-center justify-end gap-2.5 border-t border-[var(--border-static)] bg-[var(--surface-panel)] px-6 py-4">
           <button
             type="button"
             onClick={onClose}
             disabled={isSaving}
-            className="rounded-lg px-4 py-2 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-mid)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+            className="btn-secondary rounded-lg px-4 py-2 text-xs font-medium"
           >
             Cancel
           </button>
@@ -254,7 +261,7 @@ export function SaveStyleMemoryDialog({
             type="button"
             onClick={() => void handleSubmit()}
             disabled={isSaving || isNameEmpty}
-            className="btn-primary rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
+            className="btn-primary rounded-lg px-4 py-2 text-xs font-semibold tracking-wide"
           >
             {isSaving ? "Saving…" : "Save Style Memory"}
           </button>

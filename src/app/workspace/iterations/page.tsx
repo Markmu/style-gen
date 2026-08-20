@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Search } from "lucide-react";
+import { Layers, Search, X } from "lucide-react";
 import { AppIcon } from "@/components/ui/app-icon";
 import { IterationList } from "@/components/iterations/iteration-list";
 import {
@@ -209,14 +209,19 @@ function IterationMemoryPageInner() {
       data-testid="iteration-memory-page"
     >
       <header className="shrink-0 px-4 pb-4 pt-6 sm:px-6 lg:px-8 lg:pb-5 lg:pt-8">
-        <div className="max-w-2xl">
-          <h1 className="text-[2rem] font-semibold leading-tight tracking-[-0.03em] text-[var(--text-primary)] lg:text-[2.25rem]">
-            Iteration Memory
-          </h1>
-          <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-            Every generation attempt across statuses. Search by prompt keyword,
-            then open an iteration to continue its direction.
-          </p>
+        <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="max-w-3xl">
+            <p className="label-tech mb-1.5 text-[var(--text-muted)]">
+              Workspace / Iteration Memory
+            </p>
+            <h1 className="text-[1.875rem] font-semibold leading-tight tracking-[-0.035em] text-[var(--text-primary)] sm:text-[2.25rem] lg:text-[2.5rem]">
+              Iteration Memory
+            </h1>
+            <p className="mt-1.5 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
+              Every generation attempt across statuses. Search by prompt keyword,
+              then open an iteration to continue its direction.
+            </p>
+          </div>
         </div>
       </header>
 
@@ -243,33 +248,58 @@ function IterationMemoryPageInner() {
                 placeholder="Search iterations…"
                 className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
               />
+              {q.trim().length > 0 && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    applyFilter("", status);
+                  }}
+                  aria-label="Clear search query"
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent-primary)]"
+                >
+                  <AppIcon icon={X} size={14} />
+                </button>
+              )}
             </label>
 
             <div
               role="radiogroup"
               aria-label="Status filter"
-              className="flex flex-wrap items-center gap-2"
+              className="flex flex-wrap items-center gap-1.5"
             >
-              {STATUS_FILTERS.map((filter) => (
-                <label
-                  key={filter.value}
-                  className={`flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors ${
-                    status === filter.value
-                      ? "border-[var(--accent-primary)] text-[var(--accent-primary)]"
-                      : "border-[var(--border-static)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="iteration-status-filter"
-                    value={filter.value}
-                    checked={status === filter.value}
-                    onChange={() => applyFilter(q, filter.value)}
-                    className="h-3.5 w-3.5 accent-[var(--accent-primary)]"
-                  />
-                  <span>{filter.label}</span>
-                </label>
-              ))}
+              {STATUS_FILTERS.map((filter) => {
+                const isSelected = status === filter.value;
+                return (
+                  <label
+                    key={filter.value}
+                    data-selected={isSelected ? "true" : undefined}
+                    className="iteration-filter-pill"
+                  >
+                    <input
+                      type="radio"
+                      name="iteration-status-filter"
+                      value={filter.value}
+                      checked={isSelected}
+                      onChange={() => applyFilter(q, filter.value)}
+                      className="absolute inset-0 cursor-pointer opacity-0"
+                    />
+                    <span
+                      className={`pointer-events-none h-1.5 w-1.5 rounded-full transition-colors ${
+                        isSelected
+                          ? filter.value === "completed"
+                            ? "bg-[var(--color-success)]"
+                            : filter.value === "failed"
+                              ? "bg-[var(--color-error)]"
+                              : "bg-[var(--accent-primary)]"
+                          : "bg-transparent"
+                      }`}
+                      aria-hidden="true"
+                    />
+                    <span className="pointer-events-none">{filter.label}</span>
+                  </label>
+                );
+              })}
             </div>
           </div>
         ) : (
@@ -310,13 +340,20 @@ function IterationMemoryPageInner() {
             <IterationLoadingSkeleton />
           ) : (
             <>
-              <p
-                className="mb-2 shrink-0 text-xs font-medium text-[var(--text-muted)]"
-                aria-live="polite"
-              >
-                {list.items.length}{" "}
-                {list.items.length === 1 ? "iteration" : "iterations"}
-              </p>
+              <div className="mb-2.5 flex shrink-0 items-center justify-between">
+                <p
+                  className="text-xs font-medium text-[var(--text-muted)]"
+                  aria-live="polite"
+                >
+                  {list.items.length}{" "}
+                  {list.items.length === 1 ? "iteration" : "iterations"}
+                </p>
+                {status !== "all" && (
+                  <span className="rounded-full border border-[var(--border-static)] bg-[var(--surface-low)] px-2.5 py-0.5 text-[0.6875rem] font-medium text-[var(--text-secondary)]">
+                    Filter: {status}
+                  </span>
+                )}
+              </div>
               <IterationList
                 items={list.items}
                 selectedId={selectedId}
@@ -332,18 +369,23 @@ function IterationMemoryPageInner() {
 
         <aside
           aria-label="Iteration detail"
-          className="hidden min-h-0 w-96 shrink-0 flex-col lg:flex"
+          className="hidden min-h-0 w-96 shrink-0 flex-col lg:flex xl:w-[26rem] 2xl:w-[28rem]"
         >
           {selectedId === null ? (
-            <div className="surface-panel flex h-full flex-col gap-3 rounded-lg p-4">
-              <h2 className="text-sm font-semibold text-[var(--text-primary)]">
-                Iteration detail
-              </h2>
-              <p className="text-sm leading-6 text-[var(--text-secondary)]">
-                Select an iteration to open its full creation context: reference,
-                evidence, prompt, and settings. The list keeps your search,
-                filter, and position while the detail is open.
-              </p>
+            <div className="surface-panel flex h-full flex-col items-center justify-center gap-4 rounded-xl border border-[var(--border-static)] p-8 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--border-static)] bg-[var(--surface-control)] text-[var(--accent-primary)] shadow-sm">
+                <AppIcon icon={Layers} size={24} />
+              </div>
+              <div className="max-w-xs space-y-2">
+                <h2 className="text-sm font-semibold tracking-[-0.015em] text-[var(--text-primary)]">
+                  Iteration detail
+                </h2>
+                <p className="text-xs leading-5 text-[var(--text-secondary)]">
+                  Select an iteration to open its full creation context: reference,
+                  evidence, prompt, and settings. The list keeps your search,
+                  filter, and position while the detail is open.
+                </p>
+              </div>
             </div>
           ) : detail.status === "error" ? (
             <IterationDetailErrorFace

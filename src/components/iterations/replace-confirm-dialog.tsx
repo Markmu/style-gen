@@ -43,63 +43,65 @@ export function ReplaceConfirmDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(25,28,30,0.32)] p-6 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-md sm:p-6">
       <div
         data-testid="replace-confirm-dialog"
         role="dialog"
         aria-modal="true"
         aria-label="Replace workspace content"
-        className="glass-panel flex w-full max-w-lg flex-col gap-4 rounded-xl p-6"
+        className="glass-panel flex w-full max-w-lg flex-col gap-5 rounded-2xl p-6 shadow-[var(--shadow-ambient)] sm:p-7"
       >
         <div>
           <p className="label-tech text-[var(--text-muted)]">
             Continue this direction
           </p>
-          <h2 className="mt-1 text-base font-semibold text-[var(--text-primary)]">
+          <h2 className="mt-1 text-base font-semibold tracking-[-0.015em] text-[var(--text-primary)]">
             Replace the workspace with this iteration?
           </h2>
         </div>
 
-        <p className="text-sm leading-6 text-[var(--text-secondary)]">
+        <p className="text-xs leading-5 text-[var(--text-secondary)]">
           Continuing switches the workspace to the selected iteration. Your
           current content will not be saved as a new iteration.
         </p>
 
-        <div className="grid gap-2">
+        <div className="grid gap-2.5">
           <div
             data-summary-side="current"
-            className="rounded-lg bg-[var(--surface-low)] p-3"
+            className="rounded-xl border border-[var(--border-static)] bg-[var(--surface-low)] p-3.5 shadow-2xs"
           >
-            <p className="label-tech text-[var(--text-muted)]">
+            <p className="label-tech text-[0.625rem] text-[var(--text-muted)]">
               Current direction
             </p>
-            <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-[var(--text-primary)]">
+            <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-5 text-[var(--text-secondary)]">
               {currentPrompt.trim() || "(no prompt yet)"}
             </p>
           </div>
           <div
             data-summary-side="target"
-            className="rounded-lg bg-[var(--surface-low)] p-3"
+            className="rounded-xl border border-[var(--accent-primary)]/35 bg-[var(--surface-floating)] p-3.5 shadow-xs"
           >
-            <p className="label-tech text-[var(--text-muted)]">Switching to</p>
-            <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-[var(--text-primary)]">
+            <p className="label-tech text-[0.625rem] text-[var(--accent-primary)]">
+              Switching to
+            </p>
+            <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-5 text-[var(--text-primary)]">
               {targetPrompt.trim()}
             </p>
           </div>
         </div>
 
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-2.5 pt-1">
           <button
             type="button"
             onClick={onCancel}
-            className="btn-secondary rounded-md px-3 py-1.5 text-sm font-medium"
+            className="btn-secondary rounded-lg px-4 py-2 text-xs font-medium"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className="btn-primary rounded-md px-3 py-1.5 text-sm font-medium"
+            className="btn-primary rounded-lg px-4 py-2 text-xs font-semibold tracking-wide"
           >
             Switch and continue
           </button>

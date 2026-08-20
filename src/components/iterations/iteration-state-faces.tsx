@@ -47,20 +47,23 @@ export function IterationLoadingSkeleton({ className }: FaceProps) {
     <div
       role="status"
       aria-label="Loading Iteration Memory"
-      className={`flex flex-col gap-2 ${className ?? ""}`}
+      className={`flex flex-col gap-2.5 pr-1 ${className ?? ""}`}
     >
       {Array.from({ length: 6 }).map((_, index) => (
         <div
           key={`iteration-skeleton-${index}`}
           aria-hidden="true"
-          className="surface-panel flex items-center gap-4 rounded-lg p-3"
+          className="surface-panel flex items-center gap-4 rounded-xl border border-[var(--border-static)]/60 p-3 shadow-2xs"
         >
-          <div className="h-16 w-24 shrink-0 animate-pulse rounded-md bg-[var(--surface-low)] motion-reduce:animate-none" />
-          <div className="min-w-0 flex-1 space-y-2">
-            <div className="h-3.5 w-2/3 animate-pulse rounded bg-[var(--surface-low)] motion-reduce:animate-none" />
-            <div className="h-3 w-1/3 animate-pulse rounded bg-[var(--surface-low)] motion-reduce:animate-none" />
+          <div className="h-[4.5rem] w-[6.5rem] shrink-0 animate-pulse rounded-lg bg-[var(--surface-low)] motion-reduce:animate-none" />
+          <div className="min-w-0 flex-1 space-y-2.5">
+            <div className="h-4 w-3/4 animate-pulse rounded-md bg-[var(--surface-low)] motion-reduce:animate-none" />
+            <div className="h-3 w-1/3 animate-pulse rounded-md bg-[var(--surface-low)] motion-reduce:animate-none" />
           </div>
-          <div className="h-3 w-16 shrink-0 animate-pulse rounded bg-[var(--surface-low)] motion-reduce:animate-none" />
+          <div className="flex flex-col items-end gap-2">
+            <div className="h-5 w-20 animate-pulse rounded-full bg-[var(--surface-low)] motion-reduce:animate-none" />
+            <div className="h-4 w-14 animate-pulse rounded-md bg-[var(--surface-low)] motion-reduce:animate-none" />
+          </div>
         </div>
       ))}
     </div>

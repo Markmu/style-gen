@@ -81,9 +81,9 @@ export function IterationList({
       ref={scrollRef}
       data-testid="iteration-list"
       onScroll={handleScroll}
-      className="min-h-0 flex-1 overflow-y-auto"
+      className="min-h-0 flex-1 overflow-y-auto pr-1"
     >
-      <ul className="flex flex-col gap-2 pb-2">
+      <ul className="flex flex-col gap-2.5 pb-2">
         {items.map((item) => (
           <IterationListItemRow
             key={item.id}
@@ -95,26 +95,39 @@ export function IterationList({
       </ul>
 
       {loadEarlierError && (
-        <p
+        <div
           role="status"
-          className="mt-2 rounded-md px-1 py-2 text-sm text-[var(--text-secondary)]"
+          className="mt-3 rounded-lg border border-[var(--color-error)]/30 bg-[var(--color-error-soft)] px-3.5 py-2.5 text-xs leading-5 text-[var(--text-secondary)] shadow-xs"
         >
-          Earlier records could not load. The iterations already listed stay
-          visible; try again below.
-        </p>
+          <p className="font-medium text-[var(--color-error)]">
+            Could not load earlier iterations
+          </p>
+          <p className="mt-0.5 text-[0.6875rem] text-[var(--text-secondary)]">
+            Earlier records could not load. The iterations already listed stay
+            visible; try again below.
+          </p>
+        </div>
       )}
 
       {hasNextPage && (
-        <button
-          type="button"
-          onClick={onLoadEarlier}
-          disabled={isFetchingNextPage}
-          aria-busy={isFetchingNextPage}
-          className="btn-secondary mt-2 flex w-full items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
-        >
-          <AppIcon icon={ChevronDown} size={16} />
-          Load earlier…
-        </button>
+        <div className="pt-2 pb-2">
+          <button
+            type="button"
+            onClick={onLoadEarlier}
+            disabled={isFetchingNextPage}
+            aria-busy={isFetchingNextPage}
+            className="btn-secondary flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-semibold tracking-wide transition-all duration-150"
+          >
+            <AppIcon
+              icon={ChevronDown}
+              size={15}
+              className={`transition-transform duration-200 ${
+                isFetchingNextPage ? "animate-spin motion-reduce:animate-none" : ""
+              }`}
+            />
+            <span>{isFetchingNextPage ? "Loading earlier records…" : "Load earlier…"}</span>
+          </button>
+        </div>
       )}
     </div>
   );

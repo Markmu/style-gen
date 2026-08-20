@@ -44,13 +44,11 @@ export function IterationListItemRow({
         data-selected={selected || undefined}
         aria-pressed={selected}
         onClick={() => onSelect?.(model.id)}
-        className={`interactive-lift flex w-full items-center gap-4 rounded-lg p-3 text-left transition-colors ${
-          selected
-            ? "surface-panel ring-1 ring-[var(--accent-primary)]"
-            : "surface-panel hover:bg-[var(--surface-floating)]"
+        className={`group iteration-item-card ${
+          selected ? "is-selected" : ""
         }`}
       >
-        <span className="relative flex h-16 w-24 shrink-0 items-center justify-center overflow-hidden rounded-md bg-[var(--surface-low)]">
+        <span className="iteration-media-lens">
           {showRealPreview && model.resultFileUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -58,11 +56,11 @@ export function IterationListItemRow({
               alt={`Result preview: ${model.promptSummary}`}
               loading="lazy"
               onError={() => setPreviewFailed(true)}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-105"
             />
           ) : model.status === "completed" ? (
             <span
-              className="flex h-full w-full flex-col items-center justify-center gap-1 px-2 text-center"
+              className="flex h-full w-full flex-col items-center justify-center gap-1 bg-[var(--surface-low)] px-2 text-center"
               data-degraded="result-preview"
             >
               <AppIcon
@@ -76,21 +74,24 @@ export function IterationListItemRow({
             </span>
           ) : model.status === "processing" ? (
             <span
-              className="flex h-full w-full flex-col items-center justify-center gap-1 px-2 text-center"
+              className="flex h-full w-full flex-col items-center justify-center gap-1.5 bg-[var(--status-accent-bg)]/50 px-2 text-center"
               data-iteration-face="processing"
             >
-              <AppIcon
-                icon={Clock3}
-                size={16}
-                className="text-[var(--status-accent-text)]"
-              />
-              <span className="text-[0.6875rem] leading-4 text-[var(--text-secondary)]">
+              <span className="relative flex items-center justify-center">
+                <span className="absolute h-5 w-5 animate-ping rounded-full bg-[var(--accent-primary)]/30 motion-reduce:animate-none" />
+                <AppIcon
+                  icon={Clock3}
+                  size={16}
+                  className="relative text-[var(--status-accent-text)]"
+                />
+              </span>
+              <span className="text-[0.6875rem] font-medium leading-4 text-[var(--text-secondary)]">
                 {statusFaceTitle.processing}
               </span>
             </span>
           ) : (
             <span
-              className="flex h-full w-full flex-col items-center justify-center gap-1 px-2 text-center"
+              className="flex h-full w-full flex-col items-center justify-center gap-1 bg-[var(--status-danger-bg)]/40 px-2 text-center"
               data-iteration-face="failed"
             >
               <AppIcon
@@ -98,32 +99,42 @@ export function IterationListItemRow({
                 size={16}
                 className="text-[var(--status-danger-text)]"
               />
-              <span className="text-[0.6875rem] leading-4 text-[var(--text-secondary)]">
+              <span className="text-[0.6875rem] font-medium leading-4 text-[var(--text-secondary)]">
                 {statusFaceTitle.failed}
               </span>
             </span>
           )}
         </span>
 
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium text-[var(--text-primary)]">
+        <span className="min-w-0 flex-1 space-y-1">
+          <span className="block truncate text-sm font-medium tracking-[-0.01em] text-[var(--text-primary)] transition-colors group-hover:text-[var(--accent-primary)]">
             {model.promptSummary || "Untitled iteration"}
           </span>
-          <span className="mt-1 block text-[0.6875rem] text-[var(--text-muted)]">
-            {model.createdAtLabel}
+          <span className="flex items-center gap-2 text-[0.6875rem] text-[var(--text-muted)]">
+            <span>{model.createdAtLabel}</span>
           </span>
         </span>
 
-        <span className="flex shrink-0 flex-col items-end gap-1">
+        <span className="flex shrink-0 flex-col items-end gap-1.5">
           <span
-            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold ${
+            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[0.6875rem] font-semibold tracking-wide transition-colors ${
               model.statusTone === "success"
-                ? "bg-[var(--status-success-bg)] text-[var(--status-success-text)]"
+                ? "border-[var(--color-success)]/30 bg-[var(--status-success-bg)] text-[var(--status-success-text)]"
                 : model.statusTone === "danger"
-                  ? "bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]"
-                  : "bg-[var(--status-accent-bg)] text-[var(--status-accent-text)]"
+                  ? "border-[var(--color-error)]/30 bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]"
+                  : "border-[var(--accent-primary)]/30 bg-[var(--status-accent-bg)] text-[var(--status-accent-text)]"
             }`}
           >
+            <span
+              className={`h-1.5 w-1.5 rounded-full shadow-sm ${
+                model.statusTone === "success"
+                  ? "bg-[var(--color-success)]"
+                  : model.statusTone === "danger"
+                    ? "bg-[var(--color-error)]"
+                    : "bg-[var(--accent-primary)]"
+              }`}
+              aria-hidden="true"
+            />
             {model.statusLabel}
           </span>
           {model.status === "completed" && previewFailed && (
@@ -131,7 +142,7 @@ export function IterationListItemRow({
               {degradedCopy.what} {degradedCopy.preserved} {degradedCopy.next}
             </span>
           )}
-          <span className="font-mono text-[0.75rem] text-[var(--text-secondary)]">
+          <span className="rounded-md border border-[var(--border-static)] bg-[var(--surface-control)]/80 px-2 py-0.5 font-mono text-[0.6875rem] text-[var(--text-secondary)] shadow-xs">
             {model.settingsSummary}
           </span>
         </span>

@@ -152,6 +152,44 @@ describe("StyleMemoryPage", () => {
     expect(within(state as HTMLElement).getByRole("button", { name: /back to workspace/i })).toBeInTheDocument();
   });
 
+  it("filters memories by category pills and allows resetting filters", async () => {
+    const user = userEvent.setup();
+    const promptOnlyMemory = {
+      id: "memory-2",
+      name: "Minimalist Geometry",
+      variableCount: 0,
+      sourceAssetId: null,
+      sourceImageUrl: null,
+      createdAt: "2026-06-02T00:00:00.000Z",
+    };
+
+    renderPageWithState({
+      templates: [memory, promptOnlyMemory],
+    });
+
+    expect(screen.getByText("2 memories")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: memory.name })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: promptOnlyMemory.name })).toBeInTheDocument();
+
+    // Click "Prompt-only" filter
+    await user.click(screen.getByRole("button", { name: /prompt-only/i }));
+    expect(screen.getByText("1 memory")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: memory.name })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: promptOnlyMemory.name })).toBeInTheDocument();
+
+    // Click "Source-backed" filter
+    await user.click(screen.getByRole("button", { name: /source-backed/i }));
+    expect(screen.getByText("1 memory")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: memory.name })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: promptOnlyMemory.name })).not.toBeInTheDocument();
+
+    // Reset filters
+    await user.click(screen.getByRole("button", { name: /reset filters/i }));
+    expect(screen.getByText("2 memories")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: memory.name })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: promptOnlyMemory.name })).toBeInTheDocument();
+  });
+
   it("maps API failures to failedRecoverable instead of empty or noResults", () => {
     const { container } = renderPageWithState({
       templates: undefined,
