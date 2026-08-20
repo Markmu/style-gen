@@ -84,7 +84,7 @@ export function LeftSidebar() {
           aria-label="Visoryn home"
         >
           <VisorynMark className="workspace-sidebar-brand-mark shrink-0" />
-          <span className="hidden truncate text-lg font-bold text-[var(--text-primary)] md:inline">
+          <span className="workspace-sidebar-brand-title hidden truncate text-lg font-bold text-[var(--text-primary)] md:inline">
             Visoryn
           </span>
         </Link>

@@ -1014,6 +1014,12 @@ body {
   color: var(--text-primary);
 }
 
+.workspace-sidebar :where(.text-lg),
+.workspace-sidebar-brand-title {
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+}
+
 .workspace-sidebar :where(.text-sm),
 .workspace-sidebar-nav-item {
   font-size: 0.8125rem;
