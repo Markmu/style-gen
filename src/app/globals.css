@@ -1014,6 +1014,11 @@ body {
   color: var(--text-primary);
 }
 
+.workspace-sidebar :where(.text-sm),
+.workspace-sidebar-nav-item {
+  font-size: 0.8125rem;
+}
+
 .workspace-sidebar-nav-item {
   --sidebar-nav-accent: var(--accent-primary);
   --sidebar-nav-soft: var(--accent-primary-soft);
@@ -1025,12 +1030,6 @@ body {
     border-color 0.15s ease,
     color 0.15s ease,
     box-shadow 0.15s ease;
-}
-
-.workspace-sidebar-nav-item[data-tone="library"] {
-  --sidebar-nav-accent: var(--text-secondary);
-  --sidebar-nav-soft: var(--surface-low);
-  --sidebar-nav-ink: var(--text-secondary);
 }
 
 .workspace-sidebar-nav-icon {
