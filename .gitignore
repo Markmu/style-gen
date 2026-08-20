@@ -44,3 +44,5 @@ test-results/
 .claude/*
 !.claude/contracts/
 !.claude/contracts/workflow-schema.json
+
+.zcode/
