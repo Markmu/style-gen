@@ -1014,8 +1014,10 @@ body {
   color: var(--text-primary);
 }
 
-.workspace-sidebar :where(.text-lg),
-.workspace-sidebar-brand-title {
+/* The workspace dense type scale compacts `.text-lg`; the sidebar brand is
+   persistent chrome and keeps the locked brand scale on every variant. */
+.workspace-sidebar-brand-title,
+.workspace-chromatic[data-variant] .workspace-sidebar-brand-title {
   font-size: 1.125rem;
   line-height: 1.75rem;
 }
