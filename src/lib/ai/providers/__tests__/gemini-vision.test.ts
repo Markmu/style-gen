@@ -1,4 +1,4 @@
-import { analyzeImage, VisionError } from "../vision";
+import { GeminiVisionProvider, VisionError } from "../gemini-vision";
 
 // Mock @google/genai
 const mockGenerateContent = vi.fn();
@@ -18,7 +18,12 @@ vi.mock("@google/genai", () => {
 import { GoogleGenAI } from "@google/genai";
 const MockedGoogleGenAI = vi.mocked(GoogleGenAI);
 
-describe("vision", () => {
+function analyze(imageUrl: string, mimeType: string = "image/jpeg") {
+  const provider = new GeminiVisionProvider();
+  return provider.analyze({ imageUrl, mimeType });
+}
+
+describe("GeminiVisionProvider", () => {
   const ORIGINAL_ENV = process.env;
 
   beforeEach(() => {
@@ -38,14 +43,18 @@ describe("vision", () => {
     vi.useRealTimers();
   });
 
-  describe("analyzeImage", () => {
-    it("正常返回分析文本", async () => {
+  describe("analyze", () => {
+    it("正常返回同步分析文本", async () => {
       mockGenerateContent.mockResolvedValue({
         text: "A beautiful landscape with mountains",
       });
 
-      const result = await analyzeImage("https://example.com/image.jpg");
-      expect(result).toBe("A beautiful landscape with mountains");
+      const result = await analyze("https://example.com/image.jpg");
+
+      expect(result).toEqual({
+        mode: "sync",
+        result: "A beautiful landscape with mountains",
+      });
     });
 
     it("传递指定的 mimeType", async () => {
@@ -53,7 +62,7 @@ describe("vision", () => {
         text: "Analysis result",
       });
 
-      await analyzeImage("https://example.com/image.png", "image/png");
+      await analyze("https://example.com/image.png", "image/png");
 
       expect(mockGenerateContent).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -72,27 +81,24 @@ describe("vision", () => {
       );
     });
 
-    it("默认 mimeType 为 image/jpeg", async () => {
+    it("忽略 webhookUrl 参数（Gemini 为同步调用）", async () => {
       mockGenerateContent.mockResolvedValue({
         text: "Analysis result",
       });
 
-      await analyzeImage("https://example.com/image.jpg");
+      const provider = new GeminiVisionProvider();
+      const result = await provider.analyze({
+        imageUrl: "https://example.com/image.jpg",
+        mimeType: "image/jpeg",
+        webhookUrl: "https://example.com/webhook",
+      });
 
+      expect(result).toEqual({
+        mode: "sync",
+        result: "Analysis result",
+      });
       expect(mockGenerateContent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          contents: expect.arrayContaining([
-            expect.objectContaining({
-              parts: expect.arrayContaining([
-                expect.objectContaining({
-                  fileData: expect.objectContaining({
-                    mimeType: "image/jpeg",
-                  }),
-                }),
-              ]),
-            }),
-          ]),
-        })
+        expect.not.objectContaining({ webhookUrl: expect.anything() })
       );
     });
 
@@ -101,7 +107,7 @@ describe("vision", () => {
         text: "Analysis result",
       });
 
-      await analyzeImage("https://example.com/image.jpg");
+      await analyze("https://example.com/image.jpg");
 
       expect(mockGenerateContent).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -114,11 +120,11 @@ describe("vision", () => {
       delete process.env.GEMINI_API_KEY;
 
       await expect(
-        analyzeImage("https://example.com/image.jpg")
+        analyze("https://example.com/image.jpg")
       ).rejects.toThrow(VisionError);
 
       await expect(
-        analyzeImage("https://example.com/image.jpg")
+        analyze("https://example.com/image.jpg")
       ).rejects.toThrow("GEMINI_API_KEY is not configured");
     });
 
@@ -128,7 +134,7 @@ describe("vision", () => {
       });
 
       await expect(
-        analyzeImage("https://example.com/image.jpg")
+        analyze("https://example.com/image.jpg")
       ).rejects.toThrow(VisionError);
 
       mockGenerateContent.mockResolvedValue({
@@ -136,7 +142,7 @@ describe("vision", () => {
       });
 
       await expect(
-        analyzeImage("https://example.com/image.jpg")
+        analyze("https://example.com/image.jpg")
       ).rejects.toThrow("Vision model returned empty response");
     });
 
@@ -150,7 +156,7 @@ describe("vision", () => {
           })
         );
 
-        const promise = analyzeImage("https://example.com/image.jpg");
+        const promise = analyze("https://example.com/image.jpg");
 
         // 添加空 catch 防止 unhandled rejection
         promise.catch(() => {});
@@ -172,11 +178,11 @@ describe("vision", () => {
       );
 
       await expect(
-        analyzeImage("https://example.com/image.jpg")
+        analyze("https://example.com/image.jpg")
       ).rejects.toThrow(VisionError);
 
       await expect(
-        analyzeImage("https://example.com/image.jpg")
+        analyze("https://example.com/image.jpg")
       ).rejects.toThrow("Vision analysis failed: Network connection failed");
     });
 
@@ -185,7 +191,7 @@ describe("vision", () => {
       mockGenerateContent.mockRejectedValue(originalError);
 
       await expect(
-        analyzeImage("https://example.com/image.jpg")
+        analyze("https://example.com/image.jpg")
       ).rejects.toThrow(originalError);
     });
 
@@ -193,11 +199,11 @@ describe("vision", () => {
       mockGenerateContent.mockRejectedValue("string error");
 
       await expect(
-        analyzeImage("https://example.com/image.jpg")
+        analyze("https://example.com/image.jpg")
       ).rejects.toThrow(VisionError);
 
       await expect(
-        analyzeImage("https://example.com/image.jpg")
+        analyze("https://example.com/image.jpg")
       ).rejects.toThrow("Vision analysis failed: Unknown vision error");
     });
   });

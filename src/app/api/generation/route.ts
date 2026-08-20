@@ -6,11 +6,11 @@ import {
   listIterations,
 } from "@/lib/repositories/generation-task-repository";
 import { findById as findTemplateById } from "@/lib/repositories/template-repository";
-import { createAsset } from "@/lib/repositories/asset-repository";
-import { uploadBuffer, getPublicUrl } from "@/lib/r2";
 import { auth } from "@/auth";
 import { getImageGenProvider } from "@/lib/ai/providers";
 import { buildWebhookUrl, startTimeoutTimer } from "@/lib/ai/webhook-utils";
+import { completeGenerationTask } from "@/lib/ai/generation-completion";
+import { log, logErrorDetail } from "@/lib/ai/log";
 import type { IterationStatusFilter } from "@/types/models";
 
 /** fal.ai 同步模式超时 120s */
@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Internal server error";
-    logError("generation_history_list_failed", error, {
+    logErrorDetail("generation_history_list_failed", error, {
       path: request.nextUrl.pathname,
       query: request.nextUrl.search,
     });
@@ -173,24 +173,6 @@ function validateBody(body: unknown): GenerationRequestBody | null {
   };
 }
 
-/** 结构化日志输出 */
-function log(event: string, data: Record<string, unknown>) {
-  console.log(JSON.stringify({ event, timestamp: new Date().toISOString(), ...data }));
-}
-
-/** 结构化错误日志输出 */
-function logError(event: string, error: unknown, data: Record<string, unknown> = {}) {
-  const message = error instanceof Error ? error.message : String(error);
-  const stack = error instanceof Error ? error.stack : undefined;
-  console.error(JSON.stringify({
-    event,
-    timestamp: new Date().toISOString(),
-    error: message,
-    stack,
-    ...data,
-  }));
-}
-
 /** fal.ai 同步模式：后台异步执行Generation Task（含 120s 超时） */
 async function executeSyncGeneration(
   taskId: string,
@@ -201,7 +183,18 @@ async function executeSyncGeneration(
 
   // 使用 Promise.race 实现超时
   await Promise.race([
-    executeSyncGenerationCore(taskId, userId, providerResult, () => aborted),
+    completeGenerationTask({
+      taskId,
+      userId,
+      imageUrl: providerResult.imageUrl,
+      width: providerResult.width,
+      height: providerResult.height,
+      isAborted: () => aborted,
+    }).then((completed) => {
+      if (completed) {
+        log("generation_completed", { taskId, status: "completed" });
+      }
+    }),
     new Promise<never>((_, reject) => {
       const timer = setTimeout(() => {
         aborted = true;
@@ -213,47 +206,6 @@ async function executeSyncGeneration(
       }
     }),
   ]);
-}
-
-/** fal.ai 同步模式核心逻辑 */
-async function executeSyncGenerationCore(
-  taskId: string,
-  userId: string,
-  providerResult: { imageUrl: string; width: number; height: number },
-  isAborted: () => boolean
-): Promise<void> {
-  // Download临时图片，上传到 R2
-  const r2Key = `generated/${taskId}/result.webp`;
-  const imageResponse = await fetch(providerResult.imageUrl);
-  if (!imageResponse.ok) {
-    throw new Error(`Failed to download generated image: ${imageResponse.status}`);
-  }
-  const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
-  await uploadBuffer(r2Key, imageBuffer, "image/webp");
-
-  // 超时后不再继续更新状态
-  if (isAborted()) return;
-
-  // 创建 Asset 记录
-  const asset = await createAsset(userId, {
-    type: "generated",
-    fileUrl: getPublicUrl(r2Key),
-    thumbnailUrl: null,
-    width: providerResult.width,
-    height: providerResult.height,
-    mimeType: "image/webp",
-  });
-
-  // 最终检查 aborted 状态，避免覆盖 failed 状态
-  if (isAborted()) return;
-
-  // 更新 GenerationTask 为 completed
-  await updateGenerationTask(taskId, {
-    status: "completed",
-    resultAssetId: asset.id,
-  });
-
-  log("generation_completed", { taskId, status: "completed" });
 }
 
 export async function POST(request: NextRequest) {
@@ -399,7 +351,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Internal server error";
-    logError("generation_create_failed", error);
+    logErrorDetail("generation_create_failed", error);
     return NextResponse.json(
       { error: message, code: "SERVICE_UNAVAILABLE", retryable: true },
       { status: 500 }

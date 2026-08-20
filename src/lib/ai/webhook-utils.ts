@@ -1,5 +1,6 @@
 import { findAnalysisTaskByIdInternal, updateAnalysisTask } from '@/lib/repositories/analysis-task-repository';
 import { findGenerationTaskByIdInternal, updateGenerationTask } from '@/lib/repositories/generation-task-repository';
+import { logError } from './log';
 
 /**
  * 构建 Replicate Webhook URL
@@ -22,6 +23,14 @@ export function buildWebhookUrl(taskType: 'analysis' | 'generation', taskId: str
   return `${baseUrl}/api/webhooks/replicate?taskType=${taskType}&taskId=${taskId}`;
 }
 
+/** 超时定时器的可定制文案与日志事件名 */
+export interface TimeoutTimerOptions {
+  /** 写入任务的超时错误信息 */
+  timeoutMessage?: string;
+  /** 超时生效时的结构化日志事件名 */
+  timeoutEvent?: string;
+}
+
 /**
  * 启动超时定时器
  * 在指定时间后检查任务状态，如果仍在 processing 则标记为 failed
@@ -32,8 +41,12 @@ export function buildWebhookUrl(taskType: 'analysis' | 'generation', taskId: str
 export function startTimeoutTimer(
   taskId: string,
   taskType: 'analysis' | 'generation',
-  timeoutMs: number = 5 * 60 * 1000 // 默认 5 分钟
+  timeoutMs: number = 5 * 60 * 1000, // 默认 5 分钟
+  options: TimeoutTimerOptions = {}
 ): void {
+  const timeoutMessage = options.timeoutMessage ?? 'Task timed out after 5 minutes';
+  const timeoutEvent = options.timeoutEvent ?? 'task_timeout';
+
   const timer = setTimeout(async () => {
     try {
       if (taskType === 'analysis') {
@@ -41,45 +54,39 @@ export function startTimeoutTimer(
         if (task && task.status === 'processing') {
           await updateAnalysisTask(taskId, {
             status: 'failed',
-            errorMessage: 'Task timed out after 5 minutes',
+            errorMessage: timeoutMessage,
             errorStage: task.errorStage || 'vision',
           });
-          console.error(JSON.stringify({
-            event: 'task_timeout',
-            timestamp: new Date().toISOString(),
+          logError(timeoutEvent, {
             taskId,
             taskType: 'analysis',
             provider: task.provider,
             submittedAt: task.createdAt,
             timeoutMs,
-          }));
+          });
         }
       } else {
         const task = await findGenerationTaskByIdInternal(taskId);
         if (task && task.status === 'processing') {
           await updateGenerationTask(taskId, {
             status: 'failed',
-            errorMessage: 'Task timed out after 5 minutes',
+            errorMessage: timeoutMessage,
           });
-          console.error(JSON.stringify({
-            event: 'task_timeout',
-            timestamp: new Date().toISOString(),
+          logError(timeoutEvent, {
             taskId,
             taskType: 'generation',
             provider: task.provider,
             submittedAt: task.createdAt,
             timeoutMs,
-          }));
+          });
         }
       }
     } catch (error) {
-      console.error(JSON.stringify({
-        event: 'timeout_timer_error',
-        timestamp: new Date().toISOString(),
+      logError('timeout_timer_error', {
         taskId,
         taskType,
         error: error instanceof Error ? error.message : 'Unknown error',
-      }));
+      });
     }
   }, timeoutMs);
 

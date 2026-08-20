@@ -1,17 +1,10 @@
 import Replicate from "replicate";
 import { STRUCTURER_SYSTEM_PROMPT } from "../prompts";
+import { log } from "../log";
 import type { StructurerProvider, StructurerContext } from "./types";
 
 const MODEL = "google/gemini-2.5-flash";
 const TIMEOUT_SECONDS = 30;
-
-function log(event: string, data: Record<string, unknown>) {
-  console.log(JSON.stringify({
-    event,
-    timestamp: new Date().toISOString(),
-    ...data,
-  }));
-}
 
 function normalizeOutput(output: unknown): string {
   if (typeof output === "string") {

@@ -1,4 +1,4 @@
-import { generateImage, ImageGenError } from "../image-gen";
+import { FalImageGenProvider, ImageGenError } from "../fal-image-gen";
 
 // Mock @fal-ai/client
 const mockSubscribe = vi.fn();
@@ -24,7 +24,12 @@ const fakeFalImage = {
   content_type: "image/webp",
 };
 
-describe("generateImage", () => {
+function generate(params: Partial<typeof defaultParams> = {}) {
+  const provider = new FalImageGenProvider();
+  return provider.generate({ ...defaultParams, ...params });
+}
+
+describe("FalImageGenProvider", () => {
   const ORIGINAL_ENV = process.env;
 
   beforeEach(() => {
@@ -38,14 +43,15 @@ describe("generateImage", () => {
   });
 
   // 1. P0: 正常生成
-  it("应正常返回生成的图片信息", async () => {
+  it("应正常返回同步生成的图片信息", async () => {
     mockSubscribe.mockResolvedValueOnce({
       data: { images: [fakeFalImage] },
     });
 
-    const result = await generateImage(defaultParams);
+    const result = await generate();
 
     expect(result).toEqual({
+      mode: "sync",
       imageUrl: fakeFalImage.url,
       width: fakeFalImage.width,
       height: fakeFalImage.height,
@@ -57,7 +63,7 @@ describe("generateImage", () => {
     delete process.env.FAL_KEY;
 
     try {
-      await generateImage(defaultParams);
+      await generate();
       expect.fail("should have thrown");
     } catch (error) {
       expect(error).toBeInstanceOf(ImageGenError);
@@ -72,7 +78,7 @@ describe("generateImage", () => {
     // subscribe 永远不 resolve
     mockSubscribe.mockReturnValueOnce(new Promise(() => {}));
 
-    const promise = generateImage(defaultParams);
+    const promise = generate();
 
     // 快进 120s
     vi.advanceTimersByTime(120_000);
@@ -97,7 +103,7 @@ describe("generateImage", () => {
     });
 
     try {
-      await generateImage(defaultParams);
+      await generate();
       expect.fail("should have thrown");
     } catch (error) {
       expect(error).toBeInstanceOf(ImageGenError);
@@ -112,7 +118,7 @@ describe("generateImage", () => {
     });
 
     try {
-      await generateImage(defaultParams);
+      await generate();
       expect.fail("should have thrown");
     } catch (error) {
       expect(error).toBeInstanceOf(ImageGenError);
@@ -125,7 +131,7 @@ describe("generateImage", () => {
     mockSubscribe.mockRejectedValueOnce(new Error("network error"));
 
     try {
-      await generateImage(defaultParams);
+      await generate();
       expect.fail("should have thrown");
     } catch (error) {
       expect(error).toBeInstanceOf(ImageGenError);
@@ -140,16 +146,41 @@ describe("generateImage", () => {
     const original = new ImageGenError("custom error from model");
     mockSubscribe.mockRejectedValueOnce(original);
 
-    await expect(generateImage(defaultParams)).rejects.toThrow(original);
+    await expect(generate()).rejects.toThrow(original);
   });
 
-  // 8. P0: aspectRatio 映射 16:9 -> landscape_16_9
+  // 8. P0: webhookUrl 被忽略（fal 为同步调用）
+  it("webhookUrl 参数不应传递给底层模型调用", async () => {
+    mockSubscribe.mockResolvedValueOnce({
+      data: { images: [fakeFalImage] },
+    });
+
+    const provider = new FalImageGenProvider();
+    const result = await provider.generate({
+      ...defaultParams,
+      webhookUrl: "https://example.com/webhook",
+    });
+
+    expect(result.mode).toBe("sync");
+    expect(mockSubscribe).toHaveBeenCalledWith(
+      "fal-ai/flux/dev",
+      expect.objectContaining({
+        input: expect.objectContaining({
+          prompt: defaultParams.prompt,
+          image_size: "square",
+          num_images: 1,
+        }),
+      })
+    );
+  });
+
+  // 9. P0: aspectRatio 映射 16:9 -> landscape_16_9
   it("aspectRatio 16:9 应映射为 landscape_16_9", async () => {
     mockSubscribe.mockResolvedValueOnce({
       data: { images: [fakeFalImage] },
     });
 
-    await generateImage({ ...defaultParams, aspectRatio: "16:9" });
+    await generate({ aspectRatio: "16:9" });
 
     expect(mockSubscribe).toHaveBeenCalledWith(
       "fal-ai/flux/dev",
@@ -161,13 +192,13 @@ describe("generateImage", () => {
     );
   });
 
-  // 9. P0: aspectRatio 映射 4:3 -> landscape_4_3
+  // 10. P0: aspectRatio 映射 4:3 -> landscape_4_3
   it("aspectRatio 4:3 应映射为 landscape_4_3", async () => {
     mockSubscribe.mockResolvedValueOnce({
       data: { images: [fakeFalImage] },
     });
 
-    await generateImage({ ...defaultParams, aspectRatio: "4:3" });
+    await generate({ aspectRatio: "4:3" });
 
     expect(mockSubscribe).toHaveBeenCalledWith(
       "fal-ai/flux/dev",
@@ -179,13 +210,13 @@ describe("generateImage", () => {
     );
   });
 
-  // 10. P0: aspectRatio 映射 1:1 -> square
+  // 11. P0: aspectRatio 映射 1:1 -> square
   it("aspectRatio 1:1 应映射为 square", async () => {
     mockSubscribe.mockResolvedValueOnce({
       data: { images: [fakeFalImage] },
     });
 
-    await generateImage({ ...defaultParams, aspectRatio: "1:1" });
+    await generate({ aspectRatio: "1:1" });
 
     expect(mockSubscribe).toHaveBeenCalledWith(
       "fal-ai/flux/dev",
@@ -197,13 +228,13 @@ describe("generateImage", () => {
     );
   });
 
-  // 11. P1: aspectRatio 其他值 -> square (default)
+  // 12. P1: aspectRatio 其他值 -> square (default)
   it("aspectRatio 其他值应默认映射为 square", async () => {
     mockSubscribe.mockResolvedValueOnce({
       data: { images: [fakeFalImage] },
     });
 
-    await generateImage({ ...defaultParams, aspectRatio: "3:2" });
+    await generate({ aspectRatio: "3:2" });
 
     expect(mockSubscribe).toHaveBeenCalledWith(
       "fal-ai/flux/dev",
@@ -215,13 +246,13 @@ describe("generateImage", () => {
     );
   });
 
-  // 12. P1: 使用正确模型 (fal-ai/flux/dev)
+  // 13. P1: 使用正确模型 (fal-ai/flux/dev)
   it("应使用 fal-ai/flux/dev 模型", async () => {
     mockSubscribe.mockResolvedValueOnce({
       data: { images: [fakeFalImage] },
     });
 
-    await generateImage(defaultParams);
+    await generate();
 
     expect(mockSubscribe).toHaveBeenCalledWith(
       "fal-ai/flux/dev",
@@ -229,13 +260,13 @@ describe("generateImage", () => {
     );
   });
 
-  // 13. P1: num_images 为 1
+  // 14. P1: num_images 为 1
   it("num_images 应为 1", async () => {
     mockSubscribe.mockResolvedValueOnce({
       data: { images: [fakeFalImage] },
     });
 
-    await generateImage(defaultParams);
+    await generate();
 
     expect(mockSubscribe).toHaveBeenCalledWith(
       expect.any(String),
@@ -247,12 +278,12 @@ describe("generateImage", () => {
     );
   });
 
-  // 14. P2: 非 Error 异常
+  // 15. P2: 非 Error 异常
   it("非 Error 异常应包装为 ImageGenError 并使用 Unknown 消息", async () => {
     mockSubscribe.mockRejectedValueOnce("string error");
 
     try {
-      await generateImage(defaultParams);
+      await generate();
       expect.fail("should have thrown");
     } catch (error) {
       expect(error).toBeInstanceOf(ImageGenError);
@@ -268,7 +299,7 @@ describe("generateImage", () => {
       data: { images: [fakeFalImage] },
     });
 
-    await generateImage(defaultParams);
+    await generate();
 
     expect(createFalClient).toHaveBeenCalledWith({
       credentials: "test-fal-key",

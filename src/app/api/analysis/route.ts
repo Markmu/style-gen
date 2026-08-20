@@ -2,13 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   createAnalysisTask,
   updateAnalysisTask,
-  findAnalysisTaskByIdInternal,
 } from "@/lib/repositories/analysis-task-repository";
 import { upsertAsset } from "@/lib/repositories/asset-repository";
-import { structureAnalysis, StructurerError } from "@/lib/ai/structurer";
-import { toAnalysisCompletionUpdate } from "@/lib/ai/analysis-completion";
+import { structureAnalysis } from "@/lib/ai/structurer";
+import {
+  toAnalysisCompletionUpdate,
+  toAnalysisFallbackUpdate,
+} from "@/lib/ai/analysis-completion";
 import { getVisionProvider } from "@/lib/ai/providers";
-import { buildWebhookUrl } from "@/lib/ai/webhook-utils";
+import { buildWebhookUrl, startTimeoutTimer } from "@/lib/ai/webhook-utils";
+import { log } from "@/lib/ai/log";
 import { auth } from "@/auth";
 
 /** Replicate 异步模式超时 5 分钟 */
@@ -41,39 +44,6 @@ function validateBody(body: unknown): AnalysisRequestBody | null {
     height: obj.height,
     mimeType: obj.mimeType,
   };
-}
-
-/** 结构化日志输出 */
-function log(event: string, data: Record<string, unknown>) {
-  console.log(JSON.stringify({ event, timestamp: new Date().toISOString(), ...data }));
-}
-
-/**
- * 启动超时定时器
- * 用于 Replicate 异步模式：5 分钟后检查任务状态，仍未 processing 则标记 failed
- */
-function startTimeoutTimer(taskId: string, timeoutMs: number): void {
-  const timer = setTimeout(async () => {
-    try {
-      const task = await findAnalysisTaskByIdInternal(taskId);
-      if (task && task.status === 'processing') {
-        await updateAnalysisTask(taskId, {
-          status: 'failed',
-          errorMessage: `Webhook callback not received within ${timeoutMs / 1000}s`,
-          errorStage: 'vision',
-        });
-        log('analysis_timeout', { taskId, timeoutMs });
-      }
-    } catch (error) {
-      log('analysis_timeout_check_failed', {
-        taskId,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  }, timeoutMs);
-
-  // 允许 Node.js 进程正常退出
-  if (timer.unref) timer.unref();
 }
 
 export async function POST(request: NextRequest) {
@@ -173,7 +143,10 @@ export async function POST(request: NextRequest) {
 
       // Replicate 异步模式：保存 externalId + 启动超时定时器 + 立即返回
       await updateAnalysisTask(task.id, { externalId: result.externalId });
-      startTimeoutTimer(task.id, REPLICATE_TIMEOUT_MS);
+      startTimeoutTimer(task.id, 'analysis', REPLICATE_TIMEOUT_MS, {
+        timeoutMessage: `Webhook callback not received within ${REPLICATE_TIMEOUT_MS / 1000}s`,
+        timeoutEvent: 'analysis_timeout',
+      });
 
       log("analysis_task_submitted", {
         taskId: task.id,
@@ -245,45 +218,15 @@ async function executeSyncPipeline(taskId: string, rawAnalysis: string, imageUrl
 
     return completedTask;
   } catch (error) {
-    // L3 降级：LLM 失败时降级返回原始视觉分析
-    if (error instanceof StructurerError) {
-      log("structurer_call_failed", { taskId, error: error.message, degraded: true });
-
-      const degradedTask = await updateAnalysisTask(taskId, {
-        status: "completed",
-        recipe: null,
-        promptText: rawAnalysis,
-        negativePromptText: "",
-        rawResponse: rawAnalysis,
-        analysisTemplateContent: null,
-        analysisTemplateVariables: [],
-        analysisTemplateStatus: "fallback",
-        analysisTemplateReason: error.message,
-        errorMessage: error.message,
-        errorStage: "llm",
-      });
-      return degradedTask;
-    }
-
-    // 其他未预期错误也走降级
+    // L3 降级：LLM 失败（含未预期错误）时降级返回原始视觉分析
     const errorMessage =
       error instanceof Error ? error.message : "Unknown structurer error";
 
     log("structurer_call_failed", { taskId, error: errorMessage, degraded: true });
 
-    const degradedTask = await updateAnalysisTask(taskId, {
-      status: "completed",
-      recipe: null,
-      promptText: rawAnalysis,
-      negativePromptText: "",
-      rawResponse: rawAnalysis,
-      analysisTemplateContent: null,
-      analysisTemplateVariables: [],
-      analysisTemplateStatus: "fallback",
-      analysisTemplateReason: errorMessage,
-      errorMessage,
-      errorStage: "llm",
-    });
-    return degradedTask;
+    return await updateAnalysisTask(
+      taskId,
+      toAnalysisFallbackUpdate(rawAnalysis, errorMessage),
+    );
   }
 }

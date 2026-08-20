@@ -3,9 +3,9 @@ import { findAnalysisTaskByIdInternal, updateAnalysisTask } from '@/lib/reposito
 import { findGenerationTaskByIdInternal, updateGenerationTask } from '@/lib/repositories/generation-task-repository';
 import { findAssetById } from '@/lib/repositories/asset-repository';
 import { structureAnalysis, StructurerError } from './structurer';
-import { toAnalysisCompletionUpdate } from './analysis-completion';
-import { uploadBuffer, getPublicUrl } from '@/lib/r2';
-import { createAsset } from '@/lib/repositories/asset-repository';
+import { toAnalysisCompletionUpdate, toAnalysisFallbackUpdate } from './analysis-completion';
+import { completeGenerationTask } from './generation-completion';
+import { log, logError } from './log';
 
 /** Replicate Webhook Payload */
 interface ReplicatePrediction {
@@ -26,22 +26,6 @@ export interface WebhookInput {
 export interface WebhookResult {
   response: { ok: boolean; message?: string };
   status: number;
-}
-
-function log(event: string, data: Record<string, unknown>) {
-  console.log(JSON.stringify({
-    event,
-    timestamp: new Date().toISOString(),
-    ...data,
-  }));
-}
-
-function logError(event: string, data: Record<string, unknown>) {
-  console.error(JSON.stringify({
-    event,
-    timestamp: new Date().toISOString(),
-    ...data,
-  }));
 }
 
 function summarizeOutput(output: unknown): Record<string, unknown> {
@@ -300,19 +284,10 @@ async function handleAnalysisWebhook(
           error: error.message,
           fallbackApplied: true,
         });
-        await updateAnalysisTask(taskId, {
-          status: 'completed',
-          recipe: null,
-          promptText: rawAnalysis,
-          negativePromptText: '',
-          rawResponse: rawAnalysis,
-          analysisTemplateContent: null,
-          analysisTemplateVariables: [],
-          analysisTemplateStatus: 'fallback',
-          analysisTemplateReason: error.message,
-          errorStage: 'llm',
-          errorMessage: error.message,
-        });
+        await updateAnalysisTask(
+          taskId,
+          toAnalysisFallbackUpdate(rawAnalysis, error.message),
+        );
         log('webhook_analysis_fallback_saved', {
           taskId,
           predictionId: prediction.id,
@@ -389,30 +364,18 @@ async function handleGenerationWebhook(
     }
 
     try {
-      // Download Image并上传到 R2
-      const imageBuffer = await downloadImage(imageUrl);
-      const r2Key = `generated/${taskId}/result.webp`;
-      await uploadBuffer(r2Key, imageBuffer, 'image/webp');
-
-      // 创建 Asset 记录
       const userId = task.userId;
       if (!userId) {
         throw new Error('Task missing userId');
       }
 
-      const asset = await createAsset(userId, {
-        type: 'generated',
-        fileUrl: getPublicUrl(r2Key),
-        thumbnailUrl: null,
+      // Download Image、转存 R2、创建 Asset 并更新任务为Done状态
+      await completeGenerationTask({
+        taskId,
+        userId,
+        imageUrl,
         width: 1024, // 默认尺寸，实际应该从图片元数据获取
         height: 1024,
-        mimeType: 'image/webp',
-      });
-
-      // 更新任务为Done状态
-      await updateGenerationTask(taskId, {
-        status: 'completed',
-        resultAssetId: asset.id,
       });
 
       return {
@@ -496,17 +459,4 @@ function extractImageUrl(output: unknown): string | null {
   }
 
   return null;
-}
-
-/**
- * Download Image到 Buffer
- */
-async function downloadImage(url: string): Promise<Buffer> {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to download image: ${response.statusText}`);
-  }
-
-  const arrayBuffer = await response.arrayBuffer();
-  return Buffer.from(arrayBuffer);
 }

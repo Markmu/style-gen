@@ -12,6 +12,7 @@ import {
 } from "@/lib/template-parser";
 import { getStructurerProvider } from "./providers";
 import type { StructurerContext } from "./providers/types";
+import { log } from "./log";
 import {
   normalizeVisualRecipeCandidate,
   renderPromptTemplate,
@@ -33,14 +34,6 @@ const VALID_TEMPLATE_SOURCE_FIELDS = new Set<AnalysisTemplateSourceField>([
   "texture",
   "mood",
 ]);
-
-function log(event: string, data: Record<string, unknown>) {
-  console.log(JSON.stringify({
-    event,
-    timestamp: new Date().toISOString(),
-    ...data,
-  }));
-}
 
 function sanitizePreview(text: string, maxLength = 160): string {
   return text.replace(/\s+/g, " ").trim().slice(0, maxLength);

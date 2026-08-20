@@ -1,18 +1,11 @@
 import { GoogleGenAI } from "@google/genai";
 import { STRUCTURER_SYSTEM_PROMPT } from "../prompts";
 import { STRUCTURER_RESPONSE_JSON_SCHEMA } from "../structured-output-schema";
+import { log } from "../log";
 import type { StructurerProvider, StructurerContext } from "./types";
 
 const MODEL = "gemini-2.5-flash";
 const TIMEOUT_MS = 30_000;
-
-function log(event: string, data: Record<string, unknown>) {
-  console.log(JSON.stringify({
-    event,
-    timestamp: new Date().toISOString(),
-    ...data,
-  }));
-}
 
 export class GeminiStructurerProvider implements StructurerProvider {
   readonly name = "gemini" as const;
