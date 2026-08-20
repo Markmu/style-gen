@@ -140,6 +140,11 @@ const mockReplicateProvider = {
   generate: vi.fn(),
 };
 
+const mockGeminiProvider = {
+  name: "gemini" as const,
+  generate: vi.fn(),
+};
+
 // ---- Tests ----
 
 describe("GET /api/generation", () => {
@@ -378,6 +383,7 @@ describe("POST /api/generation", () => {
     mockGetPublicUrl.mockReset();
     mockFalProvider.generate.mockReset();
     mockReplicateProvider.generate.mockReset();
+    mockGeminiProvider.generate.mockReset();
     mockFetch.mockReset();
     globalThis.fetch = mockFetch;
 
@@ -612,6 +618,120 @@ describe("POST /api/generation", () => {
           "image/webp"
         );
       });
+    });
+  });
+
+  // ===== 同步模式 (Gemini / Nano Banana 2) 测试 =====
+
+  describe("同步模式 (Gemini)", () => {
+    beforeEach(() => {
+      mockGetImageGenProvider.mockReturnValue(mockGeminiProvider);
+    });
+
+    /** 构造带 IHDR 宽高的 PNG 头部 base64 */
+    function pngHeaderBase64(width: number, height: number): string {
+      const header = Buffer.alloc(24);
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(header, 0);
+      header.writeUInt32BE(13, 8);
+      header.write("IHDR", 12, "ascii");
+      header.writeUInt32BE(width, 16);
+      header.writeUInt32BE(height, 20);
+      return header.toString("base64");
+    }
+
+    it("创建任务时 modelName 应为 gemini-3.1-flash-lite-image 且返回 201", async () => {
+      mockFindAnalysisTaskById.mockResolvedValueOnce(completedAnalysisTask);
+      mockCreateGenerationTask.mockResolvedValueOnce(createdTask);
+      mockGeminiProvider.generate.mockResolvedValueOnce({
+        mode: "sync" as const,
+        imageBase64: pngHeaderBase64(1024, 576),
+        mimeType: "image/png",
+        width: 1024,
+        height: 576,
+      });
+
+      const res = await POST(createRequest(validBody));
+      const json = await res.json();
+
+      expect(res.status).toBe(201);
+      expect(json).toEqual({ id: "gen-task-1", status: "processing" });
+      expect(mockCreateGenerationTask).toHaveBeenCalledWith(
+        "user-1",
+        expect.objectContaining({
+          modelName: "gemini-3.1-flash-lite-image",
+          provider: "gemini",
+        })
+      );
+    });
+
+    it("内联 base64 不经 fetch 直接转存 R2 并标记 completed", async () => {
+      const imageBase64 = pngHeaderBase64(1024, 576);
+      mockFindAnalysisTaskById.mockResolvedValueOnce(completedAnalysisTask);
+      mockCreateGenerationTask.mockResolvedValueOnce(createdTask);
+      mockUpdateGenerationTask.mockResolvedValue(createdTask);
+      mockGeminiProvider.generate.mockResolvedValueOnce({
+        mode: "sync" as const,
+        imageBase64,
+        mimeType: "image/png",
+        width: 1024,
+        height: 576,
+      });
+
+      mockUploadBuffer.mockResolvedValueOnce(undefined);
+      mockGetPublicUrl.mockReturnValueOnce(
+        "https://r2.example.com/generated/gen-task-1/result.png"
+      );
+      mockCreateAsset.mockResolvedValueOnce({
+        id: "asset-gen-1",
+        type: "generated",
+        fileUrl: "https://r2.example.com/generated/gen-task-1/result.png",
+        thumbnailUrl: null,
+        width: 1024,
+        height: 576,
+        mimeType: "image/png",
+        createdAt: new Date("2025-01-01"),
+      });
+
+      const res = await POST(createRequest(validBody));
+      expect(res.status).toBe(201);
+
+      await vi.waitFor(() => {
+        expect(mockUpdateGenerationTask).toHaveBeenCalledWith("gen-task-1", {
+          status: "completed",
+          resultAssetId: "asset-gen-1",
+        });
+      });
+
+      // 内联图片不应触发远程下载
+      expect(mockFetch).not.toHaveBeenCalled();
+      expect(mockUploadBuffer).toHaveBeenCalledWith(
+        "generated/gen-task-1/result.png",
+        Buffer.from(imageBase64, "base64"),
+        "image/png"
+      );
+      expect(mockCreateAsset).toHaveBeenCalledWith(
+        "user-1",
+        expect.objectContaining({
+          mimeType: "image/png",
+          width: 1024,
+          height: 576,
+        })
+      );
+    });
+
+    it("Provider 调用失败应返回 500（与异步模式 Provider 失败行为一致）", async () => {
+      mockFindAnalysisTaskById.mockResolvedValueOnce(completedAnalysisTask);
+      mockCreateGenerationTask.mockResolvedValueOnce(createdTask);
+      mockGeminiProvider.generate.mockRejectedValueOnce(
+        new Error("GEMINI_API_KEY is not configured")
+      );
+
+      const res = await POST(createRequest(validBody));
+      const json = await res.json();
+
+      expect(res.status).toBe(500);
+      expect(json.code).toBe("SERVICE_UNAVAILABLE");
+      expect(json.error).toContain("GEMINI_API_KEY is not configured");
     });
   });
 

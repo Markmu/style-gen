@@ -181,7 +181,7 @@ export interface V2PromptWorkspaceState {
 export type VisionProviderName = 'replicate' | 'gemini';
 
 /** 图像生成 Provider */
-export type ImageGenProviderName = 'replicate' | 'fal';
+export type ImageGenProviderName = 'replicate' | 'fal' | 'gemini';
 
 /** 分析任务状态 */
 export type AnalysisTaskStatus = "pending" | "processing" | "completed" | "failed";

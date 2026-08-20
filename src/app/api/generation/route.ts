@@ -11,10 +11,17 @@ import { getImageGenProvider } from "@/lib/ai/providers";
 import { buildWebhookUrl, startTimeoutTimer } from "@/lib/ai/webhook-utils";
 import { completeGenerationTask } from "@/lib/ai/generation-completion";
 import { log, logErrorDetail } from "@/lib/ai/log";
-import type { IterationStatusFilter } from "@/types/models";
+import type { IterationStatusFilter, ImageGenProviderName } from "@/types/models";
 
-/** fal.ai 同步模式超时 120s */
+/** 同步模式（fal.ai / Gemini）超时 120s */
 const SYNC_GENERATION_TIMEOUT_MS = 120_000;
+
+/** 各生图 Provider 落库的模型名，与 Provider 内部使用的模型常量保持一致 */
+const IMAGE_GEN_MODEL_NAMES: Record<ImageGenProviderName, string> = {
+  replicate: 'black-forest-labs/flux-2-dev',
+  fal: 'flux.2',
+  gemini: 'gemini-3.1-flash-lite-image',
+};
 
 // ─── GET /api/generation：迭代列表（近期条与完整页面共用，架构 §6.1）────
 
@@ -173,11 +180,13 @@ function validateBody(body: unknown): GenerationRequestBody | null {
   };
 }
 
-/** fal.ai 同步模式：后台异步执行Generation Task（含 120s 超时） */
+/** 同步模式（fal.ai / Gemini）：后台异步执行Generation Task（含 120s 超时） */
 async function executeSyncGeneration(
   taskId: string,
   userId: string,
-  providerResult: { imageUrl: string; width: number; height: number }
+  providerResult:
+    | { imageUrl: string; width: number; height: number }
+    | { imageBase64: string; mimeType: string; width: number; height: number }
 ): Promise<void> {
   let aborted = false;
 
@@ -186,9 +195,7 @@ async function executeSyncGeneration(
     completeGenerationTask({
       taskId,
       userId,
-      imageUrl: providerResult.imageUrl,
-      width: providerResult.width,
-      height: providerResult.height,
+      ...providerResult,
       isAborted: () => aborted,
     }).then((completed) => {
       if (completed) {
@@ -280,7 +287,7 @@ export async function POST(request: NextRequest) {
       promptSnapshot: validated.promptText,
       negativePromptSnapshot: validated.negativePromptText,
       params: validated.params,
-      modelName: imageGenProvider.name === 'replicate' ? 'black-forest-labs/flux-2-dev' : 'flux.2',
+      modelName: IMAGE_GEN_MODEL_NAMES[imageGenProvider.name],
       provider: imageGenProvider.name,
       recipeSnapshot: analysisTask.recipe ?? null,
       variablesSnapshot: analysisTask.analysisTemplateVariables ?? [],
@@ -292,7 +299,7 @@ export async function POST(request: NextRequest) {
     log("generation_task_created", {
       taskId: task.id,
       provider: imageGenProvider.name,
-      modelName: imageGenProvider.name === 'replicate' ? 'black-forest-labs/flux-2-dev' : 'flux.2',
+      modelName: task.modelName,
     });
 
     // 4. 更新状态为 processing
@@ -305,7 +312,6 @@ export async function POST(request: NextRequest) {
       taskId: task.id,
       provider: imageGenProvider.name,
       model: task.modelName,
-      mode: 'async',
     });
 
     const providerResult = await imageGenProvider.generate({

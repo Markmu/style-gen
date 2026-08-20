@@ -31,9 +31,21 @@ export interface StructurerProvider {
   }): Promise<string>;
 }
 
+/** 图像生成 Provider 同步返回：二选一 */
+export type ImageGenSyncResult =
+  | { mode: 'sync'; imageUrl: string; width: number; height: number }
+  | {
+      mode: 'sync';
+      /** 内联 base64 图片（无托管 URL 的 Provider，如 Gemini） */
+      imageBase64: string;
+      mimeType: string;
+      width: number;
+      height: number;
+    };
+
 /** 图像生成 Provider 接口 */
 export interface ImageGenProvider {
-  readonly name: 'replicate' | 'fal';
+  readonly name: 'replicate' | 'fal' | 'gemini';
 
   generate(params: {
     prompt: string;
@@ -41,8 +53,13 @@ export interface ImageGenProvider {
     aspectRatio: string;
     quality: string;
     webhookUrl?: string;
-  }): Promise<
-    | { mode: 'sync'; imageUrl: string; width: number; height: number }
-    | { mode: 'async'; externalId: string }
-  >;
+  }): Promise<ImageGenSyncResult | { mode: 'async'; externalId: string }>;
+}
+
+/** 生图模型调用失败 */
+export class ImageGenError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ImageGenError';
+  }
 }

@@ -1,5 +1,6 @@
 import { GeminiVisionProvider } from './gemini-vision';
 import { GeminiStructurerProvider } from './gemini-structurer';
+import { GeminiImageGenProvider } from './gemini-image-gen';
 import { FalImageGenProvider } from './fal-image-gen';
 import { ReplicateVisionProvider } from './replicate-vision';
 import { ReplicateImageGenProvider } from './replicate-image-gen';
@@ -47,6 +48,8 @@ export function getImageGenProvider(): ImageGenProvider {
   switch (provider) {
     case 'fal':
       return new FalImageGenProvider();
+    case 'gemini':
+      return new GeminiImageGenProvider();
     case 'replicate':
       return new ReplicateImageGenProvider();
     default:
@@ -58,9 +61,10 @@ export function getImageGenProvider(): ImageGenProvider {
 export {
   GeminiVisionProvider,
   GeminiStructurerProvider,
+  GeminiImageGenProvider,
   FalImageGenProvider,
   ReplicateVisionProvider,
   ReplicateStructurerProvider,
   ReplicateImageGenProvider,
 };
-export type { VisionProvider, StructurerProvider, StructurerContext, ImageGenProvider } from './types';
+export type { VisionProvider, StructurerProvider, StructurerContext, ImageGenProvider, ImageGenSyncResult } from './types';

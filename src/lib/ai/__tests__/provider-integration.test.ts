@@ -5,6 +5,7 @@ import { GeminiStructurerProvider } from '@/lib/ai/providers/gemini-structurer';
 import { ReplicateVisionProvider } from '@/lib/ai/providers/replicate-vision';
 import { ReplicateStructurerProvider } from '@/lib/ai/providers/replicate-structurer';
 import { FalImageGenProvider } from '@/lib/ai/providers/fal-image-gen';
+import { GeminiImageGenProvider } from '@/lib/ai/providers/gemini-image-gen';
 import { ReplicateImageGenProvider } from '@/lib/ai/providers/replicate-image-gen';
 
 describe('Provider Integration', () => {
@@ -64,6 +65,13 @@ describe('Provider Integration', () => {
       const provider = getImageGenProvider();
       expect(provider).toBeInstanceOf(ReplicateImageGenProvider);
       expect(provider.name).toBe('replicate');
+    });
+
+    it('IMAGE_GEN_PROVIDER=gemini 返回 GeminiImageGenProvider', () => {
+      process.env.IMAGE_GEN_PROVIDER = 'gemini';
+      const provider = getImageGenProvider();
+      expect(provider).toBeInstanceOf(GeminiImageGenProvider);
+      expect(provider.name).toBe('gemini');
     });
 
     it('未设置环境Variables时默认使用 replicate', () => {

@@ -1,16 +1,11 @@
 import { createFalClient } from "@fal-ai/client";
+import { ImageGenError } from "./types";
 import type { ImageGenProvider } from "./types";
+
+export { ImageGenError };
 
 const TIMEOUT_MS = 120_000;
 const FAL_MODEL_ID = "fal-ai/flux/dev";
-
-/** 生图模型调用失败 */
-export class ImageGenError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ImageGenError";
-  }
-}
 
 interface FalImage {
   url: string;

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { getVisionProvider, getStructurerProvider, getImageGenProvider } from '../index';
 import { GeminiVisionProvider } from '../gemini-vision';
 import { GeminiStructurerProvider } from '../gemini-structurer';
+import { GeminiImageGenProvider } from '../gemini-image-gen';
 import { FalImageGenProvider } from '../fal-image-gen';
 import { ReplicateVisionProvider } from '../replicate-vision';
 import { ReplicateStructurerProvider } from '../replicate-structurer';
@@ -73,6 +74,14 @@ describe('Provider Factory', () => {
       const provider = getImageGenProvider();
       expect(provider).toBeInstanceOf(ReplicateImageGenProvider);
       expect(provider.name).toBe('replicate');
+    });
+
+    it('IMAGE_GEN_PROVIDER=gemini 时返回 GeminiImageGenProvider', () => {
+      process.env.IMAGE_GEN_PROVIDER = 'gemini';
+      process.env.GEMINI_API_KEY = 'test-api-key';
+      const provider = getImageGenProvider();
+      expect(provider).toBeInstanceOf(GeminiImageGenProvider);
+      expect(provider.name).toBe('gemini');
     });
 
     it('未知 provider 名称时抛出错误', () => {
