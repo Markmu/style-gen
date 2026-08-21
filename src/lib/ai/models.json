@@ -1,0 +1,60 @@
+{
+  "imageGen": {
+    "defaultModel": "flux-2-dev",
+    "models": [
+      {
+        "id": "flux-2-dev",
+        "label": "FLUX.2 [dev]",
+        "description": "Black Forest Labs FLUX.2 开放权重文生图",
+        "providers": [
+          { "provider": "replicate", "modelId": "black-forest-labs/flux-2-dev", "isDefault": true },
+          { "provider": "fal", "modelId": "fal-ai/flux-2" }
+        ]
+      },
+      {
+        "id": "nano-banana-2-lite",
+        "label": "Nano Banana 2 Lite",
+        "description": "Gemini 3.1 Flash Image（Nano Banana 2 Lite）",
+        "providers": [
+          { "provider": "gemini", "modelId": "gemini-3.1-flash-lite-image", "isDefault": true }
+        ]
+      },
+      {
+        "id": "nano-banana-2-pro",
+        "label": "Nano Banana 2 Pro",
+        "description": "Gemini 3 Pro Image（Nano Banana 2 Pro）",
+        "providers": [
+          { "provider": "gemini", "modelId": "gemini-3-pro-image", "isDefault": true }
+        ]
+      }
+    ]
+  },
+  "vision": {
+    "defaultModel": "gemini-2.5-flash",
+    "models": [
+      {
+        "id": "gemini-2.5-flash",
+        "label": "Gemini 2.5 Flash",
+        "description": "视觉分析与结构化共用的多模态模型",
+        "providers": [
+          { "provider": "replicate", "modelId": "google/gemini-2.5-flash", "isDefault": true },
+          { "provider": "gemini", "modelId": "gemini-2.5-flash" }
+        ]
+      }
+    ]
+  },
+  "structurer": {
+    "defaultModel": "gemini-2.5-flash",
+    "models": [
+      {
+        "id": "gemini-2.5-flash",
+        "label": "Gemini 2.5 Flash",
+        "description": "视觉分析与结构化共用的多模态模型",
+        "providers": [
+          { "provider": "replicate", "modelId": "google/gemini-2.5-flash", "isDefault": true },
+          { "provider": "gemini", "modelId": "gemini-2.5-flash" }
+        ]
+      }
+    ]
+  }
+}

@@ -46,6 +46,10 @@ import {
 } from "@/lib/evidence-facets";
 import { derivePromptProvenanceSpans } from "@/lib/prompt-provenance";
 import { deriveRenderReadiness } from "@/lib/render-readiness";
+import {
+  DEFAULT_IMAGE_GEN_MODEL_ID,
+  isKnownImageGenModel,
+} from "@/lib/ai/model-config";
 import type { GenerationParams, TemplateVariable } from "@/types/models";
 import {
   isVisualRecipeV2Success,
@@ -200,7 +204,8 @@ function WorkspacePageInner() {
   const [generationParams, setGenerationParams] = useState<{
     aspectRatio: AspectRatio;
     quality: Quality;
-  }>({ aspectRatio: "1:1", quality: "standard" });
+    model: string;
+  }>({ aspectRatio: "1:1", quality: "standard", model: DEFAULT_IMAGE_GEN_MODEL_ID });
 
   // Template UI state
   const [showTemplateSaveDialog, setShowTemplateSaveDialog] = useState(false);
@@ -457,6 +462,11 @@ function WorkspacePageInner() {
       setGenerationParams({
         aspectRatio: restored.params.aspectRatio as AspectRatio,
         quality: restored.params.quality as Quality,
+        // 存量迭代无 model（或 id 已下线）；未知值回退配置默认模型
+        model:
+          restored.params.model && isKnownImageGenModel(restored.params.model)
+            ? restored.params.model
+            : DEFAULT_IMAGE_GEN_MODEL_ID,
       });
     },
     [],
@@ -665,7 +675,11 @@ function WorkspacePageInner() {
       : effectiveTemplateVariables;
 
   const handleGenerate = useCallback(
-    async (params: { aspectRatio: AspectRatio; quality: Quality }) => {
+    async (params: {
+      aspectRatio: AspectRatio;
+      quality: Quality;
+      model?: string;
+    }) => {
       if (!renderReadiness.canGenerate || !ws.analysisTaskId) return;
 
       try {
@@ -680,6 +694,7 @@ function WorkspacePageInner() {
             params: {
               aspectRatio: params.aspectRatio,
               quality: params.quality,
+              model: params.model ?? DEFAULT_IMAGE_GEN_MODEL_ID,
             },
             // plan-04（AC-02 / PRD 业务规则 4）：从 Style Memory 进入（?templateId=）
             // 或恢复携带来源模板的迭代时，记录本次生成的来源模板，

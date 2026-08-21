@@ -18,7 +18,11 @@ const readyReadiness: RenderReadiness = {
 
 const defaultProps = {
   state: "analysis_ready" as const,
-  params: { aspectRatio: "1:1" as const, quality: "standard" as const },
+  params: {
+    aspectRatio: "1:1" as const,
+    quality: "standard" as const,
+    model: "flux-2-dev",
+  },
   readiness: readyReadiness,
   onParamsChange: vi.fn(),
   onGenerate: vi.fn(),
@@ -42,9 +46,11 @@ describe("OutputCard", () => {
     );
     expect(screen.getByLabelText("Aspect Ratio")).toBeInTheDocument();
     expect(screen.getByLabelText("Quality")).toBeInTheDocument();
+    expect(screen.getByLabelText("Model")).toBeInTheDocument();
     expect(screen.getByLabelText("Aspect Ratio")).toHaveClass("render-select", "h-9");
     expect(screen.getByLabelText("Quality")).toHaveClass("render-select", "h-9");
-    expect(document.querySelectorAll(".lucide-chevron-down")).toHaveLength(2);
+    expect(screen.getByLabelText("Model")).toHaveClass("render-select", "h-9");
+    expect(document.querySelectorAll(".lucide-chevron-down")).toHaveLength(3);
     expect(screen.getByTestId("render-parameter-controls")).toBeInTheDocument();
     expect(screen.queryByTestId("render-status-summary")).not.toBeInTheDocument();
     expect(screen.queryByTestId("render-status-detail")).not.toBeInTheDocument();
@@ -59,7 +65,23 @@ describe("OutputCard", () => {
     expect(onGenerate).toHaveBeenCalledWith({
       aspectRatio: "1:1",
       quality: "standard",
+      model: "flux-2-dev",
     });
+  });
+
+  it("renders model options from the models.json catalog", () => {
+    render(<OutputCard {...defaultProps} />);
+
+    const modelSelect = screen.getByLabelText("Model");
+    const options = Array.from(modelSelect.querySelectorAll("option")).map(
+      (option) => option.textContent,
+    );
+    expect(options).toEqual([
+      "FLUX.2 [dev]",
+      "Nano Banana 2 Lite",
+      "Nano Banana 2 Pro",
+    ]);
+    expect(modelSelect).toHaveValue("flux-2-dev");
   });
 
   it("reports parameter changes to the parent state", async () => {
@@ -70,14 +92,25 @@ describe("OutputCard", () => {
 
     await user.selectOptions(screen.getByLabelText("Aspect Ratio"), "16:9");
     await user.selectOptions(screen.getByLabelText("Quality"), "hd");
+    await user.selectOptions(
+      screen.getByLabelText("Model"),
+      "nano-banana-2-lite",
+    );
 
     expect(onParamsChange).toHaveBeenCalledWith({
       aspectRatio: "16:9",
       quality: "standard",
+      model: "flux-2-dev",
     });
     expect(onParamsChange).toHaveBeenCalledWith({
       aspectRatio: "1:1",
       quality: "hd",
+      model: "flux-2-dev",
+    });
+    expect(onParamsChange).toHaveBeenCalledWith({
+      aspectRatio: "1:1",
+      quality: "standard",
+      model: "nano-banana-2-lite",
     });
   });
 
@@ -158,6 +191,8 @@ describe("OutputCard", () => {
     expect(screen.getByLabelText("Aspect Ratio")).toBeDisabled();
     expect(screen.getByLabelText("Quality")).toBeVisible();
     expect(screen.getByLabelText("Quality")).toBeDisabled();
+    expect(screen.getByLabelText("Model")).toBeVisible();
+    expect(screen.getByLabelText("Model")).toBeDisabled();
     expect(screen.getByRole("button", { name: "Rendering..." })).toBeDisabled();
     expect(screen.queryByTestId("render-status-summary")).not.toBeInTheDocument();
     expect(screen.queryByTestId("render-status-detail")).not.toBeInTheDocument();

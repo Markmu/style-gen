@@ -519,7 +519,8 @@ test.describe('plan-04 continue-this-direction restore and workspace guard', () 
     expect(body.promptText).toBe(modifiedPrompt)
     expect(body.negativePromptText).toBe(detail.negativePromptSnapshot)
     expect(body.analysisTaskId).toBe(detail.analysisTaskId)
-    expect(body.params).toEqual({ aspectRatio: '16:9', quality: 'hd' })
+    // 恢复的存量迭代无 model 字段，重新生成回退 models.json 默认模型
+    expect(body.params).toEqual({ aspectRatio: '16:9', quality: 'hd', model: 'flux-2-dev' })
   })
 
   test('TC-4.7 generating after restoring a Style Memory sourced iteration carries sourceTemplateId (AC-02)', async ({ page }) => {

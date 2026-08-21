@@ -11,6 +11,7 @@ import {
   replaceVariables,
 } from "@/lib/template-parser";
 import { getStructurerProvider } from "./providers";
+import { resolveStructurerModel } from "./model-config";
 import type { StructurerContext } from "./providers/types";
 import { log } from "./log";
 import {
@@ -74,17 +75,21 @@ export async function structureAnalysis(
   rawAnalysis: string,
   context: StructurerContext = {}
 ): Promise<StructuredResult> {
+  // 模型与 Provider 以 models.json 解析结果为准，避免在此重复推导 env 链
+  const resolution = resolveStructurerModel();
+
   const meta = {
     taskId: context.taskId ?? "unknown",
     source: context.source ?? "unknown",
-    provider: process.env.STRUCTURER_PROVIDER || process.env.VISION_PROVIDER || "replicate",
+    provider: resolution.provider,
+    model: resolution.providerModelId,
     rawAnalysisLength: rawAnalysis.length,
   };
 
   log("structurer_started", meta);
 
   try {
-    const provider = getStructurerProvider();
+    const provider = getStructurerProvider(resolution);
     const text = await provider.structure({ rawAnalysis, context });
     const result = parseStructuredResponseText(text, meta, rawAnalysis);
     log("structurer_completed", {

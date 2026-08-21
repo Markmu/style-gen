@@ -180,6 +180,9 @@ export interface V2PromptWorkspaceState {
 /** 视觉分析 Provider */
 export type VisionProviderName = 'replicate' | 'gemini';
 
+/** 结构化整理 Provider */
+export type StructurerProviderName = 'replicate' | 'gemini';
+
 /** 图像生成 Provider */
 export type ImageGenProviderName = 'replicate' | 'fal' | 'gemini';
 
@@ -231,6 +234,8 @@ export interface AnalysisTask {
 export interface GenerationParams {
   aspectRatio: string;
   quality: string;
+  /** models.json 中的稳定模型 id；缺省时服务端按配置默认模型解析 */
+  model?: string;
 }
 
 /** Generation Task状态 */

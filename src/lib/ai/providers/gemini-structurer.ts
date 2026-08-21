@@ -4,19 +4,22 @@ import { STRUCTURER_RESPONSE_JSON_SCHEMA } from "../structured-output-schema";
 import { log } from "../log";
 import type { StructurerProvider, StructurerContext } from "./types";
 
-const MODEL = "gemini-2.5-flash";
+const DEFAULT_MODEL = "gemini-2.5-flash";
 const TIMEOUT_MS = 30_000;
 
 export class GeminiStructurerProvider implements StructurerProvider {
   readonly name = "gemini" as const;
   private client: GoogleGenAI;
+  private readonly model: string;
 
-  constructor() {
+  /** modelId 缺省时回退本地常量；应用路径一律由 models.json 解析后传入 */
+  constructor(modelId?: string) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       throw new Error("GEMINI_API_KEY is not configured");
     }
     this.client = new GoogleGenAI({ apiKey });
+    this.model = modelId ?? DEFAULT_MODEL;
   }
 
   async structure(params: {
@@ -28,14 +31,14 @@ export class GeminiStructurerProvider implements StructurerProvider {
       provider: this.name,
       taskId: params.context?.taskId ?? "unknown",
       source: params.context?.source ?? "unknown",
-      model: MODEL,
+      model: this.model,
       rawAnalysisLength: params.rawAnalysis.length,
     };
 
     try {
       const response = await Promise.race([
         this.client.models.generateContent({
-          model: MODEL,
+          model: this.model,
           contents: [
             {
               role: "user",

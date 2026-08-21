@@ -6,6 +6,10 @@ import { AppIcon } from "@/components/ui/app-icon";
 import type { WorkspaceState } from "@/hooks/use-workspace-state";
 import type { AspectRatio, Quality } from "@/components/workspace/output-settings";
 import type { RenderReadiness } from "@/lib/render-readiness";
+import {
+  DEFAULT_IMAGE_GEN_MODEL_ID,
+  IMAGE_GEN_MODEL_OPTIONS,
+} from "@/lib/ai/model-config";
 
 const ASPECT_RATIOS: AspectRatio[] = ["1:1", "4:3", "16:9", "3:4", "9:16"];
 const QUALITY_OPTIONS: Array<{ value: Quality; label: string }> = [
@@ -13,12 +17,19 @@ const QUALITY_OPTIONS: Array<{ value: Quality; label: string }> = [
   { value: "hd", label: "HD" },
 ];
 
+interface OutputCardParams {
+  aspectRatio: AspectRatio;
+  quality: Quality;
+  /** models.json 稳定模型 id；由页面状态以配置默认模型初始化 */
+  model: string;
+}
+
 interface OutputCardProps {
   state: WorkspaceState;
-  params: { aspectRatio: AspectRatio; quality: Quality };
+  params: OutputCardParams;
   readiness: RenderReadiness;
-  onParamsChange: (params: { aspectRatio: AspectRatio; quality: Quality }) => void;
-  onGenerate: (params: { aspectRatio: AspectRatio; quality: Quality }) => void;
+  onParamsChange: (params: OutputCardParams) => void;
+  onGenerate: (params: OutputCardParams) => void;
 }
 
 export function OutputCard({
@@ -34,6 +45,7 @@ export function OutputCard({
   const helperText = enabled
     ? "Generate with the current prompt."
     : readiness.disabledReason;
+  const selectedModel = params.model ?? DEFAULT_IMAGE_GEN_MODEL_ID;
 
   const handleAspectRatioChange = useCallback(
     (aspectRatio: AspectRatio) => {
@@ -45,6 +57,13 @@ export function OutputCard({
   const handleQualityChange = useCallback(
     (quality: Quality) => {
       onParamsChange({ ...params, quality });
+    },
+    [onParamsChange, params],
+  );
+
+  const handleModelChange = useCallback(
+    (model: string) => {
+      onParamsChange({ ...params, model });
     },
     [onParamsChange, params],
   );
@@ -67,7 +86,7 @@ export function OutputCard({
       >
         <div
           data-testid="render-parameter-controls"
-          className="grid min-w-0 grid-cols-2 gap-2 rounded-lg bg-[var(--surface-control)]/58 p-1.5"
+          className="grid min-w-0 grid-cols-2 gap-2 rounded-lg bg-[var(--surface-control)]/58 p-1.5 sm:grid-cols-3"
         >
           <label className="group grid min-w-0 gap-1.5">
             <span className="px-1 text-[0.625rem] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
@@ -110,6 +129,33 @@ export function OutputCard({
               >
                 {QUALITY_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <AppIcon
+                icon={ChevronDown}
+                size={14}
+                strokeWidth={1.5}
+                className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] transition-colors group-focus-within:text-[var(--accent-primary)]"
+              />
+            </span>
+          </label>
+
+          <label className="group grid min-w-0 gap-1.5">
+            <span className="px-1 text-[0.625rem] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+              Model
+            </span>
+            <span className="relative block min-w-0">
+              <select
+                aria-label="Model"
+                value={selectedModel}
+                disabled={isGenerating}
+                onChange={(event) => handleModelChange(event.target.value)}
+                className="render-select h-9 min-w-0"
+              >
+                {IMAGE_GEN_MODEL_OPTIONS.map((option) => (
+                  <option key={option.id} value={option.id}>
                     {option.label}
                   </option>
                 ))}

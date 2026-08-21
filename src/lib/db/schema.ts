@@ -166,7 +166,7 @@ export const generationTasks = pgTable(
     ),
     check(
       "generation_tasks_provider_check",
-      sql`${table.provider} IN ('replicate', 'fal')`
+      sql`${table.provider} IN ('replicate', 'fal', 'gemini')`
     ),
     index("idx_generation_tasks_analysis_task").on(table.analysisTaskId),
     index("idx_generation_tasks_status")

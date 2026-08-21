@@ -90,6 +90,25 @@ describe('Provider Factory', () => {
         'Unknown image gen provider: unknown'
       );
     });
+
+    it('显式传入解析结果时优先于 env 选择', () => {
+      process.env.IMAGE_GEN_PROVIDER = 'fal';
+      const provider = getImageGenProvider({
+        modelId: 'nano-banana-2-lite',
+        label: 'Nano Banana 2 Lite',
+        provider: 'gemini',
+        providerModelId: 'gemini-3.1-flash-lite-image',
+      });
+      expect(provider).toBeInstanceOf(GeminiImageGenProvider);
+      expect(provider.name).toBe('gemini');
+    });
+
+    it('未指定模型时 env 驱动默认模型选择（gemini 部署行为保留）', () => {
+      process.env.IMAGE_GEN_PROVIDER = 'gemini';
+      const provider = getImageGenProvider();
+      expect(provider).toBeInstanceOf(GeminiImageGenProvider);
+      expect(provider.name).toBe('gemini');
+    });
   });
 
   describe('getStructurerProvider', () => {

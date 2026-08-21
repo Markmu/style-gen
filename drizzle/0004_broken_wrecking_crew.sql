@@ -1,0 +1,2 @@
+ALTER TABLE "generation_tasks" DROP CONSTRAINT "generation_tasks_provider_check";--> statement-breakpoint
+ALTER TABLE "generation_tasks" ADD CONSTRAINT "generation_tasks_provider_check" CHECK ("generation_tasks"."provider" IN ('replicate', 'fal', 'gemini'));

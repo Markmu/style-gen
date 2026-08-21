@@ -6,54 +6,73 @@ import { ReplicateVisionProvider } from './replicate-vision';
 import { ReplicateImageGenProvider } from './replicate-image-gen';
 import { ReplicateStructurerProvider } from './replicate-structurer';
 import type { VisionProvider, StructurerProvider, ImageGenProvider } from './types';
+import {
+  resolveImageGenModel,
+  resolveStructurerModel,
+  resolveVisionModel,
+} from '../model-config';
+import type {
+  ResolvedModelBinding,
+} from '../model-config';
+import type {
+  ImageGenProviderName,
+  StructurerProviderName,
+  VisionProviderName,
+} from '@/types/models';
 
 /**
  * 获取视觉分析 Provider 实例
- * 根据 VISION_PROVIDER 环境Variables选择 Provider
+ * 未传入解析结果时按 models.json 默认模型 + VISION_PROVIDER 覆盖规则解析
  */
-export function getVisionProvider(): VisionProvider {
-  const provider = process.env.VISION_PROVIDER || 'replicate';
-  switch (provider) {
+export function getVisionProvider(
+  resolved?: ResolvedModelBinding<VisionProviderName>
+): VisionProvider {
+  const binding = resolved ?? resolveVisionModel();
+  switch (binding.provider) {
     case 'gemini':
-      return new GeminiVisionProvider();
+      return new GeminiVisionProvider(binding.providerModelId);
     case 'replicate':
-      return new ReplicateVisionProvider();
+      return new ReplicateVisionProvider(binding.providerModelId);
     default:
-      throw new Error(`Unknown vision provider: ${provider}`);
+      throw new Error(`Unknown vision provider: ${binding.provider}`);
   }
 }
 
 /**
  * 获取结构化整理 Provider 实例
- * 默认跟随 VISION_PROVIDER，确保分析链路内的 LLM 调用与启用的 Provider 一致
+ * 默认跟随 STRUCTURER_PROVIDER → VISION_PROVIDER 环境链与 models.json 默认模型
  */
-export function getStructurerProvider(): StructurerProvider {
-  const provider = process.env.STRUCTURER_PROVIDER || process.env.VISION_PROVIDER || 'replicate';
-  switch (provider) {
+export function getStructurerProvider(
+  resolved?: ResolvedModelBinding<StructurerProviderName>
+): StructurerProvider {
+  const binding = resolved ?? resolveStructurerModel();
+  switch (binding.provider) {
     case 'gemini':
-      return new GeminiStructurerProvider();
+      return new GeminiStructurerProvider(binding.providerModelId);
     case 'replicate':
-      return new ReplicateStructurerProvider();
+      return new ReplicateStructurerProvider(binding.providerModelId);
     default:
-      throw new Error(`Unknown structurer provider: ${provider}`);
+      throw new Error(`Unknown structurer provider: ${binding.provider}`);
   }
 }
 
 /**
  * 获取图像生成 Provider 实例
- * 根据 IMAGE_GEN_PROVIDER 环境Variables选择 Provider
+ * 未传入解析结果时按 models.json 默认模型 + IMAGE_GEN_PROVIDER 覆盖规则解析
  */
-export function getImageGenProvider(): ImageGenProvider {
-  const provider = process.env.IMAGE_GEN_PROVIDER || 'replicate';
-  switch (provider) {
+export function getImageGenProvider(
+  resolved?: ResolvedModelBinding<ImageGenProviderName>
+): ImageGenProvider {
+  const binding = resolved ?? resolveImageGenModel();
+  switch (binding.provider) {
     case 'fal':
-      return new FalImageGenProvider();
+      return new FalImageGenProvider(binding.providerModelId);
     case 'gemini':
-      return new GeminiImageGenProvider();
+      return new GeminiImageGenProvider(binding.providerModelId);
     case 'replicate':
-      return new ReplicateImageGenProvider();
+      return new ReplicateImageGenProvider(binding.providerModelId);
     default:
-      throw new Error(`Unknown image gen provider: ${provider}`);
+      throw new Error(`Unknown image gen provider: ${binding.provider}`);
   }
 }
 

@@ -423,7 +423,8 @@ test.describe('plan-06 entry wiring and full Iteration Memory journey', () => {
     expect(generationBody.promptText).toBe(MODIFIED_PROMPT)
     expect(generationBody.negativePromptText).toBe(TARGET_NEGATIVE)
     expect(generationBody.analysisTaskId).toBe(`analysis-${TARGET_ID}`)
-    expect(generationBody.params).toEqual({ aspectRatio: '16:9', quality: 'hd' })
+    // 恢复的存量迭代无 model 字段，重新生成回退 models.json 默认模型
+    expect(generationBody.params).toEqual({ aspectRatio: '16:9', quality: 'hd', model: 'flux-2-dev' })
 
     // ---- 回到详情，保存为 Style Memory（US-07）----
     await openIterations(page)

@@ -2,17 +2,20 @@ import Replicate from 'replicate';
 import type { VisionProvider } from './types';
 import { VISION_SYSTEM_PROMPT } from '../prompts';
 
-const MODEL = 'google/gemini-2.5-flash' as const;
+const DEFAULT_MODEL = 'google/gemini-2.5-flash' as const;
 
 export class ReplicateVisionProvider implements VisionProvider {
   readonly name = 'replicate' as const;
   private client: Replicate;
+  private readonly model: string;
 
-  constructor() {
+  /** modelId 缺省时回退本地常量；应用路径一律由 models.json 解析后传入 */
+  constructor(modelId?: string) {
     if (!process.env.REPLICATE_API_TOKEN) {
       throw new Error('REPLICATE_API_TOKEN environment variable is required for Replicate provider');
     }
     this.client = new Replicate({ auth: process.env.REPLICATE_API_TOKEN });
+    this.model = modelId ?? DEFAULT_MODEL;
   }
 
   async analyze(params: {
@@ -25,7 +28,7 @@ export class ReplicateVisionProvider implements VisionProvider {
     }
 
     const prediction = await this.client.predictions.create({
-      model: MODEL,
+      model: this.model,
       input: {
         top_p: 0.95,
         images: [params.imageUrl],

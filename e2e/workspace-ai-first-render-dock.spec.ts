@@ -148,6 +148,7 @@ test.describe('plan-04 Render Dock readiness and generation recovery', () => {
     await expect(dock.getByTestId('render-next-action')).toHaveCount(0)
     await expect(dock.getByLabel(/Aspect Ratio/i)).toBeVisible()
     await expect(dock.getByLabel(/Quality/i)).toBeVisible()
+    await expect(dock.getByLabel(/Model/i)).toBeVisible()
     await expect(dock.getByRole('button', { name: /^Generate$/i })).toBeDisabled()
   })
 
@@ -190,15 +191,21 @@ test.describe('plan-04 Render Dock readiness and generation recovery', () => {
     const dock = renderDock(page)
     await expect(dock.getByLabel(/Aspect Ratio/i)).toBeVisible()
     await expect(dock.getByLabel(/Quality/i)).toBeVisible()
+    await expect(dock.getByLabel(/Model/i)).toHaveValue('flux-2-dev')
     await expect(dock.locator('[data-testid^="render-readiness-item-"]')).toHaveCount(0)
     await expect(dock.getByRole('button', { name: /^Generate$/i })).toBeEnabled()
+    await dock.getByLabel(/Model/i).selectOption('nano-banana-2-lite')
     await dock.getByRole('button', { name: /^Generate$/i }).click()
 
     await expect.poll(() => requestBody?.analysisTaskId ?? null).toBe('render-dock-ready-analysis')
     const capturedBody = requestBody as unknown as Record<string, unknown>
     expect(capturedBody.promptText).toContain('sunset')
     expect(capturedBody.negativePromptText).toBe('blurry, low quality, distorted, watermark, text')
-    expect(capturedBody.params).toMatchObject({ aspectRatio: '1:1', quality: 'standard' })
+    expect(capturedBody.params).toMatchObject({
+      aspectRatio: '1:1',
+      quality: 'standard',
+      model: 'nano-banana-2-lite',
+    })
   })
 
   test('TC-4.4 service unavailable disables Generate but keeps editing and saving available', async ({ page }) => {
@@ -271,6 +278,8 @@ test.describe('plan-04 Render Dock readiness and generation recovery', () => {
     await expect(dock.getByLabel(/Aspect Ratio/i)).toBeDisabled()
     await expect(dock.getByLabel(/Quality/i)).toBeVisible()
     await expect(dock.getByLabel(/Quality/i)).toBeDisabled()
+    await expect(dock.getByLabel(/Model/i)).toBeVisible()
+    await expect(dock.getByLabel(/Model/i)).toBeDisabled()
     expect(generationPostCount).toBe(1)
   })
 
@@ -284,7 +293,7 @@ test.describe('plan-04 Render Dock readiness and generation recovery', () => {
       promptSnapshot: 'A preserved prompt snapshot',
       negativePromptSnapshot: 'low quality',
       params: { aspectRatio: '1:1', quality: 'standard' },
-      modelName: 'flux.2',
+      modelName: 'fal-ai/flux-2',
       resultAssetId: null,
       resultFileUrl: null,
       errorMessage: 'Generation provider failed after queueing',

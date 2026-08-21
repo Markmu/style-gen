@@ -3,7 +3,7 @@ import { STRUCTURER_SYSTEM_PROMPT } from "../prompts";
 import { log } from "../log";
 import type { StructurerProvider, StructurerContext } from "./types";
 
-const MODEL = "google/gemini-2.5-flash";
+const DEFAULT_MODEL = "google/gemini-2.5-flash";
 const TIMEOUT_SECONDS = 30;
 
 function normalizeOutput(output: unknown): string {
@@ -55,14 +55,17 @@ function summarizeOutputShape(output: unknown): Record<string, unknown> {
 export class ReplicateStructurerProvider implements StructurerProvider {
   readonly name = "replicate" as const;
   private client: Replicate;
+  private readonly model: string;
 
-  constructor() {
+  /** modelId 缺省时回退本地常量；应用路径一律由 models.json 解析后传入 */
+  constructor(modelId?: string) {
     if (!process.env.REPLICATE_API_TOKEN) {
       throw new Error(
         "REPLICATE_API_TOKEN environment variable is required for Replicate provider"
       );
     }
     this.client = new Replicate({ auth: process.env.REPLICATE_API_TOKEN });
+    this.model = modelId ?? DEFAULT_MODEL;
   }
 
   async structure(params: {
@@ -74,12 +77,13 @@ export class ReplicateStructurerProvider implements StructurerProvider {
       provider: this.name,
       taskId: params.context?.taskId ?? "unknown",
       source: params.context?.source ?? "unknown",
-      model: MODEL,
+      model: this.model,
       rawAnalysisLength: params.rawAnalysis.length,
     };
 
     try {
-      const output = await this.client.run(MODEL, {
+      // Replicate SDK 要求 owner/name 模板类型；models.json 绑定均为该格式
+      const output = await this.client.run(this.model as `${string}/${string}`, {
         input: {
           prompt: `Here is the visual analysis to structure:\n\n${params.rawAnalysis}`,
           system_instruction: STRUCTURER_SYSTEM_PROMPT,

@@ -153,9 +153,17 @@ function setupSuccessMocks() {
 }
 
 describe("POST /api/analysis", () => {
+  const ORIGINAL_ENV = { ...process.env };
+
   beforeEach(() => {
     vi.resetAllMocks();
     setupSuccessMocks();
+    // VisionProvider mock 为 gemini；让 models.json 解析结果与其一致
+    process.env.VISION_PROVIDER = "gemini";
+  });
+
+  afterEach(() => {
+    process.env = { ...ORIGINAL_ENV };
   });
 
   // --- 正常流程 ---
@@ -375,18 +383,23 @@ describe("POST /api/analysis", () => {
 
   it("async 模式：创建任务时 provider 为 replicate，modelName 为 gemini 模型", async () => {
     mockVisionProvider.name = 'replicate' as const;
+    process.env.VISION_PROVIDER = 'replicate';
     mockVisionProvider.analyze.mockResolvedValue({
       mode: 'async',
       externalId: 'replicate-pred-abc',
     });
 
-    await POST(makeRequest(VALID_BODY));
+    try {
+      await POST(makeRequest(VALID_BODY));
 
-    expect(mockCreateAnalysisTask).toHaveBeenCalledWith('user-1', {
-      sourceAssetId: 'asset-1',
-      provider: 'replicate',
-      modelName: 'google/gemini-2.5-flash',
-    });
+      expect(mockCreateAnalysisTask).toHaveBeenCalledWith('user-1', {
+        sourceAssetId: 'asset-1',
+        provider: 'replicate',
+        modelName: 'google/gemini-2.5-flash',
+      });
+    } finally {
+      mockVisionProvider.name = 'gemini' as const;
+    }
   });
 
   it("async 模式：Provider 调用失败时标记任务 failed", async () => {

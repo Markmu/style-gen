@@ -2,7 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import { VISION_SYSTEM_PROMPT } from "../prompts";
 import type { VisionProvider } from "./types";
 
-const MODEL = "gemini-2.5-flash";
+const DEFAULT_MODEL = "gemini-2.5-flash";
 const TIMEOUT_MS = 60_000;
 
 /** Vision Understanding阶段失败 */
@@ -15,6 +15,12 @@ export class VisionError extends Error {
 
 export class GeminiVisionProvider implements VisionProvider {
   readonly name = "gemini" as const;
+  private readonly model: string;
+
+  /** modelId 缺省时回退本地常量；应用路径一律由 models.json 解析后传入 */
+  constructor(modelId?: string) {
+    this.model = modelId ?? DEFAULT_MODEL;
+  }
 
   async analyze(params: {
     imageUrl: string;
@@ -31,7 +37,7 @@ export class GeminiVisionProvider implements VisionProvider {
     try {
       const response = await Promise.race([
         ai.models.generateContent({
-          model: MODEL,
+          model: this.model,
           contents: [
             {
               role: "user",

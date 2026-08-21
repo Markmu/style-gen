@@ -111,11 +111,11 @@ All API routes live under `src/app/api/`:
 ### AI Pipeline
 
 - `src/lib/ai/providers/` — provider interfaces, factory, and Gemini/Replicate/fal implementations
-- `src/lib/ai/vision.ts` — vision-stage orchestration
+- `src/lib/ai/models.json` — model→provider mapping SSOT: each model binds multiple providers (each with its provider-side model id) plus one default binding; loaded and validated by `src/lib/ai/model-config.ts`
+- `src/lib/ai/model-config.ts` — stage resolvers (`resolveImageGenModel` / `resolveVisionModel` / `resolveStructurerModel`) and the client-safe model catalog (`IMAGE_GEN_MODEL_OPTIONS`); `*_PROVIDER` env vars act as overrides only when the selected model supports that provider
 - `src/lib/ai/structurer.ts` — semantic structuring orchestration
 - `src/lib/ai/prompts.ts` and `structured-output-schema.ts` — model contracts
 - `src/lib/prompt-composer.ts` — deterministic prompt derivation
-- `src/lib/ai/image-gen.ts` — image-generation orchestration
 
 ### Data and Async Work
 

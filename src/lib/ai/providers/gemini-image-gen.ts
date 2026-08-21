@@ -3,7 +3,7 @@ import { ImageGenError } from "./types";
 import type { ImageGenProvider } from "./types";
 
 /** Nano Banana 2 Lite（官方命名），Gemini API 图像生成模型 */
-const MODEL = "gemini-3.1-flash-lite-image";
+const DEFAULT_MODEL = "gemini-3.1-flash-lite-image";
 const TIMEOUT_MS = 120_000;
 const FALLBACK_WIDTH = 1024;
 const FALLBACK_HEIGHT = 1024;
@@ -59,6 +59,12 @@ function readJpegDimensions(buffer: Buffer): { width: number; height: number } |
 
 export class GeminiImageGenProvider implements ImageGenProvider {
   readonly name = "gemini" as const;
+  private readonly model: string;
+
+  /** modelId 缺省时回退本地常量；应用路径一律由 models.json 解析后传入 */
+  constructor(modelId?: string) {
+    this.model = modelId ?? DEFAULT_MODEL;
+  }
 
   async generate(params: {
     prompt: string;
@@ -83,7 +89,7 @@ export class GeminiImageGenProvider implements ImageGenProvider {
     try {
       const response = await Promise.race([
         ai.models.generateContent({
-          model: MODEL,
+          model: this.model,
           contents: [{ role: "user", parts: [{ text: params.prompt }] }],
           config: {
             responseModalities: ["TEXT", "IMAGE"],

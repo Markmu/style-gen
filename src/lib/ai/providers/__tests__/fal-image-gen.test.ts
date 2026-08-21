@@ -163,7 +163,7 @@ describe("FalImageGenProvider", () => {
 
     expect(result.mode).toBe("sync");
     expect(mockSubscribe).toHaveBeenCalledWith(
-      "fal-ai/flux/dev",
+      "fal-ai/flux-2",
       expect.objectContaining({
         input: expect.objectContaining({
           prompt: defaultParams.prompt,
@@ -183,7 +183,7 @@ describe("FalImageGenProvider", () => {
     await generate({ aspectRatio: "16:9" });
 
     expect(mockSubscribe).toHaveBeenCalledWith(
-      "fal-ai/flux/dev",
+      "fal-ai/flux-2",
       expect.objectContaining({
         input: expect.objectContaining({
           image_size: "landscape_16_9",
@@ -201,7 +201,7 @@ describe("FalImageGenProvider", () => {
     await generate({ aspectRatio: "4:3" });
 
     expect(mockSubscribe).toHaveBeenCalledWith(
-      "fal-ai/flux/dev",
+      "fal-ai/flux-2",
       expect.objectContaining({
         input: expect.objectContaining({
           image_size: "landscape_4_3",
@@ -219,7 +219,7 @@ describe("FalImageGenProvider", () => {
     await generate({ aspectRatio: "1:1" });
 
     expect(mockSubscribe).toHaveBeenCalledWith(
-      "fal-ai/flux/dev",
+      "fal-ai/flux-2",
       expect.objectContaining({
         input: expect.objectContaining({
           image_size: "square",
@@ -237,7 +237,7 @@ describe("FalImageGenProvider", () => {
     await generate({ aspectRatio: "3:2" });
 
     expect(mockSubscribe).toHaveBeenCalledWith(
-      "fal-ai/flux/dev",
+      "fal-ai/flux-2",
       expect.objectContaining({
         input: expect.objectContaining({
           image_size: "square",
@@ -246,8 +246,8 @@ describe("FalImageGenProvider", () => {
     );
   });
 
-  // 13. P1: 使用正确模型 (fal-ai/flux/dev)
-  it("应使用 fal-ai/flux/dev 模型", async () => {
+  // 13. P1: 使用正确模型 (fal-ai/flux-2)
+  it("应使用 fal-ai/flux-2 模型", async () => {
     mockSubscribe.mockResolvedValueOnce({
       data: { images: [fakeFalImage] },
     });
@@ -255,7 +255,7 @@ describe("FalImageGenProvider", () => {
     await generate();
 
     expect(mockSubscribe).toHaveBeenCalledWith(
-      "fal-ai/flux/dev",
+      "fal-ai/flux-2",
       expect.any(Object)
     );
   });

@@ -8,20 +8,18 @@ import {
 import { findById as findTemplateById } from "@/lib/repositories/template-repository";
 import { auth } from "@/auth";
 import { getImageGenProvider } from "@/lib/ai/providers";
+import {
+  resolveImageGenModel,
+  UnknownModelError,
+} from "@/lib/ai/model-config";
 import { buildWebhookUrl, startTimeoutTimer } from "@/lib/ai/webhook-utils";
 import { completeGenerationTask } from "@/lib/ai/generation-completion";
 import { log, logErrorDetail } from "@/lib/ai/log";
+import type { ResolvedModelBinding } from "@/lib/ai/model-config";
 import type { IterationStatusFilter, ImageGenProviderName } from "@/types/models";
 
 /** 同步模式（fal.ai / Gemini）超时 120s */
 const SYNC_GENERATION_TIMEOUT_MS = 120_000;
-
-/** 各生图 Provider 落库的模型名，与 Provider 内部使用的模型常量保持一致 */
-const IMAGE_GEN_MODEL_NAMES: Record<ImageGenProviderName, string> = {
-  replicate: 'black-forest-labs/flux-2-dev',
-  fal: 'flux.2',
-  gemini: 'gemini-3.1-flash-lite-image',
-};
 
 // ─── GET /api/generation：迭代列表（近期条与完整页面共用，架构 §6.1）────
 
@@ -135,6 +133,8 @@ interface GenerationRequestBody {
   params: {
     aspectRatio: string;
     quality: string;
+    /** models.json 中的稳定模型 id；缺省时服务端按配置默认模型解析 */
+    model?: string;
   };
   /** plan-01（AC-02）: 工作台当前应用的 Style Memory id，可选 */
   sourceTemplateId?: string;
@@ -154,6 +154,20 @@ function validateBody(body: unknown): GenerationRequestBody | null {
   const params = obj.params as Record<string, unknown>;
   if (typeof params.aspectRatio !== "string" || !params.aspectRatio) return null;
   if (typeof params.quality !== "string" || !params.quality) return null;
+
+  // model 可选；提供时必须是短横线/字母数字的模型 id（具体存在性由 models.json 解析判定）
+  let model: string | undefined;
+  if (params.model !== undefined) {
+    if (
+      typeof params.model !== "string" ||
+      params.model.length === 0 ||
+      params.model.length > 100 ||
+      !/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(params.model)
+    ) {
+      return null;
+    }
+    model = params.model;
+  }
 
   // sourceTemplateId 可选；提供时必须是字符串且长度合法
   let sourceTemplateId: string | undefined;
@@ -175,6 +189,7 @@ function validateBody(body: unknown): GenerationRequestBody | null {
     params: {
       aspectRatio: params.aspectRatio,
       quality: params.quality,
+      ...(model !== undefined ? { model } : {}),
     },
     ...(sourceTemplateId !== undefined ? { sourceTemplateId } : {}),
   };
@@ -271,13 +286,27 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 2. 获取 Provider
-    const imageGenProvider = getImageGenProvider();
+    // 2. 解析模型 → Provider（models.json SSOT；未知模型拒绝）
+    let modelResolution: ResolvedModelBinding<ImageGenProviderName>;
+    try {
+      modelResolution = resolveImageGenModel(validated.params.model);
+    } catch (error) {
+      if (error instanceof UnknownModelError) {
+        return NextResponse.json(
+          { error: error.message, code: "INVALID_REQUEST", retryable: false },
+          { status: 400 }
+        );
+      }
+      throw error;
+    }
+    const imageGenProvider = getImageGenProvider(modelResolution);
 
     log("generation_request_received", {
       taskId: "pending",
       analysisTaskId: validated.analysisTaskId,
       provider: imageGenProvider.name,
+      model: modelResolution.modelId,
+      providerModelId: modelResolution.providerModelId,
     });
 
     // 3. 创建 GenerationTask 记录（status: 'pending'）
@@ -287,8 +316,8 @@ export async function POST(request: NextRequest) {
       promptSnapshot: validated.promptText,
       negativePromptSnapshot: validated.negativePromptText,
       params: validated.params,
-      modelName: IMAGE_GEN_MODEL_NAMES[imageGenProvider.name],
-      provider: imageGenProvider.name,
+      modelName: modelResolution.providerModelId,
+      provider: modelResolution.provider,
       recipeSnapshot: analysisTask.recipe ?? null,
       variablesSnapshot: analysisTask.analysisTemplateVariables ?? [],
       ...(validated.sourceTemplateId !== undefined

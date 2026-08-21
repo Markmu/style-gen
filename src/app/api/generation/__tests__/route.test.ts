@@ -116,7 +116,7 @@ const createdTask = {
   promptSnapshot: "a beautiful sunset",
   negativePromptSnapshot: "ugly",
   params: { aspectRatio: "16:9", quality: "high" },
-  modelName: "flux.2",
+  modelName: "fal-ai/flux-2",
   provider: "fal" as const,
   externalId: null,
   resultAssetId: null,
@@ -364,9 +364,12 @@ describe("GET /api/generation", () => {
 
 describe("POST /api/generation", () => {
   const originalFetch = globalThis.fetch;
+  const ORIGINAL_ENV = { ...process.env };
 
   beforeEach(() => {
     vi.restoreAllMocks();
+    // 模型解析默认不受环境影响；各 provider 子套件按需覆盖
+    delete process.env.IMAGE_GEN_PROVIDER;
     mockAuth.mockReset();
     mockAuth.mockResolvedValue({ user: { id: "user-1" } });
     mockFindAnalysisTaskById.mockReset();
@@ -394,11 +397,16 @@ describe("POST /api/generation", () => {
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
+    process.env = { ...ORIGINAL_ENV };
   });
 
   // ===== 同步模式 (fal.ai) 测试 =====
 
   describe("同步模式 (fal.ai)", () => {
+    beforeEach(() => {
+      process.env.IMAGE_GEN_PROVIDER = "fal";
+    });
+
     // 1. P0: 正常创建Generation Task
     it("正常创建Generation Task应返回 201 和 { id, status: processing }", async () => {
       mockFindAnalysisTaskById.mockResolvedValueOnce(completedAnalysisTask);
@@ -419,8 +427,8 @@ describe("POST /api/generation", () => {
       expect(json).toEqual({ id: "gen-task-1", status: "processing" });
     });
 
-    // 2. P0: 创建任务时 modelName 为 "flux.2" (fal)
-    it("创建任务时 modelName 应为 flux.2 (fal provider)", async () => {
+    // 2. P0: 创建任务时 modelName 为 models.json 中 fal 绑定的模型名
+    it("创建任务时 modelName 应为 fal-ai/flux-2 (fal provider)", async () => {
       mockFindAnalysisTaskById.mockResolvedValueOnce(completedAnalysisTask);
       mockCreateGenerationTask.mockResolvedValueOnce(createdTask);
       mockFalProvider.generate.mockResolvedValueOnce({
@@ -436,7 +444,7 @@ describe("POST /api/generation", () => {
       expect(mockCreateGenerationTask).toHaveBeenCalledWith(
         "user-1",
         expect.objectContaining({
-          modelName: "flux.2",
+          modelName: "fal-ai/flux-2",
           provider: "fal",
         })
       );
@@ -625,6 +633,7 @@ describe("POST /api/generation", () => {
 
   describe("同步模式 (Gemini)", () => {
     beforeEach(() => {
+      process.env.IMAGE_GEN_PROVIDER = "gemini";
       mockGetImageGenProvider.mockReturnValue(mockGeminiProvider);
     });
 
@@ -739,6 +748,7 @@ describe("POST /api/generation", () => {
 
   describe("异步模式 (Replicate)", () => {
     beforeEach(() => {
+      process.env.IMAGE_GEN_PROVIDER = "replicate";
       mockGetImageGenProvider.mockReturnValue(mockReplicateProvider);
     });
 
@@ -869,6 +879,104 @@ describe("POST /api/generation", () => {
       expect(res.status).toBe(500);
       expect(json.code).toBe("SERVICE_UNAVAILABLE");
       expect(json.error).toContain("Replicate API error");
+    });
+  });
+
+  // ===== 模型选择 (params.model → models.json 解析) 测试 =====
+
+  describe("模型选择 (params.model)", () => {
+    it("请求携带 model 时按该模型的默认绑定落库并传给工厂", async () => {
+      mockFindAnalysisTaskById.mockResolvedValueOnce(completedAnalysisTask);
+      mockCreateGenerationTask.mockResolvedValueOnce(createdTask);
+      mockGeminiProvider.generate.mockResolvedValueOnce({
+        mode: "sync" as const,
+        imageBase64: "aGVsbG8=",
+        mimeType: "image/png",
+        width: 1024,
+        height: 576,
+      });
+      mockGetImageGenProvider.mockReturnValue(mockGeminiProvider);
+
+      const body = {
+        ...validBody,
+        params: { ...validBody.params, model: "nano-banana-2-lite" },
+      };
+      const res = await POST(createRequest(body));
+
+      expect(res.status).toBe(201);
+      expect(mockCreateGenerationTask).toHaveBeenCalledWith(
+        "user-1",
+        expect.objectContaining({
+          modelName: "gemini-3.1-flash-lite-image",
+          provider: "gemini",
+          params: expect.objectContaining({ model: "nano-banana-2-lite" }),
+        })
+      );
+      expect(mockGetImageGenProvider).toHaveBeenCalledWith(
+        expect.objectContaining({
+          modelId: "nano-banana-2-lite",
+          provider: "gemini",
+          providerModelId: "gemini-3.1-flash-lite-image",
+        })
+      );
+    });
+
+    it("env 指定的 provider 服务于所选模型时覆盖默认绑定", async () => {
+      process.env.IMAGE_GEN_PROVIDER = "fal";
+      mockFindAnalysisTaskById.mockResolvedValueOnce(completedAnalysisTask);
+      mockCreateGenerationTask.mockResolvedValueOnce(createdTask);
+      mockFalProvider.generate.mockResolvedValueOnce({
+        mode: "sync" as const,
+        imageUrl: "https://fal.ai/tmp/result.webp",
+        width: 1024,
+        height: 1024,
+      });
+      mockGetImageGenProvider.mockReturnValue(mockFalProvider);
+
+      const body = {
+        ...validBody,
+        params: { ...validBody.params, model: "flux-2-dev" },
+      };
+      const res = await POST(createRequest(body));
+
+      expect(res.status).toBe(201);
+      expect(mockCreateGenerationTask).toHaveBeenCalledWith(
+        "user-1",
+        expect.objectContaining({
+          modelName: "fal-ai/flux-2",
+          provider: "fal",
+        })
+      );
+    });
+
+    it("未知 model 应返回 400 且不创建任务", async () => {
+      mockFindAnalysisTaskById.mockResolvedValueOnce(completedAnalysisTask);
+
+      const body = {
+        ...validBody,
+        params: { ...validBody.params, model: "not-a-model" },
+      };
+      const res = await POST(createRequest(body));
+      const json = await res.json();
+
+      expect(res.status).toBe(400);
+      expect(json.code).toBe("INVALID_REQUEST");
+      expect(json.error).toBe("Unknown imageGen model: not-a-model");
+      expect(mockCreateGenerationTask).not.toHaveBeenCalled();
+    });
+
+    it("model 含非法字符应返回 400", async () => {
+      mockFindAnalysisTaskById.mockResolvedValueOnce(completedAnalysisTask);
+
+      const body = {
+        ...validBody,
+        params: { ...validBody.params, model: "bad model!" },
+      };
+      const res = await POST(createRequest(body));
+
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.code).toBe("INVALID_REQUEST");
     });
   });
 

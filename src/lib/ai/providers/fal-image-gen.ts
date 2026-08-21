@@ -5,7 +5,8 @@ import type { ImageGenProvider } from "./types";
 export { ImageGenError };
 
 const TIMEOUT_MS = 120_000;
-const FAL_MODEL_ID = "fal-ai/flux/dev";
+/** models.json 中 flux-2-dev 的 fal 绑定；直接构造未传 modelId 时的回退值 */
+const DEFAULT_MODEL = "fal-ai/flux-2";
 
 interface FalImage {
   url: string;
@@ -28,6 +29,12 @@ function toFalImageSize(aspectRatio: string): FalImageSize {
 
 export class FalImageGenProvider implements ImageGenProvider {
   readonly name = "fal" as const;
+  private readonly model: string;
+
+  /** modelId 缺省时回退本地常量；应用路径一律由 models.json 解析后传入 */
+  constructor(modelId?: string) {
+    this.model = modelId ?? DEFAULT_MODEL;
+  }
 
   async generate(params: {
     prompt: string;
@@ -47,7 +54,7 @@ export class FalImageGenProvider implements ImageGenProvider {
 
     try {
       const result = await Promise.race([
-        client.subscribe(FAL_MODEL_ID, {
+        client.subscribe(this.model, {
           input: {
             prompt: params.prompt,
             image_size: toFalImageSize(params.aspectRatio),

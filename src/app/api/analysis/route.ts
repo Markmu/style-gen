@@ -10,6 +10,7 @@ import {
   toAnalysisFallbackUpdate,
 } from "@/lib/ai/analysis-completion";
 import { getVisionProvider } from "@/lib/ai/providers";
+import { resolveVisionModel } from "@/lib/ai/model-config";
 import { buildWebhookUrl, startTimeoutTimer } from "@/lib/ai/webhook-utils";
 import { log } from "@/lib/ai/log";
 import { auth } from "@/auth";
@@ -80,10 +81,12 @@ export async function POST(request: NextRequest) {
       mimeType: validated.mimeType,
     });
 
-    // 2. 获取 VisionProvider
-    const visionProvider = getVisionProvider();
+    // 2. 解析视觉模型 → VisionProvider（models.json SSOT）
+    const visionResolution = resolveVisionModel();
+    const visionProvider = getVisionProvider(visionResolution);
     log("vision_provider_selected", {
       provider: visionProvider.name,
+      model: visionResolution.providerModelId,
       userId,
       assetId: validated.assetId,
     });
@@ -92,7 +95,7 @@ export async function POST(request: NextRequest) {
     let task = await createAnalysisTask(userId, {
       sourceAssetId: asset.id,
       provider: visionProvider.name,
-      modelName: visionProvider.name === 'replicate' ? 'google/gemini-2.5-flash' : 'gemini-2.5-flash',
+      modelName: visionResolution.providerModelId,
     });
 
     log("analysis_task_created", { taskId: task.id, assetId: asset.id, provider: visionProvider.name });

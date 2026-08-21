@@ -1,17 +1,20 @@
 import Replicate from 'replicate';
 import type { ImageGenProvider } from './types';
 
-const MODEL = 'black-forest-labs/flux-2-dev' as const;
+const DEFAULT_MODEL = 'black-forest-labs/flux-2-dev' as const;
 
 export class ReplicateImageGenProvider implements ImageGenProvider {
   readonly name = 'replicate' as const;
   private client: Replicate;
+  private readonly model: string;
 
-  constructor() {
+  /** modelId 缺省时回退本地常量；应用路径一律由 models.json 解析后传入 */
+  constructor(modelId?: string) {
     if (!process.env.REPLICATE_API_TOKEN) {
       throw new Error('REPLICATE_API_TOKEN environment variable is required for Replicate provider');
     }
     this.client = new Replicate({ auth: process.env.REPLICATE_API_TOKEN });
+    this.model = modelId ?? DEFAULT_MODEL;
   }
 
   async generate(params: {
@@ -26,7 +29,7 @@ export class ReplicateImageGenProvider implements ImageGenProvider {
     }
 
     const prediction = await this.client.predictions.create({
-      model: MODEL,
+      model: this.model,
       input: {
         prompt: params.prompt,
         aspect_ratio: params.aspectRatio,
