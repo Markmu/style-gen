@@ -7,10 +7,14 @@ import {
   mockApiError,
   mockAuthSession,
   mockGenerationCreate,
+  mockIterationDetail,
+  mockIterationList,
   mockGenerationList,
   mockGenerationPolling,
   mockTemplateCollection,
   mockUploadPresign,
+  type MockIterationDetail,
+  type MockIterationListItem,
   type MockTemplateMemoryRecord,
 } from './helpers/mock-api'
 import { waitForReactInput } from './helpers/react-ready'
@@ -54,6 +58,71 @@ const styleMemories: MockTemplateMemoryRecord[] = [
     updatedAt: '2024-01-02T00:00:00.000Z',
   },
 ]
+
+const visualIterationItems: MockIterationListItem[] = [
+  {
+    id: 'visual-iteration-completed',
+    status: 'completed',
+    promptSummary: 'Amber glass still life with soft window light',
+    resultFileUrl: 'https://cdn.example.com/generated/visual-iteration-completed/result.webp',
+    params: { aspectRatio: '4:3', quality: 'hd' },
+    createdAt: '2026-08-23T08:30:00.000Z',
+  },
+  {
+    id: 'visual-iteration-processing',
+    status: 'processing',
+    promptSummary: 'Botanical study in translucent blue glass',
+    resultFileUrl: null,
+    params: { aspectRatio: '3:2', quality: 'hd' },
+    createdAt: '2026-08-23T08:18:00.000Z',
+  },
+  {
+    id: 'visual-iteration-failed',
+    status: 'failed',
+    promptSummary: 'Ceramic vessel under hard museum lighting',
+    resultFileUrl: null,
+    params: { aspectRatio: '1:1', quality: 'standard' },
+    createdAt: '2026-08-23T07:54:00.000Z',
+  },
+]
+
+const visualIterationDetail: MockIterationDetail = {
+  id: 'visual-iteration-completed',
+  analysisTaskId: 'visual-iteration-analysis',
+  status: 'completed',
+  promptSnapshot:
+    'Editorial product photograph of an amber glass vessel on folded natural linen with soft directional window light.',
+  negativePromptSnapshot: 'watermark, distorted glass, cluttered background',
+  params: { aspectRatio: '4:3', quality: 'hd' },
+  modelName: 'black-forest-labs/flux-2.5',
+  resultFileUrl: 'https://cdn.example.com/generated/visual-iteration-completed/result.webp',
+  errorMessage: null,
+  recipe: (loadFixture('analysis-v2-completed.json') as { recipe: object }).recipe,
+  recipeSource: 'snapshot',
+  variables: [
+    {
+      name: 'subject',
+      label: 'Subject',
+      defaultValue: 'amber glass vessel',
+      sourceField: 'subject',
+    },
+    {
+      name: 'environment',
+      label: 'Environment',
+      defaultValue: 'folded natural linen',
+      sourceField: 'environment',
+    },
+  ],
+  variablesSource: 'snapshot',
+  sourceImageUrl: 'https://cdn.example.com/references/visual-iteration/original.webp',
+  sourceAssetId: 'visual-iteration-source',
+  sourceTemplateId: null,
+  sourceTemplateName: null,
+  savedTemplate: null,
+  analysisTemplateVariables: [],
+  createdAt: '2026-08-23T08:30:00.000Z',
+  updatedAt: '2026-08-23T08:31:00.000Z',
+}
 
 async function openRoute(page: Page, route: string) {
   try {
@@ -254,7 +323,7 @@ async function expectVisibleTextDoesNotOverlap(page: Page) {
     }
 
     function visibleRectFor(element: HTMLElement) {
-      let rect = element.getBoundingClientRect()
+      const rect = element.getBoundingClientRect()
       let visible = intersect(rect, {
         left: 0,
         top: 0,
@@ -369,6 +438,67 @@ async function expectNoOverlap(first: Locator, second: Locator) {
 }
 
 test.describe('plan-08 targeted visual QA and legacy gate', () => {
+  test('TC-8.1 Iteration Memory keeps list and detail hierarchy across responsive viewports', async ({
+    page,
+  }, testInfo) => {
+    await mockAuthSession(page)
+    await mockIterationList(page, visualIterationItems)
+    await mockIterationDetail(page, visualIterationDetail)
+    await mockCdnImages(page)
+
+    for (const viewport of qaViewports) {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height })
+      await openRoute(page, '/workspace/iterations?status=all')
+
+      const iterationPage = page.getByTestId('iteration-memory-page')
+      const list = page.getByTestId('iteration-list')
+      await expect(iterationPage).toBeVisible()
+      await expect(list).toBeVisible()
+      await expect(page.getByTestId('iteration-list-item')).toHaveCount(3)
+      await expectButtonsDoNotOverflow(iterationPage)
+      await expectVisibleTextDoesNotOverlap(page)
+      expect(
+        await iterationPage.evaluate((element) => element.scrollWidth <= element.clientWidth),
+      ).toBe(true)
+      await page.screenshot({
+        path: testInfo.outputPath(`iteration-memory-${viewport.name}-list.png`),
+        fullPage: false,
+      })
+
+      await page.getByTestId('iteration-list-item').first().click()
+      const detail = page.getByTestId('iteration-detail-panel')
+      await expect(detail).toBeVisible()
+      if (viewport.width < 1280) {
+        await expect(list).toBeHidden()
+        await expect(detail.getByRole('button', { name: /back to list/i })).toBeVisible()
+      } else {
+        await expect(list).toBeVisible()
+        const library = page.getByRole('region', { name: 'Iteration library' })
+        const libraryBox = await library.boundingBox()
+        const detailBox = await page.getByRole('complementary', { name: 'Iteration detail' }).boundingBox()
+        expect(libraryBox?.width ?? 0).toBeGreaterThanOrEqual(416)
+        expect(libraryBox?.width ?? 0).toBeLessThanOrEqual(480)
+        expect(Math.abs((libraryBox?.y ?? 0) - (detailBox?.y ?? 0))).toBeLessThanOrEqual(1)
+        await expect(detail.getByRole('button', { name: /close detail/i })).toBeVisible()
+      }
+      await expectButtonsDoNotOverflow(detail)
+      expect(await detail.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+        true,
+      )
+      await page.screenshot({
+        path: testInfo.outputPath(`iteration-memory-${viewport.name}-detail.png`),
+        fullPage: false,
+      })
+
+      await detail
+        .getByRole('button', {
+          name: viewport.width < 1280 ? /back to list/i : /close detail/i,
+        })
+        .click()
+      await expect(list).toBeVisible()
+    }
+  })
+
   test('TC-8.2 critical pages stay non-empty with key QA selectors across viewports', async ({ page }) => {
     for (const viewport of qaViewports) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height })

@@ -414,4 +414,32 @@ test.describe('plan-02 Iteration Memory list page', () => {
     await expect(degradedItem).toContainText(/16:9/)
     await expect(degradedItem).toContainText(/completed/i)
   })
+
+  test('TC-2.10 compact widths keep the toolbar and item hierarchy readable', async ({ page }) => {
+    await page.setViewportSize({ width: 768, height: 900 })
+    await mockIterationList(page, threeStateItems)
+
+    await openIterations(page)
+    await expect(iterationItems(page)).toHaveCount(3)
+
+    const searchBox = await searchInput(page).boundingBox()
+    const filterBox = await statusFilter(page).boundingBox()
+    expect(searchBox?.width ?? 0).toBeGreaterThan(400)
+    expect(filterBox?.y ?? 0).toBeGreaterThan(
+      (searchBox?.y ?? 0) + (searchBox?.height ?? 0) - 2,
+    )
+
+    await page.setViewportSize({ width: 390, height: 844 })
+
+    const firstItem = iterationItems(page).first()
+    await expect(firstItem).toBeVisible()
+    expect(
+      await firstItem.evaluate((element) => element.scrollWidth <= element.clientWidth),
+    ).toBe(true)
+
+    const summary = firstItem.getByTestId('iteration-item-summary')
+    await expect(summary).toHaveText('Neon cityscape at dusk')
+    const summaryBox = await summary.boundingBox()
+    expect(summaryBox?.width ?? 0).toBeGreaterThan(120)
+  })
 })

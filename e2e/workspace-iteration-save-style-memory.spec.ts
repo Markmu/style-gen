@@ -502,7 +502,7 @@ test.describe('plan-05 save iteration as Style Memory and saved state', () => {
     await expectSavedState(page, templateName)
 
     // 关闭详情回到列表，再次进入同一条详情
-    await detailPanel(page).getByRole('button', { name: /back to list|return to list/i }).click()
+    await detailPanel(page).getByRole('button', { name: /close detail/i }).click()
     await expect(detailPanel(page)).toBeHidden()
     await openDetail(page, 'Neon dusk hero study')
 

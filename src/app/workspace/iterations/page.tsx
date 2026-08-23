@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Layers, Search, X } from "lucide-react";
+import { PanelRightOpen, Search, X } from "lucide-react";
 import { AppIcon } from "@/components/ui/app-icon";
 import { IterationList } from "@/components/iterations/iteration-list";
 import {
@@ -208,113 +208,112 @@ function IterationMemoryPageInner() {
       className="flex h-full min-h-0 flex-col"
       data-testid="iteration-memory-page"
     >
-      <header className="shrink-0 px-4 pb-4 pt-6 sm:px-6 lg:px-8 lg:pb-5 lg:pt-8">
-        <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="max-w-3xl">
-            <p className="label-tech mb-1.5 text-[var(--text-muted)]">
-              Workspace / Iteration Memory
-            </p>
-            <h1 className="text-[1.875rem] font-semibold leading-tight tracking-[-0.035em] text-[var(--text-primary)] sm:text-[2.25rem] lg:text-[2.5rem]">
-              Iteration Memory
-            </h1>
-            <p className="mt-1.5 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
-              Every generation attempt across statuses. Search by prompt keyword,
-              then open an iteration to continue its direction.
-            </p>
-          </div>
+      <header className={`shrink-0 px-4 pb-4 pt-5 sm:px-6 lg:px-8 ${selectedId ? "hidden xl:block" : ""}`}>
+        <div className="mx-auto w-full max-w-[100rem]">
+          <h1 className="text-2xl font-semibold leading-tight tracking-[-0.025em] text-[var(--text-primary)]">
+            Iteration Memory
+          </h1>
+          <p className="mt-1 max-w-[65ch] text-[0.8125rem] leading-5 text-[var(--text-secondary)]">
+            Find a previous generation, inspect its evidence, and continue from
+            the context that produced it.
+          </p>
         </div>
       </header>
 
-      <section
-        aria-label="Iteration Memory filters"
-        className="shrink-0 px-4 pb-4 sm:px-6 lg:px-8"
-      >
-        {areControlsReady ? (
-          <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center">
-            <label className="style-memory-search group relative flex min-h-11 min-w-0 flex-1 items-center rounded-lg px-3 sm:max-w-md">
-              <span className="sr-only">Search iterations</span>
-              <AppIcon
-                icon={Search}
-                size={18}
-                className="shrink-0 text-[var(--text-muted)] transition-colors group-focus-within:text-[var(--accent-primary)]"
-              />
-              <input
-                type="text"
-                value={q}
-                maxLength={MAX_SEARCH_LENGTH}
-                onChange={(event) =>
-                  applyFilter(event.currentTarget.value, status)
-                }
-                placeholder="Search iterations…"
-                className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
-              />
-              {q.trim().length > 0 && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    applyFilter("", status);
-                  }}
-                  aria-label="Clear search query"
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent-primary)]"
-                >
-                  <AppIcon icon={X} size={14} />
-                </button>
-              )}
-            </label>
-
-            <div
-              role="radiogroup"
-              aria-label="Status filter"
-              className="flex flex-wrap items-center gap-1.5"
-            >
-              {STATUS_FILTERS.map((filter) => {
-                const isSelected = status === filter.value;
-                return (
-                  <label
-                    key={filter.value}
-                    data-selected={isSelected ? "true" : undefined}
-                    className="iteration-filter-pill"
-                  >
-                    <input
-                      type="radio"
-                      name="iteration-status-filter"
-                      value={filter.value}
-                      checked={isSelected}
-                      onChange={() => applyFilter(q, filter.value)}
-                      className="absolute inset-0 cursor-pointer opacity-0"
-                    />
-                    <span
-                      className={`pointer-events-none h-1.5 w-1.5 rounded-full transition-colors ${
-                        isSelected
-                          ? filter.value === "completed"
-                            ? "bg-[var(--color-success)]"
-                            : filter.value === "failed"
-                              ? "bg-[var(--color-error)]"
-                              : "bg-[var(--accent-primary)]"
-                          : "bg-transparent"
-                      }`}
-                      aria-hidden="true"
-                    />
-                    <span className="pointer-events-none">{filter.label}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-        ) : (
-          <div
-            aria-hidden="true"
-            className="flex w-full flex-col gap-3 sm:flex-row sm:items-center"
+      <div className={`min-h-0 flex-1 px-4 pb-4 sm:px-6 sm:pb-6 lg:px-8 ${selectedId ? "pt-4 xl:pt-0" : ""}`}>
+        <div
+          data-testid="iteration-workbench"
+          className="surface-panel mx-auto grid h-full min-h-0 w-full max-w-[100rem] overflow-hidden rounded-2xl border border-[var(--border-static)] bg-[var(--surface-panel)] shadow-xs xl:grid-cols-[minmax(26rem,30rem)_minmax(0,1fr)]"
+        >
+          <section
+            aria-label="Iteration library"
+            className={`min-h-0 min-w-0 flex-col bg-[var(--surface-panel)] ${
+              selectedId ? "hidden xl:flex" : "flex"
+            }`}
           >
-            <div className="h-11 min-w-0 flex-1 animate-pulse rounded-lg bg-[var(--surface-low)] motion-reduce:animate-none sm:max-w-md" />
-            <div className="h-8 w-64 animate-pulse rounded-full bg-[var(--surface-low)] motion-reduce:animate-none" />
-          </div>
-        )}
-      </section>
+            <div
+              aria-label="Iteration Memory filters"
+              className="shrink-0 space-y-3 border-b border-[var(--border-static)] p-3.5 sm:p-4"
+            >
+              {areControlsReady ? (
+                <>
+                  <label className="style-memory-search group relative flex min-h-10 w-full min-w-0 items-center rounded-lg px-3">
+                    <span className="sr-only">Search iterations</span>
+                    <AppIcon
+                      icon={Search}
+                      size={17}
+                      className="shrink-0 text-[var(--text-muted)] transition-colors group-focus-within:text-[var(--accent-primary)]"
+                    />
+                    <input
+                      type="text"
+                      value={q}
+                      maxLength={MAX_SEARCH_LENGTH}
+                      onChange={(event) =>
+                        applyFilter(event.currentTarget.value, status)
+                      }
+                      placeholder="Search iterations…"
+                      className="min-w-0 flex-1 bg-transparent px-2.5 py-2 text-[0.8125rem] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+                    />
+                    {q.trim().length > 0 && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          applyFilter("", status);
+                        }}
+                        aria-label="Clear search query"
+                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent-primary)]"
+                      >
+                        <AppIcon icon={X} size={14} />
+                      </button>
+                    )}
+                  </label>
 
-      <div className="flex min-h-0 flex-1 gap-4 px-4 pb-6 sm:px-6 lg:flex-row lg:px-8 lg:pb-8">
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                  <div
+                    role="radiogroup"
+                    aria-label="Status filter"
+                    className="iteration-filter-group"
+                  >
+                    {STATUS_FILTERS.map((filter) => {
+                      const isSelected = status === filter.value;
+                      return (
+                        <label
+                          key={filter.value}
+                          data-selected={isSelected ? "true" : undefined}
+                          className="iteration-filter-pill justify-center"
+                        >
+                          <input
+                            type="radio"
+                            name="iteration-status-filter"
+                            value={filter.value}
+                            checked={isSelected}
+                            onChange={() => applyFilter(q, filter.value)}
+                            className="absolute inset-0 cursor-pointer opacity-0"
+                          />
+                          <span className="pointer-events-none">{filter.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                <div aria-hidden="true" className="space-y-3">
+                  <div className="h-10 w-full animate-pulse rounded-lg bg-[var(--surface-low)] motion-reduce:animate-none" />
+                  <div className="h-9 w-full animate-pulse rounded-lg bg-[var(--surface-low)] motion-reduce:animate-none" />
+                </div>
+              )}
+
+              {content === "list" && (
+                <p
+                  className="text-[0.6875rem] font-medium text-[var(--text-muted)]"
+                  aria-live="polite"
+                >
+                  {list.items.length} {list.items.length === 1 ? "iteration" : "iterations"}
+                </p>
+              )}
+            </div>
+
+            <div className="flex min-h-0 flex-1 flex-col p-2">
           {content === "unauthorized" ? (
             <IterationUnauthorizedFace
               onSignIn={handleSignIn}
@@ -339,75 +338,63 @@ function IterationMemoryPageInner() {
           ) : content === "skeleton" ? (
             <IterationLoadingSkeleton />
           ) : (
-            <>
-              <div className="mb-2.5 flex shrink-0 items-center justify-between">
-                <p
-                  className="text-xs font-medium text-[var(--text-muted)]"
-                  aria-live="polite"
-                >
-                  {list.items.length}{" "}
-                  {list.items.length === 1 ? "iteration" : "iterations"}
-                </p>
-                {status !== "all" && (
-                  <span className="rounded-full border border-[var(--border-static)] bg-[var(--surface-low)] px-2.5 py-0.5 text-[0.6875rem] font-medium text-[var(--text-secondary)]">
-                    Filter: {status}
-                  </span>
-                )}
-              </div>
-              <IterationList
-                items={list.items}
-                selectedId={selectedId}
-                onSelect={handleSelect}
-                hasNextPage={list.hasNextPage}
-                isFetchingNextPage={list.isFetchingNextPage}
-                loadEarlierError={list.isLoadEarlierError}
-                onLoadEarlier={() => list.loadEarlier()}
-              />
-            </>
+            <IterationList
+              items={list.items}
+              selectedId={selectedId}
+              onSelect={handleSelect}
+              hasNextPage={list.hasNextPage}
+              isFetchingNextPage={list.isFetchingNextPage}
+              loadEarlierError={list.isLoadEarlierError}
+              onLoadEarlier={() => list.loadEarlier()}
+            />
           )}
-        </div>
-
-        <aside
-          aria-label="Iteration detail"
-          className="hidden min-h-0 w-96 shrink-0 flex-col lg:flex xl:w-[26rem] 2xl:w-[28rem]"
-        >
-          {selectedId === null ? (
-            <div className="surface-panel flex h-full flex-col items-center justify-center gap-4 rounded-xl border border-[var(--border-static)] p-8 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--border-static)] bg-[var(--surface-control)] text-[var(--accent-primary)] shadow-sm">
-                <AppIcon icon={Layers} size={24} />
-              </div>
-              <div className="max-w-xs space-y-2">
-                <h2 className="text-sm font-semibold tracking-[-0.015em] text-[var(--text-primary)]">
-                  Iteration detail
-                </h2>
-                <p className="text-xs leading-5 text-[var(--text-secondary)]">
-                  Select an iteration to open its full creation context: reference,
-                  evidence, prompt, and settings. The list keeps your search,
-                  filter, and position while the detail is open.
-                </p>
-              </div>
             </div>
-          ) : detail.status === "error" ? (
-            <IterationDetailErrorFace
-              message={detail.error?.message}
-              onRetry={detail.retry}
-              onClose={handleCloseDetail}
-            />
-          ) : detail.status === "ready" && detail.detail ? (
-            <IterationDetailPanel
-              detail={detail.detail}
-              onBackToList={handleCloseDetail}
-              onPrevious={goPreviousDetail}
-              onNext={goNextDetail}
-              hasPrevious={hasDetailPrevious}
-              hasNext={hasDetailNext}
-              updatesUnavailable={detail.updatesUnavailable}
-              onRetryUpdates={detail.retryUpdates}
-            />
-          ) : (
-            <IterationDetailSkeleton />
-          )}
-        </aside>
+          </section>
+
+          <aside
+            aria-label="Iteration detail"
+            className={`${selectedId ? "flex" : "hidden xl:flex"} min-h-0 min-w-0 flex-col border-[var(--border-static)] bg-[var(--surface-page)] xl:border-l`}
+          >
+            {selectedId === null ? (
+              <div
+                data-testid="iteration-detail-empty"
+                className="flex h-full min-h-0 items-center justify-center px-8 py-12 text-center"
+              >
+                <div className="max-w-sm">
+                  <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl border border-[var(--border-static)] bg-[var(--surface-control)] text-[var(--accent-primary)]">
+                    <AppIcon icon={PanelRightOpen} size={21} />
+                  </span>
+                  <h2 className="mt-4 text-sm font-semibold text-[var(--text-primary)]">
+                    Select an iteration
+                  </h2>
+                  <p className="mt-1.5 text-xs leading-5 text-[var(--text-secondary)]">
+                    Compare its reference and result, review the preserved
+                    evidence, or continue from the same creative context.
+                  </p>
+                </div>
+              </div>
+            ) : detail.status === "error" ? (
+              <IterationDetailErrorFace
+                message={detail.error?.message}
+                onRetry={detail.retry}
+                onClose={handleCloseDetail}
+              />
+            ) : detail.status === "ready" && detail.detail ? (
+              <IterationDetailPanel
+                detail={detail.detail}
+                onBackToList={handleCloseDetail}
+                onPrevious={goPreviousDetail}
+                onNext={goNextDetail}
+                hasPrevious={hasDetailPrevious}
+                hasNext={hasDetailNext}
+                updatesUnavailable={detail.updatesUnavailable}
+                onRetryUpdates={detail.retryUpdates}
+              />
+            ) : (
+              <IterationDetailSkeleton />
+            )}
+          </aside>
+        </div>
       </div>
     </div>
   );

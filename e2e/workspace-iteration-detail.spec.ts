@@ -43,7 +43,7 @@ import {
  * - [data-testid="iteration-failure-reason"] — 失败说明（errorMessage 映射业务文案）
  * - [data-testid="iteration-detail-actions"] — 底部动作区插槽占位
  *   （completed/failed 渲染空占位容器；processing 不渲染）
- * - 面板头部按钮：Back to list（返回列表）、Previous（上一条）/ Next（下一条），
+ * - 紧凑宽度使用 Back to list；桌面双栏使用 Close detail；Previous / Next 保留相邻浏览，
  *   位于列表边界时对应方向按钮 disabled
  * ---------------------------------------------------------------------------
  */
@@ -149,6 +149,10 @@ function backToListButton(page: Page) {
   })
 }
 
+function closeDetailButton(page: Page) {
+  return detailPanel(page).getByRole('button', { name: /close detail/i })
+}
+
 function previousButton(page: Page) {
   return detailPanel(page).getByRole('button', { name: /previous|older/i })
 }
@@ -228,7 +232,8 @@ test.describe('plan-03 Iteration Memory detail three states and polling', () => 
     await expect(panel).toBeVisible()
     await expect(panel).toHaveAttribute('data-status', 'completed')
     await expect(panel).toHaveAttribute('data-iteration-id', 'iter-completed')
-    await expect(backToListButton(page)).toBeVisible()
+    await expect(backToListButton(page)).toBeHidden()
+    await expect(closeDetailButton(page)).toBeVisible()
     await expect(previousButton(page)).toBeVisible()
     await expect(nextButton(page)).toBeVisible()
 
@@ -538,7 +543,7 @@ test.describe('plan-03 Iteration Memory detail three states and polling', () => 
     await iterationItems(page).filter({ hasText: 'Neon archive study 010' }).click()
     await expect(detailPanel(page)).toBeVisible()
 
-    await backToListButton(page).click()
+    await closeDetailButton(page).click()
     await expect(detailPanel(page)).toBeHidden()
 
     // 列表搜索、筛选、已加载深度、滚动位置全部保持
@@ -594,5 +599,40 @@ test.describe('plan-03 Iteration Memory detail three states and polling', () => 
     await expect(page.getByTestId('iteration-result-image').locator('img')).toBeVisible()
     await expect(detailBlock(page, 'prompt')).toContainText('Legacy neon study without snapshots')
     await expect(detailBlock(page, 'settings')).toContainText('black-forest-2.5')
+  })
+
+  test('TC-3.10 compact widths replace the list with an accessible full-width detail', async ({ page }) => {
+    await page.setViewportSize({ width: 768, height: 900 })
+    await mockIterationList(page, [
+      iterationItem({
+        id: 'iter-compact',
+        status: 'completed',
+        promptSummary: 'Compact amber glass study',
+      }),
+    ])
+    await mockIterationDetail(
+      page,
+      iterationDetail({
+        id: 'iter-compact',
+        status: 'completed',
+        prompt: 'Compact amber glass study with soft window light',
+      }),
+    )
+
+    await openIterations(page)
+    await iterationItems(page).click()
+
+    await expect(detailPanel(page)).toBeVisible()
+    await expect(page.getByTestId('iteration-list')).toBeHidden()
+    await expect(page.getByTestId('iteration-reference-image')).toBeVisible()
+
+    await backToListButton(page).click()
+    await expect(page.getByTestId('iteration-list')).toBeVisible()
+    await expect(detailPanel(page)).toHaveCount(0)
+
+    await page.setViewportSize({ width: 390, height: 844 })
+    await iterationItems(page).click()
+    await expect(detailPanel(page)).toBeVisible()
+    await expect(page.getByTestId('iteration-detail-actions')).toBeVisible()
   })
 })

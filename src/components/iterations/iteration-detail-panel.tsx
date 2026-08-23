@@ -16,6 +16,8 @@ import {
   Copy,
   CornerUpLeft,
   ImageIcon,
+  Info,
+  X,
 } from "lucide-react";
 import { AppIcon } from "@/components/ui/app-icon";
 import { ReplaceConfirmDialog } from "@/components/iterations/replace-confirm-dialog";
@@ -74,12 +76,13 @@ function StatusBadge({
 }) {
   return (
     <span
-      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[0.6875rem] font-semibold tracking-wide ${
+      aria-label={`Status: ${label}`}
+      className={`inline-flex shrink-0 items-center gap-1.5 text-[0.65625rem] font-semibold ${
         tone === "success"
-          ? "border-[var(--color-success)]/30 bg-[var(--status-success-bg)] text-[var(--status-success-text)]"
+          ? "text-[var(--status-success-text)]"
           : tone === "danger"
-            ? "border-[var(--color-error)]/30 bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]"
-            : "border-[var(--accent-primary)]/30 bg-[var(--status-accent-bg)] text-[var(--status-accent-text)]"
+            ? "text-[var(--status-danger-text)]"
+            : "text-[var(--status-accent-text)]"
       }`}
     >
       <span
@@ -129,17 +132,14 @@ function ReferenceImage({
   return (
     <div
       data-testid="iteration-reference-image"
-      className="group relative overflow-hidden rounded-xl border border-[var(--border-static)] bg-[var(--surface-media)] shadow-xs"
+      className="relative overflow-hidden rounded-xl border border-[var(--border-static)] bg-[var(--surface-media)] shadow-xs"
     >
-      <span className="pointer-events-none absolute left-2.5 top-2.5 z-10 rounded-md border border-white/15 bg-black/70 px-2 py-0.5 font-mono text-[0.625rem] font-semibold uppercase tracking-wider text-white backdrop-blur-md">
-        Reference
-      </span>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={sourceImageUrl ?? ""}
         alt={`Reference image: ${promptSummary}`}
         onError={() => setFailed(true)}
-        className="aspect-[4/3] w-full object-cover transition-transform duration-300 ease-out group-hover:scale-105"
+        className="aspect-[4/3] w-full object-cover"
       />
     </div>
   );
@@ -179,17 +179,14 @@ function ResultImage({
   return (
     <div
       data-testid="iteration-result-image"
-      className="group relative overflow-hidden rounded-xl border border-[var(--border-static)] bg-[var(--surface-media)] shadow-xs"
+      className="relative overflow-hidden rounded-xl border border-[var(--border-static)] bg-[var(--surface-media)] shadow-xs"
     >
-      <span className="pointer-events-none absolute left-2.5 top-2.5 z-10 rounded-md border border-white/15 bg-black/70 px-2 py-0.5 font-mono text-[0.625rem] font-semibold uppercase tracking-wider text-white backdrop-blur-md">
-        Result
-      </span>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={resultFileUrl ?? ""}
         alt={`Generated result: ${promptSummary}`}
         onError={() => setFailed(true)}
-        className="aspect-[4/3] w-full object-cover transition-transform duration-300 ease-out group-hover:scale-105"
+        className="aspect-[4/3] w-full object-cover"
       />
     </div>
   );
@@ -198,12 +195,19 @@ function ResultImage({
 function DegradedNotice({ copyKey }: { copyKey: string }) {
   const copy = getIterationDegradedCopy(copyKey);
   return (
-    <p
+    <div
       data-degraded={copyKey}
-      className="mt-2 rounded-lg border border-[var(--border-static)] bg-[var(--surface-low)] px-3 py-2 text-[0.6875rem] leading-5 text-[var(--text-secondary)]"
+      className="mt-2 flex items-start gap-2 rounded-lg border border-[var(--border-static)] bg-[var(--surface-low)] px-2.5 py-2 text-[0.6875rem] leading-5 text-[var(--text-secondary)]"
     >
-      {copy.what} {copy.preserved} {copy.next}
-    </p>
+      <AppIcon
+        icon={Info}
+        size={14}
+        className="mt-0.5 shrink-0 text-[var(--text-muted)]"
+      />
+      <p>
+        {copy.what} {copy.preserved} {copy.next}
+      </p>
+    </div>
   );
 }
 
@@ -231,7 +235,7 @@ function IterationSaveActions({
     return (
       <div
         data-testid="iteration-saved-state"
-        className="flex min-h-0 flex-wrap items-center gap-2 rounded-lg border border-[var(--color-success)]/30 bg-[var(--color-success-soft)] px-3 py-1.5 shadow-xs"
+        className="flex min-h-0 w-full flex-wrap items-center gap-2 rounded-lg border border-[var(--color-success)]/30 bg-[var(--color-success-soft)] px-3 py-1.5 shadow-xs sm:w-auto"
       >
         <AppIcon
           icon={CircleCheck}
@@ -272,7 +276,7 @@ function IterationSaveActions({
     <button
       type="button"
       onClick={onOpenSaveDialog}
-      className="btn-secondary flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-medium transition-all"
+      className="btn-secondary flex w-full items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-medium transition-all sm:w-auto"
     >
       <AppIcon icon={BookmarkPlus} size={15} />
       Save as Style Memory
@@ -330,6 +334,13 @@ function PromptBlock({ prompt }: { prompt: string }) {
  * 所有快照文本（facet 值、不变量、提示、排除项）均按纯文本渲染（架构 §8.3）。
  */
 function ContextBlocks({ model }: { model: IterationDetailModel }) {
+  const facetGroups = new Map<string, IterationDetailModel["facets"]>();
+  for (const facet of model.facets) {
+    const group = facetGroups.get(facet.label) ?? [];
+    group.push(facet);
+    facetGroups.set(facet.label, group);
+  }
+
   return (
     <>
       <section
@@ -349,25 +360,30 @@ function ContextBlocks({ model }: { model: IterationDetailModel }) {
         ) : (
           <>
             {model.facets.length > 0 && (
-              <ul className="space-y-2">
-                {model.facets.map((facet) => (
+              <ul className="space-y-3">
+                {Array.from(facetGroups.entries()).map(([label, facets]) => (
                   <li
-                    key={facet.id}
-                    className="rounded-lg border border-[var(--border-static)]/60 bg-[var(--surface-low)] p-2.5 shadow-2xs"
+                    key={label}
+                    className="border-t border-[var(--border-static)]/70 pt-3 first:border-t-0 first:pt-0"
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-semibold text-[var(--text-primary)]">
-                        {facet.label}
-                      </span>
-                      {facet.confidence !== null && (
-                        <span className="shrink-0 rounded-sm bg-[var(--surface-control)] px-1.5 py-0.5 font-mono text-[0.625rem] font-semibold text-[var(--text-muted)]">
-                          {Math.round(facet.confidence * 100)}%
-                        </span>
-                      )}
-                    </div>
-                    <span className="mt-1 block break-words text-[0.6875rem] leading-5 text-[var(--text-secondary)]">
-                      {facet.summary}
-                    </span>
+                    <p className="text-xs font-semibold text-[var(--text-primary)]">
+                      {label}
+                    </p>
+                    <ul className="mt-1.5 space-y-1.5">
+                      {facets.map((facet) => (
+                        <li
+                          key={facet.id}
+                          className="flex flex-wrap items-baseline gap-x-2 text-[0.6875rem] leading-5 text-[var(--text-secondary)]"
+                        >
+                          <span className="break-words">{facet.summary}</span>
+                          {facet.confidence !== null && (
+                            <span className="shrink-0 font-mono text-[0.625rem] font-semibold text-[var(--text-muted)]">
+                              {Math.round(facet.confidence * 100)}%
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
                   </li>
                 ))}
               </ul>
@@ -414,7 +430,7 @@ function ContextBlocks({ model }: { model: IterationDetailModel }) {
             {model.variables.map((variable) => (
               <div
                 key={variable.name}
-                className="rounded-lg border border-[var(--border-static)]/60 bg-[var(--surface-low)] p-2.5 shadow-2xs"
+                className="border-t border-[var(--border-static)]/70 py-2.5 first:border-t-0 sm:[&:nth-child(2)]:border-t-0"
               >
                 <dt className="label-tech text-[0.625rem] text-[var(--text-muted)]">
                   {variable.label ?? variable.name}
@@ -431,7 +447,7 @@ function ContextBlocks({ model }: { model: IterationDetailModel }) {
           </p>
         )}
         {model.hasNegativePrompt && (
-          <div className="rounded-lg border border-[var(--border-static)]/60 bg-[var(--surface-low)] p-2.5">
+          <div className="border-t border-[var(--border-static)]/70 pt-2.5">
             <p className="label-tech mb-1 text-[0.625rem] text-[var(--text-muted)]">
               Exclusions
             </p>
@@ -448,27 +464,27 @@ function ContextBlocks({ model }: { model: IterationDetailModel }) {
         className="iteration-detail-section"
       >
         <p className="label-tech text-[var(--text-muted)]">Generation settings</p>
-        <dl className="mt-2.5 grid grid-cols-2 gap-2 text-[0.6875rem]">
+        <dl className="mt-2.5 grid grid-cols-2 gap-x-4 text-[0.6875rem]">
           {/* dt/dd 与相邻网格单元间的显式空格保持 textContent 词边界（E2E 断言 \bhd\b 等） */}
-          <div className="rounded-lg border border-[var(--border-static)]/60 bg-[var(--surface-low)] p-2.5">
+          <div className="border-t border-[var(--border-static)]/70 py-2.5">
             <dt className="label-tech text-[0.625rem] text-[var(--text-muted)]">Aspect ratio</dt>{" "}
             <dd className="mt-1 font-mono font-medium text-[var(--text-primary)]">
               {model.params.aspectRatio}
             </dd>
           </div>{" "}
-          <div className="rounded-lg border border-[var(--border-static)]/60 bg-[var(--surface-low)] p-2.5">
+          <div className="border-t border-[var(--border-static)]/70 py-2.5">
             <dt className="label-tech text-[0.625rem] text-[var(--text-muted)]">Quality</dt>{" "}
             <dd className="mt-1 font-mono font-medium uppercase text-[var(--text-primary)]">
               {model.params.quality}
             </dd>
           </div>{" "}
-          <div className="col-span-2 rounded-lg border border-[var(--border-static)]/60 bg-[var(--surface-low)] p-2.5">
+          <div className="col-span-2 border-t border-[var(--border-static)]/70 py-2.5">
             <dt className="label-tech text-[0.625rem] text-[var(--text-muted)]">Model</dt>{" "}
             <dd className="mt-1 break-all font-mono font-medium text-[var(--text-primary)]">
               {model.modelName}
             </dd>
           </div>{" "}
-          <div className="col-span-2 rounded-lg border border-[var(--border-static)]/60 bg-[var(--surface-low)] p-2.5">
+          <div className="col-span-2 border-t border-[var(--border-static)]/70 py-2.5">
             <dt className="label-tech text-[0.625rem] text-[var(--text-muted)]">Created</dt>{" "}
             <dd className="mt-1 text-[var(--text-secondary)]">
               {model.createdAtLabel}
@@ -545,41 +561,71 @@ export function IterationDetailPanel({
       data-testid="iteration-detail-panel"
       data-status={model.status}
       data-iteration-id={model.id}
-      className="surface-panel flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-[var(--border-static)] shadow-sm"
+      className="flex h-full min-h-0 flex-col overflow-hidden bg-[var(--surface-page)]"
     >
-      <header className="flex shrink-0 items-center gap-2.5 border-b border-[var(--border-static)] bg-[var(--surface-panel)] px-3.5 py-3">
+      <header className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-[var(--border-static)] bg-[var(--surface-panel)] px-3 py-3 sm:flex-nowrap sm:px-4">
         <button
           type="button"
           onClick={onBackToList}
-          className="btn-secondary flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium"
+          aria-label="Back to list"
+          className="btn-secondary flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium xl:hidden"
         >
           <AppIcon icon={ArrowLeft} size={14} />
-          Back to list
+          <span>Back</span>
         </button>
-        <StatusBadge tone={model.statusTone} label={model.statusLabel} />
-        <span className="ml-auto flex shrink-0 items-center gap-1">
+        <div className="order-3 min-w-0 flex-1 basis-full sm:order-none sm:basis-auto">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <h2
+              data-testid="iteration-detail-title"
+              title={promptSummary}
+              className="truncate text-[0.8125rem] font-semibold tracking-[-0.01em] text-[var(--text-primary)]"
+            >
+              {promptSummary || "Untitled iteration"}
+            </h2>
+            <StatusBadge tone={model.statusTone} label={model.statusLabel} />
+          </div>
+          <p className="mt-0.5 truncate text-[0.65625rem] text-[var(--text-muted)]">
+            {model.createdAtLabel}
+          </p>
+        </div>
+        <div
+          role="group"
+          aria-label="Iteration navigation"
+          className="ml-auto flex shrink-0 items-center gap-1"
+        >
           <button
             type="button"
             onClick={onPrevious}
             disabled={!hasPrevious}
-            className="btn-secondary flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium"
+            aria-label="Previous iteration"
+            title="Previous iteration"
+            className="btn-secondary flex h-8 w-8 items-center justify-center rounded-lg text-xs font-medium"
           >
             <AppIcon icon={ChevronUp} size={14} />
-            Previous
           </button>
           <button
             type="button"
             onClick={onNext}
             disabled={!hasNext}
-            className="btn-secondary flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium"
+            aria-label="Next iteration"
+            title="Next iteration"
+            className="btn-secondary flex h-8 w-8 items-center justify-center rounded-lg text-xs font-medium"
           >
             <AppIcon icon={ChevronDown} size={14} />
-            Next
           </button>
-        </span>
+          <button
+            type="button"
+            onClick={onBackToList}
+            aria-label="Close detail"
+            title="Close detail"
+            className="btn-secondary hidden h-8 w-8 items-center justify-center rounded-lg xl:flex"
+          >
+            <AppIcon icon={X} size={14} />
+          </button>
+        </div>
       </header>
 
-      <div className="min-h-0 flex-1 space-y-3.5 overflow-y-auto p-3.5">
+      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-3.5 sm:p-4 lg:p-5">
         {model.status === "processing" && (
           <section
             data-testid="iteration-processing-notice"
@@ -648,7 +694,7 @@ export function IterationDetailPanel({
         )}
 
         {/* 左区：参考图与生成结果并排（completed 的第一视觉焦点） */}
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <figure className="min-w-0">
             <ReferenceImage
               sourceImageUrl={model.sourceImageUrl}
@@ -682,7 +728,7 @@ export function IterationDetailPanel({
         <footer
           data-testid="iteration-detail-actions"
           aria-label="Iteration detail actions"
-          className="flex min-h-[3.5rem] shrink-0 flex-wrap items-center justify-end gap-2.5 border-t border-[var(--border-static)] bg-[var(--surface-floating)]/95 px-4 py-3 backdrop-blur-md"
+          className="flex min-h-[3.5rem] shrink-0 flex-col items-stretch justify-end gap-2.5 border-t border-[var(--border-static)] bg-[var(--surface-panel)] px-3 py-3 sm:flex-row sm:items-center sm:px-4"
         >
           {secondaryActions ?? (
             <IterationSaveActions
@@ -697,7 +743,7 @@ export function IterationDetailPanel({
             <button
               type="button"
               onClick={() => restore(detail)}
-              className="btn-primary flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold tracking-wide"
+              className="btn-primary flex w-full items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold tracking-wide sm:w-auto"
             >
               <AppIcon icon={CornerUpLeft} size={14} />
               {continueDirectionLabel}
@@ -735,7 +781,7 @@ export function IterationDetailSkeleton() {
     <div
       role="status"
       aria-label="Loading iteration detail"
-      className="surface-panel flex h-full flex-col gap-3.5 rounded-xl p-4 shadow-sm"
+      className="flex h-full flex-col gap-3.5 bg-[var(--surface-page)] p-4"
     >
       <div className="h-9 w-full animate-pulse rounded-lg bg-[var(--surface-low)] motion-reduce:animate-none" />
       <div className="grid grid-cols-2 gap-2.5">
@@ -764,7 +810,7 @@ export function IterationDetailErrorFace({
       data-testid="iteration-detail-error"
       role="alert"
       aria-live="assertive"
-      className="surface-panel flex h-full flex-col gap-3.5 rounded-xl p-5 shadow-sm"
+      className="flex h-full flex-col gap-3.5 bg-[var(--surface-page)] p-5"
     >
       <p className="label-tech text-[var(--text-muted)]">Iteration detail</p>
       <h3 className="text-base font-semibold tracking-[-0.01em] text-[var(--text-primary)]">

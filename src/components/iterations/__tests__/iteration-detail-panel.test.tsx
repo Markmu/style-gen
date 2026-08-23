@@ -161,6 +161,12 @@ describe("IterationDetailPanel — completed variant", () => {
     const panel = screen.getByTestId("iteration-detail-panel");
     expect(panel).toHaveAttribute("data-status", "completed");
     expect(panel).toHaveAttribute("data-iteration-id", "iter-001");
+    expect(screen.getByTestId("iteration-detail-title")).toHaveTextContent(
+      "Precise neon cityscape at dusk with amber glass towers",
+    );
+    expect(
+      screen.getByRole("group", { name: /iteration navigation/i }),
+    ).toBeInTheDocument();
 
     expect(
       within(screen.getByTestId("iteration-reference-image")).getByRole("img"),
@@ -443,7 +449,9 @@ describe("IterationDetailPanel — header navigation", () => {
     expect(
       screen.getByRole("button", { name: /previous/i }),
     ).toBeDisabled();
-    expect(screen.getByRole("button", { name: /^next$/i })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /^next iteration$/i }),
+    ).toBeDisabled();
   });
 
   it("forwards back/previous/next intents to the page callbacks", async () => {
@@ -456,7 +464,9 @@ describe("IterationDetailPanel — header navigation", () => {
     await user.click(screen.getByRole("button", { name: /previous/i }));
     expect(onPrevious).toHaveBeenCalledTimes(1);
 
-    await user.click(screen.getByRole("button", { name: /^next$/i }));
+    await user.click(
+      screen.getByRole("button", { name: /^next iteration$/i }),
+    );
     expect(onNext).toHaveBeenCalledTimes(1);
   });
 });
