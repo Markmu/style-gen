@@ -21,8 +21,8 @@ const navItems = [
     match: (pathname: string) => pathname === "/workspace",
   },
   {
-    label: "Library",
-    ariaLabel: "Style Memory Library",
+    label: "Style Memory",
+    ariaLabel: "Style Memory",
     href: "/workspace/templates",
     tone: "library",
     icon: Layers3,

@@ -614,6 +614,126 @@ export async function mockTemplateCreateCapture(
   return { requests }
 }
 
+/**
+ * Mock POST /api/templates with a delayed single response — plan-06 保存进行中
+ * 锁定场景：响应延迟 `delayMs` 才返回，供"保存进行中按钮锁定、连点只发一次
+ * POST"断言。仅拦截无 query 的 POST；其余方法放行。请求捕获口径同
+ * `mockTemplateCreateCapture`。
+ */
+export async function mockTemplateCreateCaptureSlow(
+  page: Page,
+  response: MockTemplateCreateResponse,
+  delayMs = 2000,
+) {
+  const requests: CapturedTemplateCreateRequest[] = []
+  await page.route('**/api/templates', async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.continue()
+      return
+    }
+    requests.push({
+      url: route.request().url(),
+      body: (route.request().postDataJSON() ?? {}) as Record<string, unknown>,
+    })
+    await new Promise((resolve) => setTimeout(resolve, delayMs))
+    await route.fulfill({
+      status: response.status,
+      contentType: 'application/json',
+      body: JSON.stringify(response.body),
+    })
+  })
+  return { requests }
+}
+
+/** plan-04: Style Memory 列表条目 — GET /api/templates 新 DTO（plan-02 交付，`StyleMemoryListItem`） */
+export interface MockStyleMemoryListItem {
+  id: string
+  name: string
+  verificationStatus: 'user_verified' | 'pending_verification'
+  /** 服务端已取前 2 条的规则摘要 */
+  retainedRulesPreview: string[]
+  variableCount: number
+  /** 来源图（待验证主预览 / 已验证次预览） */
+  sourceImageUrl: string | null
+  /** 代表结果图（已验证主预览） */
+  representativeImageUrl: string | null
+  /** ISO 8601，无使用为 null */
+  lastUsedAt: string | null
+  updatedAt: string
+  /** mock-only：参与 mock 搜索谓词的额外可检索文本（说明/变量名/标签等），不序列化进响应 */
+  mockSearchText?: string
+}
+
+/** Captured query of a GET /api/templates list request, for asserting search/status/cursor passthrough */
+export interface StyleMemoryListRequestQuery {
+  search: string | null
+  status: string | null
+  cursor: string | null
+}
+
+export interface MockStyleMemoryListOptions {
+  /** Receives the parsed query of every GET /api/templates list request */
+  onRequest?: (query: StyleMemoryListRequestQuery) => void
+}
+
+/** plan-04: 剥离 mock-only 的 `mockSearchText`，得到与 GET /api/templates 响应一致的条目 DTO */
+export function styleMemoryListItemDto(item: MockStyleMemoryListItem) {
+  const dto = { ...item }
+  delete dto.mockSearchText
+  return dto
+}
+
+/**
+ * Mock GET /api/templates — plan-04 Style Memory 列表（plan-02 新 DTO）。
+ * `status`（all | user_verified | pending_verification）与 `search` 在 mock 侧
+ * 按名称 + retainedRulesPreview + mockSearchText 跨字段过滤，模拟服务端谓词；
+ * 响应序列化前剥离 mock-only 的 `mockSearchText` 字段。
+ */
+export async function mockStyleMemoryList(
+  page: Page,
+  items: MockStyleMemoryListItem[],
+  options: MockStyleMemoryListOptions = {},
+) {
+  await page.route('**/api/templates?**', async (route) => {
+    if (route.request().method() !== 'GET') {
+      await route.continue()
+      return
+    }
+
+    const url = new URL(route.request().url())
+    const query: StyleMemoryListRequestQuery = {
+      search: url.searchParams.get('search'),
+      status: url.searchParams.get('status'),
+      cursor: url.searchParams.get('cursor'),
+    }
+    options.onRequest?.(query)
+
+    let filtered = items
+    if (query.status && query.status !== 'all') {
+      filtered = filtered.filter((item) => item.verificationStatus === query.status)
+    }
+    const search = (query.search ?? '').trim().toLowerCase()
+    if (search) {
+      filtered = filtered.filter((item) =>
+        [item.name, ...item.retainedRulesPreview, item.mockSearchText ?? '']
+          .join(' ')
+          .toLowerCase()
+          .includes(search),
+      )
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: filtered.map(styleMemoryListItemDto),
+        hasMore: false,
+        nextCursor: null,
+      }),
+    })
+  })
+}
+
 /** Mock template collection API — Style Memory list/detail/use/duplicate/delete */
 export async function mockTemplateCollection(
   page: Page,
@@ -761,6 +881,502 @@ export async function mockApiError(
       headers,
     })
   })
+}
+
+// ─── plan-05: Style Memory 详情 / 治理端点 mock（架构 §6.2 / §6.4 / §7.2 契约） ───
+
+/** plan-05: 详情变量条目（对齐 `TemplateVariable`） */
+export interface MockStyleMemoryDetailVariable {
+  name: string;
+  defaultValue: string;
+  label?: string;
+}
+
+/**
+ * plan-05: Style Memory 详情 DTO — GET /api/templates/[id] 响应
+ * （架构 §7.2 `StyleMemoryDetail`：`StyleMemoryRecord` 序列化 +
+ * sourceGenerationTask / representativeResult / usage 三个附加块）。
+ */
+export interface MockStyleMemoryDetail {
+  id: string;
+  name: string;
+  description: string | null;
+  content: string;
+  variables: MockStyleMemoryDetailVariable[];
+  retainedRules: string[];
+  negativeConstraints: string[];
+  styleTokens: string[];
+  enhancementHints: string[];
+  verificationStatus: 'user_verified' | 'pending_verification';
+  representativeGenerationTaskId: string | null;
+  sourceAssetId: string | null;
+  sourceImageUrl: string | null;
+  sourceGenerationTaskId: string | null;
+  /** 附加块：来源 Iteration（缺失为 null） */
+  sourceGenerationTask: { id: string; createdAt: string } | null;
+  /** 附加块：代表结果（无引用为 null） */
+  representativeResult: { iterationId: string; imageUrl: string | null; createdAt: string } | null;
+  /** 附加块：使用情况聚合 */
+  usage: { lastUsedAt: string | null; derivedIterationCount: number };
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** plan-05: 代表结果候选条目 — GET /api/templates/[id]/representative-candidates 条目（架构 §7.2） */
+export interface MockRepresentativeCandidate {
+  /** generation task id */
+  id: string;
+  imageUrl: string | null;
+  /** 服务端截断 120 字符口径 */
+  promptSummary: string;
+  createdAt: string;
+}
+
+/**
+ * plan-05: 读时防御降级（plan-01 repository 同口径）：
+ * user_verified 且代表结果引用为空 → 序列化为 pending_verification。
+ */
+function effectiveMockVerificationStatus(memory: MockStyleMemoryDetail) {
+  return memory.verificationStatus === 'user_verified' &&
+    memory.representativeGenerationTaskId === null
+    ? 'pending_verification'
+    : memory.verificationStatus;
+}
+
+/** plan-05: 详情响应序列化（补 userId，对齐 `StyleMemoryDetail`） */
+export function styleMemoryDetailDto(memory: MockStyleMemoryDetail) {
+  return {
+    ...memory,
+    verificationStatus: effectiveMockVerificationStatus(memory),
+    userId: 'mock-user-id',
+  };
+}
+
+/** plan-05: 扁平 record 序列化（PUT / duplicate / representative-result 响应，对齐 `StyleMemoryRecord`） */
+function styleMemoryRecordDto(memory: MockStyleMemoryDetail) {
+  return {
+    id: memory.id,
+    name: memory.name,
+    description: memory.description,
+    content: memory.content,
+    variables: memory.variables,
+    retainedRules: memory.retainedRules,
+    negativeConstraints: memory.negativeConstraints,
+    styleTokens: memory.styleTokens,
+    enhancementHints: memory.enhancementHints,
+    verificationStatus: effectiveMockVerificationStatus(memory),
+    representativeGenerationTaskId: memory.representativeGenerationTaskId,
+    sourceAssetId: memory.sourceAssetId,
+    sourceImageUrl: memory.sourceImageUrl,
+    sourceGenerationTaskId: memory.sourceGenerationTaskId,
+    userId: 'mock-user-id',
+    createdAt: memory.createdAt,
+    updatedAt: memory.updatedAt,
+  };
+}
+
+/**
+ * plan-05: 规则集合实质变化判定（`src/lib/style-memory-rules.ts` 同口径的
+ * mock 内联实现：trim → 过滤空串 → 字典序排序 → 逐元素比较；顺序/空白差异不算）。
+ */
+function mockRuleSetsChanged(previous: string[], next: string[]): boolean {
+  const normalize = (rules: string[]) =>
+    rules
+      .map((rule) => rule.trim())
+      .filter((rule) => rule.length > 0)
+      .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  const normalizedPrevious = normalize(previous);
+  const normalizedNext = normalize(next);
+  return (
+    normalizedPrevious.length !== normalizedNext.length ||
+    normalizedPrevious.some((rule, index) => rule !== normalizedNext[index])
+  );
+}
+
+/** Mock GET /api/templates/[id] — 单条固定详情响应（AC-03 / AC-09 展示场景） */
+export async function mockStyleMemoryDetail(
+  page: Page,
+  detail: MockStyleMemoryDetail,
+) {
+  await page.route(`**/api/templates/${detail.id}`, async (route) => {
+    if (route.request().method() !== 'GET') {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(styleMemoryDetailDto(detail)),
+    });
+  });
+}
+
+/**
+ * Mock GET /api/templates/[id] 重试序列 — 前 `failuresBeforeSuccess` 次
+ * 返回 503（retryable），之后返回 200 详情（AC-10 详情错误态 + 重试恢复）。
+ */
+export async function mockStyleMemoryDetailRetrySequence(
+  page: Page,
+  detail: MockStyleMemoryDetail,
+  failuresBeforeSuccess = 1,
+) {
+  let callCount = 0;
+  await page.route(`**/api/templates/${detail.id}`, async (route) => {
+    if (route.request().method() !== 'GET') {
+      await route.continue();
+      return;
+    }
+    callCount++;
+    if (callCount <= failuresBeforeSuccess) {
+      await route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          error: 'Style Memory service temporarily unavailable',
+          code: 'SERVICE_UNAVAILABLE',
+          retryable: true,
+        }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(styleMemoryDetailDto(detail)),
+    });
+  });
+  return {
+    get callCount() {
+      return callCount;
+    },
+  };
+}
+
+/** plan-05: 捕获到的 PUT /api/templates/[id] 请求（五字段编辑断言） */
+export interface CapturedStyleMemoryPutRequest {
+  id: string;
+  body: Record<string, unknown>;
+}
+
+/** plan-05: 捕获到的 POST representative-result 请求（选择/替换代表结果断言） */
+export interface CapturedRepresentativeResultRequest {
+  id: string;
+  body: Record<string, unknown>;
+}
+
+/** plan-05: GET representative-candidates 的请求 query（游标分页断言） */
+export interface RepresentativeCandidateRequestQuery {
+  id: string;
+  cursor: string | null;
+  limit: number | null;
+}
+
+export interface MockStyleMemoryDetailCollectionOptions {
+  /** 按 memory id 提供代表结果候选（createdAt DESC / id DESC 双键分页） */
+  candidates?: Record<string, MockRepresentativeCandidate[]>;
+  /** 候选分页固定页大小（默认 20；设小值驱动「加载更早」游标翻页） */
+  candidatePageSize?: number;
+}
+
+/**
+ * Mock /api/templates** — plan-05 有状态详情集合（编辑回退 / 复制 / 删除 /
+ * 代表结果 / 候选游标 + 列表 GET）。行为对齐 plan-02 真实端点：
+ *
+ * - GET `[id]` → StyleMemoryDetail（防御降级同口径）；不存在 → 404 TEMPLATE_NOT_FOUND
+ * - PUT `[id]` → 五字段合并；规则集合实质变化 → 回退 pending_verification（ADR-1）；
+ *   响应为扁平 record（真实端点不返回 detail 附加块）
+ * - DELETE `[id]` → 204；POST `[id]/duplicate` → 201，副本 ` (copy)` + pending +
+ *   无代表结果 + usage 清零（来源链保留）
+ * - POST `[id]/representative-result {generationTaskId}` → record（user_verified，
+ *   imageUrl 取自候选集）
+ * - GET `[id]/representative-candidates?cursor&limit` → `{items, hasMore, nextCursor}`
+ *   （游标 `ISO 8601 日期::id` 编码，与 repository 口径一致）
+ * - GET `/api/templates?search&status` → 列表（search/status mock 谓词同 `mockStyleMemoryList`）
+ */
+export async function mockStyleMemoryDetailCollection(
+  page: Page,
+  records: MockStyleMemoryDetail[],
+  options: MockStyleMemoryDetailCollectionOptions = {},
+) {
+  const memories: MockStyleMemoryDetail[] = structuredClone(records);
+  const putRequests: CapturedStyleMemoryPutRequest[] = [];
+  const deleteRequests: string[] = [];
+  const duplicateRequests: string[] = [];
+  const representativeResultRequests: CapturedRepresentativeResultRequest[] = [];
+  const candidateQueries: RepresentativeCandidateRequestQuery[] = [];
+  const candidatePageSize = options.candidatePageSize ?? 20;
+
+  const find = (id: string) => memories.find((memory) => memory.id === id);
+
+  await page.route('**/api/templates**', async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const pathname = url.pathname;
+    const method = request.method();
+
+    // 列表 GET（删除确认后回列表 / 复制品列表断言）
+    if (pathname === '/api/templates' && method === 'GET') {
+      const search = (url.searchParams.get('search') ?? '').trim().toLowerCase();
+      const status = url.searchParams.get('status');
+      let filtered = memories;
+      if (status && status !== 'all') {
+        filtered = filtered.filter(
+          (memory) => effectiveMockVerificationStatus(memory) === status,
+        );
+      }
+      if (search) {
+        filtered = filtered.filter((memory) =>
+          [memory.name, memory.description ?? '', ...memory.retainedRules, ...memory.styleTokens]
+            .join(' ')
+            .toLowerCase()
+            .includes(search),
+        );
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          items: filtered.map((memory) => ({
+            id: memory.id,
+            name: memory.name,
+            verificationStatus: effectiveMockVerificationStatus(memory),
+            retainedRulesPreview: memory.retainedRules.slice(0, 2),
+            variableCount: memory.variables.length,
+            sourceImageUrl: memory.sourceImageUrl,
+            representativeImageUrl: memory.representativeResult?.imageUrl ?? null,
+            lastUsedAt: memory.usage.lastUsedAt,
+            updatedAt: memory.updatedAt,
+          })),
+          hasMore: false,
+          nextCursor: null,
+        }),
+      });
+      return;
+    }
+
+    // 代表结果候选 GET（游标分页）
+    const candidatesMatch = pathname.match(
+      /^\/api\/templates\/([^/]+)\/representative-candidates$/,
+    );
+    if (candidatesMatch && method === 'GET') {
+      const id = candidatesMatch[1];
+      const memory = find(id);
+      if (!memory) {
+        await route.fulfill({
+          status: 404,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: 'Template not found', code: 'TEMPLATE_NOT_FOUND', retryable: false }),
+        });
+        return;
+      }
+      const cursor = url.searchParams.get('cursor');
+      const limitRaw = url.searchParams.get('limit');
+      candidateQueries.push({
+        id,
+        cursor,
+        limit: limitRaw === null ? null : Number(limitRaw),
+      });
+
+      const all = [...(options.candidates?.[id] ?? [])].sort(
+        (a, b) =>
+          b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id),
+      );
+      let start = 0;
+      if (cursor) {
+        const separatorIndex = cursor.lastIndexOf('::');
+        const cursorId = cursor.slice(separatorIndex + 2);
+        const index = all.findIndex((candidate) => candidate.id === cursorId);
+        start = index >= 0 ? index + 1 : all.length;
+      }
+      const items = all.slice(start, start + candidatePageSize);
+      const hasMore = start + candidatePageSize < all.length;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          items,
+          hasMore,
+          nextCursor:
+            hasMore && items.length > 0
+              ? `${items[items.length - 1].createdAt}::${items[items.length - 1].id}`
+              : null,
+        }),
+      });
+      return;
+    }
+
+    // 设置/替换代表结果 POST
+    const setResultMatch = pathname.match(
+      /^\/api\/templates\/([^/]+)\/representative-result$/,
+    );
+    if (setResultMatch && method === 'POST') {
+      const id = setResultMatch[1];
+      const body = (request.postDataJSON() ?? {}) as Record<string, unknown>;
+      representativeResultRequests.push({ id, body });
+      const memory = find(id);
+      if (!memory) {
+        await route.fulfill({
+          status: 404,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: 'Template not found', code: 'TEMPLATE_NOT_FOUND', retryable: false }),
+        });
+        return;
+      }
+      const generationTaskId = String(body.generationTaskId ?? '');
+      const candidate = (options.candidates?.[id] ?? []).find(
+        (item) => item.id === generationTaskId,
+      );
+      memory.representativeGenerationTaskId = generationTaskId || null;
+      memory.verificationStatus = 'user_verified';
+      memory.representativeResult = {
+        iterationId: generationTaskId,
+        imageUrl: candidate?.imageUrl ?? null,
+        createdAt: candidate?.createdAt ?? new Date().toISOString(),
+      };
+      memory.updatedAt = new Date().toISOString();
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(styleMemoryRecordDto(memory)),
+      });
+      return;
+    }
+
+    // 复制 POST
+    const duplicateMatch = pathname.match(/^\/api\/templates\/([^/]+)\/duplicate$/);
+    if (duplicateMatch && method === 'POST') {
+      const source = find(duplicateMatch[1]);
+      if (!source) {
+        await route.fulfill({
+          status: 404,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: 'Template not found', code: 'TEMPLATE_NOT_FOUND', retryable: false }),
+        });
+        return;
+      }
+      duplicateRequests.push(source.id);
+      const copy = structuredClone(source);
+      copy.id = `${source.id}-copy`;
+      copy.name = `${source.name} (copy)`;
+      copy.verificationStatus = 'pending_verification';
+      copy.representativeGenerationTaskId = null;
+      copy.representativeResult = null;
+      copy.usage = { lastUsedAt: null, derivedIterationCount: 0 };
+      copy.createdAt = new Date().toISOString();
+      copy.updatedAt = copy.createdAt;
+      memories.unshift(copy);
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify(styleMemoryRecordDto(copy)),
+      });
+      return;
+    }
+
+    // 详情 GET / PUT / DELETE
+    const detailMatch = pathname.match(/^\/api\/templates\/([^/]+)$/);
+    if (detailMatch) {
+      const id = detailMatch[1];
+      const memory = find(id);
+
+      if (method === 'GET') {
+        if (!memory) {
+          await route.fulfill({
+            status: 404,
+            contentType: 'application/json',
+            body: JSON.stringify({ error: 'Template not found', code: 'TEMPLATE_NOT_FOUND', retryable: false }),
+          });
+          return;
+        }
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(styleMemoryDetailDto(memory)),
+        });
+        return;
+      }
+
+      if (method === 'PUT') {
+        const body = (request.postDataJSON() ?? {}) as Record<string, unknown>;
+        putRequests.push({ id, body });
+        if (!memory) {
+          await route.fulfill({
+            status: 404,
+            contentType: 'application/json',
+            body: JSON.stringify({ error: 'Template not found', code: 'TEMPLATE_NOT_FOUND', retryable: false }),
+          });
+          return;
+        }
+        // 规则集合实质变化 → 服务端回退 pending_verification（ADR-1 服务端派生）
+        const nextRules = Array.isArray(body.retainedRules)
+          ? (body.retainedRules as string[])
+          : memory.retainedRules;
+        const nextConstraints = Array.isArray(body.negativeConstraints)
+          ? (body.negativeConstraints as string[])
+          : memory.negativeConstraints;
+        if (
+          mockRuleSetsChanged(memory.retainedRules, nextRules) ||
+          mockRuleSetsChanged(memory.negativeConstraints, nextConstraints)
+        ) {
+          memory.verificationStatus = 'pending_verification';
+        }
+        if (typeof body.name === 'string' && body.name) {
+          memory.name = body.name;
+        }
+        if (body.description !== undefined) {
+          memory.description =
+            typeof body.description === 'string' && body.description.trim()
+              ? body.description
+              : null;
+        }
+        if (Array.isArray(body.variables)) {
+          memory.variables = body.variables as MockStyleMemoryDetailVariable[];
+        }
+        if (Array.isArray(body.retainedRules)) {
+          memory.retainedRules = nextRules;
+        }
+        if (Array.isArray(body.negativeConstraints)) {
+          memory.negativeConstraints = nextConstraints;
+        }
+        if (typeof body.content === 'string' && body.content) {
+          memory.content = body.content;
+        }
+        memory.updatedAt = new Date().toISOString();
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(styleMemoryRecordDto(memory)),
+        });
+        return;
+      }
+
+      if (method === 'DELETE') {
+        if (!memory) {
+          await route.fulfill({
+            status: 404,
+            contentType: 'application/json',
+            body: JSON.stringify({ error: 'Template not found', code: 'TEMPLATE_NOT_FOUND', retryable: false }),
+          });
+          return;
+        }
+        deleteRequests.push(memory.id);
+        memories.splice(memories.indexOf(memory), 1);
+        await route.fulfill({ status: 204, body: '' });
+        return;
+      }
+    }
+
+    await route.fallback();
+  });
+
+  return {
+    memories,
+    putRequests,
+    deleteRequests,
+    duplicateRequests,
+    representativeResultRequests,
+    candidateQueries,
+  };
 }
 
 /** Load fixture data */

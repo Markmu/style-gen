@@ -196,10 +196,14 @@ test.describe('plan-07 Landing / Auth / global states closure', () => {
 
     const authState = statePresenter(page, 'authRequired')
     await expect(authState).toBeVisible()
-    await expect(authState).toContainText(/log in|sign in|login/i)
-    await expect(authState).toContainText(/workspace.*context|context.*preserved|snapshot/i)
-    await expect(authState.getByRole('button', { name: /log in|sign in|login/i })).toBeVisible()
-    await expect(authState.getByRole('button', { name: /back to workspace/i })).toBeVisible()
+    await expect(authState).toContainText(/登录|log in|sign in|login/i)
+    await expect(authState).toContainText(/工作区.*保持|登录后|context|preserved|snapshot/i)
+    await expect(
+      authState.getByRole('button', { name: /登录|log in|sign in|login/i }),
+    ).toBeVisible()
+    await expect(
+      authState.getByRole('button', { name: /返回工作区|back to workspace/i }),
+    ).toBeVisible()
 
     const stored = await page.evaluate((key) => window.sessionStorage.getItem(key), STORAGE_KEY)
     expect(stored).toBe(workspaceSnapshot)
@@ -227,18 +231,29 @@ test.describe('plan-07 Landing / Auth / global states closure', () => {
     const emptyState = statePresenter(page, 'empty')
     await expect(emptyState).toBeVisible()
     await expect(emptyState).toContainText(/style memory/i)
-    await expect(emptyState).toContainText(/reference|workspace|save|create/i)
-    await expect(emptyState.getByRole('button', { name: /create from reference/i })).toBeVisible()
-    await expect(emptyState.getByRole('button', { name: /open workspace|back to workspace/i })).toBeVisible()
+    await expect(emptyState).toContainText(/工作区|iteration|save|create/i)
+    // plan-04：空态双入口为链接（打开工作区 / 查看 Iterations）
+    await expect(emptyState.getByRole('link', { name: /打开工作区/ })).toHaveAttribute(
+      'href',
+      '/workspace',
+    )
+    await expect(emptyState.getByRole('link', { name: /查看 Iterations/ })).toHaveAttribute(
+      'href',
+      '/workspace/iterations',
+    )
 
     const searchBox = page.getByRole('textbox')
     await searchBox.fill('nonexistent brutalist neon memory')
 
     const noResultsState = statePresenter(page, 'noResults')
     await expect(noResultsState).toBeVisible({ timeout: 10000 })
-    await expect(noResultsState).toContainText(/style memor/i)
-    await expect(noResultsState.getByRole('button', { name: /clear search/i })).toBeVisible()
-    await expect(noResultsState.getByRole('button', { name: /back to workspace/i })).toBeVisible()
+    await expect(noResultsState).toContainText(/style memor|没有匹配/i)
+    await expect(
+      noResultsState.getByRole('button', { name: /清除搜索|clear search/i }),
+    ).toBeVisible()
+    await expect(
+      noResultsState.getByRole('button', { name: /返回工作区|back to workspace/i }),
+    ).toBeVisible()
   })
 
   test('TC-7.5 legacy Landing and Template Library primary copy is removed from the main path', async ({
@@ -272,10 +287,12 @@ test.describe('plan-07 Landing / Auth / global states closure', () => {
 
     const failedState = statePresenter(page, 'failedRecoverable')
     await expect(failedState).toBeVisible()
-    await expect(failedState).toContainText(/style memory|service/i)
-    await expect(failedState).toContainText(/context|preserved|retry/i)
-    await expect(failedState.getByRole('button', { name: /retry/i })).toBeVisible()
-    await expect(failedState.getByRole('button', { name: /back to workspace/i })).toBeVisible()
+    await expect(failedState).toContainText(/style memory|service|暂不可用/i)
+    await expect(failedState).toContainText(/已保留|重试|context|preserved|retry/i)
+    await expect(failedState.getByRole('button', { name: /重试|retry/i })).toBeVisible()
+    await expect(
+      failedState.getByRole('button', { name: /返回工作区|back to workspace/i }),
+    ).toBeVisible()
     await expect(statePresenter(page, 'empty')).toHaveCount(0)
     await expect(statePresenter(page, 'noResults')).toHaveCount(0)
   })

@@ -22,14 +22,18 @@ const pixel = Buffer.from(
   'base64',
 )
 
+// plan-04：列表页消费 GET /api/templates 新 DTO（StyleMemoryListItem）
 const styleMemoryItems = [
   {
     id: 'mock-style-memory-id',
     name: 'Editorial Soft Light',
+    verificationStatus: 'user_verified' as const,
+    retainedRulesPreview: ['柔和漫射光', '低饱和色调'],
     variableCount: 2,
-    sourceAssetId: 'mock-asset-id',
     sourceImageUrl: 'https://cdn.example.com/references/mock-asset-id/original.png',
-    createdAt: '2024-01-01T00:00:00.000Z',
+    representativeImageUrl: null,
+    lastUsedAt: null,
+    updatedAt: '2024-01-01T00:00:00.000Z',
   },
 ]
 
@@ -102,9 +106,8 @@ async function expectSharedShell(page: Page, variant: string, route: string) {
 
   await expect(workspaceNav(page)).toBeVisible()
   await expect(workspaceNav(page).getByRole('link', { name: /^Generate$/i })).toBeVisible()
-  await expect(
-    workspaceNav(page).getByRole('link', { name: /style memory library/i }),
-  ).toBeVisible()
+  // plan-04 / ADR-8：导航术语统一为 "Style Memory"（不再出现 "Library"）
+  await expect(workspaceNav(page).getByRole('link', { name: /^Style Memory$/i })).toBeVisible()
 }
 
 test.describe('plan-02 AppShell and AI status header', () => {
@@ -130,12 +133,13 @@ test.describe('plan-02 AppShell and AI status header', () => {
     await openRoute(page, '/workspace/templates')
 
     const styleMemoryNav = workspaceNav(page).getByRole('link', {
-      name: /style memory library/i,
+      name: /^Style Memory$/i,
     })
     await expect(styleMemoryNav).toBeVisible()
     await expect(styleMemoryNav).toHaveAttribute('aria-current', 'page')
     await expect(workspaceNav(page).getByText(/Template Library/i)).toHaveCount(0)
-    await expect(styleMemoryNav).toContainText(/^Library$/i)
+    await expect(workspaceNav(page).getByText(/^Library$/i)).toHaveCount(0)
+    await expect(styleMemoryNav).toContainText(/^Style Memory$/i)
     await expect(page).toHaveURL(/\/workspace\/templates$/)
   })
 

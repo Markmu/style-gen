@@ -1,114 +1,145 @@
-import type { TemplateListItem } from "@/hooks/use-template-search";
+import type {
+  StyleMemoryListItem,
+  TemplateVerificationStatus,
+} from "@/types/models";
+
+/**
+ * plan-04：Style Memory 卡片视图模型（架构 §6.1 / PRD §3.1 线框）。
+ * 输入为 plan-02 列表 DTO `StyleMemoryListItem`，全部展示内容来自真实字段：
+ * 状态徽标、规则摘要（服务端已取前 2 条）、预览选择（已验证 → 代表结果 +
+ * 参考图标注；待验证 → 来源图或“无预览”）、变量数与最近使用。
+ * 不再从名称派生任何风格标签（PRD 规则 6：卡片事实必须来自实际保存内容）。
+ */
+
+export const RULES_PENDING_LABEL = "规则待补充";
+export const NEVER_USED_LABEL = "尚未使用";
+
+/**
+ * plan-05：列表页当前查询条件（search/status 等）在 URL 持久化时同步写入
+ * sessionStorage 的键。详情页读取它用于「返回列表」与删除确认导航恢复原查询
+ * （AC-07「回列表（原 query 恢复）」；TC-7.3 契约）。
+ */
+export const STYLE_MEMORY_LIST_QUERY_STORAGE_KEY = "style-memory-list-query";
+
+/** 主预览选择：已验证 → 代表结果；待验证 → 来源图；均缺失 → 无预览 */
+export type StyleMemoryPreviewKind = "representative" | "source" | "none";
+
+export interface StyleMemoryPreview {
+  kind: StyleMemoryPreviewKind;
+  /** 主预览图 URL；kind 为 none 时为 null */
+  mainImageUrl: string | null;
+  mainAlt: string;
+  /** 已验证卡片的来源图小图（带「参考图」标注）；其余为 null */
+  referenceImageUrl: string | null;
+}
 
 export interface StyleMemoryCardViewModel {
   id: string;
   name: string;
-  sourceImageUrl: string | null;
-  sourceAlt: string;
-  variableCount: number;
+  verificationStatus: TemplateVerificationStatus;
+  statusBadge: {
+    /** “用户已验证” | “待验证”（文字 + 视觉标识，不只依赖颜色，PRD 规则 3） */
+    label: string;
+    isVerified: boolean;
+  };
+  /** retainedRulesPreview 以 “ · ” 连接；空数组 → “规则待补充” */
+  rulesSummary: string;
+  /** “{N} 个变量” */
   variableLabel: string;
-  styleTags: string[];
-  reuseIntent: string;
-  createdAt: string;
+  /** 最近使用相对文案；lastUsedAt 为 null → “尚未使用” */
+  lastUsedLabel: string;
+  preview: StyleMemoryPreview;
   actions: {
-    useLabel: string;
-    duplicateLabel: string;
-    deleteLabel: string;
+    viewDetailLabel: "查看详情";
+    useLabel: "使用";
+    viewDetailHref: string;
   };
 }
 
-const NAME_STOP_WORDS = new Set([
-  "memory",
-  "style",
-  "template",
-  "prompt",
-  "structure",
-  "only",
-  "the",
-  "and",
-]);
+/** lastUsedAt 相对时间文案（供卡片与单测复用；时钟 skew 时按“刚刚使用”处理） */
+export function formatStyleMemoryLastUsed(
+  iso: string,
+  now: number = Date.now(),
+): string {
+  const time = Date.parse(iso);
+  if (Number.isNaN(time)) return NEVER_USED_LABEL;
 
-const NAME_TAG_RULES: Array<[RegExp, string]> = [
-  [/\beditorial\b/i, "Editorial"],
-  [/\b(soft|diffused|daylight|light)\b/i, "Soft light"],
-  [/\bmacro\b/i, "Macro"],
-  [/\b(product|packshot)\b/i, "Product"],
-  [/\b(studio|atelier)\b/i, "Studio"],
-  [/\b(cinematic|film)\b/i, "Cinematic"],
-  [/\b(glass|translucent)\b/i, "Glass"],
-  [/\b(minimal|quiet|precision)\b/i, "Precision"],
-];
+  const elapsedMs = now - time;
+  if (elapsedMs < 60 * 60 * 1000) return "刚刚使用";
 
-function toTitleTag(value: string) {
-  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+  const hours = Math.floor(elapsedMs / (60 * 60 * 1000));
+  if (hours < 24) return `${hours} 小时前使用`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} 天前使用`;
+
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} 个月前使用`;
+
+  return `${Math.floor(months / 12)} 年前使用`;
 }
 
-function deriveNameTags(name: string) {
-  const ruleTags = NAME_TAG_RULES.flatMap(([pattern, tag]) =>
-    pattern.test(name) ? [tag] : [],
-  );
+function buildPreview(memory: StyleMemoryListItem): StyleMemoryPreview {
+  const sourceAlt = `${memory.name} 的来源参考图`;
 
-  const fallbackTags = name
-    .split(/[^a-z0-9]+/i)
-    .map((part) => part.trim())
-    .filter((part) => part.length > 2)
-    .filter((part) => !NAME_STOP_WORDS.has(part.toLowerCase()))
-    .slice(0, 2)
-    .map(toTitleTag);
+  if (memory.verificationStatus === "user_verified") {
+    // 已验证：代表结果为主预览 + 来源图小图（“参考图”标注）；
+    // 代表结果缺失（旧资产/资产失效）时退回来源图，不虚构结果。
+    if (memory.representativeImageUrl) {
+      return {
+        kind: "representative",
+        mainImageUrl: memory.representativeImageUrl,
+        mainAlt: `${memory.name} 的代表结果`,
+        referenceImageUrl: memory.sourceImageUrl,
+      };
+    }
+    if (memory.sourceImageUrl) {
+      return {
+        kind: "source",
+        mainImageUrl: memory.sourceImageUrl,
+        mainAlt: sourceAlt,
+        referenceImageUrl: null,
+      };
+    }
+    return { kind: "none", mainImageUrl: null, mainAlt: sourceAlt, referenceImageUrl: null };
+  }
 
-  return [...ruleTags, ...fallbackTags];
-}
-
-function uniqueTags(tags: string[]) {
-  const seen = new Set<string>();
-  return tags.filter((tag) => {
-    const key = tag.toLowerCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  // 待验证：只展示真实来源图，无则“无预览”，不用示例结果暗示成功（PRD 规则 7）
+  if (memory.sourceImageUrl) {
+    return {
+      kind: "source",
+      mainImageUrl: memory.sourceImageUrl,
+      mainAlt: sourceAlt,
+      referenceImageUrl: null,
+    };
+  }
+  return { kind: "none", mainImageUrl: null, mainAlt: sourceAlt, referenceImageUrl: null };
 }
 
 export function deriveStyleMemoryCardViewModel(
-  template: TemplateListItem,
+  memory: StyleMemoryListItem,
 ): StyleMemoryCardViewModel {
-  const hasSourceImage = Boolean(template.sourceImageUrl);
-  const variableLabel =
-    template.variableCount === 1
-      ? "1 variable"
-      : `${template.variableCount} variables`;
-
-  const styleTags = uniqueTags([
-    hasSourceImage ? "Source-backed" : "Prompt-only",
-    template.variableCount > 0 ? "Variable structure" : "Fixed prompt",
-    ...deriveNameTags(template.name),
-  ]).slice(0, 5);
-
-  let reuseIntent: string;
-  if (!hasSourceImage) {
-    reuseIntent = "Prompt-only memory; reuse the prompt structure directly.";
-  } else if (template.variableCount > 1) {
-    reuseIntent = `Reuse with ${template.variableCount} editable variables from the source-backed style.`;
-  } else if (template.variableCount === 1) {
-    reuseIntent = "Swap the editable variable while keeping source style cues.";
-  } else {
-    reuseIntent = "Reuse the source-backed style direction as a fixed prompt.";
-  }
+  const rules = memory.retainedRulesPreview ?? [];
+  const isVerified = memory.verificationStatus === "user_verified";
 
   return {
-    id: template.id,
-    name: template.name,
-    sourceImageUrl: template.sourceImageUrl,
-    sourceAlt: `Reference image for ${template.name}`,
-    variableCount: template.variableCount,
-    variableLabel,
-    styleTags,
-    reuseIntent,
-    createdAt: template.createdAt,
+    id: memory.id,
+    name: memory.name,
+    verificationStatus: memory.verificationStatus,
+    statusBadge: {
+      label: isVerified ? "用户已验证" : "待验证",
+      isVerified,
+    },
+    rulesSummary: rules.length > 0 ? rules.join(" · ") : RULES_PENDING_LABEL,
+    variableLabel: `${memory.variableCount} 个变量`,
+    lastUsedLabel: memory.lastUsedAt
+      ? formatStyleMemoryLastUsed(memory.lastUsedAt)
+      : NEVER_USED_LABEL,
+    preview: buildPreview(memory),
     actions: {
-      useLabel: "Use memory",
-      duplicateLabel: "Duplicate",
-      deleteLabel: "Delete",
+      viewDetailLabel: "查看详情",
+      useLabel: "使用",
+      viewDetailHref: `/workspace/templates/${memory.id}`,
     },
   };
 }

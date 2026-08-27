@@ -1,56 +1,85 @@
 // @vitest-environment jsdom
-import { render, screen, waitFor } from "@testing-library/react";
+import "@testing-library/jest-dom/vitest";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TemplateSaveDialog } from "@/components/workspace/template-save-dialog";
+import type { TemplateVariable } from "@/types/models";
 
-describe("TemplateSaveDialog", () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
+/**
+ * plan-06 流程 B: 工作区草稿保存向导组件测试。
+ *
+ * 覆盖：首屏无代表结果说明（固定待验证预期）、{{var}} 并入变量预填、
+ * 提交体携带既有来源字段（sourceAnalysisTaskId / sourceAssetId /
+ * sourceImageUrl）且不带 representative / sourceGenerationTask。
+ */
+
+const routerPushMock = vi.hoisted(() => vi.fn());
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: routerPushMock }),
+}));
+
+const VARIABLES: TemplateVariable[] = [
+  { name: "subject", defaultValue: "glass fox", label: "Subject", sourceField: "subject" },
+];
+
+function jsonResponse(status: number, body: unknown) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+describe("TemplateSaveDialog — plan-06 草稿保存向导（流程 B）", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    routerPushMock.mockClear();
   });
 
-  it("constrains the dialog height and renders variables in the editor-style grid", () => {
+  it("首屏为规则确认（无代表结果勾选）+ 待验证说明 + 变量默认值可编辑", async () => {
+    const user = userEvent.setup();
     render(
       <TemplateSaveDialog
         open
-        initialContent="Create {{subject}} inside {{scene}}."
-        initialVariables={[
-          { name: "subject", defaultValue: "glass fox", label: "Subject", sourceField: "subject" },
-          { name: "scene", defaultValue: "neon garden", label: "Scene", sourceField: "scene" },
-        ]}
+        initialContent="Create {{subject}} in a neon garden."
+        initialVariables={VARIABLES}
         onSave={vi.fn()}
         onClose={vi.fn()}
       />,
     );
 
-    const dialog = screen.getByRole("dialog", { name: "Save as Template" });
-    expect(dialog).toHaveClass("max-h-[calc(100vh-2rem)]", "overflow-hidden", "max-w-4xl");
+    const dialog = screen.getByTestId("save-style-memory-dialog");
+    expect(dialog).toHaveAttribute("role", "dialog");
 
-    expect(screen.getByTestId("template-save-variable-grid")).toHaveClass("sm:grid-cols-2");
-    expect(screen.getByText("Subject")).toBeInTheDocument();
-    expect(screen.getByText("scene")).toBeInTheDocument();
-    expect(screen.getByLabelText("Detected variable subject")).toHaveValue("glass fox");
-    expect(screen.getByLabelText("Detected variable scene")).toHaveValue("neon garden");
+    const note = screen.getByTestId("save-wizard-no-representative-note");
+    expect(note).toHaveTextContent(/当前没有代表结果/);
+    expect(note).toHaveTextContent(/待验证/);
+    // 无步骤 1 与代表结果勾选（流程 B 跳过）
+    expect(within(dialog).queryByTestId("save-wizard-step-1")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("checkbox", { name: /设为代表结果/ }),
+    ).not.toBeInTheDocument();
+
+    // {{var}} 并入变量预填：默认值同屏可编辑
+    const step2 = screen.getByTestId("save-wizard-step-2");
+    const subject = within(step2).getByLabelText(/subject/i);
+    expect(subject).toHaveValue("glass fox");
+    await user.clear(subject);
+    await user.type(subject, "brushed steel fox");
+    expect(subject).toHaveValue("brushed steel fox");
   });
 
-  it("submits initial variables and source image metadata", async () => {
+  it("提交体携带来源资产/分析任务/来源图，不带 representative 与 sourceGenerationTask", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse(201, { id: "template-1", name: "Saved" }),
+    );
+    vi.spyOn(global, "fetch").mockImplementation(fetchMock as unknown as typeof fetch);
     const user = userEvent.setup();
-    const fetchMock = vi.spyOn(global, "fetch").mockResolvedValue({
-      status: 201,
-      json: async () => ({
-        id: "template-1",
-        name: "Saved",
-        content: "Create {{subject}}.",
-        variables: [{ name: "subject", defaultValue: "glass fox", label: "Subject", sourceField: "subject" }],
-      }),
-    } as Response);
 
     render(
       <TemplateSaveDialog
         open
         initialContent="Create {{subject}}."
-        initialVariables={[
-          { name: "subject", defaultValue: "glass fox", label: "Subject", sourceField: "subject" },
-        ]}
+        initialVariables={VARIABLES}
         sourceAnalysisTaskId="analysis-1"
         sourceAssetId="asset-1"
         sourceImageUrl="https://cdn.example.com/reference.png"
@@ -59,37 +88,40 @@ describe("TemplateSaveDialog", () => {
       />,
     );
 
-    await user.type(screen.getByLabelText("Template Name"), "Saved");
-    await user.click(screen.getByRole("button", { name: "Save Template" }));
+    await user.click(screen.getByRole("button", { name: /下一步/ }));
+    await user.type(screen.getByLabelText(/^名称$/), "Saved");
+    await user.click(screen.getByRole("button", { name: /^保存/ }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    const body = JSON.parse(fetchMock.mock.calls[0][1]?.body as string);
+    await waitFor(() =>
+      expect(routerPushMock).toHaveBeenCalledWith("/workspace/templates/template-1"),
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(
+      String(fetchMock.mock.calls[0][1].body),
+    ) as Record<string, unknown>;
     expect(body.sourceAnalysisTaskId).toBe("analysis-1");
     expect(body.sourceAssetId).toBe("asset-1");
     expect(body.sourceImageUrl).toBe("https://cdn.example.com/reference.png");
-    expect(body.variables).toEqual([
-      { name: "subject", defaultValue: "glass fox", label: "Subject", sourceField: "subject" },
-    ]);
+    expect(body.representativeGenerationTaskId).toBeUndefined();
+    expect(body.sourceGenerationTaskId).toBeUndefined();
+    expect(body.variables).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "subject", defaultValue: "glass fox" }),
+      ]),
+    );
   });
 
-  it("inserts Chinese, spaced, and hyphenated variable names", async () => {
-    const user = userEvent.setup();
-
+  it("open=false 时不渲染", () => {
     render(
       <TemplateSaveDialog
-        open
-        initialContent="Create a prompt."
+        open={false}
+        initialContent="Create {{subject}}."
         onSave={vi.fn()}
         onClose={vi.fn()}
       />,
     );
-
-    await user.click(screen.getByRole("button", { name: /Insert Variable/ }));
-    await user.type(screen.getByPlaceholderText("Variable name"), "主体 名称-1");
-    await user.click(screen.getByRole("button", { name: "Confirm" }));
-
-    expect(screen.getByLabelText("Prompt Content")).toHaveValue(
-      "{{主体 名称-1}}Create a prompt.",
-    );
+    expect(
+      screen.queryByTestId("save-style-memory-dialog"),
+    ).not.toBeInTheDocument();
   });
 });

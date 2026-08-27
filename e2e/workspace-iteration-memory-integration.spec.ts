@@ -6,10 +6,12 @@ import {
   mockGenerationPolling,
   mockIterationDetailSequence,
   mockIterationList,
+  mockStyleMemoryDetailCollection,
   mockTemplateCollection,
   type IterationListRequestQuery,
   type MockIterationDetail,
   type MockIterationListItem,
+  type MockStyleMemoryDetail,
 } from './helpers/mock-api'
 import { gotoWorkspace } from './helpers/workspace-actions'
 
@@ -108,6 +110,31 @@ function integrationDetail(overrides?: {
     analysisTemplateVariables: ITERATION_VARIABLES,
     createdAt: '2024-03-03T09:00:00.000Z',
     updatedAt: '2024-03-03T09:00:30.000Z',
+  }
+}
+
+/** 保存成功跳转目标：新 Memory 详情（plan-05 详情页契约，plan-02 DTO） */
+function savedJourneyMemory(): MockStyleMemoryDetail {
+  return {
+    id: 'mock-template-1',
+    name: TEMPLATE_NAME,
+    description: null,
+    content: TARGET_PROMPT,
+    variables: ITERATION_VARIABLES,
+    retainedRules: ['warm amber and sand palette'],
+    negativeConstraints: ['watermark', 'distorted glass'],
+    styleTokens: ['editorial', 'warm neutral'],
+    enhancementHints: [],
+    verificationStatus: 'pending_verification',
+    representativeGenerationTaskId: null,
+    sourceAssetId: `asset-${TARGET_ID}`,
+    sourceImageUrl: `https://cdn.example.com/references/${TARGET_ID}/original.png`,
+    sourceGenerationTaskId: TARGET_ID,
+    sourceGenerationTask: { id: TARGET_ID, createdAt: '2024-03-03T09:00:00.000Z' },
+    representativeResult: null,
+    usage: { lastUsedAt: null, derivedIterationCount: 0 },
+    createdAt: '2024-03-03T09:01:00.000Z',
+    updatedAt: '2024-03-03T09:01:00.000Z',
   }
 }
 
@@ -347,6 +374,39 @@ test.describe('plan-06 entry wiring and full Iteration Memory journey', () => {
       errorMessage: null,
     })
     const templates = await mockTemplateCollection(page, [])
+    // plan-04：列表页消费 GET /api/templates 新 DTO；集合 mock 继续提供 POST/详情。
+    // 此处按集合中的实时记录（含保存后 unshift 的新条目）返回新 DTO 列表。
+    await page.route('**/api/templates?**', async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.continue()
+        return
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          items: templates.templates.map((record) => ({
+            id: record.id,
+            name: record.name,
+            verificationStatus: 'pending_verification',
+            retainedRulesPreview: [] as string[],
+            variableCount: Array.isArray(record.variables) ? record.variables.length : 0,
+            sourceImageUrl: record.sourceImageUrl ?? null,
+            representativeImageUrl: null,
+            lastUsedAt: null,
+            updatedAt: record.updatedAt ?? '2024-01-01T00:00:00.000Z',
+          })),
+          hasMore: false,
+          nextCursor: null,
+        }),
+      })
+    })
+    // plan-06：保存成功直接进入新 Memory 详情（plan-05 详情页消费 plan-02
+    // StyleMemoryDetail DTO）。后注册的路由优先生效：详情 GET 命中此处返回
+    // 新 DTO；POST 创建回退到上方集合 mock 继续捕获。
+    await mockStyleMemoryDetailCollection(page, [
+      savedJourneyMemory(),
+    ])
 
     // ---- 入口：工作台近期迭代条 ----
     await gotoWorkspace(page)
@@ -426,7 +486,7 @@ test.describe('plan-06 entry wiring and full Iteration Memory journey', () => {
     // 恢复的存量迭代无 model 字段，重新生成回退 models.json 默认模型
     expect(generationBody.params).toEqual({ aspectRatio: '16:9', quality: 'hd', model: 'flux-2-dev' })
 
-    // ---- 回到详情，保存为 Style Memory（US-07）----
+    // ---- 回到详情，保存为 Style Memory（US-07 → plan-06 三步向导）----
     await openIterations(page)
     await expect(page.getByRole('heading', { name: /iteration memory/i })).toBeVisible()
     await iterationItems(page).filter({ hasText: 'Neon dusk skyline study' }).click()
@@ -438,34 +498,26 @@ test.describe('plan-06 entry wiring and full Iteration Memory journey', () => {
     await saveStyleMemoryButton(page).click()
     const dialogEl = saveDialog(page)
     await expect(dialogEl).toBeVisible()
-    await expect(dialogEl.getByRole('textbox', { name: /content|prompt/i })).toHaveValue(
-      TARGET_PROMPT,
-    )
-    await dialogEl.getByRole('textbox', { name: /name/i }).fill(TEMPLATE_NAME)
-    await dialogEl.getByRole('button', { name: /^save/i }).click()
+    // 三步向导：步骤 2 规则确认 → 步骤 3 命名提交
+    await dialogEl.getByRole('button', { name: /下一步/ }).click()
+    await dialogEl.getByRole('button', { name: /下一步/ }).click()
+    await dialogEl.getByRole('textbox', { name: /名称|name/i }).first().fill(TEMPLATE_NAME)
+    await dialogEl.getByRole('button', { name: /^保存|^save/i }).click()
 
-    // 恰好一次 POST /api/templates，提交体携带该次迭代的来源与快照
+    // 恰好一次 POST /api/templates，提交体携带该次迭代的来源、快照与规则四元组
     await expect.poll(() => templates.createRequests.length, { timeout: 15000 }).toBe(1)
     const templateBody = templates.createRequests[0]
     expect(templateBody.name).toBe(TEMPLATE_NAME)
     expect(templateBody.content).toBe(TARGET_PROMPT)
     expect(templateBody.sourceAssetId).toBe(`asset-${TARGET_ID}`)
     expect(templateBody.sourceGenerationTaskId).toBe(TARGET_ID)
+    expect(templateBody.representativeGenerationTaskId).toBeUndefined()
+    expect(templateBody.verificationStatus).toBeUndefined()
 
-    // ---- 已保存态 + 打开定位 ----
-    await expect(saveDialog(page)).toHaveCount(0)
-    await expect(savedState(page)).toBeVisible()
-    await expect(savedState(page)).toContainText(TEMPLATE_NAME)
-    await expect(saveStyleMemoryButton(page)).toHaveCount(0)
-
-    await openSavedMemoryButton(page).click()
-    await expect(page).toHaveURL(/\/workspace\/templates/, { timeout: 15000 })
-    await expect(page.getByRole('heading', { name: /^Style Memory$/i })).toBeVisible()
-    const focusedCard = page.locator('[data-testid="style-memory-card"][data-focused="true"]')
-    await expect(focusedCard).toHaveCount(1)
-    await expect(focusedCard).toContainText(TEMPLATE_NAME)
-    await expect(focusedCard).toBeInViewport()
-    await expect(page).not.toHaveURL(/focus=/, { timeout: 15000 })
+    // ---- 保存成功直接进入新 Memory 详情（plan-06 → plan-05 详情路由）----
+    await expect(page).toHaveURL(/\/workspace\/templates\/mock-template-1$/, { timeout: 15000 })
+    await expect(page.getByTestId('style-memory-detail-page')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByRole('heading', { name: TEMPLATE_NAME })).toBeVisible()
   })
 
   test('TC-6.2 recent-strip View all reaches the full list with default all status while the strip keeps its completed-only default query', async ({ page }) => {
@@ -507,10 +559,10 @@ test.describe('plan-06 entry wiring and full Iteration Memory journey', () => {
 
     await gotoWorkspace(page)
 
-    // 既有导航项不回归：Generate 与 Style Memory Library 并列存在
+    // 既有导航项不回归：Generate 与 Style Memory（plan-04 改名，ADR-8）并列存在
     await expect(primaryNav(page).getByRole('link', { name: /^generate$/i })).toBeVisible()
     await expect(
-      primaryNav(page).getByRole('link', { name: /style memory library/i }),
+      primaryNav(page).getByRole('link', { name: /^Style Memory$/i }),
     ).toBeVisible()
 
     // plan-06 契约：Iterations 导航项存在且可达列表页（URL 无参数 → 页面级默认 all）

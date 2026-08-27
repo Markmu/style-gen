@@ -65,9 +65,11 @@ describe("LeftSidebar", () => {
     expect(generate).toHaveAttribute("href", "/workspace");
     expect(generate).toHaveAttribute("aria-current", "page");
 
-    const library = screen.getByRole("link", { name: "Style Memory Library" });
-    expect(library).toHaveTextContent("Library");
-    expect(library).toHaveAttribute("href", "/workspace/templates");
+    // plan-04 / ADR-8：导航术语统一为 "Style Memory"（label 与 aria-label 一致）
+    const styleMemory = screen.getByRole("link", { name: "Style Memory" });
+    expect(styleMemory).toHaveTextContent("Style Memory");
+    expect(styleMemory).toHaveAttribute("href", "/workspace/templates");
+    expect(screen.queryByText("Library")).not.toBeInTheDocument();
 
     expect(screen.queryByText("Recent Workspaces")).not.toBeInTheDocument();
     expect(screen.queryByText("Editorial Soft Light")).not.toBeInTheDocument();
@@ -80,12 +82,12 @@ describe("LeftSidebar", () => {
     expect(screen.getByRole("button", { name: /theme:/i })).toBeInTheDocument();
   });
 
-  it("marks Library active on the template route", () => {
+  it("marks Style Memory active on the template route", () => {
     navigationMocks.pathname = "/workspace/templates";
 
     render(<LeftSidebar />);
 
-    expect(screen.getByRole("link", { name: "Style Memory Library" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Style Memory" })).toHaveAttribute(
       "aria-current",
       "page",
     );

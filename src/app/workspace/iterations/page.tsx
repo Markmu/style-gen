@@ -101,6 +101,46 @@ function IterationMemoryPageInner() {
     }
   }, [list.nextCursor, pushCursor]);
 
+  // plan-05（Task 8）: `focus` 查询参数定位 — 来源 Iteration 打开链路。
+  // 参照 templates 页 pendingFocusId 模式：列表首屏加载后命中目标则联动既有
+  // selectedId 选中态（详情面板打开 + 条目滚动定位），参数一次性消费后从 URL
+  // 清除；目标不在当前列表窗口时静默忽略。
+  const focusParam = searchParams.get("focus");
+  const [pendingFocusId, setPendingFocusId] = useState<string | null>(null);
+  useEffect(() => {
+    if (focusParam) {
+      setPendingFocusId(focusParam);
+    }
+  }, [focusParam]);
+
+  useEffect(() => {
+    if (!pendingFocusId || list.phase === "loading") {
+      return;
+    }
+    const target = list.items.find((item) => item.id === pendingFocusId) ?? null;
+    if (target) {
+      setSelected(target.id);
+      requestAnimationFrame(() => {
+        document
+          .querySelector('[data-testid="iteration-list-item"][data-selected="true"]')
+          ?.scrollIntoView?.({ block: "center" });
+      });
+    }
+    setPendingFocusId(null);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("focus");
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }, [
+    pendingFocusId,
+    list.phase,
+    list.items,
+    router,
+    pathname,
+    searchParams,
+    setSelected,
+  ]);
+
   // 控件变更 → store + URL 写回（router.replace 不污染历史栈）
   const applyFilter = useCallback(
     (nextQ: string, nextStatus: IterationStatusFilter) => {

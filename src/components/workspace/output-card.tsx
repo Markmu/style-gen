@@ -189,6 +189,18 @@ export function OutputCard({
           <span>{buttonLabel}</span>
         </button>
       </div>
+
+      {/* plan-07（ADR-7）：就绪结论单一来源——Memory 复用中的缺失必填清单与身份条消费同一对象 */}
+      {readiness.memoryActive && readiness.missingVariableNames.length > 0 && (
+        <p
+          data-testid="output-card-missing-variables"
+          role="status"
+          className="truncate px-1 text-xs leading-5 text-[var(--color-warning)]"
+        >
+          仍需填写 {readiness.missingVariableNames.length} 项：
+          {readiness.missingVariableNames.join("、")}
+        </p>
+      )}
     </section>
   );
 }

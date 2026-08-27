@@ -9,6 +9,11 @@ interface MockTemplate {
   content: string
   variables: TemplateVariable[]
   userId: string
+  /** plan-04：列表新 DTO 字段（verificationStatus 等由 mock 提供） */
+  verificationStatus: 'user_verified' | 'pending_verification'
+  retainedRulesPreview: string[]
+  representativeImageUrl: string | null
+  lastUsedAt: string | null
   sourceAssetId?: string | null
   sourceImageUrl?: string | null
   createdAt: string
@@ -26,6 +31,10 @@ function templateRecord(overrides: Partial<MockTemplate> = {}): MockTemplate {
       { name: 'scene', label: 'Scene', defaultValue: 'white studio', sourceField: 'scene' },
     ],
     userId: 'mock-user-id',
+    verificationStatus: overrides.verificationStatus ?? 'pending_verification',
+    retainedRulesPreview: overrides.retainedRulesPreview ?? ['硬光轮廓与高对比'],
+    representativeImageUrl: overrides.representativeImageUrl ?? null,
+    lastUsedAt: overrides.lastUsedAt ?? null,
     sourceAssetId: overrides.sourceAssetId ?? null,
     sourceImageUrl: overrides.sourceImageUrl ?? null,
     createdAt: overrides.createdAt ?? now,
@@ -79,20 +88,28 @@ async function mockTemplateApi(page: Page, initialTemplates: MockTemplate[] = []
 
     if (pathname === '/api/templates' && method === 'GET') {
       const search = url.searchParams.get('search')?.trim().toLowerCase() ?? ''
-      const filtered = search
-        ? templates.filter((template) =>
-            [
-              template.name,
-              template.content,
-              template.sourceAssetId ?? '',
-              template.sourceImageUrl ?? '',
-            ]
-              .join(' ')
-              .toLowerCase()
-              .includes(search),
-          )
-        : templates
+      const status = url.searchParams.get('status')
+      let filtered = templates
+      if (status && status !== 'all') {
+        filtered = filtered.filter(
+          (template) => template.verificationStatus === status,
+        )
+      }
+      if (search) {
+        filtered = filtered.filter((template) =>
+          [
+            template.name,
+            template.content,
+            template.sourceAssetId ?? '',
+            template.sourceImageUrl ?? '',
+          ]
+            .join(' ')
+            .toLowerCase()
+            .includes(search),
+        )
+      }
 
+      // plan-04：列表页消费 plan-02 新 DTO（StyleMemoryListItem）
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -100,10 +117,13 @@ async function mockTemplateApi(page: Page, initialTemplates: MockTemplate[] = []
           items: filtered.map((template) => ({
             id: template.id,
             name: template.name,
+            verificationStatus: template.verificationStatus,
+            retainedRulesPreview: template.retainedRulesPreview,
             variableCount: template.variables.length,
-            sourceAssetId: template.sourceAssetId ?? null,
             sourceImageUrl: template.sourceImageUrl ?? null,
-            createdAt: template.createdAt,
+            representativeImageUrl: template.representativeImageUrl ?? null,
+            lastUsedAt: template.lastUsedAt ?? null,
+            updatedAt: template.updatedAt,
           })),
           hasMore: false,
           nextCursor: null,
@@ -185,10 +205,27 @@ async function mockTemplateApi(page: Page, initialTemplates: MockTemplate[] = []
     const detailMatch = pathname.match(/^\/api\/templates\/([^/]+)$/)
     if (detailMatch && method === 'GET') {
       const template = templates.find((item) => item.id === detailMatch[1])
+      // plan-06：保存成功直接进入新详情（plan-05 详情页消费 plan-02
+      // StyleMemoryDetail DTO）；按既有 record 合成完整详情形态
+      const detailDto = template
+        ? {
+            ...template,
+            description: null,
+            retainedRules: template.retainedRulesPreview ?? [],
+            negativeConstraints: [],
+            styleTokens: [],
+            enhancementHints: [],
+            representativeGenerationTaskId: null,
+            sourceGenerationTaskId: null,
+            sourceGenerationTask: null,
+            representativeResult: null,
+            usage: { lastUsedAt: template.lastUsedAt ?? null, derivedIterationCount: 0 },
+          }
+        : null
       await route.fulfill({
         status: template ? 200 : 404,
         contentType: 'application/json',
-        body: JSON.stringify(template ?? { error: 'Template not found' }),
+        body: JSON.stringify(detailDto ?? { error: 'Template not found' }),
       })
       return
     }
@@ -225,16 +262,23 @@ async function reachPromptEditor(page: Page, analysisTaskId = 'template-analysis
 }
 
 test.describe('模板功能', () => {
-  test('保存当前 Prompt 为模板并提交分析任务来源', async ({ page }) => {
+  test('保存当前 Prompt 为 Style Memory 并提交分析任务来源', async ({ page }) => {
     const api = await mockTemplateApi(page)
     await reachPromptEditor(page, 'template-save-source-task')
 
     await page.getByRole('button', { name: 'Save as Style Memory' }).click()
-    await expect(page.getByRole('dialog', { name: 'Save as Template' })).toBeVisible()
-    await page.getByLabel('Template Name').fill('Saved prompt template')
-    await page.getByRole('button', { name: 'Save Template' }).click()
+    // plan-06 三步向导（流程 B：规则确认 → 命名；完整提示在步骤 3 高级信息内）
+    const saveWizard = page.getByTestId('save-style-memory-dialog')
+    await expect(saveWizard).toBeVisible()
+    await saveWizard.getByRole('button', { name: '下一步' }).click()
+    await saveWizard.getByRole('textbox', { name: /名称|name/i }).first().fill('Saved prompt template')
+    await saveWizard.getByRole('button', { name: /^保存|^save/i }).click()
 
-    await expect(page.getByRole('dialog', { name: 'Save as Template' })).not.toBeVisible()
+    // 保存成功直接进入新 Memory 详情（plan-05 详情路由）
+    await expect(page).toHaveURL(/\/workspace\/templates\/created-template-1$/, {
+      timeout: 15000,
+    })
+    await expect(page.getByTestId('style-memory-detail-page')).toBeVisible({ timeout: 15000 })
     expect(api.createdBodies[0]).toEqual(
       expect.objectContaining({
         name: 'Saved prompt template',
@@ -244,34 +288,43 @@ test.describe('模板功能', () => {
     expect(String(api.createdBodies[0].content)).toContain('sunset')
   })
 
-  test('插入变量后保存会提交识别到的变量', async ({ page }) => {
+  test('旧分析检测到的模板变量在向导确认后随保存提交', async ({ page }) => {
     const api = await mockTemplateApi(page)
     await reachPromptEditor(page)
 
+    // plan-06 流程 B：V1 分析派生的可替换变量（负面提示伪变量）同屏确认、
+    // 默认值可编辑；编辑值随提交体携带，不虚构配方外变量
+    const saveWizard = page.getByTestId('save-style-memory-dialog')
     await page.getByRole('button', { name: 'Save as Style Memory' }).click()
-    await page.getByLabel('Template Name').fill('Variable template')
-    await page.getByRole('button', { name: /\{\{\}\} Insert Variable/ }).click()
-    await page.getByPlaceholder('Variable name').fill('subject')
-    await page.getByRole('button', { name: 'Confirm' }).click()
+    await expect(saveWizard).toBeVisible()
+    const defaultValueInput = saveWizard.getByLabel(/negative/i)
+    await expect(defaultValueInput).toHaveValue(/blurry, low quality/)
+    await defaultValueInput.fill('no grain, no watermark')
+    await saveWizard.getByRole('button', { name: '下一步' }).click()
+    await saveWizard.getByRole('textbox', { name: /名称|name/i }).first().fill('Detected variable memory')
+    await saveWizard.getByRole('button', { name: /^保存|^save/i }).click()
 
-    await expect(page.getByText(/Detected Variables/)).toBeVisible()
-    await expect(page.getByLabel('Detected variable subject')).toBeVisible()
-    await page.getByRole('button', { name: 'Save Template' }).click()
-
-    await expect(page.getByRole('dialog', { name: 'Save as Template' })).not.toBeVisible()
+    await expect(page).toHaveURL(/\/workspace\/templates\/created-template-1$/, {
+      timeout: 15000,
+    })
+    await expect(page.getByTestId('style-memory-detail-page')).toBeVisible({ timeout: 15000 })
     expect(api.createdBodies[0].variables).toEqual(
-      expect.arrayContaining([expect.objectContaining({ name: 'subject' })]),
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'negative_prompt', defaultValue: 'no grain, no watermark' }),
+      ]),
     )
   })
 
-  test('空名称展示校验错误', async ({ page }) => {
+  test('空名称提交展示校验错误且零请求', async ({ page }) => {
     await mockTemplateApi(page)
     await reachPromptEditor(page)
 
     await page.getByRole('button', { name: 'Save as Style Memory' }).click()
-    await page.getByRole('button', { name: 'Save Template' }).click()
+    const saveWizard = page.getByTestId('save-style-memory-dialog')
+    await saveWizard.getByRole('button', { name: '下一步' }).click()
+    await saveWizard.getByRole('button', { name: /^保存|^save/i }).click()
 
-    await expect(page.getByText('Enter a template name')).toBeVisible()
+    await expect(saveWizard.getByText(/不能为空/)).toBeVisible()
   })
 
   test('template with this name展示冲突错误', async ({ page }) => {
@@ -279,8 +332,10 @@ test.describe('模板功能', () => {
     await reachPromptEditor(page)
 
     await page.getByRole('button', { name: 'Save as Style Memory' }).click()
-    await page.getByLabel('Template Name').fill('Duplicate name')
-    await page.getByRole('button', { name: 'Save Template' }).click()
+    const saveWizard = page.getByTestId('save-style-memory-dialog')
+    await saveWizard.getByRole('button', { name: '下一步' }).click()
+    await saveWizard.getByRole('textbox', { name: /名称|name/i }).first().fill('Duplicate name')
+    await saveWizard.getByRole('button', { name: /^保存|^save/i }).click()
 
     await expect(page.getByText('A template with this name already exists')).toBeVisible()
   })
@@ -290,6 +345,10 @@ test.describe('模板功能', () => {
       templateRecord({
         id: 'library-template-1',
         name: 'Editorial Glass Poster',
+        verificationStatus: 'user_verified',
+        retainedRulesPreview: ['低饱和暖灰基调', '柔和漫射光'],
+        representativeImageUrl: 'https://cdn.example.com/results/library-1/representative.webp',
+        lastUsedAt: '2026-05-15T00:00:00.000Z',
         sourceAssetId: 'source-asset-1',
         sourceImageUrl: 'https://cdn.example.com/references/source-asset-1/original.png',
       }),
@@ -303,18 +362,21 @@ test.describe('模板功能', () => {
     await expect(page.getByText('Editorial Glass Poster')).toBeVisible()
     await expect(page.getByText('Soft Product Macro')).toBeVisible()
     await expect(page.getByTestId('style-memory-card').first()).toBeVisible()
-    await expect(page.getByText(/Style tags/i).first()).toBeVisible()
-    await expect(page.getByText(/Reuse intent/i).first()).toBeVisible()
+    // plan-04 新卡片：验证徽标 + 真实规则摘要 + 变量数；无名称派生标签
+    await expect(page.getByText('用户已验证').first()).toBeVisible()
+    await expect(page.getByText('低饱和暖灰基调').first()).toBeVisible()
+    await expect(page.getByText('2 个变量').first()).toBeVisible()
+    await expect(page.getByText(/Source-backed|Prompt-only|Style tags|Reuse intent/i)).toHaveCount(0)
 
-    // 搜索框现为 sr-only label "Search Style Memory"（placeholder 为行为提示文案）
-    const searchBox = page.getByRole('textbox', { name: /Search Style Memory/i })
+    // 搜索框 aria 承载全量谓词口径（plan-04：placeholder 精简、aria 全量）
+    const searchBox = page.getByRole('textbox', { name: /搜索 Style Memory/ })
     await searchBox.fill('glass')
     await expect(page.getByText('Editorial Glass Poster')).toBeVisible()
     await expect(page.getByText('Soft Product Macro')).not.toBeVisible()
   })
 
-  test('Use memory 跳转Workspace并按默认值加载变量', async ({ page }) => {
-    // 现行 Use memory 通过 source-backed 快照（sourceAssetId+sourceImageUrl+content）
+  test('使用按钮跳转Workspace并按默认值加载变量', async ({ page }) => {
+    // 现行“使用”通过 source-backed 快照（sourceAssetId+sourceImageUrl+content）
     // 预写工作台快照，再经 /workspace?templateId= 进入，变量按 defaultValue 加载
     const template = templateRecord({
       id: 'library-template-use',
@@ -326,9 +388,15 @@ test.describe('模板功能', () => {
 
     await page.goto('/workspace/templates', { waitUntil: 'commit' })
     await page.getByRole('heading', { name: template.name }).hover()
-    const useMemoryButton = page.getByRole('button', { name: 'Use memory' })
+    const useMemoryButton = page.getByRole('button', { name: '使用' })
     await expect(useMemoryButton).toBeVisible({ timeout: 5000 })
     await useMemoryButton.click()
+
+    // plan-07：「使用」接管为复用预检；本模板变量均含默认值（无必填门），
+    // 确认后经快照握手进入 /workspace?templateId= 并回落
+    const reusePrecheck = page.getByTestId('reuse-precheck-dialog')
+    await expect(reusePrecheck).toBeVisible({ timeout: 15000 })
+    await reusePrecheck.getByRole('button', { name: /^进入工作区$/ }).click()
 
     // templateId 参数被消费后 URL 回落到 /workspace（区别于 /workspace/templates）
     await expect(page).toHaveURL(/\/workspace$/, { timeout: 15000 })
@@ -342,31 +410,7 @@ test.describe('模板功能', () => {
     )
   })
 
-  test('Style Memory支持Duplicate模板', async ({ page }) => {
-    const template = templateRecord({ id: 'library-template-copy', name: 'Copy Source Template' })
-    await mockTemplateApi(page, [template])
-
-    await page.goto('/workspace/templates', { waitUntil: 'commit' })
-    await page.getByRole('heading', { name: template.name }).hover()
-    await page.getByRole('button', { name: 'More actions' }).click()
-    await page.getByRole('button', { name: 'Duplicate' }).click()
-
-    await expect(page.getByText('Copy Source Template (copy)')).toBeVisible({ timeout: 5000 })
-  })
-
-  test('Style Memory支持Delete模板', async ({ page }) => {
-    const template = templateRecord({ id: 'library-template-delete', name: 'Delete Target Template' })
-    await mockTemplateApi(page, [template])
-
-    await page.goto('/workspace/templates', { waitUntil: 'commit' })
-    await page.getByRole('heading', { name: template.name }).hover()
-    await page.getByRole('button', { name: 'More actions' }).click()
-    await page.getByRole('button', { name: 'Delete' }).click()
-
-    await expect(page.getByRole('alertdialog', { name: 'Confirm Delete' })).toBeVisible()
-    await page.getByRole('alertdialog', { name: 'Confirm Delete' }).getByRole('button', { name: 'Delete' }).click()
-
-    await expect(page.getByRole('alertdialog', { name: 'Confirm Delete' })).not.toBeVisible()
-    await expect(page.getByText(template.name)).not.toBeVisible({ timeout: 5000 })
-  })
+  // plan-04 起，卡片只保留“查看详情 / 使用”；复制与删除等治理动作集中在
+  // 详情页（PRD“详情为统一入口”）。Duplicate/Delete 的 API 契约由
+  // src/app/api/templates/__tests__/route.test.ts 覆盖，卡片上的 UI 入口用例随之移除。
 })

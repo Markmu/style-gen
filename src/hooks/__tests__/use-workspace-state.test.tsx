@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
 import { renderHook, act } from "@testing-library/react";
-import { useWorkspaceState } from "@/hooks/use-workspace-state";
+import {
+  useWorkspaceState,
+  WORKSPACE_STORAGE_KEY,
+  WORKSPACE_STORAGE_VERSION,
+} from "@/hooks/use-workspace-state";
 import type { VisualRecipe, VisualRecipeV2Success } from "@/types/models";
 
 const mockRecipe: VisualRecipe = {
@@ -848,5 +852,93 @@ describe("useWorkspaceState", () => {
       "https://cdn.example.com/references/current-source/original.png",
     );
     expect(result.current.referenceImageUrl).not.toBe(result.current.resultImageUrl);
+  });
+
+  // ─── plan-07: Style Memory 身份与来源参考图（复用预检/身份条数据源） ───
+
+  it("初始 memoryIdentity 为 null（非 Memory 路径不受影响）", () => {
+    const { result } = renderHook(() => useWorkspaceState());
+    expect(result.current.memoryIdentity).toBeNull();
+  });
+
+  it("setMemoryIdentity 写入并持久化；置 null 即移除", () => {
+    const { result, unmount } = renderHook(() => useWorkspaceState());
+
+    act(() => {
+      result.current.setSourceReference("memory-source-asset", "https://cdn.example.com/references/memory/original.png");
+    });
+    act(() => {
+      result.current.setMemoryIdentity({
+        id: "style-memory-a",
+        name: "Editorial Soft Daylight",
+        verificationStatus: "user_verified",
+        retainedRuleCount: 3,
+      });
+    });
+
+    expect(result.current.memoryIdentity).toEqual({
+      id: "style-memory-a",
+      name: "Editorial Soft Daylight",
+      verificationStatus: "user_verified",
+      retainedRuleCount: 3,
+    });
+
+    // 防抖窗口后落盘，重挂载可恢复（?templateId= 直入后刷新仍显示身份条）
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    unmount();
+
+    const restored = renderHook(() => useWorkspaceState());
+    expect(restored.result.current.memoryIdentity).toMatchObject({
+      id: "style-memory-a",
+      retainedRuleCount: 3,
+    });
+  });
+
+  it("恢复态移除身份：setMemoryIdentity(null) 同步清空且落盘为 null", () => {
+    const { result, unmount } = renderHook(() => useWorkspaceState());
+
+    act(() => {
+      result.current.setSourceReference("memory-source-asset", "https://cdn.example.com/references/memory/original.png");
+    });
+    act(() => {
+      result.current.setMemoryIdentity({
+        id: "style-memory-b",
+        name: "Night Neon",
+        verificationStatus: "pending_verification",
+        retainedRuleCount: 1,
+      });
+    });
+    act(() => {
+      result.current.setMemoryIdentity(null);
+    });
+
+    expect(result.current.memoryIdentity).toBeNull();
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    unmount();
+
+    const restored = renderHook(() => useWorkspaceState());
+    expect(restored.result.current.memoryIdentity).toBeNull();
+    expect(restored.result.current.assetId).toBe("memory-source-asset");
+  });
+
+  it("快照中的损坏 memoryIdentity 恢复时按缺失处理（v4 超集兼容）", () => {
+    sessionStorage.setItem(
+      WORKSPACE_STORAGE_KEY,
+      JSON.stringify({
+        version: WORKSPACE_STORAGE_VERSION,
+        assetId: "legacy-asset",
+        referenceImageUrl: "https://cdn.example.com/references/legacy/original.png",
+        promptText: "kept prompt",
+        memoryIdentity: { id: 42 },
+      }),
+    );
+
+    const { result } = renderHook(() => useWorkspaceState());
+    expect(result.current.memoryIdentity).toBeNull();
+    expect(result.current.promptText).toBe("kept prompt");
   });
 });

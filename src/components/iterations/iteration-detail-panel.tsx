@@ -693,6 +693,27 @@ export function IterationDetailPanel({
           </section>
         )}
 
+        {/* plan-07（AC-06 / PRD 规则 24）：来源 Style Memory 标注——本次迭代自哪条 Memory 派生 */}
+        {detail.sourceTemplateName && (
+          <div
+            data-testid="iteration-source-memory"
+            className="flex items-center gap-2 rounded-xl border border-[var(--border-static)]/60 bg-[var(--surface-low)]/60 px-3.5 py-2.5 shadow-xs"
+          >
+            <AppIcon
+              icon={BookmarkPlus}
+              size={14}
+              className="shrink-0 text-[var(--accent-primary)]"
+            />
+            <p className="min-w-0 truncate text-xs leading-5 text-[var(--text-primary)]">
+              <span className="font-semibold">来源 Style Memory</span>
+              <span className="px-1 text-[var(--text-muted)]">·</span>
+              <span className="text-[var(--text-secondary)]">
+                {detail.sourceTemplateName}
+              </span>
+            </p>
+          </div>
+        )}
+
         {/* 左区：参考图与生成结果并排（completed 的第一视觉焦点） */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <figure className="min-w-0">
@@ -761,12 +782,17 @@ export function IterationDetailPanel({
         onConfirm={confirmReplace}
       />
 
-      {/* plan-05: 保存为 Style Memory 对话框 */}
+      {/* plan-05→plan-06: 保存为 Style Memory 三步向导（按 IterationDetail 实际字段传参） */}
       <SaveStyleMemoryDialog
         open={isSaveDialogOpen}
-        initialContent={detail.promptSnapshot}
-        initialVariables={detail.variables}
-        sourceAssetId={detail.sourceAssetId ?? ""}
+        promptSnapshot={detail.promptSnapshot}
+        variables={detail.variables}
+        negativePromptSnapshot={detail.negativePromptSnapshot}
+        recipe={detail.recipe}
+        recipeSource={detail.recipeSource}
+        sourceImageUrl={detail.sourceImageUrl}
+        resultFileUrl={detail.resultFileUrl}
+        sourceAssetId={detail.sourceAssetId}
         sourceGenerationTaskId={detail.id}
         onSaved={handleStyleMemorySaved}
         onClose={() => setIsSaveDialogOpen(false)}

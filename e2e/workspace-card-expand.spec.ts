@@ -79,7 +79,8 @@ test.describe('workspace card expansion', () => {
     await expect(promptDialog.getByTestId('output-card')).toHaveCount(0)
 
     await promptDialog.getByRole('button', { name: 'Save as Style Memory' }).click()
-    const saveDialog = page.getByRole('dialog', { name: 'Save as Template' })
+    // plan-06：保存入口打开三步向导（ModalDialog，Close 仍可关闭并还原焦点）
+    const saveDialog = page.getByTestId('save-style-memory-dialog')
     await expect(saveDialog).toBeVisible()
     await saveDialog.getByRole('button', { name: 'Close' }).click()
     await expect(saveDialog).toHaveCount(0)

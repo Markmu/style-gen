@@ -25,7 +25,8 @@ test.describe('Phase 12 AI-first shell compatibility', () => {
     await expect(brandLink).toBeVisible()
     await expect(brandLink).toHaveAttribute('href', '/')
     await expect(sidebar.getByRole('link', { name: 'Generate' })).toBeVisible()
-    await expect(sidebar.getByRole('link', { name: 'Style Memory Library' })).toBeVisible()
+    // plan-04 / ADR-8：导航术语统一为 "Style Memory"
+    await expect(sidebar.getByRole('link', { name: 'Style Memory', exact: true })).toBeVisible()
     await expect(sidebar.getByRole('link', { name: 'Iterations' })).toBeVisible()
     await expect(sidebar.getByText(/Template Library/i)).toHaveCount(0)
     await expect(page.getByText('StyleGen')).toHaveCount(0)
@@ -36,7 +37,7 @@ test.describe('Phase 12 AI-first shell compatibility', () => {
     await page.goto('/workspace/templates')
 
     const sidebar = page.getByRole('complementary', { name: /Workspace navigation/ })
-    const styleMemoryNav = sidebar.getByRole('link', { name: 'Style Memory Library' })
+    const styleMemoryNav = sidebar.getByRole('link', { name: 'Style Memory', exact: true })
     await expect(styleMemoryNav).toHaveAttribute('aria-current', 'page')
     await expect(styleMemoryNav).toHaveAttribute('data-active', 'true')
     await expect(sidebar.getByRole('link', { name: 'Generate' })).not.toHaveAttribute(

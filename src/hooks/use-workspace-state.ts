@@ -12,10 +12,47 @@ import { isVisualRecipeV2Success } from "@/lib/visual-recipe";
 import type { WorkspaceSnapshot } from "@/lib/iterations/restore-guard";
 
 /** sessionStorage key */
-const STORAGE_KEY = "style-gen-workspace-state";
+export const WORKSPACE_STORAGE_KEY = "style-gen-workspace-state";
 
 /** 当前持久化数据版本号 */
-const STORAGE_VERSION = 4;
+export const WORKSPACE_STORAGE_VERSION = 4;
+
+/**
+ * plan-07（架构 §6.5）：工作台身份条与就绪结论共用的 Memory 身份信息。
+ * 由预检确认快照或 `?templateId=` 直入加载路径写入；`移除` 时随
+ * currentTemplateId 一并清空，工作区内容保留。
+ */
+export interface WorkspaceMemoryIdentity {
+  id: string;
+  name: string;
+  verificationStatus: "user_verified" | "pending_verification";
+  retainedRuleCount: number;
+}
+
+/** plan-07: 恢复通道的防御性校验（损坏条目按缺失处理，不阻塞工作台） */
+function sanitizeMemoryIdentity(
+  value: unknown,
+): WorkspaceMemoryIdentity | null {
+  if (!value || typeof value !== "object") return null;
+  const candidate = value as Partial<WorkspaceMemoryIdentity>;
+  if (
+    typeof candidate.id !== "string" ||
+    candidate.id.length === 0 ||
+    typeof candidate.name !== "string" ||
+    typeof candidate.retainedRuleCount !== "number"
+  ) {
+    return null;
+  }
+  return {
+    id: candidate.id,
+    name: candidate.name,
+    verificationStatus:
+      candidate.verificationStatus === "user_verified"
+        ? "user_verified"
+        : "pending_verification",
+    retainedRuleCount: candidate.retainedRuleCount,
+  };
+}
 
 /**
  * plan-04（架构 §6.3 / ADR-4）：跨路由传递的迭代恢复载荷。
@@ -63,6 +100,11 @@ export interface WorkspacePersistedState {
   restoredParams?: GenerationParams | null;
   /** plan-04: 待工作台挂载消费的一次性恢复载荷（消费后即从通道清除，防重复应用） */
   pendingIterationRestore?: IterationRestorePayload | null;
+  /**
+   * plan-07: 当前应用的 Style Memory 身份（身份条数据源；v4 字段超集兼容，
+   * 版本不 bump——旧快照缺省视为 null）
+   */
+  memoryIdentity?: WorkspaceMemoryIdentity | null;
 }
 
 export type WorkspaceState =
@@ -122,6 +164,8 @@ export interface WorkspaceContext {
   previousResultUrl: string | null;
   /** plan-04: 工作台当前输出参数快照（守卫豁免③比较字段） */
   restoredParams: GenerationParams | null;
+  /** plan-07: 当前应用的 Style Memory 身份（身份条与就绪结论同源） */
+  memoryIdentity: WorkspaceMemoryIdentity | null;
 }
 
 interface WorkspaceAnalysisTemplatePayload {
@@ -199,6 +243,7 @@ const initialContext: WorkspaceContext = {
   currentTemplateId: null,
   previousResultUrl: null,
   restoredParams: null,
+  memoryIdentity: null,
 };
 
 export function createInitialV2PromptState(
@@ -224,15 +269,15 @@ function loadPersistedState(): Partial<WorkspacePersistedState> | null {
   if (typeof window === "undefined") return null;
 
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
+    const raw = sessionStorage.getItem(WORKSPACE_STORAGE_KEY);
     if (!raw) return null;
 
     const data = JSON.parse(raw) as WorkspacePersistedState;
 
     // 版本检查：未来可在此处处理数据迁移
-    if (data.version !== STORAGE_VERSION) {
-      console.warn(`[workspace] Storage version mismatch, clearing stale data: ${data.version} !== ${STORAGE_VERSION}`);
-      sessionStorage.removeItem(STORAGE_KEY);
+    if (data.version !== WORKSPACE_STORAGE_VERSION) {
+      console.warn(`[workspace] Storage version mismatch, clearing stale data: ${data.version} !== ${WORKSPACE_STORAGE_VERSION}`);
+      sessionStorage.removeItem(WORKSPACE_STORAGE_KEY);
       return null;
     }
 
@@ -241,7 +286,7 @@ function loadPersistedState(): Partial<WorkspacePersistedState> | null {
     console.error("[workspace] Failed to read sessionStorage:", err);
     // 静默清理损坏的数据
     try {
-      sessionStorage.removeItem(STORAGE_KEY);
+      sessionStorage.removeItem(WORKSPACE_STORAGE_KEY);
     } catch {
       // 忽略清除失败
     }
@@ -267,7 +312,7 @@ function createPersistWriter() {
     // 300ms debounce，避免频繁写入
     timeoutId = setTimeout(() => {
       try {
-        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        sessionStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(state));
       } catch (err) {
         console.error("[workspace] Failed to write sessionStorage:", err);
       }
@@ -292,7 +337,7 @@ function writePersistedStateSync(state: WorkspacePersistedState): void {
   if (typeof window === "undefined") return;
   persistState.cancel();
   try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    sessionStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(state));
   } catch (err) {
     console.error("[workspace] Failed to flush sessionStorage:", err);
   }
@@ -325,7 +370,7 @@ export function writeIterationRestoreSnapshot(
 ): void {
   if (typeof window === "undefined") return;
   const entry: WorkspacePersistedState = {
-    version: STORAGE_VERSION,
+    version: WORKSPACE_STORAGE_VERSION,
     assetId: payload.sourceAssetId,
     referenceImageUrl: payload.sourceImageUrl,
     analysisTaskId: payload.analysisTaskId,
@@ -366,7 +411,7 @@ export function clearWorkspacePersistedState(): void {
   if (typeof window === "undefined") return;
   try {
     persistState.cancel();
-    sessionStorage.removeItem(STORAGE_KEY);
+    sessionStorage.removeItem(WORKSPACE_STORAGE_KEY);
   } catch (err) {
     console.error("[workspace] Failed to clear sessionStorage:", err);
   }
@@ -426,13 +471,14 @@ function restoreFromPersistedState(
     currentTemplateId: persisted.currentTemplateId ?? null,
     previousResultUrl: persisted.previousResultUrl ?? null,
     restoredParams: persisted.restoredParams ?? null,
+    memoryIdentity: sanitizeMemoryIdentity(persisted.memoryIdentity),
   };
 }
 
 /** 由 ctx 组装持久化条目（plan-04 恢复上下文随自动持久化一并落盘） */
 function toPersistedState(ctx: WorkspaceContext): WorkspacePersistedState {
   return {
-    version: STORAGE_VERSION,
+    version: WORKSPACE_STORAGE_VERSION,
     assetId: ctx.assetId,
     referenceImageUrl: ctx.referenceImageUrl,
     analysisTaskId: ctx.analysisTaskId,
@@ -449,6 +495,7 @@ function toPersistedState(ctx: WorkspaceContext): WorkspacePersistedState {
     currentTemplateId: ctx.currentTemplateId,
     previousResultUrl: ctx.previousResultUrl,
     restoredParams: ctx.restoredParams,
+    memoryIdentity: ctx.memoryIdentity,
   };
 }
 
@@ -487,6 +534,21 @@ export interface WorkspaceActions {
     currentTemplateId?: string | null;
     previousResultUrl?: string | null;
     restoredParams?: GenerationParams | null;
+  }) => void;
+  /** plan-07: 写入/清除当前 Style Memory 身份（身份条数据源；null 即移除） */
+  setMemoryIdentity: (identity: WorkspaceMemoryIdentity | null) => void;
+  /** plan-07: Memory 直入/复用切换时应用来源参考图（不改动工作流状态与错误位） */
+  setSourceReference: (assetId: string, fileUrl: string) => void;
+  /**
+   * plan-07: 直入路径按调用方口径写入分析模板载荷——不经过 completeAnalysis
+   * 的归一化（Memory 来源的变量定义需保留 label 参与缺失门派生；状态取
+   * `fallback` 以保持文本提示模式与既有 full-prompt 编辑器契约）。
+   */
+  applyAnalysisTemplatePayload: (payload: {
+    analysisTemplateContent: string | null;
+    analysisTemplateVariables: TemplateVariable[];
+    analysisTemplateStatus: AnalysisTemplateStatus | null;
+    analysisTemplateReason: string | null;
   }) => void;
   /** plan-04: 同步落盘当前工作区状态（绕过 300ms 防抖，架构 §6.3） */
   flush: () => void;
@@ -749,6 +811,30 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
     });
   }, []);
 
+  // plan-07: 身份与来源参考图随工作台状态一并持久化（见 toPersistedState）
+  const setMemoryIdentity = useCallback<WorkspaceActions["setMemoryIdentity"]>(
+    (identity) => {
+      setCtx((prev) => ({ ...prev, memoryIdentity: identity }));
+    },
+    [],
+  );
+
+  const setSourceReference = useCallback<WorkspaceActions["setSourceReference"]>(
+    (assetId, fileUrl) => {
+      setCtx((prev) => ({
+        ...prev,
+        assetId,
+        referenceImageUrl: fileUrl,
+      }));
+    },
+    [],
+  );
+
+  const applyAnalysisTemplatePayload =
+    useCallback<WorkspaceActions["applyAnalysisTemplatePayload"]>((payload) => {
+      setCtx((prev) => ({ ...prev, ...payload }));
+    }, []);
+
   const flush = useCallback(() => {
     writePersistedStateSync(toPersistedState(ctxRef.current));
   }, []);
@@ -831,6 +917,7 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
     ctx.currentTemplateId,
     ctx.previousResultUrl,
     ctx.restoredParams,
+    ctx.memoryIdentity,
   ]);
 
   return {
@@ -855,6 +942,9 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
     setAnalysisUnavailable,
     toggleRecipeExpanded,
     setRestoreContext,
+    setMemoryIdentity,
+    setSourceReference,
+    applyAnalysisTemplatePayload,
     flush,
     enterHistoryRestored,
     exitHistoryRestored,

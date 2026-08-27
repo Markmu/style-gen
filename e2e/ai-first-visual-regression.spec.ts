@@ -11,10 +11,12 @@ import {
   mockIterationList,
   mockGenerationList,
   mockGenerationPolling,
+  mockStyleMemoryList,
   mockTemplateCollection,
   mockUploadPresign,
   type MockIterationDetail,
   type MockIterationListItem,
+  type MockStyleMemoryListItem,
   type MockTemplateMemoryRecord,
 } from './helpers/mock-api'
 import { waitForReactInput } from './helpers/react-ready'
@@ -55,6 +57,34 @@ const styleMemories: MockTemplateMemoryRecord[] = [
     sourceAssetId: null,
     sourceImageUrl: null,
     createdAt: '2024-01-02T00:00:00.000Z',
+    updatedAt: '2024-01-02T00:00:00.000Z',
+  },
+]
+
+// plan-04：列表页消费 GET /api/templates 新 DTO（StyleMemoryListItem），
+// 视觉基线按新卡片重拍（已验证代表结果预览 + 待验证无预览占位）
+const visualQaStyleMemories: MockStyleMemoryListItem[] = [
+  {
+    id: 'visual-qa-source-backed-memory',
+    name: 'Visual QA Source Backed Memory',
+    verificationStatus: 'user_verified',
+    retainedRulesPreview: ['Soft glass highlights', 'Editorial spacing'],
+    variableCount: 2,
+    sourceImageUrl: 'https://cdn.example.com/references/visual-qa-source/original.png',
+    representativeImageUrl:
+      'https://cdn.example.com/results/visual-qa-representative/original.webp',
+    lastUsedAt: '2026-08-20T10:00:00.000Z',
+    updatedAt: '2024-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'visual-qa-text-only-memory',
+    name: 'Visual QA Prompt Structure',
+    verificationStatus: 'pending_verification',
+    retainedRulesPreview: [],
+    variableCount: 0,
+    sourceImageUrl: null,
+    representativeImageUrl: null,
+    lastUsedAt: null,
     updatedAt: '2024-01-02T00:00:00.000Z',
   },
 ]
@@ -155,6 +185,9 @@ async function mockVisualQaBase(page: Page, templates = styleMemories) {
   await mockAuthSession(page)
   await mockGenerationList(page)
   await mockTemplateCollection(page, templates)
+  // plan-04：列表走新 DTO（后注册优先生效）；集合 mock 继续提供详情等路径。
+  // `templates` 为空 → 空列表态（新 DTO mock 同步为空）
+  await mockStyleMemoryList(page, templates.length === 0 ? [] : visualQaStyleMemories)
   await mockCdnImages(page)
 }
 
@@ -593,10 +626,13 @@ test.describe('plan-08 targeted visual QA and legacy gate', () => {
 
     await openRoute(page, '/workspace/templates')
 
+    // plan-04 新卡片：验证徽标 + 代表结果预览 + 规则摘要 + “无预览”占位
     await expect(page.locator('.style-memory-card').first()).toBeVisible()
     await expect(page.getByRole('heading', { name: styleMemories[0].name })).toBeVisible()
-    await expect(page.getByText(/Style tags/i).first()).toBeVisible()
-    await expect(page.getByText(/Reuse intent/i).first()).toBeVisible()
+    await expect(page.getByText('用户已验证').first()).toBeVisible()
+    await expect(page.getByText('Soft glass highlights').first()).toBeVisible()
+    await expect(page.getByText('参考图').first()).toBeVisible()
+    await expect(page.getByText('无预览').first()).toBeVisible()
     await expect(page.getByText(/No templates yet/i)).toHaveCount(0)
     await expect(page.getByRole('heading', { name: /^Template Library$/i })).toHaveCount(0)
 
@@ -613,8 +649,9 @@ test.describe('plan-08 targeted visual QA and legacy gate', () => {
 
     const emptyState = statePresenter(page, 'empty')
     await expect(emptyState).toBeVisible()
-    await expect(emptyState.getByRole('button').first()).toBeVisible()
-    await expectButtonsDoNotOverflow(emptyState)
+    // plan-04：空态双入口为链接（打开工作区 / 查看 Iterations）
+    await expect(emptyState.getByRole('link', { name: /打开工作区/ }).first()).toBeVisible()
+    await expect(emptyState.getByRole('link', { name: /查看 Iterations/ }).first()).toBeVisible()
 
     const noResultsPage = await page.context().newPage()
     await noResultsPage.setViewportSize({ width: 1280, height: 800 })
@@ -627,8 +664,12 @@ test.describe('plan-08 targeted visual QA and legacy gate', () => {
 
     const noResultsState = statePresenter(noResultsPage, 'noResults')
     await expect(noResultsState).toBeVisible({ timeout: 10000 })
-    await expect(noResultsState.getByRole('button', { name: /clear search/i })).toBeVisible()
-    await expect(noResultsState.getByRole('button', { name: /back to workspace/i })).toBeVisible()
+    await expect(
+      noResultsState.getByRole('button', { name: /清除搜索|clear search/i }),
+    ).toBeVisible()
+    await expect(
+      noResultsState.getByRole('button', { name: /返回工作区|back to workspace/i }),
+    ).toBeVisible()
     await expectButtonsDoNotOverflow(noResultsState)
     await noResultsPage.close()
 
@@ -643,8 +684,12 @@ test.describe('plan-08 targeted visual QA and legacy gate', () => {
 
     const authState = statePresenter(authPage, 'authRequired')
     await expect(authState).toBeVisible()
-    await expect(authState.getByRole('button', { name: /log in|sign in|login/i })).toBeVisible()
-    await expect(authState.getByRole('button', { name: /back to workspace/i })).toBeVisible()
+    await expect(
+      authState.getByRole('button', { name: /登录|log in|sign in|login/i }),
+    ).toBeVisible()
+    await expect(
+      authState.getByRole('button', { name: /返回工作区|back to workspace/i }),
+    ).toBeVisible()
     await expectButtonsDoNotOverflow(authState)
     await authPage.close()
   })

@@ -471,8 +471,8 @@ describe("IterationDetailPanel — header navigation", () => {
   });
 });
 
-describe("IterationDetailPanel — save as Style Memory secondary actions (plan-05 / 架构 §6.4、§5.2)", () => {
-  it("未保存的 completed 详情（有真实结果 + 来源资产）显示保存入口，点击打开预填对话框", async () => {
+describe("IterationDetailPanel — save as Style Memory secondary actions (plan-05→plan-06 / 架构 §6.4、§5.2)", () => {
+  it("未保存的 completed 详情（有真实结果 + 来源资产）显示保存入口，点击打开三步向导（步骤 1）", async () => {
     const user = userEvent.setup();
     renderPanel();
 
@@ -488,15 +488,19 @@ describe("IterationDetailPanel — save as Style Memory secondary actions (plan-
 
     await user.click(saveEntry);
 
+    // plan-06：打开后落在步骤 1（并排参考图与本次结果 + 代表结果勾选），
+    // 完整提示预填在步骤 3 高级信息内（promptSnapshot）
     const dialog = screen.getByTestId("save-style-memory-dialog");
     expect(dialog).toHaveAttribute("role", "dialog");
-    // 预填：内容 = promptSnapshot，名称初始为空
+    expect(screen.getByTestId("save-wizard-step-1")).toBeVisible();
     expect(
-      within(dialog).getByRole("textbox", { name: /prompt content/i }),
-    ).toHaveValue("Precise neon cityscape at dusk with amber glass towers");
-    expect(
-      within(dialog).getByRole("textbox", { name: /^name$/i }),
-    ).toHaveValue("");
+      screen.getByRole("checkbox", { name: /设为代表结果/ }),
+    ).not.toBeChecked();
+
+    await user.click(within(dialog).getByRole("button", { name: /下一步/ }));
+    await user.click(within(dialog).getByRole("button", { name: /下一步/ }));
+    expect(screen.getByTestId("save-wizard-step-3")).toBeVisible();
+    expect(within(dialog).getByLabelText(/^名称$/)).toHaveValue("");
   });
 
   it("savedTemplate 非空时渲染已保存态（含模板名与 Open），不再显示保存按钮", async () => {
@@ -525,8 +529,26 @@ describe("IterationDetailPanel — save as Style Memory secondary actions (plan-
     );
   });
 
-  it("sourceAssetId 缺失的 completed 详情显示来源缺失说明，不出现保存入口或已保存态", () => {
-    renderPanel({ sourceAssetId: null });
+  it("plan-07：sourceTemplateName 非空时详情面板显示来源 Style Memory 标注（标签+名称），缺省不渲染", () => {
+    const first = renderPanel({
+      sourceTemplateId: "tpl-src-1",
+      sourceTemplateName: "Editorial Soft Daylight",
+    });
+
+    const sourceRow = screen.getByTestId("iteration-source-memory");
+    expect(sourceRow).toBeVisible();
+    expect(sourceRow).toHaveTextContent(/来源\s*Style Memory/i);
+    expect(sourceRow).toHaveTextContent("Editorial Soft Daylight");
+    first.unmount();
+
+    // 未携带来源的迭代（既有行为）不渲染该标注
+    renderPanel({ sourceTemplateId: null, sourceTemplateName: null });
+    expect(
+      screen.queryByTestId("iteration-source-memory"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("sourceAssetId 缺失的 completed 详情显示来源缺失说明，不出现保存入口或已保存态", () => {    renderPanel({ sourceAssetId: null });
 
     const note = screen.getByTestId("iteration-save-unavailable");
     expect(note).toBeVisible();

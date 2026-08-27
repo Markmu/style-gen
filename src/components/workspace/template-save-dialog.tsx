@@ -1,365 +1,69 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
-import { X } from "lucide-react";
-import { AppIcon } from "@/components/ui/app-icon";
-import type { PromptTemplate, TemplateVariable } from "@/types/models";
-import {
-  mergeTemplateVariables,
-  normalizeVariableName,
-} from "@/lib/template-parser";
+import { StyleMemorySaveWizard } from "@/components/iterations/save-style-memory-dialog";
+import type { StoredVisualRecipe, TemplateVariable } from "@/types/models";
+import { mergeTemplateVariables } from "@/lib/template-parser";
+
+/**
+ * plan-06（流程 B）: 工作区草稿保存向导（架构 §6.3 A/B 流程差异）。
+ *
+ * - 复用流程 A 的三步向导骨架（ModalDialog 原语 + 同一 testid 契约），
+ *   跳过步骤 1 的代表结果勾选：首屏固定"当前没有代表结果，本次将保存为
+ *   待验证"说明区，底部"保存后状态"固定待验证。
+ * - 预填用 `deriveStyleMemoryPrefill`（工作区配方，现行链路 V2）+ 工作区
+ *   negativePromptText（V1 兜底来源）。
+ * - 提交体不含 representativeGenerationTaskId / sourceGenerationTaskId；
+ *   携带 sourceAssetId（工作区有参考图时）与既有 sourceAnalysisTaskId /
+ *   sourceImageUrl；保存成功由向导跳转新 Memory 详情。
+ */
 
 interface TemplateSaveDialogProps {
   open: boolean;
+  /** 工作区当前提示内容（含 {{var}} 标记时按既有口径并入变量预填） */
   initialContent: string;
   initialVariables?: TemplateVariable[];
+  /** 工作区当前配方（预填规则四元组依据） */
+  recipe?: StoredVisualRecipe | null;
+  /** 工作区负面提示文本（V1 配方无排除约束时的预填来源） */
+  negativePromptText?: string;
   sourceAnalysisTaskId?: string;
   sourceAssetId?: string | null;
   sourceImageUrl?: string | null;
-  onSave: (template: PromptTemplate) => void;
+  onSave: (template: { id: string; name: string }) => void;
   onClose: () => void;
 }
-
-const MAX_CONTENT_LENGTH = 10_000;
 
 export function TemplateSaveDialog({
   open,
   initialContent,
   initialVariables = [],
+  recipe = null,
+  negativePromptText = "",
   sourceAnalysisTaskId,
   sourceAssetId,
   sourceImageUrl,
   onSave,
   onClose,
 }: TemplateSaveDialogProps) {
-  const [name, setName] = useState("");
-  const [content, setContent] = useState(initialContent);
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Variables插入工具栏状态
-  const [showVarInput, setShowVarInput] = useState(false);
-  const [varNameInput, setVarNameInput] = useState("");
-  const [varNameError, setVarNameError] = useState<string | null>(null);
-
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  // 同步 initialContent 变更（Edit器内容更新时）
-  useEffect(() => {
-    if (open) {
-      setContent(initialContent);
-      setName("");
-      setError(null);
-      setShowVarInput(false);
-      setVarNameInput("");
-      setVarNameError(null);
-    }
-  }, [open, initialContent]);
-
-  const contentVariables = mergeTemplateVariables(content, initialVariables);
+  // 既有口径：content 中出现的 {{var}} 并入变量预填，避免提交体丢变量
+  const contentVariables = mergeTemplateVariables(initialContent, initialVariables);
   const variables =
     contentVariables.length > 0 ? contentVariables : initialVariables.slice(0, 20);
 
-  /** 在 textarea 当前光标位置插入 {{varName}} */
-  const insertVariable = useCallback(
-    (varName: string) => {
-      const textarea = textareaRef.current;
-      if (!textarea) return;
-
-      const start = textarea.selectionStart ?? content.length;
-      const end = textarea.selectionEnd ?? content.length;
-      const marker = `{{${varName}}}`;
-      const newContent =
-        content.slice(0, start) + marker + content.slice(end);
-
-      setContent(newContent);
-      setVarNameInput("");
-      setShowVarInput(false);
-      setVarNameError(null);
-
-      // 恢复焦点并设置光标到插入文本之后
-      requestAnimationFrame(() => {
-        textarea.focus();
-        const newPos = start + marker.length;
-        textarea.setSelectionRange(newPos, newPos);
-      });
-    },
-    [content],
-  );
-
-  /** ConfirmVariable name并插入 */
-  const handleConfirmVariable = useCallback(() => {
-    const normalized = normalizeVariableName(varNameInput);
-    if (!normalized) {
-      setVarNameError("Enter a variable name");
-      return;
-    }
-    insertVariable(normalized);
-  }, [varNameInput, insertVariable]);
-
-  /** Save Template */
-  const handleSave = async () => {
-    // 校验
-    if (!name.trim()) {
-      setError("Enter a template name");
-      return;
-    }
-    if (!content.trim()) {
-      setError("Prompt content cannot be empty");
-      return;
-    }
-    if (content.length > MAX_CONTENT_LENGTH) {
-      setError(`Prompt content is too long (max ${MAX_CONTENT_LENGTH} characters)`);
-      return;
-    }
-
-    setIsSaving(true);
-    setError(null);
-
-    try {
-      const res = await fetch("/api/templates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(),
-          content,
-          variables,
-          sourceAnalysisTaskId: sourceAnalysisTaskId ?? undefined,
-          sourceAssetId: sourceAssetId ?? undefined,
-          sourceImageUrl: sourceImageUrl ?? undefined,
-        }),
-      });
-
-      if (res.status === 201) {
-        const template = (await res.json()) as PromptTemplate;
-        console.log("[template_saved]", template.id, template.name);
-        onSave(template);
-        onClose();
-      } else if (res.status === 409) {
-        const data = (await res.json()) as { error?: string };
-        setError(data.error ?? "A template with this name already exists");
-      } else {
-        const data = (await res.json()) as { error?: string };
-        setError(data.error ?? "Save failed. Please try again.");
-      }
-    } catch {
-      setError("Network error. Please check your connection and try again.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // 键盘事件：Escape Close
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-      }
-    },
-    [onClose],
-  );
-
-  if (!open) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(25,28,30,0.32)] p-4 backdrop-blur-sm"
-      onClick={onClose}
-      onKeyDown={handleKeyDown}
-      tabIndex={-1}
-    >
-      {/* 对话框Subject */}
-      <div
-        className="flex max-h-[calc(100vh-2rem)] w-full max-w-4xl flex-col overflow-hidden rounded-lg bg-[var(--surface-bright)] ring-1 ring-[var(--border-static)] shadow-[var(--shadow-ambient)]"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Save as Template"
-      >
-        {/* 标题栏 */}
-        <div className="flex shrink-0 items-center justify-between gap-4 px-6 pt-6">
-          <h2 className="text-lg font-bold text-[var(--text-primary)]">
-            Save as Template
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)]"
-            aria-label="Close"
-          >
-            <AppIcon icon={X} size={16} />
-          </button>
-        </div>
-
-        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
-          {/* Template Name */}
-          <div className="space-y-1.5">
-            <label
-              htmlFor="template-name"
-              className="block text-sm font-medium text-[var(--text-secondary)]"
-            >
-              Template Name
-            </label>
-            <input
-              id="template-name"
-              type="text"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                setError(null);
-              }}
-              placeholder="Example: Cyberpunk style"
-              maxLength={50}
-              className="input-precision w-full rounded-t-md px-3 py-2 text-sm"
-            />
-          </div>
-
-          {/* Prompt Content + Variables插入工具栏 */}
-          <div className="space-y-1.5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <label
-                htmlFor="template-content"
-                className="block text-sm font-medium text-[var(--text-secondary)]"
-              >
-                Prompt Content
-              </label>
-              {!showVarInput ? (
-                <button
-                  type="button"
-                  onClick={() => setShowVarInput(true)}
-                  className="h-8 rounded-md border border-[var(--border-interactive)] px-2.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-low)] hover:text-[var(--accent-primary)]"
-                >
-                  {"{{}} Insert Variable"}
-                </button>
-              ) : (
-                /* 内联Variable name输入 */
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-xs text-[var(--text-secondary)]">{"{{"}</span>
-                  <input
-                    type="text"
-                    value={varNameInput}
-                    onChange={(e) => {
-                      setVarNameInput(e.target.value);
-                      setVarNameError(null);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        handleConfirmVariable();
-                      } else if (e.key === "Escape") {
-                        setShowVarInput(false);
-                        setVarNameInput("");
-                        setVarNameError(null);
-                      }
-                    }}
-                    placeholder="Variable name"
-                    autoFocus
-                    className="input-precision h-8 w-28 rounded-t-md px-2 text-xs"
-                  />
-                  <span className="text-xs text-[var(--text-secondary)]">{"}}"}</span>
-                  <button
-                    type="button"
-                    onClick={handleConfirmVariable}
-                    className="h-8 rounded-md px-2 text-xs font-medium text-[var(--accent-primary)] transition-colors hover:bg-[var(--accent-primary-soft)]"
-                  >
-                    Confirm
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowVarInput(false);
-                      setVarNameInput("");
-                      setVarNameError(null);
-                    }}
-                    className="h-8 rounded-md px-2 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              )}
-            </div>
-            {varNameError && (
-              <p className="text-xs text-[var(--color-error)]">{varNameError}</p>
-            )}
-            <textarea
-              ref={textareaRef}
-              id="template-content"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              rows={8}
-              maxLength={MAX_CONTENT_LENGTH}
-              className="input-precision min-h-[13.75rem] w-full resize-y rounded-t-lg px-3 py-3 text-sm leading-6"
-              placeholder="Enter or edit prompt template content..."
-            />
-            <p className="text-right text-xs text-[var(--text-secondary)]/60">
-              {content.length} / {MAX_CONTENT_LENGTH.toLocaleString()}
-            </p>
-          </div>
-
-          {/* Variables预览 */}
-          {variables.length > 0 && (
-            <div className="space-y-3">
-              <div>
-                <h4 className="text-sm font-semibold text-[var(--text-primary)]">
-                  Detected Variables ({variables.length})
-                </h4>
-              </div>
-              <div
-                data-testid="template-save-variable-grid"
-                className="grid gap-3 sm:grid-cols-2"
-              >
-                {variables.map((variable) => (
-                  <label key={variable.name} className="block space-y-1.5">
-                    <span className="flex items-center gap-2">
-                      <span className="label-tech text-[var(--text-muted)]">
-                        {variable.label || variable.name}
-                      </span>
-                      {variable.sourceField && (
-                        <span className="rounded-full bg-[var(--surface-low)] px-2 py-0.5 text-[0.625rem] text-[var(--text-muted)]">
-                          {variable.sourceField}
-                        </span>
-                      )}
-                    </span>
-                    <input
-                      aria-label={`Detected variable ${variable.name}`}
-                      readOnly
-                      value={variable.defaultValue || "Empty default"}
-                      className="input-precision w-full rounded-t-md px-3 py-2 text-sm"
-                    />
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* 错误提示 */}
-          {error && (
-            <p className="rounded-lg bg-[var(--color-error-soft)] px-3 py-2 text-sm text-[var(--color-error)]">
-              {error}
-            </p>
-          )}
-        </div>
-
-        {/* 操作按钮 */}
-        <div className="flex shrink-0 items-center justify-end gap-3 px-6 pb-6">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isSaving}
-            className="rounded-lg px-4 py-2 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={isSaving}
-            className="btn-primary rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-          >
-            {isSaving ? "Saving..." : "Save Template"}
-          </button>
-        </div>
-      </div>
-    </div>
+    <StyleMemorySaveWizard
+      open={open}
+      flow="workspace-draft"
+      initialContent={initialContent}
+      initialVariables={variables}
+      recipe={recipe}
+      recipeSource="snapshot"
+      negativePromptText={negativePromptText}
+      sourceImageUrl={sourceImageUrl}
+      sourceAssetId={sourceAssetId}
+      sourceAnalysisTaskId={sourceAnalysisTaskId}
+      onSaved={onSave}
+      onClose={onClose}
+    />
   );
 }

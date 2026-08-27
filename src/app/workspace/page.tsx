@@ -9,6 +9,7 @@ import {
   useWorkspaceState,
   type WorkspaceState,
 } from "@/hooks/use-workspace-state";
+import { MemoryIdentityBar } from "@/components/workspace/memory-identity-bar";
 import { useUpload } from "@/hooks/use-upload";
 import { useAnalysis } from "@/hooks/use-analysis";
 import { useGeneration } from "@/hooks/use-generation";
@@ -50,7 +51,11 @@ import {
   DEFAULT_IMAGE_GEN_MODEL_ID,
   isKnownImageGenModel,
 } from "@/lib/ai/model-config";
-import type { GenerationParams, TemplateVariable } from "@/types/models";
+import type {
+  GenerationParams,
+  StyleMemoryDetail,
+  TemplateVariable,
+} from "@/types/models";
 import {
   isVisualRecipeV2Success,
   toLegacyVisualRecipe,
@@ -58,6 +63,8 @@ import {
 
 /** L1 degradation threshold: show queueing hint after 60s */
 const QUEUEING_THRESHOLD_MS = 60_000;
+/** plan-07：复用确认握手 URL 的最短可见窗口（ADR-5 可观察回落） */
+const REUSE_HANDSHAKE_URL_DWELL_MS = 220;
 const EVIDENCE_COPILOT_PREVIEW = "evidence-copilot";
 const previewDegradation = {
   analysisQueueing: false,
@@ -166,11 +173,24 @@ function WorkspacePageInner() {
   const fileStore = useFileStore();
   const ws = useWorkspaceState();
   const { upload, progress, isUploading } = useUpload();
+  // plan-07：Memory 复用会话中，"进入时"既有的分析任务 id 仅作为生成上下文
+  // 门控令牌（ADR-7），不再对其发起轮询——陈旧 id 的 401 会话过期分支会把
+  // 用户甩出工作台。此后上传新参考图产生的新任务 id 照常轮询。
+  const entryAnalysisTaskIdRef = useRef<string | null>(null);
+  if (entryAnalysisTaskIdRef.current === null && ws.analysisTaskId) {
+    entryAnalysisTaskIdRef.current = ws.analysisTaskId;
+  }
+  const memoryHoldsEntryAnalysisTask =
+    !!ws.memoryIdentity &&
+    ws.analysisTaskId !== null &&
+    ws.analysisTaskId === entryAnalysisTaskIdRef.current;
   // plan-04: 恢复态（history_restored）不再轮询分析端点——快照已完整落地，
   // 轮询只会用过期分析结果覆盖恢复内容（或触发会话过期跳转）。
   // 上传新参考图/新分析开始后状态离开恢复态，轮询自然恢复。
   const { data: analysisData } = useAnalysis(
-    ws.state === "history_restored" ? null : ws.analysisTaskId,
+    ws.state === "history_restored" || memoryHoldsEntryAnalysisTask
+      ? null
+      : ws.analysisTaskId,
   );
   const { data: generationData } = useGeneration(ws.generationTaskId);
   const searchParams = useSearchParams();
@@ -224,38 +244,140 @@ function WorkspacePageInner() {
     [setWorkspacePromptText],
   );
 
-  // FEAT-04: templateId query 参数加载逻辑
+  // plan-07：Memory 复用的生成上下文桥接（ADR-5 握手补齐 / ADR-7 门控输入）。
+  // ?templateId= 加载 Memory 详情后，经既有 GET /api/generation/{iterationId}
+  // （representativeResult.iterationId，回退 sourceGenerationTask.id）恢复来源
+  // Iteration 的 analysisTaskId。该上下文只参与"是否存在生成上下文"的门控
+  // （deriveRenderReadiness.generationContextReady），不注入轮询通道
+  // useAnalysis——避免对陈旧任务 id 发起无意义轮询；POST /api/generation 时
+  // 若无更优分析上下文则携带桥接值（真实端点校验其存在性）。
+  const [recoveredGenerationContext, setRecoveredGenerationContext] = useState<{
+    analysisTaskId: string;
+  } | null>(null);
+  const bridgedAttemptKeyRef = useRef<string | null>(null);
+
+  // FEAT-04: templateId query 参数加载逻辑；plan-07 扩展为复用握手消费点
   useEffect(() => {
     const templateId = searchParams.get("templateId");
     if (!templateId) return;
+    // 非空别名：跨闭包保留 string 收窄（loadTemplate 内多处使用）
+    const memoryIdParam: string = templateId;
 
     let aborted = false;
 
+    // plan-07：预检确认产生的会话快照已包含完整复用内容（提示/变量/
+    // 来源参考图/身份/既有分析上下文）。识别到同 Memory 快照时不重复应用，
+    // 防止把工作台提示回退为含 {{占位符}} 的模板原文。
+    let snapshotAlreadyApplied = false;
+
     async function loadTemplate() {
       try {
-        const res = await fetch(`/api/templates/${templateId}`);
+        const res = await fetch(`/api/templates/${memoryIdParam}`);
         if (!res.ok) throw new Error("Template not found");
-        const template = await res.json();
+        const template = (await res.json()) as Partial<StyleMemoryDetail>;
 
         if (aborted) return;
 
-        setCurrentTemplateVariables(template.variables ?? []);
-        setResolvedPromptText(template.content);
-        ws.setPromptText(template.content);
+        try {
+          const raw = sessionStorage.getItem("style-gen-workspace-state");
+          const persisted = raw
+            ? (JSON.parse(raw) as { memoryIdentity?: { id?: string } | null })
+            : null;
+          snapshotAlreadyApplied =
+            persisted?.memoryIdentity?.id === memoryIdParam &&
+            typeof template.content === "string";
+        } catch {
+          // 忽略：快照损坏按未应用处理，走既有 fetch 应用路径（ADR-5 退化）
+        }
+
+        if (!snapshotAlreadyApplied) {
+          // plan-07：直入路径写入模板载荷（不经 completeAnalysis 归一化）——
+          // 变量定义保留 label 参与缺失门派生；状态 fallback 保持文本提示模式
+          // 与既有 full-prompt 编辑器契约。提示在页面侧照常生效。
+          const templateVariables = template.variables ?? [];
+          setCurrentTemplateVariables(templateVariables);
+          setResolvedPromptText(template.content ?? "");
+          ws.setPromptText(template.content ?? "");
+          ws.applyAnalysisTemplatePayload({
+            analysisTemplateContent: template.content ?? null,
+            analysisTemplateVariables: templateVariables,
+            analysisTemplateStatus:
+              templateVariables.length > 0 ? "fallback" : null,
+            analysisTemplateReason: null,
+          });
+          // Memory 直入/切换时应用来源参考图并写入身份条数据源
+          const memorySourceAssetId = template.sourceAssetId;
+          const memorySourceImageUrl = template.sourceImageUrl;
+          if (memorySourceAssetId && memorySourceImageUrl) {
+            ws.setSourceReference(memorySourceAssetId, memorySourceImageUrl);
+          }
+          ws.setMemoryIdentity({
+            id: memoryIdParam,
+            name: template.name ?? memoryIdParam,
+            verificationStatus:
+              template.verificationStatus === "user_verified"
+                ? "user_verified"
+                : "pending_verification",
+            retainedRuleCount: template.retainedRules?.length ?? 0,
+          });
+        }
         // plan-04（AC-02）：从 Style Memory 进入加载模板时记录 currentTemplateId，
         // 后续生成请求携带 sourceTemplateId（保障记录可按来源模板名搜索）
         ws.setRestoreContext({
           currentIterationId: null,
-          currentTemplateId: templateId,
+          currentTemplateId: memoryIdParam,
           previousResultUrl: null,
           restoredParams: null,
         });
+
+        // plan-07：生成上下文桥接——仅当工作台没有可用的分析上下文时尝试恢复。
+        // 每次挂载对同一 (templateId, iterationId) 只尝试一次；失败静默降级，
+        // 身份条如实显示缺失、Generate 保持禁用（计划内决策）。
+        const bridgeIterationId =
+          template.representativeResult?.iterationId ??
+          template.sourceGenerationTask?.id ??
+          null;
+        const attemptKey = `${memoryIdParam}:${bridgeIterationId ?? "none"}`;
+        if (
+          bridgeIterationId &&
+          !ws.analysisTaskId &&
+          bridgedAttemptKeyRef.current !== attemptKey
+        ) {
+          bridgedAttemptKeyRef.current = attemptKey;
+          void (async () => {
+            try {
+              const detailRes = await fetch(`/api/generation/${bridgeIterationId}`);
+              if (!detailRes.ok || aborted) return;
+              const iterationDetail = (await detailRes.json()) as {
+                analysisTaskId?: string | null;
+              };
+              if (iterationDetail.analysisTaskId) {
+                setRecoveredGenerationContext({
+                  analysisTaskId: iterationDetail.analysisTaskId,
+                });
+              }
+            } catch {
+              // 取不到来源分析上下文：门控保持关闭（可见退化而非报错）
+            }
+          })();
+        }
       } catch {
         // Template not found或加载失败，静默处理（不阻塞用户）
-        console.error("Failed to load template:", templateId);
+        console.error("Failed to load template:", memoryIdParam);
       } finally {
         if (!aborted) {
-          router.replace("/workspace");
+          // plan-07：预检确认的会话快照命中时延迟一拍再回落规范地址，
+          // 保证 `/workspace?templateId=` 握手地址对用户/断言可观察
+          // （ADR-5：URL 即一次性握手载体）；普通模板加载立即回落。
+          if (snapshotAlreadyApplied) {
+            window.setTimeout(() => {
+              if (!aborted) {
+                router.replace("/workspace");
+              }
+            }, REUSE_HANDSHAKE_URL_DWELL_MS);
+          } else {
+            router.replace("/workspace");
+          }
         }
       }
     }
@@ -628,6 +750,32 @@ function WorkspacePageInner() {
     ? EVIDENCE_COPILOT_PREVIEW
     : ws.analysisTaskId;
   const activePromptHasUnresolvedVariables = hasUnresolvedVariables(activePromptText);
+  // plan-07（ADR-7）：Memory 复用上下文的缺失必填清单单一派生点——
+  // 必填定义 = trim(defaultValue)===''，展示名 label 优先回退 name。
+  // 定义集合优先取持久化的分析模板变量（带 label 的 SSOT；页面局部
+  // currentTemplateVariables 会被编辑器回写去 label 并混入负向提示辅助位），
+  // 并显式排除辅助变量，避免把"Negative constraints"算进必填门。
+  const memoryGateVariables =
+    ws.analysisTemplateVariables.length > 0
+      ? ws.analysisTemplateVariables
+      : currentTemplateVariables.length > 0
+        ? currentTemplateVariables
+        : effectiveTemplateVariables;
+  const memoryMissingVariableNames = useMemo(
+    () =>
+      memoryGateVariables
+        .filter((variable) => variable.name !== "negative_prompt")
+        .filter((variable) => !String(variable.defaultValue ?? "").trim())
+        .map((variable) => variable.label || variable.name),
+    [memoryGateVariables],
+  );
+  const memoryReadinessContext = ws.memoryIdentity
+    ? {
+        id: ws.memoryIdentity.id,
+        retainedRuleCount: ws.memoryIdentity.retainedRuleCount,
+        missingVariableNames: memoryMissingVariableNames,
+      }
+    : null;
   const evidenceFacets = useMemo(
     () => deriveEvidenceFacets(effectiveRecipe),
     [effectiveRecipe],
@@ -650,6 +798,9 @@ function WorkspacePageInner() {
         degradation: effectiveDegradation,
         error: isEvidencePreview ? null : ws.error,
         analysisTaskId: isEvidencePreview ? EVIDENCE_COPILOT_PREVIEW : ws.analysisTaskId,
+        // plan-07：Memory 复用上下文与桥接生成上下文（唯一派生调用点，ADR-7）
+        memory: isEvidencePreview ? null : memoryReadinessContext,
+        generationContextReady: Boolean(recoveredGenerationContext?.analysisTaskId),
       }),
     [
       activePromptHasUnresolvedVariables,
@@ -660,6 +811,8 @@ function WorkspacePageInner() {
       effectiveTemplateVariables,
       evidenceFacets,
       isEvidencePreview,
+      memoryReadinessContext,
+      recoveredGenerationContext,
       ws.analysisTaskId,
       ws.error,
     ],
@@ -680,7 +833,10 @@ function WorkspacePageInner() {
       quality: Quality;
       model?: string;
     }) => {
-      if (!renderReadiness.canGenerate || !ws.analysisTaskId) return;
+      // plan-07：生成上下文 = 既有分析轮询 id，或 Memory 桥接恢复的来源分析 id
+      const generationAnalysisTaskId =
+        ws.analysisTaskId ?? recoveredGenerationContext?.analysisTaskId ?? null;
+      if (!renderReadiness.canGenerate || !generationAnalysisTaskId) return;
 
       try {
         setGenerationDialogOpen(true);
@@ -688,7 +844,7 @@ function WorkspacePageInner() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            analysisTaskId: ws.analysisTaskId,
+            analysisTaskId: generationAnalysisTaskId,
             promptText: activePromptText,
             negativePromptText: ws.negativePromptText,
             params: {
@@ -723,6 +879,7 @@ function WorkspacePageInner() {
     [
       activePromptText,
       renderReadiness.canGenerate,
+      recoveredGenerationContext,
       ws.analysisTaskId,
       ws.negativePromptText,
       ws.currentTemplateId,
@@ -787,6 +944,14 @@ function WorkspacePageInner() {
   });
   const workspaceTitle = isEvidencePreview ? "Editorial Soft Light" : "Workspace";
 
+  // plan-07：移除身份条——清 currentTemplateId 与 Memory 身份，工作区内容保留
+  // （PRD 规则 21：身份条持续可见直至移除/替换来源）；随自动持久化落盘
+  const handleRemoveMemoryIdentity = useCallback(() => {
+    ws.setRestoreContext({ currentTemplateId: null });
+    ws.setMemoryIdentity(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleHistoryContinueEditing = useCallback(
     (detail: HistoryDetail) => {
       applyHistoryRestore(detail);
@@ -810,6 +975,17 @@ function WorkspacePageInner() {
           disabledReason={generateDisabledReason}
           degradation={effectiveDegradation}
         />
+
+        {/* plan-07（PRD 规则 21 / AC-08）：复用身份条——顶栏下方条状区，确认导航后首屏焦点落点；缺失清单消费同一就绪结论对象 */}
+        {ws.memoryIdentity && (
+          <MemoryIdentityBar
+            identity={ws.memoryIdentity}
+            missingVariableNames={
+              isEvidencePreview ? [] : renderReadiness.missingVariableNames
+            }
+            onRemove={handleRemoveMemoryIdentity}
+          />
+        )}
 
         <div className="min-h-0 flex-1 overflow-hidden">
           <WorkspaceThreeColumnLayout
@@ -951,13 +1127,15 @@ function WorkspacePageInner() {
           restoreError={historyRestoreError?.message}
         />
 
-        {/* Template Save Dialog */}
+        {/* plan-06 流程 B: 工作区草稿保存向导（无代表结果，保存为待验证） */}
         <TemplateSaveDialog
           open={showTemplateSaveDialog}
           initialContent={templateSaveContent || effectivePromptText}
           initialVariables={
             isCustomV2OutputMode ? [] : templateSaveInitialVariables
           }
+          recipe={effectiveRecipe}
+          negativePromptText={effectiveNegativePromptText}
           sourceAnalysisTaskId={
             restoredSourceContext?.sourceAnalysisTaskId ?? ws.analysisTaskId ?? undefined
           }
