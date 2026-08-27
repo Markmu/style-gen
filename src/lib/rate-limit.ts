@@ -100,4 +100,6 @@ export const RATE_LIMIT_CONFIGS: Record<string, RateLimitConfig> = {
   upload: { windowMs: 60 * 60 * 1000, maxRequests: 10 },
   analysis: { windowMs: 60 * 60 * 1000, maxRequests: 10 },
   generation: { windowMs: 60 * 60 * 1000, maxRequests: 20 },
+  /** plan-02（架构 §8.3）：templates 全部写端点共用（POST / PUT / DELETE / duplicate / representative-result），30 次/小时/用户 */
+  templateWrite: { windowMs: 60 * 60 * 1000, maxRequests: 30 },
 };

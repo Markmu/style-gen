@@ -16,6 +16,7 @@ import type {
   StoredVisualRecipe,
   GenerationParams,
   TemplateVariable,
+  TemplateVerificationStatus,
 } from "@/types/models";
 
 /** users 表 */
@@ -149,8 +150,10 @@ export const generationTasks = pgTable(
       .$type<TemplateVariable[] | null>(),
     // plan-01（AC-02）: 提交时工作台应用的 Style Memory，支撑按模板名检索。
     // AnyPgColumn 注解打断与 templates 的循环类型推断（循环 FK 的既定处理方式）
+    // plan-01（AC-07 / ADR-2）: 删除 Memory 时由 FK SET NULL 自动解链，不阻断删除
     sourceTemplateId: varchar("source_template_id", { length: 26 }).references(
-      (): AnyPgColumn => templates.id
+      (): AnyPgColumn => templates.id,
+      { onDelete: "set null" }
     ),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -178,6 +181,8 @@ export const generationTasks = pgTable(
       table.createdAt.desc(),
       table.id.desc()
     ),
+    // plan-01（架构 §6.1/§6.4）: 支撑使用聚合联查与代表结果候选查询
+    index("idx_generation_tasks_source_template").on(table.sourceTemplateId),
   ]
 );
 
@@ -189,6 +194,24 @@ export const templates = pgTable(
     name: varchar("name", { length: 50 }).notNull(),
     content: text("content").notNull(),
     variables: jsonb("variables").$type<TemplateVariable[]>().notNull().default([]),
+    // plan-01（架构 §7.2）: Style Memory 扩展列——说明（"来源说明"可搜索口径，架构 §6.1）
+    description: text("description"),
+    // plan-01（架构 §7.2）: 规则四元组（可编辑的两组触发状态回退，快照两组仅展示）
+    retainedRules: text("retained_rules").array().notNull().default([]),
+    negativeConstraints: text("negative_constraints").array().notNull().default([]),
+    styleTokens: text("style_tokens").array().notNull().default([]),
+    enhancementHints: text("enhancement_hints").array().notNull().default([]),
+    // plan-01（ADR-1）: 验证状态只能由服务端写点派生，存量默认待验证
+    verificationStatus: varchar("verification_status", { length: 20 })
+      .notNull()
+      .default("pending_verification")
+      .$type<TemplateVerificationStatus>(),
+    // plan-01（ADR-2）: 代表结果只存引用，任务删除时 FK SET NULL（读时另有防御降级）
+    representativeGenerationTaskId: varchar("representative_generation_task_id", {
+      length: 26,
+    }).references((): AnyPgColumn => generationTasks.id, {
+      onDelete: "set null",
+    }),
     sourceAssetId: varchar("source_asset_id", { length: 26 }).references(() => assets.id),
     sourceImageUrl: text("source_image_url"),
     userId: varchar("user_id", { length: 26 }).references(() => users.id).notNull(),
@@ -208,5 +231,9 @@ export const templates = pgTable(
     index("idx_templates_user_name").on(table.userId, table.name),
     index("idx_templates_source_asset").on(table.sourceAssetId),
     index("idx_templates_source_generation").on(table.sourceGenerationTaskId),
+    check(
+      "templates_verification_status_check",
+      sql`${table.verificationStatus} IN ('user_verified', 'pending_verification')`
+    ),
   ]
 );

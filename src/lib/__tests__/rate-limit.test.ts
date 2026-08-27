@@ -151,6 +151,36 @@ describe("checkRateLimit", () => {
     const result = checkRateLimit("1.1.1.1", "upload", DEFAULT_CONFIG);
     expect(result.allowed).toBe(false);
   });
+
+  // ---- plan-02: templateWrite 配置（30 次/小时，templates 全部写端点共用） ----
+
+  it("templateWrite：前 30 次允许、第 31 次拒绝", () => {
+    const config = mod.RATE_LIMIT_CONFIGS.templateWrite;
+    expect(config).toBeDefined();
+
+    for (let i = 0; i < 30; i++) {
+      const result = checkRateLimit("user-1", "templateWrite", config);
+      expect(result.allowed).toBe(true);
+    }
+
+    const blocked = checkRateLimit("user-1", "templateWrite", config);
+    expect(blocked.allowed).toBe(false);
+    expect(blocked.remaining).toBe(0);
+  });
+
+  it("templateWrite 与其他 action 独立计数", () => {
+    const config = mod.RATE_LIMIT_CONFIGS.templateWrite;
+    expect(config).toBeDefined();
+
+    for (let i = 0; i < 30; i++) {
+      checkRateLimit("user-1", "templateWrite", config);
+    }
+    expect(checkRateLimit("user-1", "templateWrite", config).allowed).toBe(false);
+
+    // 同一 identifier 的其他 action 不受影响
+    const other = checkRateLimit("user-1", "upload", DEFAULT_CONFIG);
+    expect(other.allowed).toBe(true);
+  });
 });
 
 describe("RATE_LIMIT_CONFIGS", () => {
@@ -176,6 +206,15 @@ describe("RATE_LIMIT_CONFIGS", () => {
     expect(RATE_LIMIT_CONFIGS.generation).toEqual({
       windowMs: 60 * 60 * 1000,
       maxRequests: 20,
+    });
+  });
+
+  // ---- plan-02: templates 写端点限流配置 ----
+
+  it("templateWrite 预定义配置正确（30 次/小时）", () => {
+    expect(RATE_LIMIT_CONFIGS.templateWrite).toEqual({
+      windowMs: 60 * 60 * 1000,
+      maxRequests: 30,
     });
   });
 });

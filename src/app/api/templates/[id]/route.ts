@@ -5,10 +5,13 @@ import {
   deleteTemplate,
   updateTemplate,
   findByName,
+  findStyleMemoryDetail,
 } from "@/lib/repositories/template-repository";
 import { findAssetById } from "@/lib/repositories/asset-repository";
 import { normalizeVariableName } from "@/lib/template-parser";
-import type { TemplateVariable } from "@/types/models";
+import { ruleSetsChanged } from "@/lib/style-memory-rules";
+import { checkRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit";
+import type { StyleMemoryRecord, TemplateVariable } from "@/types/models";
 
 /** 从 session 获取 userId，未认证返回 401 */
 async function requireAuth(_request: Request): Promise<{ userId: string } | Response> {
@@ -25,6 +28,25 @@ async function requireAuth(_request: Request): Promise<{ userId: string } | Resp
 /** 结构化日志 [架构8.5 可观测性] */
 function log(event: string, data: Record<string, unknown>) {
   console.log(JSON.stringify({ event, timestamp: new Date().toISOString(), ...data }));
+}
+
+/**
+ * plan-02（架构 §8.3）：写端点共享限流。
+ * identifier 取 session userId（登录用户），30 次/小时（templateWrite）。
+ */
+function enforceTemplateWriteRateLimit(userId: string): Response | null {
+  const result = checkRateLimit(
+    userId,
+    "templateWrite",
+    RATE_LIMIT_CONFIGS.templateWrite
+  );
+  if (result && !result.allowed) {
+    return NextResponse.json(
+      { error: "Too Many Requests", code: "RATE_LIMITED", retryable: true },
+      { status: 429 }
+    );
+  }
+  return null;
 }
 
 const VALID_SOURCE_FIELDS = new Set([
@@ -93,7 +115,32 @@ function validateSourceImageUrl(value: unknown): string | undefined | null {
   }
 }
 
-// ─── GET /api/templates/:id — 模板详情 ───
+/**
+ * plan-02：说明字段（架构 §7.3）。PUT 支持 null（清空）与非空字符串（≤500）；
+ * trim 空串等同清空。返回 null 表示非法。
+ */
+function validateUpdateDescription(value: unknown): string | null | undefined | false {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== "string") return false;
+  const trimmed = value.trim();
+  if (trimmed.length > 500) return false;
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+/**
+ * plan-02：规则/排除数组上限校验（架构 §8.3）：≤12 条 × ≤200 字符。
+ */
+function validateRuleArray(value: unknown): string[] | undefined | null {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.length > 12) return null;
+  for (const item of value) {
+    if (typeof item !== "string" || item.length > 200) return null;
+  }
+  return value;
+}
+
+// ─── GET /api/templates/:id — Style Memory 详情（架构 §6.2 四分区 DTO） ───
 
 export async function GET(
   request: NextRequest,
@@ -110,9 +157,9 @@ export async function GET(
     // 2. 获取模板 ID
     const { id } = await params;
 
-    // 3. 查询模板
-    const template = await findById(id, userId);
-    if (!template) {
+    // 3. 查询详情（plan-01：含规则四元组、来源迭代、代表结果、usage 聚合与读时防御降级）
+    const detail = await findStyleMemoryDetail(id, userId);
+    if (!detail) {
       log("template_not_found", { templateId: id, userId });
       return NextResponse.json(
         { error: "Template not found", code: "TEMPLATE_NOT_FOUND", retryable: false },
@@ -122,11 +169,12 @@ export async function GET(
 
     log("template_detail_queried", {
       templateId: id,
-      name: template.name,
+      name: detail.name,
+      verificationStatus: detail.verificationStatus,
       duration: Date.now() - startTime,
     });
 
-    return NextResponse.json(template);
+    return NextResponse.json(detail);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal server error";
     log("template_operation_failed", { operation: "get_detail", error: message });
@@ -161,10 +209,14 @@ export async function DELETE(
     if (authResult instanceof Response) return authResult;
     const { userId } = authResult;
 
-    // 2. 获取模板 ID
+    // 2. Rate Limit（plan-02：写端点共享限流）
+    const rateLimitResponse = enforceTemplateWriteRateLimit(userId);
+    if (rateLimitResponse) return rateLimitResponse;
+
+    // 3. 获取模板 ID
     const { id } = await params;
 
-    // 3. Delete模板（Repository 内部校验归属 + 不存在时抛异常）
+    // 4. Delete模板（Repository 内部校验归属 + 不存在时抛异常）
     try {
       await deleteTemplate(id, userId);
     } catch (error) {
@@ -202,7 +254,7 @@ export async function DELETE(
   }
 }
 
-// ─── PUT /api/templates/:id — 更新/重命名模板 ───
+// ─── PUT /api/templates/:id — 编辑五字段（架构 §6.4：name/description/variables/retainedRules/negativeConstraints） ───
 
 export async function PUT(
   request: NextRequest,
@@ -216,10 +268,14 @@ export async function PUT(
     if (authResult instanceof Response) return authResult;
     const { userId } = authResult;
 
-    // 2. 获取模板 ID
+    // 2. Rate Limit（plan-02：写端点共享限流）
+    const rateLimitResponse = enforceTemplateWriteRateLimit(userId);
+    if (rateLimitResponse) return rateLimitResponse;
+
+    // 3. 获取模板 ID
     const { id } = await params;
 
-    // 3. 解析请求体
+    // 4. 解析请求体
     let body: {
       name?: string;
       content?: string;
@@ -227,9 +283,13 @@ export async function PUT(
       sourceAnalysisTaskId?: unknown;
       sourceAssetId?: unknown;
       sourceImageUrl?: unknown;
+      description?: unknown;
+      retainedRules?: unknown;
+      negativeConstraints?: unknown;
+      verificationStatus?: unknown;
     };
     try {
-      body = (await request.json()) as { name?: string; content?: string };
+      body = (await request.json()) as typeof body;
     } catch {
       return NextResponse.json(
         { error: "Invalid request body", code: "INVALID_REQUEST", retryable: false },
@@ -237,13 +297,24 @@ export async function PUT(
       );
     }
 
-    // 4. 校验至少提供一个字段
+    // plan-02（ADR-1 信任边界）：verificationStatus 只能由服务端写点派生
+    if (body.verificationStatus !== undefined) {
+      return NextResponse.json(
+        { error: "verificationStatus cannot be set through the request body", code: "INVALID_REQUEST", retryable: false },
+        { status: 400 }
+      );
+    }
+
+    // 5. 校验至少提供一个可编辑字段（plan-02 五字段 + 兼容的 content/source 字段）
     if (
       !body.name &&
       !body.content &&
       body.variables === undefined &&
       body.sourceAssetId === undefined &&
-      body.sourceImageUrl === undefined
+      body.sourceImageUrl === undefined &&
+      body.description === undefined &&
+      body.retainedRules === undefined &&
+      body.negativeConstraints === undefined
     ) {
       return NextResponse.json(
         { error: "Provide at least one updatable field", code: "INVALID_REQUEST", retryable: false },
@@ -251,7 +322,7 @@ export async function PUT(
       );
     }
 
-    // 5. 校验 name 格式（如果提供）
+    // 6. 校验 name 格式（如果提供）
     if (body.name !== undefined && (body.name.length < 1 || body.name.length > 50)) {
       return NextResponse.json(
         { error: "Name must be 1-50 characters", code: "INVALID_REQUEST", retryable: false },
@@ -259,7 +330,7 @@ export async function PUT(
       );
     }
 
-    // 6. 校验 content 格式（如果提供）
+    // 7. 校验 content 格式（兼容既有工作台链路；不触发状态回退）
     if (body.content !== undefined && (body.content.length === 0 || body.content.length > 10000)) {
       return NextResponse.json(
         { error: "Content must be 1-10000 characters", code: "INVALID_REQUEST", retryable: false },
@@ -271,6 +342,31 @@ export async function PUT(
     if (variables === null) {
       return NextResponse.json(
         { error: "Invalid variables parameter", code: "INVALID_REQUEST", retryable: false },
+        { status: 400 }
+      );
+    }
+
+    // plan-02：description（string | null，≤500；trim 空串等同清空）
+    const description = validateUpdateDescription(body.description);
+    if (description === false) {
+      return NextResponse.json(
+        { error: "description must be a string of 500 characters or fewer, or null", code: "INVALID_REQUEST", retryable: false },
+        { status: 400 }
+      );
+    }
+
+    // plan-02：规则/排除数组（≤12 条 × ≤200 字符）
+    const retainedRules = validateRuleArray(body.retainedRules);
+    if (retainedRules === null) {
+      return NextResponse.json(
+        { error: "retainedRules must be at most 12 items of 200 characters each", code: "INVALID_REQUEST", retryable: false },
+        { status: 400 }
+      );
+    }
+    const negativeConstraints = validateRuleArray(body.negativeConstraints);
+    if (negativeConstraints === null) {
+      return NextResponse.json(
+        { error: "negativeConstraints must be at most 12 items of 200 characters each", code: "INVALID_REQUEST", retryable: false },
         { status: 400 }
       );
     }
@@ -301,7 +397,7 @@ export async function PUT(
       );
     }
 
-    // 7. 检查模板是否存在
+    // 8. 检查模板是否存在
     const existing = await findById(id, userId);
     if (!existing) {
       log("template_not_found", { templateId: id, userId });
@@ -311,13 +407,13 @@ export async function PUT(
       );
     }
 
-    // 8. 同名检测（仅当 name 变更时）
+    // 9. 同名检测（仅当 name 变更时；plan-02：409 code 与 POST 统一为 TEMPLATE_NAME_CONFLICT）
     if (body.name !== undefined && body.name !== existing.name) {
       const duplicate = await findByName(userId, body.name);
       if (duplicate && duplicate.id !== id) {
         log("template_name_conflict", { templateId: id, name: body.name, userId });
         return NextResponse.json(
-          { error: "A template with this name already exists", code: "CONFLICT", retryable: false },
+          { error: "A template with this name already exists", code: "TEMPLATE_NAME_CONFLICT", retryable: false },
           { status: 409 }
         );
       }
@@ -339,14 +435,49 @@ export async function PUT(
       nextSourceImageUrl = sourceAsset.fileUrl;
     }
 
-    // 9. 执行更新
-    const updated = await updateTemplate(id, userId, {
-      name: body.name,
-      content: body.content,
-      ...(variables !== undefined ? { variables } : {}),
-      ...(sourceAssetId !== undefined ? { sourceAssetId } : {}),
-      ...(nextSourceImageUrl !== undefined ? { sourceImageUrl: nextSourceImageUrl } : {}),
-    });
+    // 10. 执行更新（plan-01：规则集合实质变化由 repository 判定并回退 pending_verification）
+    let updated: StyleMemoryRecord;
+    try {
+      updated = await updateTemplate(id, userId, {
+        name: body.name,
+        content: body.content,
+        ...(variables !== undefined ? { variables } : {}),
+        ...(sourceAssetId !== undefined ? { sourceAssetId } : {}),
+        ...(nextSourceImageUrl !== undefined ? { sourceImageUrl: nextSourceImageUrl } : {}),
+        ...(description !== undefined ? { description } : {}),
+        ...(retainedRules !== undefined ? { retainedRules } : {}),
+        ...(negativeConstraints !== undefined ? { negativeConstraints } : {}),
+      });
+    } catch (error) {
+      // Memory 已被并发删除：无部分写入，404 口径与详情一致
+      const message = error instanceof Error ? error.message : "Template not found";
+      log("template_operation_failed", { operation: "update", error: message });
+      return NextResponse.json(
+        { error: "Template not found", code: "TEMPLATE_NOT_FOUND", retryable: false },
+        { status: 404 }
+      );
+    }
+
+    // plan-02（架构 §8.5）：规则计数与实质变化口径复用 ruleSetsChanged（顺序/空白差异不算）
+    const retainedRulesChanged = ruleSetsChanged(
+      existing.retainedRules ?? [],
+      updated.retainedRules ?? []
+    );
+    const negativeConstraintsChanged = ruleSetsChanged(
+      existing.negativeConstraints ?? [],
+      updated.negativeConstraints ?? []
+    );
+
+    // plan-02（架构 §8.5）：编辑触发状态回退时记录事件
+    if (
+      existing.verificationStatus === "user_verified" &&
+      updated.verificationStatus === "pending_verification"
+    ) {
+      log("template_verification_reset", {
+        templateId: id,
+        trigger: retainedRulesChanged ? "rules" : "constraints",
+      });
+    }
 
     log("template_updated", {
       templateId: id,
@@ -354,6 +485,8 @@ export async function PUT(
       hasContentUpdate: body.content !== undefined,
       variableCount: updated.variables.length,
       defaultValueCount: updated.variables.filter((variable) => variable.defaultValue).length,
+      verificationStatus: updated.verificationStatus,
+      rulesChanged: retainedRulesChanged || negativeConstraintsChanged,
       sourceAnalysisTaskIdPresent: typeof body.sourceAnalysisTaskId === "string",
       sourceAssetIdPresent: Boolean(updated.sourceAssetId),
       sourceImageUrlPresent: Boolean(updated.sourceImageUrl),

@@ -337,3 +337,101 @@ export interface PromptTemplate {
   createdAt: Date;
   updatedAt: Date;
 }
+
+// ─── plan-01（可验证 Style Memory，架构 §7.2） ─────────────────────────────
+
+/** 验证状态（DB varchar(20) + CHECK 约束）；只能由服务端写点派生（ADR-1） */
+export type TemplateVerificationStatus = "user_verified" | "pending_verification";
+
+/** templates 行（repository 层读出；列表/详情 DTO 由此序列化，架构 §7.2） */
+export interface StyleMemoryRecord {
+  id: string;                            // ULID, system_generated
+  name: string;                          // user_input, 1-50
+  description: string | null;            // user_input, ≤500
+  content: string;                       // 完整提示（高级信息）, ≤10000
+  variables: TemplateVariable[];         // 用户确认, ≤20 项（既有结构）
+  retainedRules: string[];               // user_input, ≤12 条 × ≤200 字符（可编辑，触发回退）
+  negativeConstraints: string[];         // user_input, ≤12 条 × ≤200 字符（可编辑，触发回退）
+  styleTokens: string[];                 // 保存时快照, ≤16 条 × ≤80 字符（仅展示）
+  enhancementHints: string[];            // 保存时快照, ≤16 条 × ≤80 字符（仅展示）
+  verificationStatus: TemplateVerificationStatus; // derived（服务端，ADR-1）
+  representativeGenerationTaskId: string | null;  // user 选择 + 服务端校验（ADR-2）
+  sourceAssetId: string | null;          // frontend_computed（既有）
+  sourceImageUrl: string | null;         // derived from asset（既有）
+  sourceGenerationTaskId: string | null; // frontend_computed（既有）
+  userId: string;                        // system_generated（session）
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/** GET /api/templates 列表条目（架构 §7.2；日期为 ISO 字符串） */
+export interface StyleMemoryListItem {
+  id: string;
+  name: string;
+  verificationStatus: TemplateVerificationStatus;
+  /** 前 2 条（卡片摘要） */
+  retainedRulesPreview: string[];
+  variableCount: number;
+  /** 来源图（卡片次预览/待验证主预览） */
+  sourceImageUrl: string | null;
+  /** 代表结果图（已验证主预览） */
+  representativeImageUrl: string | null;
+  /** ISO 8601，无使用为 null（显示"尚未使用"） */
+  lastUsedAt: string | null;
+  updatedAt: string;
+}
+
+/** GET /api/templates/[id] 详情（含高级信息与使用情况，架构 §7.2） */
+export interface StyleMemoryDetail extends Omit<StyleMemoryRecord, "createdAt" | "updatedAt"> {
+  /** 来源 Iteration */
+  sourceGenerationTask: { id: string; createdAt: string } | null;
+  representativeResult: { iterationId: string; imageUrl: string | null; createdAt: string } | null;
+  usage: { lastUsedAt: string | null; derivedIterationCount: number };
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** 代表结果候选条目（架构 §7.2） */
+export interface RepresentativeCandidate {
+  /** generation task id */
+  id: string;
+  /** result asset fileUrl */
+  imageUrl: string | null;
+  /** 服务端截断 120 字符（既有口径） */
+  promptSummary: string;
+  createdAt: string;
+}
+
+/**
+ * POST /api/templates 请求体（架构 §7.3，plan-02 消费）。
+ * 不含 verificationStatus：状态只能由服务端派生（ADR-1）。
+ */
+export interface SaveStyleMemoryRequest {
+  name: string;
+  description?: string;
+  content: string;
+  variables?: TemplateVariable[];
+  retainedRules?: string[];
+  negativeConstraints?: string[];
+  styleTokens?: string[];
+  enhancementHints?: string[];
+  sourceAssetId?: string;
+  sourceGenerationTaskId?: string;
+  /** 须等于 sourceGenerationTaskId（API 层校验，repository 不重复查） */
+  representativeGenerationTaskId?: string;
+}
+
+/**
+ * PUT /api/templates/[id] 请求体（架构 §7.3，plan-02 消费）。
+ * 不含 verificationStatus：回退由服务端按规则集合判定（§6.4 算法）。
+ */
+export interface UpdateStyleMemoryRequest {
+  name?: string;
+  description?: string | null;
+  /** 仅默认值编辑（架构 §7.3） */
+  variables?: TemplateVariable[];
+  retainedRules?: string[];
+  negativeConstraints?: string[];
+  /** 兼容既有工作台链路；不触发状态回退（验证只对规则集合成立） */
+  content?: string;
+}

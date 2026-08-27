@@ -12,7 +12,8 @@ import {
 } from "@/lib/repositories/generation-task-repository";
 import { findAssetById } from "@/lib/repositories/asset-repository";
 import { normalizeVariableName } from "@/lib/template-parser";
-import type { TemplateVariable } from "@/types/models";
+import { checkRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit";
+import type { TemplateVariable, TemplateVerificationStatus } from "@/types/models";
 
 /** 从 session 获取 userId，未认证返回 401 */
 async function requireAuth(_request: Request): Promise<{ userId: string } | Response> {
@@ -31,27 +32,22 @@ function log(event: string, data: Record<string, unknown>) {
   console.log(JSON.stringify({ event, timestamp: new Date().toISOString(), ...data }));
 }
 
-// ─── Rate Limit：内存级滑动窗口计数器（30 times/小时/IP）[架构8.3] ───
-
-const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
-
-function checkRateLimit(ip: string): Response | null {
-  const now = Date.now();
-  const entry = rateLimitStore.get(ip);
-
-  if (!entry || now > entry.resetAt) {
-    rateLimitStore.set(ip, { count: 1, resetAt: now + 3600000 });
-    return null;
-  }
-
-  if (entry.count >= 30) {
+/**
+ * plan-02（架构 §8.3）：写端点共享限流。
+ * identifier 取 session userId（登录用户），30 次/小时（templateWrite）。
+ */
+function enforceTemplateWriteRateLimit(userId: string): Response | null {
+  const result = checkRateLimit(
+    userId,
+    "templateWrite",
+    RATE_LIMIT_CONFIGS.templateWrite
+  );
+  if (result && !result.allowed) {
     return NextResponse.json(
       { error: "Too Many Requests", code: "RATE_LIMITED", retryable: true },
       { status: 429 }
     );
   }
-
-  entry.count++;
   return null;
 }
 
@@ -66,6 +62,18 @@ interface CreateTemplateRequest {
   sourceImageUrl?: string;
   /** plan-01（AC-06）: 来源迭代 id，保存成功迭代为 Style Memory 时携带 */
   sourceGenerationTaskId?: string;
+  /** plan-02（架构 §7.3）扩展体：说明（user_input ≤500） */
+  description?: string;
+  /** plan-02：核心保留规则（user_input ≤12 条 × ≤200 字符，编辑触发回退） */
+  retainedRules?: string[];
+  /** plan-02：排除约束（user_input ≤12 条 × ≤200 字符，编辑触发回退） */
+  negativeConstraints?: string[];
+  /** plan-02：风格指纹（frontend_computed ≤16 条 × ≤80 字符，仅展示） */
+  styleTokens?: string[];
+  /** plan-02：增强方向（frontend_computed ≤16 条 × ≤80 字符，仅展示） */
+  enhancementHints?: string[];
+  /** plan-02：代表结果迭代，须等于 sourceGenerationTaskId（架构 §6.3） */
+  representativeGenerationTaskId?: string;
 }
 
 const VALID_SOURCE_FIELDS = new Set([
@@ -148,9 +156,39 @@ function validateSourceImageUrl(value: unknown): string | undefined | null {
   }
 }
 
+/** plan-02：说明字段（user_input ≤500，trim 空串等同未提供） */
+function validateDescription(value: unknown): string | undefined | null {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.length > 500) return null;
+  return trimmed;
+}
+
+/**
+ * plan-02：字符串数组上限校验（架构 §8.3）。
+ * 规则/排除 ≤12 条 × ≤200 字符；token/增强 ≤16 条 × ≤80 字符。
+ */
+function validateBoundedStringArray(
+  value: unknown,
+  maxItems: number,
+  maxLength: number
+): string[] | undefined | null {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.length > maxItems) return null;
+  for (const item of value) {
+    if (typeof item !== "string" || item.length > maxLength) return null;
+  }
+  return value;
+}
+
 function validateCreateBody(body: unknown): CreateTemplateRequest | null {
   if (!body || typeof body !== "object") return null;
   const obj = body as Record<string, unknown>;
+
+  // plan-02（ADR-1 信任边界）：verificationStatus 只能由服务端写点派生
+  if (obj.verificationStatus !== undefined) return null;
 
   if (typeof obj.name !== "string" || obj.name.length < 1 || obj.name.length > 50) return null;
   if (typeof obj.content !== "string" || obj.content.length === 0 || obj.content.length > 10000) return null;
@@ -164,6 +202,29 @@ function validateCreateBody(body: unknown): CreateTemplateRequest | null {
   const sourceGenerationTaskId = validateSourceGenerationTaskId(obj.sourceGenerationTaskId);
   if (sourceGenerationTaskId === null) return null;
 
+  // plan-02 扩展体（架构 §7.3）
+  const description = validateDescription(obj.description);
+  if (description === null) return null;
+  const retainedRules = validateBoundedStringArray(obj.retainedRules, 12, 200);
+  if (retainedRules === null) return null;
+  const negativeConstraints = validateBoundedStringArray(obj.negativeConstraints, 12, 200);
+  if (negativeConstraints === null) return null;
+  const styleTokens = validateBoundedStringArray(obj.styleTokens, 16, 80);
+  if (styleTokens === null) return null;
+  const enhancementHints = validateBoundedStringArray(obj.enhancementHints, 16, 80);
+  if (enhancementHints === null) return null;
+  const representativeGenerationTaskId = validateSourceGenerationTaskId(
+    obj.representativeGenerationTaskId
+  );
+  if (representativeGenerationTaskId === null) return null;
+  // 保存时代表结果只能是来源迭代自身（相关集单元素形态，架构 §6.3）
+  if (
+    representativeGenerationTaskId !== undefined &&
+    representativeGenerationTaskId !== sourceGenerationTaskId
+  ) {
+    return null;
+  }
+
   return {
     name: obj.name.trim(),
     content: obj.content,
@@ -172,10 +233,18 @@ function validateCreateBody(body: unknown): CreateTemplateRequest | null {
     ...(sourceAssetId !== undefined ? { sourceAssetId } : {}),
     ...(sourceImageUrl !== undefined ? { sourceImageUrl } : {}),
     ...(sourceGenerationTaskId !== undefined ? { sourceGenerationTaskId } : {}),
+    ...(description !== undefined ? { description } : {}),
+    ...(retainedRules !== undefined ? { retainedRules } : {}),
+    ...(negativeConstraints !== undefined ? { negativeConstraints } : {}),
+    ...(styleTokens !== undefined ? { styleTokens } : {}),
+    ...(enhancementHints !== undefined ? { enhancementHints } : {}),
+    ...(representativeGenerationTaskId !== undefined
+      ? { representativeGenerationTaskId }
+      : {}),
   };
 }
 
-// ─── POST /api/templates — 创建模板 ───
+// ─── POST /api/templates — 创建模板（Style Memory 保存流程提交体，架构 §6.3） ───
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
@@ -186,9 +255,8 @@ export async function POST(request: NextRequest) {
     if (authResult instanceof Response) return authResult;
     const { userId } = authResult;
 
-    // 2. Rate Limit 检查（仅对 POST 生效）
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-    const rateLimitResponse = checkRateLimit(ip);
+    // 2. Rate Limit 检查（仅对 POST 生效；plan-02 起用共享 templateWrite 配置）
+    const rateLimitResponse = enforceTemplateWriteRateLimit(userId);
     if (rateLimitResponse) return rateLimitResponse;
 
     // 3. 校验请求体
@@ -255,7 +323,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // plan-01（AC-06）: 来源迭代校验——归属当前用户、completed 且有结果资产
+    // plan-01（AC-06）: 来源迭代校验——归属当前用户、completed 且有结果资产。
+    // plan-02：代表结果必须等于来源迭代，故该校验同时覆盖代表的合法性（架构 §6.3）。
     if (validated.sourceGenerationTaskId) {
       const sourceGenerationTask = await findGenerationTaskById(
         validated.sourceGenerationTaskId,
@@ -273,13 +342,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 5. 创建模板
+    // 5. 创建模板（plan-01：verificationStatus 由 repository 派生——带代表结果 → user_verified）
     const template = await createTemplate(userId, {
       name: validated.name,
       content: validated.content,
       ...(validated.variables !== undefined ? { variables: validated.variables } : {}),
       ...(sourceAssetId !== undefined ? { sourceAssetId } : {}),
       ...(sourceImageUrl !== undefined ? { sourceImageUrl } : {}),
+      ...(validated.description !== undefined ? { description: validated.description } : {}),
+      ...(validated.retainedRules !== undefined ? { retainedRules: validated.retainedRules } : {}),
+      ...(validated.negativeConstraints !== undefined
+        ? { negativeConstraints: validated.negativeConstraints }
+        : {}),
+      ...(validated.styleTokens !== undefined ? { styleTokens: validated.styleTokens } : {}),
+      ...(validated.enhancementHints !== undefined
+        ? { enhancementHints: validated.enhancementHints }
+        : {}),
+      ...(validated.representativeGenerationTaskId !== undefined
+        ? { representativeGenerationTaskId: validated.representativeGenerationTaskId }
+        : {}),
     });
 
     // plan-01（ADR-5）: 保存动作是来源迭代关联的唯一写入点
@@ -296,6 +377,10 @@ export async function POST(request: NextRequest) {
       name: template.name,
       variableCount: template.variables.length,
       defaultValueCount: template.variables.filter((variable) => variable.defaultValue).length,
+      verificationStatus: template.verificationStatus,
+      retainedRuleCount: validated.retainedRules?.length ?? 0,
+      negativeConstraintCount: validated.negativeConstraints?.length ?? 0,
+      representativePresent: Boolean(validated.representativeGenerationTaskId),
       sourceAnalysisTaskIdPresent: Boolean(validated.sourceAnalysisTaskId),
       sourceAssetIdPresent: Boolean(sourceAssetId),
       sourceImageUrlPresent: Boolean(template.sourceImageUrl),
@@ -324,7 +409,27 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// ─── GET /api/templates — 模板列表（cursor-based 分页） ───
+// ─── GET /api/templates — Style Memory 列表（cursor-based 分页 + status 筛选，架构 §6.1） ───
+
+/** status 白名单（架构 §6.1）：all | user_verified | pending_verification，缺省 all */
+const LIST_STATUS_FILTERS: ReadonlySet<string> = new Set([
+  "all",
+  "user_verified",
+  "pending_verification",
+]);
+
+/** 游标为 (sortTs,id) 编码串（ISO 8601 日期 + "::" + id，plan-01 起 repository 口径） */
+const CURSOR_SEPARATOR = "::";
+
+function parseListCursor(cursorParam: string): string | null {
+  const separatorIndex = cursorParam.lastIndexOf(CURSOR_SEPARATOR);
+  if (separatorIndex <= 0 || separatorIndex + CURSOR_SEPARATOR.length >= cursorParam.length) {
+    return null;
+  }
+  const sortTs = Date.parse(cursorParam.slice(0, separatorIndex));
+  if (Number.isNaN(sortTs)) return null;
+  return cursorParam;
+}
 
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
@@ -340,18 +445,18 @@ export async function GET(request: NextRequest) {
     const cursorParam = searchParams.get("cursor");
     const limitParam = searchParams.get("limit");
     const searchParam = searchParams.get("search");
+    const statusParam = searchParams.get("status");
 
     let cursor: string | undefined;
     if (cursorParam !== null) {
-      // 校验 cursor 是否为合法 ISO 8601 日期
-      const parsed = new Date(cursorParam);
-      if (isNaN(parsed.getTime())) {
+      const parsed = parseListCursor(cursorParam);
+      if (!parsed) {
         return NextResponse.json(
-          { error: "Invalid cursor. Use an ISO 8601 date string", code: "INVALID_REQUEST", retryable: false },
+          { error: "Invalid cursor. Use a (ISO 8601 date)::id encoded string", code: "INVALID_REQUEST", retryable: false },
           { status: 400 }
         );
       }
-      cursor = parsed.toISOString();
+      cursor = parsed;
     }
 
     let limit = 10;
@@ -382,14 +487,34 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 3. 查询列表
-    const result = await findAllByUserId(userId, { cursor, limit, search });
+    // plan-02：status 白名单校验（all 与缺省不携带筛选）
+    let verificationStatus: TemplateVerificationStatus | undefined;
+    if (statusParam !== null) {
+      if (!LIST_STATUS_FILTERS.has(statusParam)) {
+        return NextResponse.json(
+          { error: "status must be one of all | user_verified | pending_verification", code: "INVALID_REQUEST", retryable: false },
+          { status: 400 }
+        );
+      }
+      if (statusParam !== "all") {
+        verificationStatus = statusParam as TemplateVerificationStatus;
+      }
+    }
+
+    // 3. 查询列表（plan-01 列表联查，返回 StyleMemoryListItem 分页结构）
+    const result = await findAllByUserId(userId, {
+      cursor,
+      limit,
+      ...(search ? { search } : {}),
+      ...(verificationStatus ? { verificationStatus } : {}),
+    });
 
     log("template_list_queried", {
       userId,
       itemCount: result.items.length,
       hasMore: result.hasMore,
       ...(search ? { search, userId } : {}),
+      ...(verificationStatus ? { verificationStatus } : {}),
       duration: Date.now() - startTime,
     });
 
