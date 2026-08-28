@@ -494,13 +494,13 @@ describe("IterationDetailPanel — save as Style Memory secondary actions (plan-
     expect(dialog).toHaveAttribute("role", "dialog");
     expect(screen.getByTestId("save-wizard-step-1")).toBeVisible();
     expect(
-      screen.getByRole("checkbox", { name: /设为代表结果/ }),
+      screen.getByRole("checkbox", { name: /Set as representative result/ }),
     ).not.toBeChecked();
 
-    await user.click(within(dialog).getByRole("button", { name: /下一步/ }));
-    await user.click(within(dialog).getByRole("button", { name: /下一步/ }));
+    await user.click(within(dialog).getByRole("button", { name: /^Next$/ }));
+    await user.click(within(dialog).getByRole("button", { name: /^Next$/ }));
     expect(screen.getByTestId("save-wizard-step-3")).toBeVisible();
-    expect(within(dialog).getByLabelText(/^名称$/)).toHaveValue("");
+    expect(within(dialog).getByLabelText(/^Name$/)).toHaveValue("");
   });
 
   it("savedTemplate 非空时渲染已保存态（含模板名与 Open），不再显示保存按钮", async () => {
@@ -537,7 +537,7 @@ describe("IterationDetailPanel — save as Style Memory secondary actions (plan-
 
     const sourceRow = screen.getByTestId("iteration-source-memory");
     expect(sourceRow).toBeVisible();
-    expect(sourceRow).toHaveTextContent(/来源\s*Style Memory/i);
+    expect(sourceRow).toHaveTextContent(/Source\s*Style Memory/i);
     expect(sourceRow).toHaveTextContent("Editorial Soft Daylight");
     first.unmount();
 

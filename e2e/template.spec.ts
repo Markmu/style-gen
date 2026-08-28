@@ -270,9 +270,9 @@ test.describe('模板功能', () => {
     // plan-06 三步向导（流程 B：规则确认 → 命名；完整提示在步骤 3 高级信息内）
     const saveWizard = page.getByTestId('save-style-memory-dialog')
     await expect(saveWizard).toBeVisible()
-    await saveWizard.getByRole('button', { name: '下一步' }).click()
-    await saveWizard.getByRole('textbox', { name: /名称|name/i }).first().fill('Saved prompt template')
-    await saveWizard.getByRole('button', { name: /^保存|^save/i }).click()
+    await saveWizard.getByRole('button', { name: /^Next$/ }).click()
+    await saveWizard.getByRole('textbox', { name: /name/i }).first().fill('Saved prompt template')
+    await saveWizard.getByRole('button', { name: /^Sav/i }).click()
 
     // 保存成功直接进入新 Memory 详情（plan-05 详情路由）
     await expect(page).toHaveURL(/\/workspace\/templates\/created-template-1$/, {
@@ -300,9 +300,9 @@ test.describe('模板功能', () => {
     const defaultValueInput = saveWizard.getByLabel(/negative/i)
     await expect(defaultValueInput).toHaveValue(/blurry, low quality/)
     await defaultValueInput.fill('no grain, no watermark')
-    await saveWizard.getByRole('button', { name: '下一步' }).click()
-    await saveWizard.getByRole('textbox', { name: /名称|name/i }).first().fill('Detected variable memory')
-    await saveWizard.getByRole('button', { name: /^保存|^save/i }).click()
+    await saveWizard.getByRole('button', { name: /^Next$/ }).click()
+    await saveWizard.getByRole('textbox', { name: /name/i }).first().fill('Detected variable memory')
+    await saveWizard.getByRole('button', { name: /^Sav/i }).click()
 
     await expect(page).toHaveURL(/\/workspace\/templates\/created-template-1$/, {
       timeout: 15000,
@@ -321,10 +321,10 @@ test.describe('模板功能', () => {
 
     await page.getByRole('button', { name: 'Save as Style Memory' }).click()
     const saveWizard = page.getByTestId('save-style-memory-dialog')
-    await saveWizard.getByRole('button', { name: '下一步' }).click()
-    await saveWizard.getByRole('button', { name: /^保存|^save/i }).click()
+    await saveWizard.getByRole('button', { name: /^Next$/ }).click()
+    await saveWizard.getByRole('button', { name: /^Sav/i }).click()
 
-    await expect(saveWizard.getByText(/不能为空/)).toBeVisible()
+    await expect(saveWizard.getByText(/cannot be empty/)).toBeVisible()
   })
 
   test('template with this name展示冲突错误', async ({ page }) => {
@@ -333,9 +333,9 @@ test.describe('模板功能', () => {
 
     await page.getByRole('button', { name: 'Save as Style Memory' }).click()
     const saveWizard = page.getByTestId('save-style-memory-dialog')
-    await saveWizard.getByRole('button', { name: '下一步' }).click()
-    await saveWizard.getByRole('textbox', { name: /名称|name/i }).first().fill('Duplicate name')
-    await saveWizard.getByRole('button', { name: /^保存|^save/i }).click()
+    await saveWizard.getByRole('button', { name: /^Next$/ }).click()
+    await saveWizard.getByRole('textbox', { name: /name/i }).first().fill('Duplicate name')
+    await saveWizard.getByRole('button', { name: /^Sav/i }).click()
 
     await expect(page.getByText('A template with this name already exists')).toBeVisible()
   })
@@ -363,13 +363,13 @@ test.describe('模板功能', () => {
     await expect(page.getByText('Soft Product Macro')).toBeVisible()
     await expect(page.getByTestId('style-memory-card').first()).toBeVisible()
     // plan-04 新卡片：验证徽标 + 真实规则摘要 + 变量数；无名称派生标签
-    await expect(page.getByText('用户已验证').first()).toBeVisible()
+    await expect(page.getByText('User verified').first()).toBeVisible()
     await expect(page.getByText('低饱和暖灰基调').first()).toBeVisible()
-    await expect(page.getByText('2 个变量').first()).toBeVisible()
+    await expect(page.getByText('2 variables').first()).toBeVisible()
     await expect(page.getByText(/Source-backed|Prompt-only|Style tags|Reuse intent/i)).toHaveCount(0)
 
     // 搜索框 aria 承载全量谓词口径（plan-04：placeholder 精简、aria 全量）
-    const searchBox = page.getByRole('textbox', { name: /搜索 Style Memory/ })
+    const searchBox = page.getByRole('textbox', { name: /Search Style Memory/ })
     await searchBox.fill('glass')
     await expect(page.getByText('Editorial Glass Poster')).toBeVisible()
     await expect(page.getByText('Soft Product Macro')).not.toBeVisible()
@@ -388,7 +388,7 @@ test.describe('模板功能', () => {
 
     await page.goto('/workspace/templates', { waitUntil: 'commit' })
     await page.getByRole('heading', { name: template.name }).hover()
-    const useMemoryButton = page.getByRole('button', { name: '使用' })
+    const useMemoryButton = page.getByRole('button', { name: 'Use', exact: true })
     await expect(useMemoryButton).toBeVisible({ timeout: 5000 })
     await useMemoryButton.click()
 
@@ -396,7 +396,7 @@ test.describe('模板功能', () => {
     // 确认后经快照握手进入 /workspace?templateId= 并回落
     const reusePrecheck = page.getByTestId('reuse-precheck-dialog')
     await expect(reusePrecheck).toBeVisible({ timeout: 15000 })
-    await reusePrecheck.getByRole('button', { name: /^进入工作区$/ }).click()
+    await reusePrecheck.getByRole('button', { name: /^Enter workspace$/ }).click()
 
     // templateId 参数被消费后 URL 回落到 /workspace（区别于 /workspace/templates）
     await expect(page).toHaveURL(/\/workspace$/, { timeout: 15000 })
@@ -410,7 +410,7 @@ test.describe('模板功能', () => {
     )
   })
 
-  // plan-04 起，卡片只保留“查看详情 / 使用”；复制与删除等治理动作集中在
+  // plan-04 起，卡片只保留“View details / Use”；复制与删除等治理动作集中在
   // 详情页（PRD“详情为统一入口”）。Duplicate/Delete 的 API 契约由
   // src/app/api/templates/__tests__/route.test.ts 覆盖，卡片上的 UI 入口用例随之移除。
 })

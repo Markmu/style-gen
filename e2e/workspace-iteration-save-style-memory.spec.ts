@@ -36,7 +36,7 @@ import {
  * plan-06 向导契约（与 e2e/style-memory-save-flows.spec.ts 同口径）：
  * - 向导容器 [data-testid="save-style-memory-dialog"]（role=dialog，ModalDialog）；
  *   步骤容器 save-wizard-step-1/2/3；导航按钮 取消 / 下一步 / 上一步 / ^保存
- * - 步骤 1：「设为代表结果」勾选框默认不勾选；步骤 2：规则/排除预填 + 变量默认值
+ * - 步骤 1：「Set as representative result」勾选框默认不勾选；步骤 2：规则/排除预填 + 变量默认值
  *   同屏；步骤 3：名称（中性帮助 1-50，提交/失焦才报错）+ 高级信息折叠完整提示
  * - 保存成功：router.push('/workspace/templates/{id}')，新详情初始焦点落 h1
  * ---------------------------------------------------------------------------
@@ -221,15 +221,15 @@ function wizardStep(page: Page, step: 1 | 2 | 3) {
 }
 
 function nextButton(page: Page) {
-  return saveDialog(page).getByRole('button', { name: /下一步/ })
+  return saveDialog(page).getByRole('button', { name: /^Next$/ })
 }
 
 function dialogNameInput(page: Page) {
-  return saveDialog(page).getByRole('textbox', { name: /名称|name/i }).first()
+  return saveDialog(page).getByRole('textbox', { name: /name/i }).first()
 }
 
 function dialogSubmitButton(page: Page) {
-  return saveDialog(page).getByRole('button', { name: /^保存|^save/i })
+  return saveDialog(page).getByRole('button', { name: /^Sav/i })
 }
 
 function searchInput(page: Page) {
@@ -392,13 +392,13 @@ test.describe('plan-05 save iteration as Style Memory and saved state', () => {
     await openDetail(page, 'Neon dusk hero study')
     await saveStyleMemoryButton(page).click()
 
-    // 步骤 1：参考图与本次结果并排，「设为代表结果」默认不勾选
+    // 步骤 1：参考图与本次结果并排，「Set as representative result」默认不勾选
     const dialog = saveDialog(page)
     await expect(dialog).toBeVisible()
     await expect(dialog).toHaveAttribute('role', 'dialog')
     await expect(wizardStep(page, 1)).toBeVisible()
     await expect(
-      dialog.getByRole('checkbox', { name: /设为代表结果/ }),
+      dialog.getByRole('checkbox', { name: /Set as representative result/ }),
     ).not.toBeChecked()
 
     // 步骤 2：规则四元组预填 + 变量默认值同屏（detail.variables）
@@ -417,12 +417,12 @@ test.describe('plan-05 save iteration as Style Memory and saved state', () => {
     await expect(dialogNameInput(page)).toHaveValue('')
     await expect(step3).toContainText(/1.{0,2}50/)
     await dialogSubmitButton(page).click()
-    await expect(dialog).toContainText(/不能为空/)
+    await expect(dialog).toContainText(/cannot be empty/)
     expect(capture.requests, 'empty name must not issue a template create request').toHaveLength(0)
 
     // 完整提示折叠在高级信息内，展开后可见 promptSnapshot 预填
-    await step3.getByRole('button', { name: /高级信息|完整提示/ }).click()
-    await expect(step3.getByLabel(/完整提示（可编辑/)).toHaveValue(TARGET_PROMPT)
+    await step3.getByRole('button', { name: /Advanced/ }).click()
+    await expect(step3.getByLabel(/Full prompt \(editable/)).toHaveValue(TARGET_PROMPT)
   })
 
   test('TC-5.6 submitting the wizard posts the extended payload and navigates to the new memory detail', async ({ page }) => {
@@ -682,7 +682,7 @@ test.describe('plan-05 save iteration as Style Memory and saved state', () => {
 
     // 已确认内容保留：名称与规则预填不丢失，详情未切换为已保存态
     await expect(dialogNameInput(page)).toHaveValue('Duplicate memory name')
-    await expect(wizardStep(page, 3).getByLabel(/完整提示（可编辑/)).toHaveCount(0)
+    await expect(wizardStep(page, 3).getByLabel(/Full prompt \(editable/)).toHaveCount(0)
     await expect(savedState(page)).toHaveCount(0)
     expect(capture.requests).toHaveLength(1)
   })

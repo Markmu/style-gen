@@ -9,7 +9,7 @@ import { mergeTemplateVariables } from "@/lib/template-parser";
  *
  * - 复用流程 A 的三步向导骨架（ModalDialog 原语 + 同一 testid 契约），
  *   跳过步骤 1 的代表结果勾选：首屏固定"当前没有代表结果，本次将保存为
- *   待验证"说明区，底部"保存后状态"固定待验证。
+ *   pending verification"说明区，底部"保存后状态"固定为 pending verification。
  * - 预填用 `deriveStyleMemoryPrefill`（工作区配方，现行链路 V2）+ 工作区
  *   negativePromptText（V1 兜底来源）。
  * - 提交体不含 representativeGenerationTaskId / sourceGenerationTaskId；

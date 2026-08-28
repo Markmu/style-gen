@@ -19,11 +19,11 @@ import {
 // 页面契约（test-e2e 用例约定，实现须满足）：
 // - [data-testid="style-memory-detail-page"] — 详情页主容器
 // - [data-testid="style-memory-detail-header"] — 页面头（返回列表 / 名称 / 状态徽标 / 编辑 / 更多 / 使用）
-// - [data-testid="style-memory-detail-evidence"] — 分区「验证依据」
-// - [data-testid="style-memory-detail-style"] — 分区「保留的风格」
-// - [data-testid="style-memory-detail-variables"] — 分区「可替换内容」
-// - [data-testid="style-memory-detail-constraints"] — 分区「排除约束与增强方向」
-// - [data-testid="style-memory-detail-usage"] — 分区「使用情况」
+// - [data-testid="style-memory-detail-evidence"] — 分区「Evidence」
+// - [data-testid="style-memory-detail-style"] — 分区「Retained style」
+// - [data-testid="style-memory-detail-variables"] — 分区「Replaceable」
+// - [data-testid="style-memory-detail-constraints"] — 分区「Constraints & enhancements」
+// - [data-testid="style-memory-detail-usage"] — 分区「Usage」
 // - 弹层用 plan-03 原语：dialog role + Tab 循环 + Escape 还原；菜单 menu/menuitem
 
 const pixel = Buffer.from(
@@ -83,7 +83,7 @@ const VERIFIED_CANDIDATES: MockRepresentativeCandidate[] = [
   },
 ]
 
-/** 待验证 Memory：有来源图与来源 Iteration，无代表结果（AC-05 选择代表结果基准） */
+/** pending Memory：有来源图与来源 Iteration，无代表结果（AC-05 选择代表结果基准） */
 const PENDING_MEMORY: MockStyleMemoryDetail = {
   id: 'style-memory-pending-macro',
   name: 'Macro Paper Texture',
@@ -106,7 +106,7 @@ const PENDING_MEMORY: MockStyleMemoryDetail = {
   updatedAt: '2026-08-24T00:00:00.000Z',
 }
 
-/** 待验证 Memory 的候选（3 条，配合 candidatePageSize=2 驱动「加载更早」） */
+/** pending Memory 的候选（3 条，配合 candidatePageSize=2 驱动「Load earlier」） */
 const PENDING_CANDIDATES: MockRepresentativeCandidate[] = [
   {
     id: 'gen-macro-candidate-03',
@@ -228,9 +228,9 @@ async function pressTabAndAssertTrap(page: Page, container: Locator, presses: nu
   }
 }
 
-/** 「更多」菜单触发按钮（plan-03 DropdownMenu，可理解名称「更多」） */
+/** 「More」菜单触发按钮（plan-03 DropdownMenu，可理解名称「More」） */
 function moreMenuButton(page: Page) {
-  return page.getByRole('button', { name: '更多' })
+  return page.getByRole('button', { name: 'More' })
 }
 
 /** 打开「更多」菜单并返回菜单容器 */
@@ -276,24 +276,24 @@ test.describe('plan-05 Style Memory 详情页', () => {
     const header = page.getByTestId('style-memory-detail-header')
     await expect(header).toBeVisible()
     await expect(
-      header.getByRole('link', { name: /返回列表/ }).or(header.getByRole('button', { name: /返回列表/ })),
+      header.getByRole('link', { name: /Back to list/ }).or(header.getByRole('button', { name: /Back to list/ })),
     ).toBeVisible()
     await expect(header.getByText(VERIFIED_MEMORY.name)).toBeVisible()
-    await expect(header.getByText('用户已验证')).toBeVisible()
-    await expect(header.getByRole('button', { name: '编辑', exact: true })).toBeVisible()
+    await expect(header.getByText('User verified')).toBeVisible()
+    await expect(header.getByRole('button', { name: 'Edit', exact: true })).toBeVisible()
     await expect(moreMenuButton(page)).toBeVisible()
-    await expect(header.getByRole('button', { name: /使用这条 Memory/ })).toBeVisible()
+    await expect(header.getByRole('button', { name: /Use this memory/ })).toBeVisible()
 
     // 验证依据：参考图与代表结果并排 + 双标注 + 来源 Iteration 打开链接（focus 定位）
     const evidence = page.getByTestId('style-memory-detail-evidence')
     await expect(evidence).toBeVisible()
-    await expect(evidence.getByText('验证依据')).toBeVisible()
+    await expect(evidence.getByText('Evidence')).toBeVisible()
     await expect(evidence.locator('img[src*="references/verified-source"]')).toBeVisible()
     await expect(evidence.locator('img[src*="results/verified-representative"]')).toBeVisible()
-    await expect(evidence.getByText('参考图', { exact: true })).toBeVisible()
-    await expect(evidence.getByText('代表结果', { exact: true })).toBeVisible()
-    await expect(evidence.getByText(/来源 Iteration/)).toBeVisible()
-    const sourceLink = evidence.getByRole('link', { name: /打开/ })
+    await expect(evidence.getByText('Reference', { exact: true })).toBeVisible()
+    await expect(evidence.getByText('Representative result', { exact: true })).toBeVisible()
+    await expect(evidence.getByText(/Source iteration/)).toBeVisible()
+    const sourceLink = evidence.getByRole('link', { name: /Open/ })
     await expect(sourceLink).toBeVisible()
     await expect(sourceLink).toHaveAttribute(
       'href',
@@ -303,7 +303,7 @@ test.describe('plan-05 Style Memory 详情页', () => {
     // 保留的风格：风格指纹标签 + 核心保留规则清单
     const style = page.getByTestId('style-memory-detail-style')
     await expect(style).toBeVisible()
-    await expect(style.getByText('保留的风格')).toBeVisible()
+    await expect(style.getByText('Retained style')).toBeVisible()
     for (const token of VERIFIED_MEMORY.styleTokens) {
       await expect(style.getByText(token)).toBeVisible()
     }
@@ -314,15 +314,15 @@ test.describe('plan-05 Style Memory 详情页', () => {
     // 可替换内容：变量默认值逐项展示；空默认值标注「必填」
     const variables = page.getByTestId('style-memory-detail-variables')
     await expect(variables).toBeVisible()
-    await expect(variables.getByText('可替换内容')).toBeVisible()
+    await expect(variables.getByText('Replaceable')).toBeVisible()
     await expect(variables.getByText('玻璃器皿')).toBeVisible()
     await expect(variables.getByText('窗边桌面')).toBeVisible()
-    await expect(variables.getByText('必填')).toBeVisible()
+    await expect(variables.getByText('Required')).toBeVisible()
 
     // 排除约束与增强方向：排除清单 + 增强标签
     const constraints = page.getByTestId('style-memory-detail-constraints')
     await expect(constraints).toBeVisible()
-    await expect(constraints.getByText(/排除约束与增强方向/)).toBeVisible()
+    await expect(constraints.getByText(/Constraints & enhancements/)).toBeVisible()
     for (const constraint of VERIFIED_MEMORY.negativeConstraints) {
       await expect(constraints.getByText(constraint)).toBeVisible()
     }
@@ -333,16 +333,16 @@ test.describe('plan-05 Style Memory 详情页', () => {
     // 完整提示：默认不可见，展开高级信息后可见
     const contentOnly = 'fine grain texture'
     await expect(page.getByText(contentOnly)).not.toBeVisible()
-    await page.getByRole('button', { name: /完整提示|高级信息/ }).click()
+    await page.getByRole('button', { name: /full prompt/i }).click()
     await expect(page.getByText(contentOnly)).toBeVisible()
 
     // 使用情况：最近使用 + 派生次数
     const usage = page.getByTestId('style-memory-detail-usage')
     await expect(usage).toBeVisible()
-    await expect(usage.getByText('尚未使用')).toHaveCount(0)
-    await expect(usage.getByText(/最近使用/)).toBeVisible()
+    await expect(usage.getByText('Never used')).toHaveCount(0)
+    await expect(usage.getByText(/Last used/)).toBeVisible()
     await expect(usage.getByText(/2026/)).toBeVisible()
-    await expect(usage.getByText(/派生.*3.*次/)).toBeVisible()
+    await expect(usage.getByText(/Derived.*3.*times/)).toBeVisible()
   })
 
   test('TC-3.2 来源 Iteration 打开链接跳转 iterations 页并定位对应条目', async ({ page }) => {
@@ -355,7 +355,7 @@ test.describe('plan-05 Style Memory 详情页', () => {
     await openStyleMemoryDetail(page, VERIFIED_MEMORY.id)
     const evidence = page.getByTestId('style-memory-detail-evidence')
     await expect(evidence).toBeVisible({ timeout: 15000 })
-    await evidence.getByRole('link', { name: /打开/ }).click()
+    await evidence.getByRole('link', { name: /Open/ }).click()
 
     // 跳转 iterations 页且 focus 定位对应条目（选中态联动，plan-05 Task 8）
     await expect(page).toHaveURL(/\/workspace\/iterations/, { timeout: 15000 })
@@ -366,7 +366,7 @@ test.describe('plan-05 Style Memory 详情页', () => {
     await expect(page.getByTestId('iteration-detail-panel')).toBeVisible({ timeout: 15000 })
   })
 
-  test('TC-3.3 待验证详情：验证依据区引导选择代表结果、使用情况「尚未使用」', async ({ page }) => {
+  test('TC-3.3 pending detail: evidence section guides representative-result selection, usage shows Never used', async ({ page }) => {
     await mockStyleMemoryDetailCollection(page, [PENDING_MEMORY], {
       candidates: { [PENDING_MEMORY.id]: PENDING_CANDIDATES },
     })
@@ -375,44 +375,44 @@ test.describe('plan-05 Style Memory 详情页', () => {
     await expect(page.getByTestId('style-memory-detail-page')).toBeVisible({ timeout: 15000 })
 
     const header = page.getByTestId('style-memory-detail-header')
-    await expect(header.getByText('待验证')).toBeVisible()
-    await expect(header.getByText('用户已验证')).toHaveCount(0)
+    await expect(header.getByText('Pending verification')).toBeVisible()
+    await expect(header.getByText('User verified')).toHaveCount(0)
 
-    // 待验证且无代表结果：验证依据区说明引导并提供选择入口；不渲染代表结果图
+    // pending 且无代表结果：验证依据区说明引导并提供选择入口；不渲染代表结果图
     const evidence = page.getByTestId('style-memory-detail-evidence')
     await expect(evidence).toBeVisible()
     await expect(evidence.locator('img[src*="references/pending-source"]')).toBeVisible()
     await expect(evidence.locator('img[src*="results/"]')).toHaveCount(0)
-    await expect(evidence.getByText(/从相关的已完成 Iteration 选择代表结果/)).toBeVisible()
-    await expect(page.getByRole('button', { name: /选择代表结果/ })).toBeVisible()
+    await expect(evidence.getByText(/Choose a representative result from a related completed iteration/)).toBeVisible()
+    await expect(page.getByRole('button', { name: /Select representative result/ })).toBeVisible()
 
     // 使用情况：尚未使用 + 派生 0 次
     const usage = page.getByTestId('style-memory-detail-usage')
-    await expect(usage.getByText('尚未使用')).toBeVisible()
-    await expect(usage.getByText(/派生.*0.*次/)).toBeVisible()
+    await expect(usage.getByText('Never used')).toBeVisible()
+    await expect(usage.getByText(/Derived.*0.*times/)).toBeVisible()
   })
 
   // ─── AC-05 五连动作 ───
 
-  test('TC-5.1 仅改名称保存：保持用户已验证，回读后名称更新且代表结果不变', async ({ page }) => {
+  test('TC-5.1 name-only save: stays User verified, refetched detail has updated name and unchanged representative result', async ({ page }) => {
     const collection = await mockStyleMemoryDetailCollection(page, [VERIFIED_MEMORY])
 
     await openStyleMemoryDetail(page, VERIFIED_MEMORY.id)
     await expect(page.getByTestId('style-memory-detail-page')).toBeVisible({ timeout: 15000 })
 
-    await page.getByRole('button', { name: '编辑', exact: true }).click()
+    await page.getByRole('button', { name: 'Edit', exact: true }).click()
     const editDialog = page.getByRole('dialog')
     await expect(editDialog).toBeVisible()
 
-    const nameInput = editDialog.getByLabel(/名称/)
+    const nameInput = editDialog.getByLabel(/Name/)
     await expect(nameInput).toBeVisible()
     await nameInput.fill('Editorial Soft Daylight v2')
 
-    // 仅元数据变化：不出现回退提示，明确「保持用户已验证」
-    await expect(editDialog.getByText(/保存后.*待验证/)).toHaveCount(0)
-    await expect(editDialog.getByText(/保持.*已验证/)).toBeVisible()
+    // 仅元数据变化：不出现回退提示，明确「stays User verified」
+    await expect(editDialog.getByText(/After saving.*Pending verification/)).toHaveCount(0)
+    await expect(editDialog.getByText(/stays User verified/)).toBeVisible()
 
-    await editDialog.getByRole('button', { name: /^保存/ }).click()
+    await editDialog.getByRole('button', { name: /^Save/ }).click()
     await expect(editDialog).toHaveCount(0)
 
     // PUT 携带新名称；回读详情仍为已验证且代表结果不变
@@ -420,7 +420,7 @@ test.describe('plan-05 Style Memory 详情页', () => {
       .poll(() => collection.putRequests.at(-1)?.body?.name, { timeout: 10000 })
       .toBe('Editorial Soft Daylight v2')
     await expect(page.getByTestId('style-memory-detail-header')).toBeVisible()
-    await expect(page.getByTestId('style-memory-detail-header').getByText('用户已验证')).toBeVisible({
+    await expect(page.getByTestId('style-memory-detail-header').getByText('User verified')).toBeVisible({
       timeout: 15000,
     })
     await expect(page.getByText('Editorial Soft Daylight v2')).toBeVisible()
@@ -431,44 +431,44 @@ test.describe('plan-05 Style Memory 详情页', () => {
     ).toBeVisible()
   })
 
-  test('TC-5.2 改核心保留规则：表单出现回退提示，保存后状态回退为待验证', async ({ page }) => {
+  test('TC-5.2 retained-rule change: form shows rollback hint, status rolls back to Pending verification after save', async ({ page }) => {
     const collection = await mockStyleMemoryDetailCollection(page, [VERIFIED_MEMORY])
 
     await openStyleMemoryDetail(page, VERIFIED_MEMORY.id)
     await expect(page.getByTestId('style-memory-detail-page')).toBeVisible({ timeout: 15000 })
 
-    await page.getByRole('button', { name: '编辑', exact: true }).click()
+    await page.getByRole('button', { name: 'Edit', exact: true }).click()
     const editDialog = page.getByRole('dialog')
     await expect(editDialog).toBeVisible()
 
     // 修改第一条核心保留规则（label 关联定位；兼容逐条输入或整组 textarea 实现）
-    const firstRuleInput = editDialog.getByLabel(/核心保留规则|保留规则/).first()
+    const firstRuleInput = editDialog.getByLabel(/Retained rules/).first()
     await expect(firstRuleInput).toBeVisible()
     await firstRuleInput.fill('构图改为三分法并保留呼吸感')
 
     // 规则集合实质变化 → 即时回退提示
-    await expect(editDialog.getByText(/保存后.*待验证/)).toBeVisible()
+    await expect(editDialog.getByText(/After saving.*Pending verification/)).toBeVisible()
 
-    await editDialog.getByRole('button', { name: /^保存/ }).click()
+    await editDialog.getByRole('button', { name: /^Save/ }).click()
     await expect(editDialog).toHaveCount(0)
 
-    // PUT 携带新规则；服务端回退后回读详情为待验证
+    // PUT 携带新规则；服务端回退后回读详情为 pending verification
     await expect
       .poll(() => collection.putRequests.at(-1)?.body?.retainedRules, { timeout: 10000 })
       .toContain('构图改为三分法并保留呼吸感')
-    await expect(page.getByTestId('style-memory-detail-header').getByText('待验证')).toBeVisible({
+    await expect(page.getByTestId('style-memory-detail-header').getByText('Pending verification')).toBeVisible({
       timeout: 15000,
     })
-    await expect(page.getByTestId('style-memory-detail-header').getByText('用户已验证')).toHaveCount(0)
+    await expect(page.getByTestId('style-memory-detail-header').getByText('User verified')).toHaveCount(0)
   })
 
-  test('TC-5.3 复制（更多菜单）：跳转复制品详情，复制品以待验证开始且无代表结果', async ({ page }) => {
+  test('TC-5.3 duplicate (More menu): navigates to the copy detail, copy starts as Pending verification with no representative result', async ({ page }) => {
     const collection = await mockStyleMemoryDetailCollection(page, [VERIFIED_MEMORY])
 
     await openStyleMemoryDetail(page, VERIFIED_MEMORY.id)
     await expect(page.getByTestId('style-memory-detail-page')).toBeVisible({ timeout: 15000 })
 
-    await selectMoreMenuItem(page, /复制/)
+    await selectMoreMenuItem(page, /Duplicate/)
 
     await expect(collection.duplicateRequests).toHaveLength(1)
     await expect(page).toHaveURL(
@@ -476,17 +476,17 @@ test.describe('plan-05 Style Memory 详情页', () => {
       { timeout: 15000 },
     )
 
-    // 复制品详情：待验证、名称带 (copy)、无代表结果图，并提示重新命名
+    // 复制品详情：pending verification、名称带 (copy)、无代表结果图，并提示 rename
     await expect(page.getByTestId('style-memory-detail-page')).toBeVisible({ timeout: 15000 })
-    await expect(page.getByTestId('style-memory-detail-header').getByText('待验证')).toBeVisible()
+    await expect(page.getByTestId('style-memory-detail-header').getByText('Pending verification')).toBeVisible()
     await expect(page.getByText(/Editorial Soft Daylight \(copy\)/)).toBeVisible()
     await expect(
       page.getByTestId('style-memory-detail-evidence').locator('img[src*="results/"]'),
     ).toHaveCount(0)
-    await expect(page.getByText(/重新命名|重命名/)).toBeVisible()
+    await expect(page.getByText(/rename/i)).toBeVisible()
   })
 
-  test('TC-5.4 待验证 Memory 选择代表结果：候选游标分页加载，确认后转已验证并展示新代表结果', async ({
+  test('TC-5.4 pending Memory selects representative result: cursor-paged candidates, confirm flips to User verified and shows the new result', async ({
     page,
   }) => {
     const collection = await mockStyleMemoryDetailCollection(
@@ -498,11 +498,11 @@ test.describe('plan-05 Style Memory 详情页', () => {
     await openStyleMemoryDetail(page, PENDING_MEMORY.id)
     await expect(page.getByTestId('style-memory-detail-page')).toBeVisible({ timeout: 15000 })
 
-    await page.getByRole('button', { name: /选择代表结果/ }).click()
+    await page.getByRole('button', { name: /Select representative result/ }).click()
     const selectorDialog = page.getByRole('dialog')
     await expect(selectorDialog).toBeVisible()
 
-    // 挂载即请求候选；第一页 2 条，「加载更早」游标翻页后第 3 条可见
+    // 挂载即请求候选；第一页 2 条，「Load earlier」游标翻页后第 3 条可见
     await expect
       .poll(() => collection.candidateQueries.some((query) => query.id === PENDING_MEMORY.id), {
         timeout: 10000,
@@ -512,7 +512,7 @@ test.describe('plan-05 Style Memory 详情页', () => {
     await expect(selectorDialog.getByText('牛皮纸 · 侧逆光 · 特写')).toBeVisible()
     await expect(selectorDialog.getByText('白卡纸 · 漫射光 · 静物')).toHaveCount(0)
 
-    await selectorDialog.getByRole('button', { name: /加载更早/ }).click()
+    await selectorDialog.getByRole('button', { name: /Load earlier/ }).click()
     await expect
       .poll(
         () =>
@@ -525,7 +525,7 @@ test.describe('plan-05 Style Memory 详情页', () => {
 
     // 单选候选并确认 → POST representative-result { generationTaskId }
     await selectorDialog.getByRole('radio', { name: /纸张肌理/ }).click()
-    await selectorDialog.getByRole('button', { name: /确认/ }).click()
+    await selectorDialog.getByRole('button', { name: /Set as representative/ }).click()
     await expect(selectorDialog).toHaveCount(0)
 
     await expect(collection.representativeResultRequests).toHaveLength(1)
@@ -534,7 +534,7 @@ test.describe('plan-05 Style Memory 详情页', () => {
     )
 
     // 详情回读：已验证 + 新代表结果展示
-    await expect(page.getByTestId('style-memory-detail-header').getByText('用户已验证')).toBeVisible({
+    await expect(page.getByTestId('style-memory-detail-header').getByText('User verified')).toBeVisible({
       timeout: 15000,
     })
     await expect(
@@ -556,7 +556,7 @@ test.describe('plan-05 Style Memory 详情页', () => {
 
     // 打开替换入口（已验证详情的代表结果替换动作）
     await page
-      .getByRole('button', { name: /替换代表结果|更换代表结果|选择代表结果/ })
+      .getByRole('button', { name: /Replace representative result|Select representative result/ })
       .first()
       .click()
     const selectorDialog = page.getByRole('dialog')
@@ -564,10 +564,10 @@ test.describe('plan-05 Style Memory 详情页', () => {
 
     // 选择新候选后取消：不发任何请求，状态与原代表结果不变
     await selectorDialog.getByRole('radio', { name: /玻璃器皿/ }).click()
-    await selectorDialog.getByRole('button', { name: '取消', exact: true }).click()
+    await selectorDialog.getByRole('button', { name: 'Cancel', exact: true }).click()
     await expect(selectorDialog).toHaveCount(0)
     expect(collection.representativeResultRequests).toHaveLength(0)
-    await expect(page.getByTestId('style-memory-detail-header').getByText('用户已验证')).toBeVisible()
+    await expect(page.getByTestId('style-memory-detail-header').getByText('User verified')).toBeVisible()
     await expect(
       page
         .getByTestId('style-memory-detail-evidence')
@@ -576,12 +576,12 @@ test.describe('plan-05 Style Memory 详情页', () => {
 
     // 重新打开并确认替换：POST 发出，详情展示新代表结果
     await page
-      .getByRole('button', { name: /替换代表结果|更换代表结果|选择代表结果/ })
+      .getByRole('button', { name: /Replace representative result|Select representative result/ })
       .first()
       .click()
     await expect(page.getByRole('dialog')).toBeVisible()
     await page.getByRole('dialog').getByRole('radio', { name: /玻璃器皿/ }).click()
-    await page.getByRole('dialog').getByRole('button', { name: /确认/ }).click()
+    await page.getByRole('dialog').getByRole('button', { name: /Set as representative/ }).click()
     await expect(page.getByRole('dialog')).toHaveCount(0)
 
     await expect(collection.representativeResultRequests).toHaveLength(1)
@@ -591,12 +591,12 @@ test.describe('plan-05 Style Memory 详情页', () => {
         .getByTestId('style-memory-detail-evidence')
         .locator('img[src*="results/editorial-new-representative"]'),
     ).toBeVisible({ timeout: 15000 })
-    await expect(page.getByTestId('style-memory-detail-header').getByText('用户已验证')).toBeVisible()
+    await expect(page.getByTestId('style-memory-detail-header').getByText('User verified')).toBeVisible()
   })
 
   // ─── AC-07 删除双分支 ───
 
-  test('TC-7.1 删除确认层为 destructive：含 Memory 名称与「仍会保留」说明，背景点击不关闭', async ({
+  test('TC-7.1 delete confirm dialog is destructive: includes the memory name and the What stays note, backdrop click does not close', async ({
     page,
   }) => {
     await mockStyleMemoryDetailCollection(page, [VERIFIED_MEMORY])
@@ -604,22 +604,22 @@ test.describe('plan-05 Style Memory 详情页', () => {
     await openStyleMemoryDetail(page, VERIFIED_MEMORY.id)
     await expect(page.getByTestId('style-memory-detail-page')).toBeVisible({ timeout: 15000 })
 
-    await selectMoreMenuItem(page, /删除/)
+    await selectMoreMenuItem(page, /Delete/)
     const deleteDialog = page.getByRole('dialog')
     await expect(deleteDialog).toBeVisible()
 
-    // 确认层说明删除对象与仍会保留的关联内容（PRD 删除线框）
-    await expect(deleteDialog.getByText(/删除.*Style Memory|删除这条/)).toBeVisible()
+    // 确认层说明删除对象与 What stays 的关联内容（PRD 删除线框）
+    await expect(deleteDialog.getByText(/Delete Style Memory/)).toBeVisible()
     await expect(deleteDialog.getByText(VERIFIED_MEMORY.name)).toBeVisible()
-    await expect(deleteDialog.getByText(/仍会保留/)).toBeVisible()
-    await expect(deleteDialog.getByText(/来源参考图|来源 Iteration/)).toBeVisible()
+    await expect(deleteDialog.getByText(/What stays/)).toBeVisible()
+    await expect(deleteDialog.getByText(/source reference|source iteration/i)).toBeVisible()
 
     // destructive：背景点击不关闭
     await page.mouse.click(8, 8)
     await expect(deleteDialog).toBeVisible()
 
     // 清理：取消关闭
-    await deleteDialog.getByRole('button', { name: '取消', exact: true }).click()
+    await deleteDialog.getByRole('button', { name: 'Cancel', exact: true }).click()
     await expect(deleteDialog).toHaveCount(0)
   })
 
@@ -630,16 +630,16 @@ test.describe('plan-05 Style Memory 详情页', () => {
     await expect(page.getByTestId('style-memory-detail-page')).toBeVisible({ timeout: 15000 })
     const detailUrl = page.url()
 
-    await selectMoreMenuItem(page, /删除/)
+    await selectMoreMenuItem(page, /Delete/)
     const deleteDialog = page.getByRole('dialog')
     await expect(deleteDialog).toBeVisible()
-    await deleteDialog.getByRole('button', { name: '取消', exact: true }).click()
+    await deleteDialog.getByRole('button', { name: 'Cancel', exact: true }).click()
     await expect(deleteDialog).toHaveCount(0)
 
     // 原详情与原状态保持，未发出 DELETE
     expect(page.url()).toBe(detailUrl)
     await expect(page.getByTestId('style-memory-detail-page')).toBeVisible()
-    await expect(page.getByTestId('style-memory-detail-header').getByText('用户已验证')).toBeVisible()
+    await expect(page.getByTestId('style-memory-detail-header').getByText('User verified')).toBeVisible()
     expect(collection.deleteRequests).toHaveLength(0)
   })
 
@@ -656,18 +656,18 @@ test.describe('plan-05 Style Memory 详情页', () => {
     const card = page.getByTestId('style-memory-card').filter({ hasText: VERIFIED_MEMORY.name })
     await expect(card).toBeVisible({ timeout: 15000 })
     await card
-      .getByRole('link', { name: '查看详情' })
-      .or(card.getByRole('button', { name: '查看详情' }))
+      .getByRole('link', { name: 'View details' })
+      .or(card.getByRole('button', { name: 'View details' }))
       .click()
     await expect(page).toHaveURL(new RegExp(`/workspace/templates/${VERIFIED_MEMORY.id}`), {
       timeout: 15000,
     })
     await expect(page.getByTestId('style-memory-detail-page')).toBeVisible({ timeout: 15000 })
 
-    await selectMoreMenuItem(page, /删除/)
+    await selectMoreMenuItem(page, /Delete/)
     const deleteDialog = page.getByRole('dialog')
     await expect(deleteDialog).toBeVisible()
-    await deleteDialog.getByRole('button', { name: '删除', exact: true }).click()
+    await deleteDialog.getByRole('button', { name: 'Delete', exact: true }).click()
 
     // DELETE 发出 → 回列表并恢复原查询
     await expect(collection.deleteRequests).toEqual([VERIFIED_MEMORY.id])
@@ -680,7 +680,7 @@ test.describe('plan-05 Style Memory 详情页', () => {
 
     // 不可打开：直接访问详情 URL → 「Memory 不存在或已被删除」
     await openStyleMemoryDetail(page, VERIFIED_MEMORY.id)
-    await expect(page.getByText(/不存在或已被删除/)).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText(/does not exist or was deleted/i)).toBeVisible({ timeout: 15000 })
 
     // 来源 Iteration 仍可访问（ADR-2 引用不复制）
     await page.goto('/workspace/iterations')
@@ -691,7 +691,7 @@ test.describe('plan-05 Style Memory 详情页', () => {
 
   // ─── AC-09 旧资产缺失分区 ───
 
-  test('TC-9.1 旧资产详情：待验证、缺失分区原位标注、其余内容可用、编辑与复用入口可用', async ({
+  test('TC-9.1 legacy asset detail: pending verification, missing sections annotated in place, remaining content usable, edit and reuse entries usable', async ({
     page,
   }) => {
     await mockStyleMemoryDetailCollection(page, [LEGACY_MEMORY])
@@ -701,39 +701,39 @@ test.describe('plan-05 Style Memory 详情页', () => {
 
     // 旧资产不自动继承已验证
     const header = page.getByTestId('style-memory-detail-header')
-    await expect(header.getByText('待验证')).toBeVisible()
-    await expect(header.getByText('用户已验证')).toHaveCount(0)
+    await expect(header.getByText('Pending verification')).toBeVisible()
+    await expect(header.getByText('User verified')).toHaveCount(0)
 
     // 验证依据：参考图与来源缺失原位标注（不渲染占位真图）
     const evidence = page.getByTestId('style-memory-detail-evidence')
     await expect(evidence).toBeVisible()
     await expect(evidence.locator('img')).toHaveCount(0)
-    await expect(evidence.getByText(/待补充|来源缺失/).first()).toBeVisible()
+    await expect(evidence.getByText(/Not yet provided|Missing source/).first()).toBeVisible()
 
     // 保留的风格：规则与风格指纹为空 → 原位待补充说明
     const style = page.getByTestId('style-memory-detail-style')
     await expect(style).toBeVisible()
-    await expect(style.getByText(/待补充|来源缺失/).first()).toBeVisible()
+    await expect(style.getByText(/Not yet provided|Missing source/).first()).toBeVisible()
 
     // 其余分区继续可用：变量（空默认值标必填）+ 完整提示 + 使用情况
     const variables = page.getByTestId('style-memory-detail-variables')
-    await expect(variables.getByText('必填')).toBeVisible()
+    await expect(variables.getByText('Required')).toBeVisible()
     await expect(page.getByText('Legacy draft prompt')).not.toBeVisible()
-    await page.getByRole('button', { name: /完整提示|高级信息/ }).click()
+    await page.getByRole('button', { name: /full prompt/i }).click()
     await expect(page.getByText(/Legacy draft prompt/)).toBeVisible()
     const usage = page.getByTestId('style-memory-detail-usage')
-    await expect(usage.getByText('尚未使用')).toBeVisible()
-    await expect(usage.getByText(/派生.*1.*次/)).toBeVisible()
+    await expect(usage.getByText('Never used')).toBeVisible()
+    await expect(usage.getByText(/Derived.*1.*times/)).toBeVisible()
 
     // 仍可进入编辑
-    await page.getByRole('button', { name: '编辑', exact: true }).click()
+    await page.getByRole('button', { name: 'Edit', exact: true }).click()
     const editDialog = page.getByRole('dialog')
     await expect(editDialog).toBeVisible()
-    await editDialog.getByRole('button', { name: '取消', exact: true }).click()
+    await editDialog.getByRole('button', { name: 'Cancel', exact: true }).click()
     await expect(editDialog).toHaveCount(0)
 
     // 仍可进入复用入口（plan-07：接管为复用预检弹层，不直接导航）
-    await page.getByRole('button', { name: /使用这条 Memory/ }).click()
+    await page.getByRole('button', { name: /Use this memory/ }).click()
     const reusePrecheck = page.getByTestId('reuse-precheck-dialog')
     await expect(reusePrecheck).toBeVisible({ timeout: 15000 })
     await expect(reusePrecheck).toContainText('Early Prompt Draft')
@@ -751,14 +751,14 @@ test.describe('plan-05 Style Memory 详情页', () => {
     // 错误态（StatePresenter failedRecoverable 口径）+ 重试动作
     const failedState = page.locator('section[data-status="failedRecoverable"]')
     await expect(failedState).toBeVisible({ timeout: 15000 })
-    await expect(failedState.getByRole('button', { name: /重试/ })).toBeVisible()
+    await expect(failedState.getByRole('button', { name: /Retry/ })).toBeVisible()
 
     // 错误态期间列表入口保持可用（AC-10）
     await expect(
-      page.getByRole('link', { name: /返回列表/ }).or(page.getByRole('button', { name: /返回列表/ })),
+      page.getByRole('link', { name: /Back to list/ }).or(page.getByRole('button', { name: /Back to list/ })),
     ).toBeVisible()
 
-    await failedState.getByRole('button', { name: /重试/ }).click()
+    await failedState.getByRole('button', { name: /Retry/ }).click()
 
     // 重试成功 → 原详情恢复
     await expect(page.getByTestId('style-memory-detail-page')).toBeVisible({ timeout: 15000 })
@@ -775,7 +775,7 @@ test.describe('plan-05 Style Memory 详情页', () => {
     await expect(page.getByTestId('style-memory-detail-page')).toBeVisible({ timeout: 15000 })
 
     // 键盘打开编辑弹层
-    const editButton = page.getByRole('button', { name: '编辑', exact: true })
+    const editButton = page.getByRole('button', { name: 'Edit', exact: true })
     await editButton.focus()
     await page.keyboard.press('Enter')
 
@@ -795,9 +795,9 @@ test.describe('plan-05 Style Memory 详情页', () => {
     await pressTabAndAssertTrap(page, editDialog, 10)
 
     // 键盘完成修改并保存
-    const nameInput = editDialog.getByLabel(/名称/)
+    const nameInput = editDialog.getByLabel(/Name/)
     await nameInput.fill('Editorial Soft Daylight v2')
-    const saveButton = editDialog.getByRole('button', { name: /^保存/ })
+    const saveButton = editDialog.getByRole('button', { name: /^Save/ })
     await saveButton.focus()
     await page.keyboard.press('Enter')
 
@@ -857,7 +857,7 @@ test.describe('plan-05 Style Memory 详情页', () => {
     await expect(page.getByTestId('style-memory-detail-page')).toBeVisible({ timeout: 15000 })
 
     // 键盘打开候选选择器
-    const selectButton = page.getByRole('button', { name: /选择代表结果/ })
+    const selectButton = page.getByRole('button', { name: /Select representative result/ })
     await selectButton.focus()
     await page.keyboard.press('Enter')
 
@@ -875,7 +875,7 @@ test.describe('plan-05 Style Memory 详情页', () => {
     expect(collection.representativeResultRequests).toHaveLength(0)
 
     // 原状态与原代表结果（无）不变
-    await expect(page.getByTestId('style-memory-detail-header').getByText('待验证')).toBeVisible()
+    await expect(page.getByTestId('style-memory-detail-header').getByText('Pending verification')).toBeVisible()
     await expect(
       page.getByTestId('style-memory-detail-evidence').locator('img[src*="results/"]'),
     ).toHaveCount(0)
@@ -919,7 +919,7 @@ test.describe('plan-05 Style Memory 详情页', () => {
     await page.keyboard.press('Enter')
     await expect(deleteDialog).toBeVisible()
 
-    const confirmButton = deleteDialog.getByRole('button', { name: '删除', exact: true })
+    const confirmButton = deleteDialog.getByRole('button', { name: 'Delete', exact: true })
     await confirmButton.focus()
     await page.keyboard.press('Enter')
 

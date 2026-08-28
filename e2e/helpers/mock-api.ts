@@ -653,7 +653,7 @@ export interface MockStyleMemoryListItem {
   /** 服务端已取前 2 条的规则摘要 */
   retainedRulesPreview: string[]
   variableCount: number
-  /** 来源图（待验证主预览 / 已验证次预览） */
+  /** 来源图（pending 卡主预览 / verified 卡次预览） */
   sourceImageUrl: string | null
   /** 代表结果图（已验证主预览） */
   representativeImageUrl: string | null
@@ -1074,7 +1074,7 @@ export interface RepresentativeCandidateRequestQuery {
 export interface MockStyleMemoryDetailCollectionOptions {
   /** 按 memory id 提供代表结果候选（createdAt DESC / id DESC 双键分页） */
   candidates?: Record<string, MockRepresentativeCandidate[]>;
-  /** 候选分页固定页大小（默认 20；设小值驱动「加载更早」游标翻页） */
+  /** 候选分页固定页大小（默认 20；设小值驱动「Load earlier」游标翻页） */
   candidatePageSize?: number;
 }
 

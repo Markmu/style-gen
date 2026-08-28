@@ -1127,7 +1127,7 @@ function WorkspacePageInner() {
           restoreError={historyRestoreError?.message}
         />
 
-        {/* plan-06 流程 B: 工作区草稿保存向导（无代表结果，保存为待验证） */}
+        {/* plan-06 流程 B: 工作区草稿保存向导（无代表结果，保存为 pending verification） */}
         <TemplateSaveDialog
           open={showTemplateSaveDialog}
           initialContent={templateSaveContent || effectivePromptText}

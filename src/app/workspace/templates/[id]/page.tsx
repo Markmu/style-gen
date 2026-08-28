@@ -56,7 +56,7 @@ async function fetchStyleMemoryDetail(
       // 保留默认错误信息
     }
     throw new StyleMemoryDetailError({
-      message: body.error ?? "Style Memory 详情加载失败",
+      message: body.error ?? "Failed to load Style Memory details",
       status: res.status,
       code: body.code,
       retryable: body.retryable,
@@ -80,7 +80,7 @@ function StatusBadge({ status }: { status: StyleMemoryDetail["verificationStatus
         size={12}
         className={isVerified ? "text-[var(--accent-primary)]" : "text-[var(--text-muted)]"}
       />
-      {isVerified ? "用户已验证" : "待验证"}
+      {isVerified ? "User verified" : "Pending verification"}
     </span>
   );
 }
@@ -92,7 +92,7 @@ function BackToListLink({ href }: { href: string }) {
       className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
     >
       <AppIcon icon={ArrowLeft} size={14} />
-      返回列表
+      Back to list
     </Link>
   );
 }
@@ -193,7 +193,7 @@ function StyleMemoryDetailPageInner() {
         } catch {
           // 保留默认错误信息
         }
-        setDuplicateError(body.error ?? "复制失败，请稍后重试。");
+        setDuplicateError(body.error ?? "Duplicate failed. Please try again later.");
         return;
       }
       const copy = (await res.json()) as { id: string };
@@ -201,7 +201,7 @@ function StyleMemoryDetailPageInner() {
       await invalidateStyleMemoryLists(queryClient);
       router.push(`/workspace/templates/${copy.id}?notice=rename`);
     } catch {
-      setDuplicateError("网络异常，复制失败；可重试。");
+      setDuplicateError("Network error — duplicate failed. You can retry.");
     } finally {
       setIsDuplicating(false);
     }
@@ -244,18 +244,19 @@ function StyleMemoryDetailPageInner() {
               />
               <div className="min-w-0 flex-1">
                 <p className="text-base font-semibold text-[var(--text-primary)]">
-                  Memory 不存在或已被删除
+                  This memory does not exist or was deleted
                 </p>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
-                  这条 Style Memory 可能已被删除，或链接指向的内容已不可用。
-                  列表与其他资产不受影响。
+                  This Style Memory may have been deleted, or the link points to
+                  content that is no longer available. The list and other assets
+                  are unaffected.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Link
                     href={listHref}
                     className="btn-primary rounded-md px-4 py-2 text-sm font-medium"
                   >
-                    返回列表
+                    Back to list
                   </Link>
                 </div>
               </div>
@@ -279,19 +280,19 @@ function StyleMemoryDetailPageInner() {
           {isAuthRequired ? (
             <StatePresenter
               status="authRequired"
-              title="登录后查看 Style Memory 详情"
-              description="云端 Style Memory 需要登录后查看。登录后会回到这条详情。"
-              primaryActionLabel="登录"
+              title="Sign in to view Style Memory details"
+              description="Cloud Style Memory requires sign-in. You will return to this detail page after signing in."
+              primaryActionLabel="Sign in"
               onPrimaryAction={handleLogin}
             />
           ) : (
             <StatePresenter
               status="failedRecoverable"
-              title="Style Memory 详情暂不可用"
+              title="Style Memory details unavailable"
               description={`${
-                error?.message ?? "详情暂时无法加载。"
-              }当前列表入口保持可用，重试后会恢复这条详情。`}
-              primaryActionLabel="重试"
+                error?.message ?? "Details could not be loaded."
+              } The list entry stays available — retry to restore this detail page.`}
+              primaryActionLabel="Retry"
               onPrimaryAction={() => void query.refetch()}
             />
           )}
@@ -349,24 +350,24 @@ function StyleMemoryDetailPageInner() {
               className="btn-secondary inline-flex min-h-11 items-center gap-1.5 rounded-xl px-4 text-xs font-medium shadow-sm transition-all hover:border-[var(--border-interactive)] active:scale-[0.98]"
             >
               <AppIcon icon={Pencil} size={14} />
-              编辑
+              Edit
             </button>
             <DropdownMenu
-              trigger={{ icon: MoreHorizontal, label: "更多" }}
+              trigger={{ icon: MoreHorizontal, label: "More" }}
               items={[
                 {
                   key: "edit",
-                  label: "编辑",
+                  label: "Edit",
                   onSelect: () => setEditOpen(true),
                 },
                 {
                   key: "duplicate",
-                  label: isDuplicating ? "复制中…" : "复制",
+                  label: isDuplicating ? "Duplicating…" : "Duplicate",
                   onSelect: () => void handleDuplicate(),
                 },
                 {
                   key: "delete",
-                  label: "删除",
+                  label: "Delete",
                   danger: true,
                   onSelect: () => setDeleteOpen(true),
                 },
@@ -377,7 +378,7 @@ function StyleMemoryDetailPageInner() {
               onClick={handleUse}
               className="btn-primary inline-flex min-h-11 items-center gap-1.5 rounded-xl px-4 text-xs font-semibold shadow-sm transition-all active:scale-[0.98]"
             >
-              使用这条 Memory
+              Use this memory
               <AppIcon icon={ArrowUpRight} size={14} />
             </button>
           </div>
@@ -401,14 +402,15 @@ function StyleMemoryDetailPageInner() {
         >
           <div className="flex items-start justify-between gap-3 rounded-xl border border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/10 px-3.5 py-2.5">
             <p className="text-xs leading-5 text-[var(--text-primary)]">
-              已创建复制品，从「待验证」开始；建议重新命名，并选择代表结果完成验证。
+              Duplicate created. It starts as Pending verification — rename it
+              and set a representative result to complete verification.
             </p>
             <button
               type="button"
               onClick={dismissRenameNotice}
               className="shrink-0 text-xs font-medium text-[var(--accent-primary)] hover:underline"
             >
-              知道了
+              Got it
             </button>
           </div>
         </div>

@@ -23,7 +23,7 @@ import { uploadAndCompleteAnalysis } from './helpers/workspace-actions'
  * 派生，前端只展示预期）；上游 PRD AC-04 / AC-08 / AC-11。
  *
  * 场景：流程 A（从完成 Iteration 三步向导：代表结果 → 保留规则与变量 → 命名）、
- * 流程 B（工作区草稿保存：无代表结果、待验证）、保存进行中锁定、无提前必填
+ * 流程 B（工作区草稿保存：无代表结果、pending verification）、保存进行中锁定、无提前必填
  * 错误、409 改名重试 / 5xx 直接重试（内容与步骤保留、无重复 Memory）、键盘
  * 往返（Tab 循环 / Escape 还原焦点 / 成功后详情焦点落首要内容）。
  *
@@ -39,19 +39,19 @@ import { uploadAndCompleteAnalysis } from './helpers/workspace-actions'
  *   "save-wizard-step-3"，同一时间仅一个可见；流程 B 不渲染 step-1
  * - 步骤 1（仅流程 A）：并排参考图（img src 含 references/{iterationId}）与
  *   本次结果（img src 含 generated/{iterationId}），图注 exact「参考图」「本次结果」；
- *   勾选框 accessible name 含「设为代表结果」，默认不勾选；说明文案含「用户已验证」
+ *   勾选框 accessible name 含「Set as representative result」，默认不勾选；说明文案含「User verified」
  * - 步骤 2：V2 预填（styleInvariants[].value → 保留规则、hard 优先排序；
  *   negativeConstraints → 排除约束；optionalModifiers[].defaultValue → 增强方向；
  *   styleFingerprint.tokens → 风格指纹）；变量默认值同屏可编辑（label 含变量名，
  *   提交体携带编辑后值）；风格指纹/增强方向为只读快照展示；缺失组显示
- *   「本次迭代无 X」标记（fallback 配方四组全缺失）
+ *   「No X from this iteration」标记（fallback 配方四组全缺失）
  * - 步骤 3：名称输入（label 含「名称」）、说明输入（label 含「说明」）、
  *   高级信息折叠预览完整提示（展开控件名含「高级信息|完整提示」）；底部固定
- *   「保存后状态」随步骤 1 勾选联动（勾选→用户已验证 / 不勾选→待验证）；
+ *   「After saving:」随步骤 1 勾选联动（勾选→User verified / 不勾选→Pending verification）；
  *   名称中性帮助文案含「1-50」字样，错误文案仅在提交/失焦后出现
- * - 步骤导航按钮：取消（exact）/ 下一步 / 上一步 / ^保存（提交）
+ * - 步骤导航按钮：Cancel（exact）/ Next / Back / ^Save（提交）
  * - 流程 B 首屏：[data-testid="save-wizard-no-representative-note"]，
- *   文案含「当前没有代表结果」与「待验证」；向导内无「设为代表结果」勾选框
+ *   文案含「No representative result yet」与「Pending verification」；向导内无「Set as representative result」勾选框
  * - 提交体（SaveStyleMemoryRequest）：流程 A 勾选 → representativeGenerationTaskId
  *   = sourceGenerationTaskId = 迭代 id；不勾选 → 无 representativeGenerationTaskId
  *   （sourceGenerationTaskId 仍携带）；流程 B → 两者均不携带、携带 sourceAssetId；
@@ -235,31 +235,31 @@ function wizardStep(page: Page, step: 1 | 2 | 3) {
 }
 
 function representativeCheckbox(page: Page) {
-  return saveDialog(page).getByRole('checkbox', { name: /设为代表结果/ })
+  return saveDialog(page).getByRole('checkbox', { name: /Set as representative result/ })
 }
 
 function nextButton(page: Page) {
-  return saveDialog(page).getByRole('button', { name: /下一步/ })
+  return saveDialog(page).getByRole('button', { name: /^Next$/ })
 }
 
 function prevButton(page: Page) {
-  return saveDialog(page).getByRole('button', { name: /上一步/ })
+  return saveDialog(page).getByRole('button', { name: /^Back$/ })
 }
 
 function submitButton(page: Page) {
-  return saveDialog(page).getByRole('button', { name: /^保存|^save/i })
+  return saveDialog(page).getByRole('button', { name: /^Sav/i }) // 匹配 Save Style Memory 与 Saving… 两个状态
 }
 
 function nameInput(page: Page) {
-  return saveDialog(page).getByRole('textbox', { name: /名称|name/i }).first()
+  return saveDialog(page).getByRole('textbox', { name: /name/i }).first()
 }
 
 /** 步骤 3 底部固定「保存后状态」行（唯一文本节点，随勾选联动） */
 function saveStatusText(page: Page) {
-  return wizardStep(page, 3).getByText(/保存后状态/)
+  return wizardStep(page, 3).getByText(/After saving:/)
 }
 
-const NAME_ERROR = /必填|不能为空|A name is required|Enter a template name/
+const NAME_ERROR = /cannot be empty|required|A name is required|Enter a template name/
 
 /** 打开流程 A 向导：进入 iterations → 打开详情 → 点保存入口 */
 async function openFlowAWizard(page: Page, detail: MockIterationDetail = iterationDetail()) {
@@ -304,7 +304,7 @@ test.describe('plan-06 保存流程重构', () => {
 
   // ─── AC-04 流程 A：三步向导（从完成 Iteration 保存） ───
 
-  test('TC-4.1 步骤 1：参考图与本次结果并排，「设为代表结果」默认不勾选并说明已验证语义', async ({
+  test('TC-4.1 step 1: reference and result side by side, Set as representative result unchecked by default with verified semantics note', async ({
     page,
   }) => {
     await openFlowAWizard(page)
@@ -317,14 +317,14 @@ test.describe('plan-06 保存流程重构', () => {
     // 并排参考图与本次结果（来源 Iteration 的 sourceImageUrl / resultFileUrl）
     await expect(step1.locator(`img[src*="references/${ITERATION_ID}"]`)).toBeVisible()
     await expect(step1.locator(`img[src*="generated/${ITERATION_ID}"]`)).toBeVisible()
-    await expect(step1.getByText('参考图', { exact: true })).toBeVisible()
-    await expect(step1.getByText('本次结果', { exact: true })).toBeVisible()
+    await expect(step1.getByText('Reference', { exact: true })).toBeVisible()
+    await expect(step1.getByText('Result', { exact: true })).toBeVisible()
 
     // 默认不勾选（Q5 决策）；说明文案说明勾选后的已验证语义
     const checkbox = representativeCheckbox(page)
     await expect(checkbox).toBeVisible()
     await expect(checkbox).not.toBeChecked()
-    await expect(step1.getByText(/用户已验证/)).toBeVisible()
+    await expect(step1.getByText(/User verified/)).toBeVisible()
 
     // 步骤 1 无名称等必填错误（首屏不提前报错）
     await expect(saveDialog(page).getByText(NAME_ERROR)).toHaveCount(0)
@@ -384,12 +384,12 @@ test.describe('plan-06 保存流程重构', () => {
     await expect(step2.getByLabel(/subject/i)).toHaveValue('amber bottle')
   })
 
-  test('TC-4.3 步骤 3：命名与高级信息折叠预览，「保存后状态」随代表结果勾选即时联动', async ({
+  test('TC-4.3 step 3: naming and advanced full-prompt preview, after-saving status line reacts to the representative checkbox', async ({
     page,
   }) => {
     await openFlowAWizard(page)
 
-    // 勾选代表结果 → 步骤 3 预期「用户已验证」
+    // 勾选代表结果 → 步骤 3 预期「User verified」
     await representativeCheckbox(page).check()
     await nextButton(page).click()
     await expect(wizardStep(page, 2)).toBeVisible()
@@ -397,26 +397,26 @@ test.describe('plan-06 保存流程重构', () => {
 
     const step3 = wizardStep(page, 3)
     await expect(step3).toBeVisible()
-    await expect(saveStatusText(page)).toContainText('用户已验证')
-    await expect(saveStatusText(page)).not.toContainText('待验证')
+    await expect(saveStatusText(page)).toContainText('User verified')
+    await expect(saveStatusText(page)).not.toContainText('Pending verification')
 
     // 高级信息：完整提示默认折叠，展开后可见 promptSnapshot（取提示尾部片段避免截断预览误命中）
     await expect(step3.getByText(/amber glass towers/)).toHaveCount(0)
-    await step3.getByRole('button', { name: /高级信息|完整提示/ }).click()
+    await step3.getByRole('button', { name: /Advanced/ }).click()
     await expect(step3.getByText(TARGET_PROMPT)).toBeVisible()
 
-    // 返回步骤 1 取消勾选 → 步骤 3 联动为「待验证」（PRD：取消勾选后仍可保存）
+    // 返回步骤 1 取消勾选 → 步骤 3 联动为「Pending verification」（PRD：取消勾选后仍可保存）
     await prevButton(page).click()
     await prevButton(page).click()
     await expect(wizardStep(page, 1)).toBeVisible()
     await representativeCheckbox(page).uncheck()
     await nextButton(page).click()
     await nextButton(page).click()
-    await expect(saveStatusText(page)).toContainText('待验证')
-    await expect(saveStatusText(page)).not.toContainText('用户已验证')
+    await expect(saveStatusText(page)).toContainText('Pending verification')
+    await expect(saveStatusText(page)).not.toContainText('User verified')
   })
 
-  test('TC-4.4 勾选代表结果保存：提交体携带 representativeGenerationTaskId，成功进入新详情（用户已验证）', async ({
+  test('TC-4.4 save with representative checked: body carries representativeGenerationTaskId, success enters the new detail (User verified)', async ({
     page,
   }) => {
     const templateName = 'Neon Dusk Verified Memory'
@@ -473,16 +473,16 @@ test.describe('plan-06 保存流程重构', () => {
     // ADR-1：状态只能服务端派生，请求体不得携带
     expect(body.verificationStatus).toBeUndefined()
 
-    // 成功 → router.push 新详情（plan-05 详情页）：用户已验证 + 名称
+    // 成功 → router.push 新详情（plan-05 详情页）：User verified + 名称
     await expect(page).toHaveURL(/\/workspace\/templates\/tpl-save-verified-flow$/, {
       timeout: 15000,
     })
     await expect(page.getByTestId('style-memory-detail-page')).toBeVisible({ timeout: 15000 })
-    await expect(page.getByTestId('style-memory-detail-header').getByText('用户已验证')).toBeVisible()
+    await expect(page.getByTestId('style-memory-detail-header').getByText('User verified')).toBeVisible()
     await expect(page.getByRole('heading', { name: templateName })).toBeVisible()
   })
 
-  test('TC-4.5 不勾选保存：提交体不含 representativeGenerationTaskId，成功进入新详情（待验证）', async ({
+  test('TC-4.5 save without representative: body omits representativeGenerationTaskId, success enters the new detail (Pending verification)', async ({
     page,
   }) => {
     const templateName = 'Neon Dusk Pending Memory'
@@ -523,10 +523,10 @@ test.describe('plan-06 保存流程重构', () => {
     await expect(page).toHaveURL(/\/workspace\/templates\/tpl-save-pending-flow$/, {
       timeout: 15000,
     })
-    await expect(page.getByTestId('style-memory-detail-header').getByText('待验证')).toBeVisible({
+    await expect(page.getByTestId('style-memory-detail-header').getByText('Pending verification')).toBeVisible({
       timeout: 15000,
     })
-    await expect(page.getByTestId('style-memory-detail-header').getByText('用户已验证')).toHaveCount(0)
+    await expect(page.getByTestId('style-memory-detail-header').getByText('User verified')).toHaveCount(0)
   })
 
   test('TC-4.6 fallback 配方：步骤 2 四组缺失标记，不推测补齐且流程可继续', async ({ page }) => {
@@ -540,13 +540,13 @@ test.describe('plan-06 保存流程重构', () => {
     await expect(step2).toBeVisible()
     // 四组（保留规则/排除约束/风格指纹/增强方向）全部缺失标记
     await expect
-      .poll(() => step2.getByText(/本次迭代无/).count(), { timeout: 10000 })
+      .poll(() => step2.getByText(/No .* from this iteration/).count(), { timeout: 10000 })
       .toBeGreaterThanOrEqual(4)
     // 不推测补齐：不出现配方外的规则/指纹文本
     await expect(step2.getByText(/warm amber and sand palette/)).toHaveCount(0)
     await expect(step2.getByText('editorial', { exact: true })).toHaveCount(0)
 
-    // 流程可继续（保存空规则待验证 Memory 的路径不被阻断）
+    // 流程可继续（保存空规则 pending Memory 的路径不被阻断）
     await expect(nextButton(page)).toBeEnabled()
     await nextButton(page).click()
     await expect(wizardStep(page, 3)).toBeVisible()
@@ -603,7 +603,7 @@ test.describe('plan-06 保存流程重构', () => {
 
     // 进行中：提交/取消/步骤导航全部锁定
     await expect(submitButton(page)).toBeDisabled()
-    await expect(saveDialog(page).getByRole('button', { name: /取消/ })).toBeDisabled()
+    await expect(saveDialog(page).getByRole('button', { name: /Cancel/ })).toBeDisabled()
     // 连点（force 越过 disabled 可点性探测）：仍只有一次在途 POST
     await submitButton(page).click({ force: true }).catch(() => undefined)
     await expect
@@ -611,7 +611,7 @@ test.describe('plan-06 保存流程重构', () => {
       .toBe(1)
     // 进行中已确认内容保留（名称与勾选联动的状态文案）
     await expect(nameInput(page)).toHaveValue(templateName)
-    await expect(saveStatusText(page)).toContainText('用户已验证')
+    await expect(saveStatusText(page)).toContainText('User verified')
 
     // 响应返回后成功进入新详情，且全程只有 1 次 POST
     await expect(page).toHaveURL(/\/workspace\/templates\/tpl-save-locked-flow$/, {
@@ -625,7 +625,7 @@ test.describe('plan-06 保存流程重构', () => {
   test('TC-11.1 409 名称冲突：显示服务端文案、改名重试成功进新详情、无重复 Memory', async ({
     page,
   }) => {
-    const conflictCopy = '同名 Style Memory 已存在，请换一个名称后重试'
+    const conflictCopy = 'A template with this name already exists'
     const templateName = 'Neon Dusk Conflict Memory'
     const capture = await mockTemplateCreateCapture(page, [
       {
@@ -668,7 +668,7 @@ test.describe('plan-06 保存流程重构', () => {
 
     // 失败期间全部已确认内容保留：名称、勾选联动的状态文案与代表结果标记
     await expect(nameInput(page)).toHaveValue(templateName)
-    await expect(saveStatusText(page)).toContainText('用户已验证')
+    await expect(saveStatusText(page)).toContainText('User verified')
 
     // 改名重试成功 → 新详情；全程 2 次 POST（1 冲突 + 1 成功），无重复 Memory
     await nameInput(page).fill(`${templateName} v2`)
@@ -681,7 +681,7 @@ test.describe('plan-06 保存流程重构', () => {
     await expect(page).toHaveURL(/\/workspace\/templates\/tpl-save-conflict-flow$/, {
       timeout: 15000,
     })
-    await expect(page.getByTestId('style-memory-detail-header').getByText('用户已验证')).toBeVisible({
+    await expect(page.getByTestId('style-memory-detail-header').getByText('User verified')).toBeVisible({
       timeout: 15000,
     })
     expect(capture.requests).toHaveLength(2)
@@ -695,7 +695,7 @@ test.describe('plan-06 保存流程重构', () => {
       {
         status: 503,
         body: {
-          error: '保存暂时不可用，请稍后重试',
+          error: 'Saving is temporarily unavailable. Please try again later.',
           code: 'SERVICE_UNAVAILABLE',
           retryable: true,
         },
@@ -731,10 +731,10 @@ test.describe('plan-06 保存流程重构', () => {
       .toBe(1)
     const dialog = saveDialog(page)
     await expect(dialog).toBeVisible()
-    await expect(dialog.getByText(/保存暂时不可用/)).toBeVisible()
+    await expect(dialog.getByText(/temporarily unavailable/)).toBeVisible()
     await expect(wizardStep(page, 3)).toBeVisible()
     await expect(nameInput(page)).toHaveValue(templateName)
-    await expect(saveStatusText(page)).toContainText('用户已验证')
+    await expect(saveStatusText(page)).toContainText('User verified')
 
     // 直接重试（不改任何内容）成功 → 新详情；2 次 POST，重试体与首次一致
     await submitButton(page).click()
@@ -746,7 +746,7 @@ test.describe('plan-06 保存流程重构', () => {
     await expect(page).toHaveURL(/\/workspace\/templates\/tpl-save-retry-flow$/, {
       timeout: 15000,
     })
-    await expect(page.getByTestId('style-memory-detail-header').getByText('用户已验证')).toBeVisible({
+    await expect(page.getByTestId('style-memory-detail-header').getByText('User verified')).toBeVisible({
       timeout: 15000,
     })
   })
@@ -834,7 +834,7 @@ test.describe('plan-06 保存流程重构', () => {
 
   // ─── AC-04 流程 B：工作区草稿保存（无代表结果） ───
 
-  test('TC-4.9 流程 B：首屏说明无代表结果将保存为待验证，规则确认后提交体不含代表/来源迭代，进入新详情（待验证）', async ({
+  test('TC-4.9 flow B: first screen notes save-as-pending, after rule confirmation the body omits representative/source iteration and enters the new detail (Pending verification)', async ({
     page,
   }) => {
     const templateName = 'Workspace Draft Direction'
@@ -867,13 +867,13 @@ test.describe('plan-06 保存流程重构', () => {
     })
     await page.getByRole('button', { name: 'Save as Style Memory' }).click()
 
-    // 首屏：无代表结果说明（原单步表单前的说明区）+ 待验证预期；无步骤 1 与代表结果勾选
+    // 首屏：无代表结果说明（原单步表单前的说明区）+ pending 预期；无步骤 1 与代表结果勾选
     const dialog = saveDialog(page)
     await expect(dialog).toBeVisible()
     const note = page.getByTestId('save-wizard-no-representative-note')
     await expect(note).toBeVisible()
-    await expect(note.getByText(/当前没有代表结果/)).toBeVisible()
-    await expect(note.getByText(/待验证/)).toBeVisible()
+    await expect(note.getByText(/No representative result yet/)).toBeVisible()
+    await expect(note.getByText(/Pending verification/)).toBeVisible()
     await expect(wizardStep(page, 1)).toHaveCount(0)
     await expect(representativeCheckbox(page)).toHaveCount(0)
     // 首屏无提前必填错误
@@ -890,7 +890,7 @@ test.describe('plan-06 保存流程重构', () => {
     // 中性帮助文案存在、错误文案不存在（流程 B 同口径）
     await expect(step3.getByText(/1.{0,2}50/)).toBeVisible()
     await expect(dialog.getByText(NAME_ERROR)).toHaveCount(0)
-    await expect(saveStatusText(page)).toContainText('待验证')
+    await expect(saveStatusText(page)).toContainText('Pending verification')
     await nameInput(page).fill(templateName)
     await submitButton(page).click()
 
@@ -906,11 +906,11 @@ test.describe('plan-06 保存流程重构', () => {
     expect(body.retainedRules).toEqual(expect.arrayContaining(HARD_RULES))
     expect(body.verificationStatus).toBeUndefined()
 
-    // 成功 → 新详情：待验证、无代表结果图
+    // 成功 → 新详情：pending verification、无代表结果图
     await expect(page).toHaveURL(/\/workspace\/templates\/tpl-save-workspace-draft$/, {
       timeout: 15000,
     })
-    await expect(page.getByTestId('style-memory-detail-header').getByText('待验证')).toBeVisible({
+    await expect(page.getByTestId('style-memory-detail-header').getByText('Pending verification')).toBeVisible({
       timeout: 15000,
     })
     await expect(

@@ -12,7 +12,7 @@ import type { RepresentativeCandidate } from "@/types/models";
  * plan-05（架构 §6.4 代表结果选择器）：ModalDialog 内的候选选择层。
  *
  * - 打开时 GET /api/templates/[id]/representative-candidates 游标加载
- *   （createdAt DESC / id DESC keyset），「加载更早」带 nextCursor 翻页。
+ *   （createdAt DESC / id DESC keyset），「Load earlier」带 nextCursor 翻页。
  * - 条目：缩略图 + promptSummary + 时间；radio 单选。
  * - [确认] → POST representative-result { generationTaskId } → 成功关闭并
  *   触发详情回读（user_verified + 新代表结果；禁乐观更新，ADR-1）。
@@ -54,7 +54,7 @@ async function fetchCandidatePage(
     } catch {
       // 保留默认错误信息
     }
-    throw new Error(body.error ?? "候选 Iteration 加载失败，可重试。");
+    throw new Error(body.error ?? "Failed to load candidate iterations. You can retry.");
   }
   const data = (await res.json()) as Partial<CandidatePage>;
   return {
@@ -110,7 +110,7 @@ export function RepresentativeResultSelector({
         setNextCursor(page.nextCursor);
       })
       .catch((error: unknown) => {
-        setLoadError(error instanceof Error ? error.message : "候选 Iteration 加载失败，可重试。");
+        setLoadError(error instanceof Error ? error.message : "Failed to load candidate iterations. You can retry.");
       })
       .finally(() => {
         setIsLoading(false);
@@ -133,7 +133,7 @@ export function RepresentativeResultSelector({
       setHasMore(page.hasMore);
       setNextCursor(page.nextCursor);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "更早的候选加载失败，可重试。");
+      setLoadError(error instanceof Error ? error.message : "Failed to load earlier candidates. You can retry.");
     } finally {
       setIsLoading(false);
     }
@@ -156,7 +156,7 @@ export function RepresentativeResultSelector({
         } catch {
           // 保留默认错误信息
         }
-        setSubmitError(body.error ?? "设置代表结果失败，可重试。");
+        setSubmitError(body.error ?? "Failed to set the representative result. You can retry.");
         return;
       }
       onClose();
@@ -164,7 +164,7 @@ export function RepresentativeResultSelector({
       await invalidateStyleMemoryLists(queryClient);
       await onConfirmed();
     } catch {
-      setSubmitError("网络异常，设置代表结果失败；可重试。");
+      setSubmitError("Network error — failed to set the representative result. You can retry.");
     } finally {
       setSubmitting(false);
     }
@@ -174,17 +174,18 @@ export function RepresentativeResultSelector({
     <ModalDialog
       open={open}
       onClose={submitting ? () => undefined : onClose}
-      label="选择代表结果"
+      label="Select representative result"
       labelledBy={titleId}
     >
       <div className="flex max-h-[calc(100dvh-2.5rem)] flex-col overflow-hidden">
         <div className="shrink-0 border-b border-[var(--border-static)] px-5 py-4 pr-16">
           <h2 id={titleId} className="text-base font-semibold text-[var(--text-primary)]">
-            选择代表结果
+            Select representative result
           </h2>
           <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">
-            为「{memoryName}」选择一条已完成 Iteration 的结果作为代表结果；确认后这条
-            Memory 会转为「用户已验证」。
+            Choose a completed iteration result as the representative result for
+            &quot;{memoryName}&quot;. Once confirmed, this memory becomes User
+            verified.
           </p>
         </div>
 
@@ -220,24 +221,26 @@ export function RepresentativeResultSelector({
                 }}
                 className="btn-secondary mt-2 inline-flex min-h-9 items-center rounded-lg px-3 text-xs font-medium"
               >
-                重试
+                Retry
               </button>
             </div>
           ) : items.length === 0 ? (
             <div className="rounded-xl border border-dashed border-[var(--border-static)] bg-[var(--surface-low)]/50 px-4 py-6 text-center">
               <p className="text-xs font-semibold text-[var(--text-secondary)]">
-                暂无相关已完成 Iteration
+                No related completed iterations yet
               </p>
               <p className="mx-auto mt-1.5 max-w-sm text-[0.6875rem] leading-5 text-[var(--text-muted)]">
-                相关范围：从这条 Memory 派生的 Iteration，以及它的来源 Iteration
-                中已完成且生成出结果的记录。可以先在工作区用它生成，再回来选择代表结果。
+                Related scope: iterations derived from this memory, plus its
+                source iteration where generation completed with a result.
+                Generate with it in the workspace first, then come back to
+                select a representative result.
               </p>
             </div>
           ) : (
             <>
               <ul
                 role="radiogroup"
-                aria-label="代表结果候选"
+                aria-label="Representative result candidates"
                 className="space-y-2"
               >
                 {items.map((candidate) => {
@@ -299,7 +302,7 @@ export function RepresentativeResultSelector({
                   disabled={isLoading}
                   className="btn-secondary mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-xl px-4 text-xs font-medium"
                 >
-                  {isLoading ? "加载中…" : "加载更早"}
+                  {isLoading ? "Loading…" : "Load earlier"}
                 </button>
               ) : null}
               {loadError ? (
@@ -324,7 +327,7 @@ export function RepresentativeResultSelector({
             disabled={submitting}
             className="btn-secondary inline-flex min-h-11 items-center rounded-xl px-4 text-xs font-medium"
           >
-            取消
+            Cancel
           </button>
           <button
             type="button"
@@ -332,7 +335,7 @@ export function RepresentativeResultSelector({
             disabled={!selectedId || submitting}
             className="btn-primary inline-flex min-h-11 items-center rounded-xl px-4 text-xs font-semibold"
           >
-            {submitting ? "确认中…" : "确认为代表结果"}
+            {submitting ? "Confirming…" : "Set as representative result"}
           </button>
         </div>
       </div>
@@ -360,7 +363,7 @@ async function loadFirstPage(
     setState.setNextCursor(page.nextCursor);
   } catch (error) {
     setState.setLoadError(
-      error instanceof Error ? error.message : "候选 Iteration 加载失败，可重试。",
+      error instanceof Error ? error.message : "Failed to load candidate iterations. You can retry.",
     );
   } finally {
     setState.setIsLoading(false);

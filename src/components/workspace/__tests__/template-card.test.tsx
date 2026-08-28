@@ -33,43 +33,43 @@ function memory(
   };
 }
 
-describe("TemplateCard（plan-04 新卡片）", () => {
-  it("已验证卡：徽标 + 代表结果主预览 + 参考图小图 + 真实规则摘要与变量数", () => {
+describe("TemplateCard (plan-04 card)", () => {
+  it("verified card: badge + representative main preview + reference thumbnail + real rules summary and variable count", () => {
     render(<TemplateCard template={memory()} onUse={vi.fn()} />);
 
-    expect(screen.getByText("用户已验证")).toBeInTheDocument();
-    expect(screen.queryByText("待验证")).not.toBeInTheDocument();
+    expect(screen.getByText("User verified")).toBeInTheDocument();
+    expect(screen.queryByText("Pending verification")).not.toBeInTheDocument();
 
     const representative = screen.getByRole("img", {
-      name: "Editorial Soft Daylight 的代表结果",
+      name: "Representative result for Editorial Soft Daylight",
     });
     expect(representative).toHaveAttribute(
       "src",
       "https://cdn.example.com/results/representative.webp",
     );
     expect(
-      screen.getByRole("img", { name: "Editorial Soft Daylight 的来源参考图" }),
+      screen.getByRole("img", { name: "Source reference for Editorial Soft Daylight" }),
     ).toHaveAttribute(
       "src",
       "https://cdn.example.com/references/source/original.webp",
     );
-    expect(screen.getByText("参考图")).toBeInTheDocument();
+    expect(screen.getByText("Reference")).toBeInTheDocument();
 
     expect(screen.getByText(/低饱和暖灰基调/)).toBeInTheDocument();
     expect(screen.getByText(/柔和漫射光并保留细颗粒质感/)).toBeInTheDocument();
-    expect(screen.getByText("6 个变量")).toBeInTheDocument();
-    expect(screen.queryByText("尚未使用")).not.toBeInTheDocument();
+    expect(screen.getByText("6 variables")).toBeInTheDocument();
+    expect(screen.queryByText("Never used")).not.toBeInTheDocument();
   });
 
-  it("已验证卡动作：查看详情链接指向详情页，使用按钮回调 id；无治理动作", async () => {
+  it("verified card actions: View details link targets the detail page, Use button calls back with id; no governance actions", async () => {
     const user = userEvent.setup();
     const onUse = vi.fn();
     render(<TemplateCard template={memory()} onUse={onUse} />);
 
-    const viewDetail = screen.getByRole("link", { name: "查看详情" });
+    const viewDetail = screen.getByRole("link", { name: "View details" });
     expect(viewDetail).toHaveAttribute("href", "/workspace/templates/memory-1");
 
-    await user.click(screen.getByRole("button", { name: "使用" }));
+    await user.click(screen.getByRole("button", { name: "Use" }));
     expect(onUse).toHaveBeenCalledWith("memory-1");
 
     // 治理动作（更多操作/复制/删除）不在卡片上（PRD“详情为统一入口”）
@@ -78,7 +78,7 @@ describe("TemplateCard（plan-04 新卡片）", () => {
     }
   });
 
-  it("待验证卡（有来源图）：来源图主预览，不出现代表结果图与成功语气", () => {
+  it("pending card with source image: source image main preview, no representative image and no success tone", () => {
     render(
       <TemplateCard
         template={memory({
@@ -94,20 +94,20 @@ describe("TemplateCard（plan-04 新卡片）", () => {
       />,
     );
 
-    expect(screen.getByText("待验证")).toBeInTheDocument();
-    expect(screen.queryByText("用户已验证")).not.toBeInTheDocument();
-    expect(screen.queryByText("参考图")).not.toBeInTheDocument();
+    expect(screen.getByText("Pending verification")).toBeInTheDocument();
+    expect(screen.queryByText("User verified")).not.toBeInTheDocument();
+    expect(screen.queryByText("Reference")).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("img", { name: /代表结果/ }),
+      screen.queryByRole("img", { name: /Representative result/ }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("img", { name: "Macro Paper Texture 的来源参考图" }),
+      screen.getByRole("img", { name: "Source reference for Macro Paper Texture" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("4 个变量")).toBeInTheDocument();
-    expect(screen.getByText("尚未使用")).toBeInTheDocument();
+    expect(screen.getByText("4 variables")).toBeInTheDocument();
+    expect(screen.getByText("Never used")).toBeInTheDocument();
   });
 
-  it("待验证卡（无来源图）：“无预览”占位且不渲染任何图片", () => {
+  it("pending card without source image: No preview placeholder and no image rendered", () => {
     render(
       <TemplateCard
         template={memory({
@@ -120,12 +120,12 @@ describe("TemplateCard（plan-04 新卡片）", () => {
       />,
     );
 
-    expect(screen.getByText("待验证")).toBeInTheDocument();
-    expect(screen.getByText("无预览")).toBeInTheDocument();
+    expect(screen.getByText("Pending verification")).toBeInTheDocument();
+    expect(screen.getByText("No preview")).toBeInTheDocument();
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
   });
 
-  it("规则为空（旧资产）：摘要显示“规则待补充”", () => {
+  it("empty rules (legacy asset): summary shows No rules yet", () => {
     render(
       <TemplateCard
         template={memory({ retainedRulesPreview: [] })}
@@ -133,23 +133,23 @@ describe("TemplateCard（plan-04 新卡片）", () => {
       />,
     );
 
-    expect(screen.getByText("规则待补充")).toBeInTheDocument();
+    expect(screen.getByText("No rules yet")).toBeInTheDocument();
   });
 
-  it("代表结果图加载失败：回退来源图并说明，徽标不变（架构 §8.2 L1）", () => {
+  it("representative image load failure: falls back to source image with explanation, badge unchanged (架构 §8.2 L1)", () => {
     render(<TemplateCard template={memory()} onUse={vi.fn()} />);
 
     fireEvent.error(
-      screen.getByRole("img", { name: "Editorial Soft Daylight 的代表结果" }),
+      screen.getByRole("img", { name: "Representative result for Editorial Soft Daylight" }),
     );
 
-    expect(screen.getByText("代表结果图暂不可用")).toBeInTheDocument();
-    expect(screen.getByText("用户已验证")).toBeInTheDocument();
+    expect(screen.getByText("Representative result unavailable")).toBeInTheDocument();
+    expect(screen.getByText("User verified")).toBeInTheDocument();
     expect(
-      screen.getByRole("img", { name: "Editorial Soft Daylight 的来源参考图" }),
+      screen.getByRole("img", { name: "Source reference for Editorial Soft Daylight" }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("img", { name: /代表结果/ }),
+      screen.queryByRole("img", { name: /Representative result/ }),
     ).not.toBeInTheDocument();
   });
 });

@@ -7,12 +7,12 @@ import type {
  * plan-04：Style Memory 卡片视图模型（架构 §6.1 / PRD §3.1 线框）。
  * 输入为 plan-02 列表 DTO `StyleMemoryListItem`，全部展示内容来自真实字段：
  * 状态徽标、规则摘要（服务端已取前 2 条）、预览选择（已验证 → 代表结果 +
- * 参考图标注；待验证 → 来源图或“无预览”）、变量数与最近使用。
+ * 参考图标注；pending 卡 → 来源图或“无预览”）、变量数与最近使用。
  * 不再从名称派生任何风格标签（PRD 规则 6：卡片事实必须来自实际保存内容）。
  */
 
-export const RULES_PENDING_LABEL = "规则待补充";
-export const NEVER_USED_LABEL = "尚未使用";
+export const RULES_PENDING_LABEL = "No rules yet";
+export const NEVER_USED_LABEL = "Never used";
 
 /**
  * plan-05：列表页当前查询条件（search/status 等）在 URL 持久化时同步写入
@@ -21,7 +21,7 @@ export const NEVER_USED_LABEL = "尚未使用";
  */
 export const STYLE_MEMORY_LIST_QUERY_STORAGE_KEY = "style-memory-list-query";
 
-/** 主预览选择：已验证 → 代表结果；待验证 → 来源图；均缺失 → 无预览 */
+/** 主预览选择：verified → 代表结果；pending → 来源图；均缺失 → 无预览 */
 export type StyleMemoryPreviewKind = "representative" | "source" | "none";
 
 export interface StyleMemoryPreview {
@@ -38,7 +38,7 @@ export interface StyleMemoryCardViewModel {
   name: string;
   verificationStatus: TemplateVerificationStatus;
   statusBadge: {
-    /** “用户已验证” | “待验证”（文字 + 视觉标识，不只依赖颜色，PRD 规则 3） */
+    /** “User verified” | “Pending verification”（文字 + 视觉标识，不只依赖颜色，PRD 规则 3） */
     label: string;
     isVerified: boolean;
   };
@@ -50,8 +50,8 @@ export interface StyleMemoryCardViewModel {
   lastUsedLabel: string;
   preview: StyleMemoryPreview;
   actions: {
-    viewDetailLabel: "查看详情";
-    useLabel: "使用";
+    viewDetailLabel: "View details";
+    useLabel: "Use";
     viewDetailHref: string;
   };
 }
@@ -65,22 +65,22 @@ export function formatStyleMemoryLastUsed(
   if (Number.isNaN(time)) return NEVER_USED_LABEL;
 
   const elapsedMs = now - time;
-  if (elapsedMs < 60 * 60 * 1000) return "刚刚使用";
+  if (elapsedMs < 60 * 60 * 1000) return "Used just now";
 
   const hours = Math.floor(elapsedMs / (60 * 60 * 1000));
-  if (hours < 24) return `${hours} 小时前使用`;
+  if (hours < 24) return `Used ${hours} hours ago`;
 
   const days = Math.floor(hours / 24);
-  if (days < 30) return `${days} 天前使用`;
+  if (days < 30) return `Used ${days} days ago`;
 
   const months = Math.floor(days / 30);
-  if (months < 12) return `${months} 个月前使用`;
+  if (months < 12) return `Used ${months} months ago`;
 
-  return `${Math.floor(months / 12)} 年前使用`;
+  return `Used ${Math.floor(months / 12)} years ago`;
 }
 
 function buildPreview(memory: StyleMemoryListItem): StyleMemoryPreview {
-  const sourceAlt = `${memory.name} 的来源参考图`;
+  const sourceAlt = `Source reference for ${memory.name}`;
 
   if (memory.verificationStatus === "user_verified") {
     // 已验证：代表结果为主预览 + 来源图小图（“参考图”标注）；
@@ -89,7 +89,7 @@ function buildPreview(memory: StyleMemoryListItem): StyleMemoryPreview {
       return {
         kind: "representative",
         mainImageUrl: memory.representativeImageUrl,
-        mainAlt: `${memory.name} 的代表结果`,
+        mainAlt: `Representative result for ${memory.name}`,
         referenceImageUrl: memory.sourceImageUrl,
       };
     }
@@ -104,7 +104,7 @@ function buildPreview(memory: StyleMemoryListItem): StyleMemoryPreview {
     return { kind: "none", mainImageUrl: null, mainAlt: sourceAlt, referenceImageUrl: null };
   }
 
-  // 待验证：只展示真实来源图，无则“无预览”，不用示例结果暗示成功（PRD 规则 7）
+  // pending 卡：只展示真实来源图，无则“无预览”，不用示例结果暗示成功（PRD 规则 7）
   if (memory.sourceImageUrl) {
     return {
       kind: "source",
@@ -127,18 +127,18 @@ export function deriveStyleMemoryCardViewModel(
     name: memory.name,
     verificationStatus: memory.verificationStatus,
     statusBadge: {
-      label: isVerified ? "用户已验证" : "待验证",
+      label: isVerified ? "User verified" : "Pending verification",
       isVerified,
     },
     rulesSummary: rules.length > 0 ? rules.join(" · ") : RULES_PENDING_LABEL,
-    variableLabel: `${memory.variableCount} 个变量`,
+    variableLabel: `${memory.variableCount} variables`,
     lastUsedLabel: memory.lastUsedAt
       ? formatStyleMemoryLastUsed(memory.lastUsedAt)
       : NEVER_USED_LABEL,
     preview: buildPreview(memory),
     actions: {
-      viewDetailLabel: "查看详情",
-      useLabel: "使用",
+      viewDetailLabel: "View details",
+      useLabel: "Use",
       viewDetailHref: `/workspace/templates/${memory.id}`,
     },
   };

@@ -19,8 +19,8 @@ import type {
  * - 字段：名称（1–50）、说明（≤500）、变量默认值（逐变量，名称不可改）、
  *   核心保留规则（逐条可编辑/增删，≤12）、排除约束（同）。
  * - 回退提示：输入变化时用 plan-01 `ruleSetsChanged`（客户端同口径）与已加载
- *   原值比较；任一规则集合实质变化 → 即时提示「保存后状态将变为：待验证」；
- *   仅元数据变化 → 提示「保持用户已验证」。
+ *   原值比较；任一规则集合实质变化 → 即时提示「保存后状态将变为：pending verification」；
+ *   仅元数据变化 → 提示「保持 user verified」。
  * - 提交 PUT /api/templates/[id]（五字段）；409 显示服务端文案并保留表单；
  *   成功后关闭并触发回读刷新（ADR-1：状态以响应为准，禁乐观更新）。
  * - 名称错误时机：中性帮助文案常驻，提交或失焦后才显示错误（PRD 规则 14）。
@@ -161,7 +161,7 @@ export function StyleMemoryEditForm({
   const nameError =
     (nameTouched || submitAttempted) &&
     (trimmedName.length < 1 || name.length > NAME_MAX_LENGTH)
-      ? "名称需要 1–50 个字符。"
+      ? "Name must be 1-50 characters."
       : null;
 
   const requestBody = useMemo<UpdateStyleMemoryRequest>(
@@ -199,7 +199,7 @@ export function StyleMemoryEditForm({
           // 保留默认错误信息
         }
         setServerError(
-          body.error ?? "保存失败，请稍后重试；表单内容已保留。",
+          body.error ?? "Save failed. Please try again later; your form content is preserved.",
         );
         return;
       }
@@ -208,7 +208,7 @@ export function StyleMemoryEditForm({
       await invalidateStyleMemoryLists(queryClient);
       await onSaved();
     } catch {
-      setServerError("网络异常，保存失败；表单内容已保留，可重试。");
+      setServerError("Network error — save failed. Your form content is preserved; you can retry.");
     } finally {
       setSubmitting(false);
     }
@@ -218,7 +218,7 @@ export function StyleMemoryEditForm({
     <ModalDialog
       open={open}
       onClose={submitting ? () => undefined : onClose}
-      label="编辑 Style Memory"
+      label="Edit Style Memory"
       labelledBy={titleId}
     >
       <form
@@ -230,10 +230,12 @@ export function StyleMemoryEditForm({
       >
         <div className="shrink-0 border-b border-[var(--border-static)] px-5 py-4 pr-16">
           <h2 id={titleId} className="text-base font-semibold text-[var(--text-primary)]">
-            编辑 Style Memory
+            Edit Style Memory
           </h2>
           <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">
-            修改名称、说明或变量默认值不会影响验证状态；修改核心保留规则或排除约束后需要重新验证。
+            Changing the name, description, or variable defaults does not affect
+            verification status; changing retained rules or constraints requires
+            re-verification.
           </p>
         </div>
 
@@ -241,10 +243,10 @@ export function StyleMemoryEditForm({
           {/* 名称 */}
           <div>
             <label htmlFor="style-memory-edit-name" className="text-xs font-semibold text-[var(--text-primary)]">
-              名称
+              Name
             </label>
             <p className="mt-1 text-[0.6875rem] leading-4 text-[var(--text-muted)]">
-              1–50 个字符；与其他 Style Memory 重名时会保存失败。
+              1-50 characters; saving fails if another Style Memory uses the same name.
             </p>
             <input
               id="style-memory-edit-name"
@@ -266,10 +268,10 @@ export function StyleMemoryEditForm({
           {/* 说明 */}
           <div>
             <label htmlFor="style-memory-edit-description" className="text-xs font-semibold text-[var(--text-primary)]">
-              说明
+              Description
             </label>
             <p className="mt-1 text-[0.6875rem] leading-4 text-[var(--text-muted)]">
-              这条 Memory 的用途或来源备注，最多 {DESCRIPTION_MAX_LENGTH} 字符。
+              What this memory is for or where it came from; up to {DESCRIPTION_MAX_LENGTH} characters.
             </p>
             <textarea
               id="style-memory-edit-description"
@@ -285,10 +287,10 @@ export function StyleMemoryEditForm({
           {detail.variables.length > 0 ? (
             <fieldset>
               <legend className="text-xs font-semibold text-[var(--text-primary)]">
-                变量默认值
+                Variable defaults
               </legend>
               <p className="mt-1 text-[0.6875rem] leading-4 text-[var(--text-muted)]">
-                只能修改默认值；变量名来自完整提示，不可在此更改。
+                Only default values can be changed; variable names come from the full prompt and cannot be renamed here.
               </p>
               <div className="mt-2 space-y-1.5">
                 {detail.variables.map((variable, index) => (
@@ -297,7 +299,7 @@ export function StyleMemoryEditForm({
                       {variable.label ?? variable.name}
                     </span>
                     <label className="min-w-0 flex-1">
-                      <span className="sr-only">{`${variable.label ?? variable.name} 默认值`}</span>
+                      <span className="sr-only">{`Default value for ${variable.label ?? variable.name}`}</span>
                       <input
                         type="text"
                         value={variableDefaults[index] ?? ""}
@@ -318,22 +320,22 @@ export function StyleMemoryEditForm({
 
           {/* 核心保留规则 */}
           <RuleListField
-            legend="核心保留规则"
-            hint="逐条编辑；集合发生实质变化（新增/删除/替换）会触发重新验证，仅调整顺序不会。"
+            legend="Retained rules"
+            hint="Edit one per line; a substantive change to the set (add/remove/replace) triggers re-verification, while reordering does not."
             rules={retainedRules}
             onChange={setRetainedRules}
-            addLabel="添加规则"
-            removeLabel={(index) => `移除规则 ${index}`}
+            addLabel="Add rule"
+            removeLabel={(index) => `Remove rule ${index}`}
           />
 
           {/* 排除约束 */}
           <RuleListField
-            legend="排除约束"
-            hint="复用时应当避免的内容；集合实质变化同样会触发重新验证。"
+            legend="Constraints"
+            hint="Content to avoid when reusing; a substantive change to the set also triggers re-verification."
             rules={negativeConstraints}
             onChange={setNegativeConstraints}
-            addLabel="添加排除约束"
-            removeLabel={(index) => `移除排除约束 ${index}`}
+            addLabel="Add constraint"
+            removeLabel={(index) => `Remove constraint ${index}`}
           />
 
           {/* 回退提示（plan-01 同口径） */}
@@ -347,7 +349,9 @@ export function StyleMemoryEditForm({
                 size={14}
                 className="mt-0.5 shrink-0 text-[var(--status-warning-text)]"
               />
-              核心保留规则或排除约束将发生实质变化，保存后状态将变为「待验证」；需要重新选择代表结果完成验证。
+              Retained rules or constraints will change substantively. After
+              saving, the status becomes Pending verification — select a
+              representative result again to complete verification.
             </p>
           ) : null}
           {showKeepVerifiedHint ? (
@@ -360,7 +364,8 @@ export function StyleMemoryEditForm({
                 size={14}
                 className="mt-0.5 shrink-0 text-[var(--status-success-text)]"
               />
-              当前仅修改名称、说明或变量默认值，保存后保持「用户已验证」。
+              Only the name, description, or variable defaults changed — the
+              status stays User verified after saving.
             </p>
           ) : null}
 
@@ -378,7 +383,7 @@ export function StyleMemoryEditForm({
             disabled={submitting}
             className="btn-secondary inline-flex min-h-11 items-center rounded-xl px-4 text-xs font-medium"
           >
-            取消
+            Cancel
           </button>
           <button
             ref={submitButtonRef}
@@ -386,7 +391,7 @@ export function StyleMemoryEditForm({
             disabled={submitting}
             className="btn-primary inline-flex min-h-11 items-center rounded-xl px-4 text-xs font-semibold"
           >
-            {submitting ? "保存中…" : "保存"}
+            {submitting ? "Saving…" : "Save"}
           </button>
         </div>
       </form>

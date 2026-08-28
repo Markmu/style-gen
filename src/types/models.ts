@@ -372,7 +372,7 @@ export interface StyleMemoryListItem {
   /** 前 2 条（卡片摘要） */
   retainedRulesPreview: string[];
   variableCount: number;
-  /** 来源图（卡片次预览/待验证主预览） */
+  /** 来源图（卡片次预览/pending 卡主预览） */
   sourceImageUrl: string | null;
   /** 代表结果图（已验证主预览） */
   representativeImageUrl: string | null;

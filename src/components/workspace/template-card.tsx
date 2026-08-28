@@ -24,8 +24,8 @@ interface TemplateCardProps {
 /**
  * plan-04 Style Memory 卡片（PRD §3.1 线框）：
  * 状态徽标（文字 + 视觉标识）→ 预览（已验证：代表结果 + 参考图标注；
- * 待验证：来源图或“无预览”）→ 真实规则摘要 → 变量数 · 最近使用 → 查看详情 / 使用。
- * 卡片只保留“查看详情 / 使用”；复制、删除等治理动作集中在详情页（PRD 决策）。
+ * pending 卡：来源图或“无预览”）→ 真实规则摘要 → 变量数 · 最近使用 → View details / Use。
+ * 卡片只保留“View details / Use”；复制、删除等治理动作集中在详情页（PRD 决策）。
  */
 export function TemplateCard({ template, onUse, focused = false }: TemplateCardProps) {
   const memory = deriveStyleMemoryCardViewModel(template);
@@ -38,7 +38,7 @@ export function TemplateCard({ template, onUse, focused = false }: TemplateCardP
     ? memory.preview.referenceImageUrl
     : memory.preview.mainImageUrl;
   const mainAlt = showRepresentativeFallback
-    ? `${memory.name} 的来源参考图`
+    ? `Source reference for ${memory.name}`
     : memory.preview.mainAlt;
   const showReferenceThumb =
     memory.preview.kind === "representative" &&
@@ -60,7 +60,7 @@ export function TemplateCard({ template, onUse, focused = false }: TemplateCardP
           : "hover:border-[var(--border-interactive)]"
       }`}
     >
-      {/* 预览区：已验证 → 代表结果主预览 + “参考图”小图；待验证 → 来源图或“无预览” */}
+      {/* 预览区：verified → 代表结果主预览 + “参考图”小图；pending → 来源图或“无预览” */}
       <div className="style-memory-source media-lens relative aspect-[16/10] w-full overflow-hidden rounded-t-2xl bg-[var(--surface-media)]">
         {mainImageUrl ? (
           <>
@@ -85,10 +85,11 @@ export function TemplateCard({ template, onUse, focused = false }: TemplateCardP
               <AppIcon icon={ImageOff} size={22} className="text-[var(--text-muted)]" />
             </div>
             <span className="text-sm font-semibold text-[var(--text-primary)]">
-              无预览
+              No preview
             </span>
             <p className="max-w-[14rem] text-xs leading-relaxed text-[var(--text-secondary)]">
-              这条记忆尚未关联来源图或代表结果。
+              No source reference or representative result is linked to this
+              memory yet.
             </p>
           </div>
         )}
@@ -119,7 +120,7 @@ export function TemplateCard({ template, onUse, focused = false }: TemplateCardP
             <div className="relative h-12 w-[4.25rem] overflow-hidden rounded-lg border border-[var(--border-static)]/70 bg-[var(--surface-floating)]/95 shadow-md backdrop-blur-md">
               <Image
                 src={memory.preview.referenceImageUrl}
-                alt={`${memory.name} 的来源参考图`}
+                alt={`Source reference for ${memory.name}`}
                 fill
                 sizes="80px"
                 className="object-cover"
@@ -127,7 +128,7 @@ export function TemplateCard({ template, onUse, focused = false }: TemplateCardP
               />
             </div>
             <figcaption className="mt-1 rounded-full bg-[var(--surface-floating)]/95 px-1.5 py-0.5 text-center text-[0.625rem] font-medium text-[var(--text-secondary)] shadow-sm backdrop-blur-md">
-              参考图
+              Reference
             </figcaption>
           </figure>
         )}
@@ -135,7 +136,7 @@ export function TemplateCard({ template, onUse, focused = false }: TemplateCardP
         {/* 降级说明：代表结果图失效时保留徽标、回退来源图并明确原因 */}
         {showRepresentativeFallback && (
           <span className="absolute bottom-2.5 left-3 z-10 rounded-md bg-[var(--surface-floating)]/95 px-2 py-1 text-[0.6875rem] font-medium text-[var(--text-secondary)] shadow-sm backdrop-blur-md">
-            代表结果图暂不可用
+            Representative result unavailable
           </span>
         )}
       </div>

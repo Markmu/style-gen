@@ -14,17 +14,17 @@ import { STYLE_MEMORY_LIST_QUERY_STORAGE_KEY } from "@/lib/style-memory-view-mod
 
 /** 搜索提示承诺范围 = 实际服务端谓词口径（架构 §6.1；PRD 规则 8：不承诺未覆盖的信息） */
 const SEARCH_ARIA_LABEL =
-  "搜索 Style Memory：名称、说明、风格规则（含风格指纹与增强方向）、排除约束、变量名与标签";
+  "Search Style Memory by name, description, style rules (including style fingerprint and enhancement hints), constraints, variable names, and tags";
 const SEARCH_SCOPE_HINT =
-  "可搜索名称、说明、风格规则（含风格指纹与增强方向）、排除约束、变量名与标签";
+  "Searches name, description, style rules (including style fingerprint and enhancement hints), constraints, variable names, and tags";
 
 const STATUS_FILTER_OPTIONS: Array<{
   value: StyleMemoryStatusFilter;
   label: string;
 }> = [
-  { value: "all", label: "全部" },
-  { value: "user_verified", label: "用户已验证" },
-  { value: "pending_verification", label: "待验证" },
+  { value: "all", label: "All" },
+  { value: "user_verified", label: "User verified" },
+  { value: "pending_verification", label: "Pending verification" },
 ];
 
 function SkeletonCard() {
@@ -99,7 +99,7 @@ function StyleMemoryPageInner() {
   // 服务不可用（503 等）时保留搜索/筛选与当前内容可见（PRD AC-10）
   const showToolbar = !showAuthRequired;
 
-  const resultLabel = `${memories.length} 条`;
+  const resultLabel = `${memories.length} items`;
 
   /** URL 条件持久化：search / status 写入 query（浅替换，保留其余参数如 cursor/focus） */
   useEffect(() => {
@@ -236,12 +236,12 @@ function StyleMemoryPageInner() {
               {!isLoading && !isFetchFailure && hasMemories && (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-static)]/60 bg-[var(--surface-control)]/80 px-2.5 py-0.5 font-mono text-xs font-medium text-[var(--text-secondary)] shadow-sm">
                   <AppIcon icon={Layers3} size={13} className="text-[var(--accent-primary)]" />
-                  {memories.length} 已保存
+                  {memories.length} saved
                 </span>
               )}
             </div>
             <p className="mt-1.5 max-w-xl text-sm leading-6 text-[var(--text-secondary)]">
-              保存值得复用、能够说明依据的风格规则。
+              Save reusable style rules with evidence to back them up.
             </p>
           </div>
           {showGrid && (
@@ -251,7 +251,7 @@ function StyleMemoryPageInner() {
               className="btn-secondary inline-flex w-fit items-center gap-2 rounded-xl px-4 py-2 text-xs font-medium shadow-sm transition-all hover:border-[var(--border-interactive)] active:scale-[0.98]"
             >
               <AppIcon icon={ArrowLeft} size={15} />
-              打开工作区
+              Open workspace
             </button>
           )}
         </div>
@@ -260,7 +260,7 @@ function StyleMemoryPageInner() {
       {/* Filter and Search Toolbar */}
       {showToolbar && (
         <section
-          aria-label="Style Memory 搜索与筛选"
+          aria-label="Style Memory search and filters"
           className="shrink-0 space-y-3 px-4 pb-4 sm:px-6 lg:px-8"
         >
           <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -285,7 +285,7 @@ function StyleMemoryPageInner() {
                     searchInputRef.current?.blur();
                   }
                 }}
-                placeholder="搜索名称、风格规则或变量"
+                placeholder="Search names, style rules, or variables"
                 className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
               />
               {isSearching && (
@@ -293,7 +293,7 @@ function StyleMemoryPageInner() {
                   className="shrink-0 text-xs font-medium text-[var(--text-muted)]"
                   aria-live="polite"
                 >
-                  搜索中
+                  Searching
                 </span>
               )}
               {hasSearched && (
@@ -301,7 +301,7 @@ function StyleMemoryPageInner() {
                   type="button"
                   onClick={() => setSearch("")}
                   className="interactive-lift flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                  aria-label="清除搜索"
+                  aria-label="Clear search"
                 >
                   <AppIcon icon={X} size={14} />
                 </button>
@@ -328,7 +328,7 @@ function StyleMemoryPageInner() {
               )}
               <p className="inline-flex items-center gap-1.5 font-mono text-xs text-[var(--text-muted)]">
                 <AppIcon icon={Clock3} size={12} />
-                排序：最近使用
+                Sort: recently used
               </p>
             </div>
           </div>
@@ -338,7 +338,7 @@ function StyleMemoryPageInner() {
             <div
               className="flex flex-wrap items-center gap-1.5 pt-1"
               role="group"
-              aria-label="验证状态筛选"
+              aria-label="Verification status filter"
             >
               {STATUS_FILTER_OPTIONS.map((option) => {
                 const active = status === option.value;
@@ -366,7 +366,7 @@ function StyleMemoryPageInner() {
                   className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-[var(--accent-primary)] hover:underline"
                 >
                   <AppIcon icon={X} size={12} />
-                  清除筛选
+                  Clear filters
                 </button>
               )}
             </div>
@@ -388,10 +388,10 @@ function StyleMemoryPageInner() {
           {showAuthRequired && (
             <StatePresenter
               status="authRequired"
-              title="登录后查看云端 Style Memory"
-              description="云端 Style Memory 需要登录后查看。当前工作区内容保持不变，登录后会带着当前的搜索与筛选条件回到这里。"
-              primaryActionLabel="登录"
-              secondaryActionLabel="返回工作区"
+              title="Sign in to view cloud Style Memory"
+              description="Cloud Style Memory requires sign-in. Your current workspace stays unchanged, and your search and filters are restored when you return."
+              primaryActionLabel="Sign in"
+              secondaryActionLabel="Back to workspace"
               onPrimaryAction={handleLogin}
               onSecondaryAction={goToWorkspace}
             />
@@ -400,10 +400,10 @@ function StyleMemoryPageInner() {
           {showFailedRecoverable && (
             <StatePresenter
               status="failedRecoverable"
-              title="Style Memory 服务暂不可用"
-              description={`${error?.message ?? "Style Memory 服务暂时无法加载。"}当前搜索与筛选条件已保留，重试后会恢复原视图；工作区不受影响。`}
-              primaryActionLabel="重试"
-              secondaryActionLabel="返回工作区"
+              title="Style Memory service unavailable"
+              description={`${error?.message ?? "Style Memory service could not be loaded."} Your search and filters are preserved — retry to restore the original view. The workspace is unaffected.`}
+              primaryActionLabel="Retry"
+              secondaryActionLabel="Back to workspace"
               onPrimaryAction={handleRetry}
               onSecondaryAction={goToWorkspace}
             />
@@ -422,24 +422,26 @@ function StyleMemoryPageInner() {
                 />
                 <div className="min-w-0 flex-1">
                   <p className="text-base font-semibold text-[var(--text-primary)]">
-                    还没有保存的 Style Memory
+                    No Style Memory saved yet
                   </p>
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
-                    可以从工作区保存待验证方向，或从完成的 Iteration 保存用户已验证方向。
-                    保存后会在这里保留验证状态、核心规则与代表结果。
+                    Save a pending direction from the workspace, or a
+                    user-verified direction from a completed iteration.
+                    Verification status, retained rules, and the representative
+                    result are preserved here.
                   </p>
                   <div className="mt-4 flex flex-wrap gap-2">
                     <Link
                       href="/workspace"
                       className="btn-primary rounded-md px-4 py-2 text-sm font-medium"
                     >
-                      打开工作区
+                      Open workspace
                     </Link>
                     <Link
                       href="/workspace/iterations"
                       className="btn-secondary rounded-md px-4 py-2 text-sm font-medium"
                     >
-                      查看 Iterations
+                      View iterations
                     </Link>
                   </div>
                 </div>
@@ -450,12 +452,12 @@ function StyleMemoryPageInner() {
           {showNoResults && (
             <StatePresenter
               status="noResults"
-              title="没有匹配的 Style Memory"
-              description={`已按名称、说明、风格规则（含风格指纹与增强方向）、排除约束、变量名与标签搜索“${search.trim()}”${
-                status !== "all" ? "，并按验证状态筛选" : ""
-              }。当前条件已保留，可清除条件查看全部，或返回工作区。`}
-              primaryActionLabel="清除搜索与筛选"
-              secondaryActionLabel="返回工作区"
+              title="No matching Style Memory"
+              description={`Searched name, description, style rules (including style fingerprint and enhancement hints), constraints, variable names, and tags for "${search.trim()}"${
+                status !== "all" ? ", filtered by verification status" : ""
+              }. Your filters are preserved — clear them to see everything, or return to the workspace.`}
+              primaryActionLabel="Clear search and filters"
+              secondaryActionLabel="Back to workspace"
               onPrimaryAction={clearAllFilters}
               onSecondaryAction={goToWorkspace}
             />

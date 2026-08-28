@@ -191,9 +191,9 @@ test.describe('template default values', () => {
     await expect(saveWizard).toBeVisible()
     // 步骤 2：变量默认值同屏可见（编辑后的 brushed steel lily）
     await expect(saveWizard.getByLabel(/subject/i)).toHaveValue('brushed steel lily')
-    await saveWizard.getByRole('button', { name: '下一步' }).click()
-    await saveWizard.getByRole('textbox', { name: /名称|name/i }).first().fill('Auto template')
-    await saveWizard.getByRole('button', { name: /^保存|^save/i }).click()
+    await saveWizard.getByRole('button', { name: /^Next$/ }).click()
+    await saveWizard.getByRole('textbox', { name: /name/i }).first().fill('Auto template')
+    await saveWizard.getByRole('button', { name: /^Sav/i }).click()
     // plan-06：保存成功直接进入新 Memory 详情
     await expect(page).toHaveURL(new RegExp(`/workspace/templates/${SAVED_TEMPLATE_ID}$`), {
       timeout: 15000,
@@ -217,13 +217,13 @@ test.describe('template default values', () => {
     // 变量按保存的 defaultValue 加载
     await page.goto('/workspace/templates', { waitUntil: 'commit' })
     await page.getByRole('heading', { name: 'Auto template' }).hover()
-    const useMemoryButton = page.getByRole('button', { name: '使用' })
+    const useMemoryButton = page.getByRole('button', { name: 'Use', exact: true })
     await expect(useMemoryButton).toBeVisible({ timeout: 5000 })
     await useMemoryButton.click()
 
     const reusePrecheck = page.getByTestId('reuse-precheck-dialog')
     await expect(reusePrecheck).toBeVisible({ timeout: 15000 })
-    await reusePrecheck.getByRole('button', { name: /^进入工作区$/ }).click()
+    await reusePrecheck.getByRole('button', { name: /^Enter workspace$/ }).click()
 
     // templateId 参数被消费后 URL 回落到 /workspace
     await expect(page).toHaveURL(/\/workspace$/, { timeout: 15000 })

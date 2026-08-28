@@ -250,9 +250,9 @@ test.describe('plan-04 Render Dock readiness and generation recovery', () => {
     // plan-06：保存入口打开三步向导；完整提示预填在步骤 3 高级信息内
     const saveDialog = page.getByTestId('save-style-memory-dialog')
     await expect(saveDialog).toBeVisible()
-    await saveDialog.getByRole('button', { name: /下一步/ }).click()
-    await saveDialog.getByRole('button', { name: /高级信息|完整提示/ }).click()
-    await expect(saveDialog.getByLabel(/完整提示（可编辑/)).toHaveValue(/sunset/i)
+    await saveDialog.getByRole('button', { name: /^Next$/ }).click()
+    await saveDialog.getByRole('button', { name: /Advanced/ }).click()
+    await expect(saveDialog.getByLabel(/Full prompt \(editable/)).toHaveValue(/sunset/i)
   })
 
   test('TC-4.5 generating disables duplicate submits while keeping parameters visible', async ({ page }) => {

@@ -76,65 +76,65 @@ const LEGACY_DETAIL: StyleMemoryDetail = {
   usage: { lastUsedAt: null, derivedIterationCount: 1 },
 };
 
-describe("StyleMemoryDetailView（plan-05 四分区视图）", () => {
-  it("渲染四分区 + 使用情况；完整提示默认收起且不可见", () => {
+describe("StyleMemoryDetailView (plan-05 four-section view)", () => {
+  it("renders four sections + usage; full prompt collapsed and invisible by default", () => {
     render(
       <StyleMemoryDetailView detail={VERIFIED_DETAIL} onSelectRepresentative={() => undefined} />,
     );
 
-    // 验证依据：参考图 + 代表结果并排 + 图注 + 来源 Iteration 链接（focus 定位）
+    // Evidence: reference + representative result side by side + captions + source iteration link (focus targeting)
     const evidence = screen.getByTestId("style-memory-detail-evidence");
-    expect(within(evidence).getByText("参考图")).toBeInTheDocument();
-    expect(within(evidence).getByText("代表结果")).toBeInTheDocument();
+    expect(within(evidence).getByText("Reference")).toBeInTheDocument();
+    expect(within(evidence).getByText("Representative result")).toBeInTheDocument();
     expect(
-      within(evidence).getByRole("img", { name: "Editorial Soft Daylight 的参考图" }),
+      within(evidence).getByRole("img", { name: "Reference for Editorial Soft Daylight" }),
     ).toBeInTheDocument();
     expect(
-      within(evidence).getByRole("img", { name: "Editorial Soft Daylight 的代表结果" }),
+      within(evidence).getByRole("img", { name: "Representative result for Editorial Soft Daylight" }),
     ).toBeInTheDocument();
-    const sourceLink = within(evidence).getByRole("link", { name: /打开/ });
+    const sourceLink = within(evidence).getByRole("link", { name: /Open/ });
     expect(sourceLink).toHaveAttribute("href", "/workspace/iterations?focus=gen-source-01");
 
-    // 保留的风格：风格指纹 + 核心保留规则
+    // Retained style: style fingerprint + retained rules
     const style = screen.getByTestId("style-memory-detail-style");
-    expect(within(style).getByText("保留的风格")).toBeInTheDocument();
+    expect(within(style).getByText("Retained style")).toBeInTheDocument();
     expect(within(style).getByText("低饱和暖灰")).toBeInTheDocument();
     expect(within(style).getByText("光线柔和、无硬阴影")).toBeInTheDocument();
 
-    // 可替换内容：默认值逐项 + 空默认值「必填」
+    // Replaceable: defaults per variable + empty default marked Required
     const variables = screen.getByTestId("style-memory-detail-variables");
-    expect(within(variables).getByText("可替换内容")).toBeInTheDocument();
+    expect(within(variables).getByText("Replaceable")).toBeInTheDocument();
     expect(within(variables).getByText("玻璃器皿")).toBeInTheDocument();
-    expect(within(variables).getByText("必填")).toBeInTheDocument();
+    expect(within(variables).getByText("Required")).toBeInTheDocument();
 
-    // 排除约束与增强方向
+    // Constraints & enhancements
     const constraints = screen.getByTestId("style-memory-detail-constraints");
     expect(within(constraints).getByText("避免高饱和霓虹色")).toBeInTheDocument();
     expect(within(constraints).getByText("编辑式排版留白")).toBeInTheDocument();
 
-    // 完整提示默认不可见（高级信息折叠区收起）
+    // Full prompt invisible by default (advanced section collapsed)
     expect(screen.queryByText(/fine grain texture/)).not.toBeInTheDocument();
 
-    // 使用情况：最近使用（含年份）+ 派生次数
+    // Usage: last used (with year) + derived count
     const usage = screen.getByTestId("style-memory-detail-usage");
-    expect(within(usage).getByText(/最近使用/)).toBeInTheDocument();
+    expect(within(usage).getByText(/Last used/)).toBeInTheDocument();
     expect(within(usage).getByText(/2026/)).toBeInTheDocument();
-    expect(within(usage).getByText(/派生.*3.*次/)).toBeInTheDocument();
-    expect(within(usage).queryByText("尚未使用")).not.toBeInTheDocument();
+    expect(within(usage).getByText(/Derived.*3.*times/)).toBeInTheDocument();
+    expect(within(usage).queryByText("Never used")).not.toBeInTheDocument();
   });
 
-  it("完整提示在高级信息展开后可见", async () => {
+  it("full prompt becomes visible after expanding the advanced section", async () => {
     const user = userEvent.setup();
     render(
       <StyleMemoryDetailView detail={VERIFIED_DETAIL} onSelectRepresentative={() => undefined} />,
     );
 
-    await user.click(screen.getByRole("button", { name: /完整提示|高级信息/ }));
+    await user.click(screen.getByRole("button", { name: /full prompt/i }));
 
     expect(await screen.findByText(/fine grain texture/)).toBeInTheDocument();
   });
 
-  it("待验证且无代表结果：验证依据区显示选择引导与入口，不渲染代表结果图", () => {
+  it("pending without representative result: evidence section shows selection guidance and entry, no representative image rendered", () => {
     const pending: StyleMemoryDetail = {
       ...VERIFIED_DETAIL,
       verificationStatus: "pending_verification",
@@ -148,53 +148,53 @@ describe("StyleMemoryDetailView（plan-05 四分区视图）", () => {
 
     const evidence = screen.getByTestId("style-memory-detail-evidence");
     expect(
-      within(evidence).getByText(/从相关的已完成 Iteration 选择代表结果/),
+      within(evidence).getByText(/Choose a representative result from a related completed iteration/),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /选择代表结果/ })).toBeInTheDocument();
-    // 参考图保留；代表结果图不渲染
+    expect(screen.getByRole("button", { name: /Select representative result/ })).toBeInTheDocument();
+    // Reference kept; representative result image not rendered
     expect(
-      within(evidence).getByRole("img", { name: "Editorial Soft Daylight 的参考图" }),
+      within(evidence).getByRole("img", { name: "Reference for Editorial Soft Daylight" }),
     ).toBeInTheDocument();
     expect(
-      within(evidence).queryByRole("img", { name: /代表结果/ }),
+      within(evidence).queryByRole("img", { name: /Representative result/ }),
     ).not.toBeInTheDocument();
 
-    // 已验证入口（替换）不出现
+    // Verified entry (replace) does not appear
     expect(
-      screen.queryByRole("button", { name: /替换代表结果/ }),
+      screen.queryByRole("button", { name: /Replace representative result/ }),
     ).not.toBeInTheDocument();
 
-    // 使用情况：尚未使用 + 派生 0 次
+    // Usage: Never used + derived 0 times
     const usage = screen.getByTestId("style-memory-detail-usage");
-    expect(within(usage).getByText(/尚未使用/)).toBeInTheDocument();
-    expect(within(usage).getByText(/派生.*0.*次/)).toBeInTheDocument();
+    expect(within(usage).getByText(/Never used/)).toBeInTheDocument();
+    expect(within(usage).getByText(/Derived.*0.*times/)).toBeInTheDocument();
   });
 
-  it("旧资产缺失分区原位标注：不渲染占位图、其余分区继续可用（AC-09）", () => {
+  it("legacy asset missing sections are annotated in place: no placeholder images, other sections stay usable (AC-09)", () => {
     render(
       <StyleMemoryDetailView detail={LEGACY_DETAIL} onSelectRepresentative={() => undefined} />,
     );
 
-    // 验证依据：参考图与来源 Iteration 均缺失 → 原位说明，无 img
+    // Evidence: reference and source iteration both missing → in-place notes, no img
     const evidence = screen.getByTestId("style-memory-detail-evidence");
     expect(within(evidence).queryByRole("img")).not.toBeInTheDocument();
-    expect(within(evidence).getAllByText(/来源缺失|待补充/).length).toBeGreaterThan(0);
-    expect(within(evidence).queryByRole("link", { name: /打开/ })).not.toBeInTheDocument();
+    expect(within(evidence).getAllByText(/Missing source|Not yet provided/).length).toBeGreaterThan(0);
+    expect(within(evidence).queryByRole("link", { name: /Open/ })).not.toBeInTheDocument();
 
-    // 保留的风格：规则与风格指纹为空 → 待补充
+    // Retained style: rules and fingerprint empty → not-yet-provided notes
     const style = screen.getByTestId("style-memory-detail-style");
-    expect(within(style).getAllByText(/待补充|来源缺失/).length).toBeGreaterThan(0);
+    expect(within(style).getAllByText(/Not yet provided|Missing source/).length).toBeGreaterThan(0);
 
-    // 其余分区可用：变量（空默认值必填）+ 使用情况
+    // Other sections usable: variables (empty default Required) + usage
     const variables = screen.getByTestId("style-memory-detail-variables");
-    expect(within(variables).getByText("必填")).toBeInTheDocument();
+    expect(within(variables).getByText("Required")).toBeInTheDocument();
     const usage = screen.getByTestId("style-memory-detail-usage");
-    expect(within(usage).getByText(/尚未使用/)).toBeInTheDocument();
-    expect(within(usage).getByText(/派生.*1.*次/)).toBeInTheDocument();
+    expect(within(usage).getByText(/Never used/)).toBeInTheDocument();
+    expect(within(usage).getByText(/Derived.*1.*times/)).toBeInTheDocument();
   });
 });
 
-describe("StyleMemoryEditForm（plan-05 编辑回退提示）", () => {
+describe("StyleMemoryEditForm (plan-05 edit rollback hint)", () => {
   function renderForm(detail: StyleMemoryDetail = VERIFIED_DETAIL) {
     const onClose = vi.fn();
     const onSaved = vi.fn();
@@ -209,37 +209,37 @@ describe("StyleMemoryEditForm（plan-05 编辑回退提示）", () => {
     return { onClose, onSaved };
   }
 
-  it("仅修改名称：不出现回退提示，显示保持用户已验证", async () => {
+  it("name-only change: no rollback hint, shows stays-User-verified hint", async () => {
     const user = userEvent.setup();
     renderForm();
 
     const dialog = screen.getByRole("dialog");
-    await user.clear(within(dialog).getByLabelText(/名称/));
-    await user.type(within(dialog).getByLabelText(/名称/), "Editorial Soft Daylight v2");
+    await user.clear(within(dialog).getByLabelText(/Name/));
+    await user.type(within(dialog).getByLabelText(/Name/), "Editorial Soft Daylight v2");
 
-    expect(within(dialog).queryByText(/保存后.*待验证/)).not.toBeInTheDocument();
-    expect(within(dialog).getByText(/保持.*已验证/)).toBeInTheDocument();
+    expect(within(dialog).queryByText(/After saving.*Pending verification/)).not.toBeInTheDocument();
+    expect(within(dialog).getByText(/stays User verified/)).toBeInTheDocument();
   });
 
-  it("修改核心保留规则：出现「保存后…待验证」回退提示", async () => {
+  it("retained-rule change: shows the After saving → Pending verification rollback hint", async () => {
     const user = userEvent.setup();
     renderForm();
 
     const dialog = screen.getByRole("dialog");
-    const firstRuleInput = within(dialog).getAllByLabelText(/核心保留规则|保留规则/)[0];
+    const firstRuleInput = within(dialog).getAllByLabelText(/Retained rules/)[0];
     await user.clear(firstRuleInput);
     await user.type(firstRuleInput, "构图改为三分法并保留呼吸感");
 
-    expect(within(dialog).getByText(/保存后.*待验证/)).toBeInTheDocument();
-    expect(within(dialog).queryByText(/保持.*已验证/)).not.toBeInTheDocument();
+    expect(within(dialog).getByText(/After saving.*Pending verification/)).toBeInTheDocument();
+    expect(within(dialog).queryByText(/stays User verified/)).not.toBeInTheDocument();
   });
 
-  it("仅调整规则顺序（集合无实质变化）：不触发回退提示", async () => {
+  it("rule order-only change (no substantive set change): no rollback hint", async () => {
     const user = userEvent.setup();
     renderForm();
 
     const dialog = screen.getByRole("dialog");
-    const ruleInputs = within(dialog).getAllByLabelText(/核心保留规则|保留规则/);
+    const ruleInputs = within(dialog).getAllByLabelText(/Retained rules/);
     // 交换两条规则内容（顺序互换，集合不变）
     const [first, second] = ruleInputs;
     await user.clear(first);
@@ -247,11 +247,11 @@ describe("StyleMemoryEditForm（plan-05 编辑回退提示）", () => {
     await user.clear(second);
     await user.type(second, "光线柔和、无硬阴影");
 
-    expect(within(dialog).queryByText(/保存后.*待验证/)).not.toBeInTheDocument();
-    expect(within(dialog).getByText(/保持.*已验证/)).toBeInTheDocument();
+    expect(within(dialog).queryByText(/After saving.*Pending verification/)).not.toBeInTheDocument();
+    expect(within(dialog).getByText(/stays User verified/)).toBeInTheDocument();
   });
 
-  it("名称为空时提交显示错误并保留表单；取消不发请求恢复展示态", async () => {
+  it("empty name on submit shows error and keeps form; cancel sends no request and restores display state", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(JSON.stringify({ id: VERIFIED_DETAIL.id }), { status: 200 }),
@@ -259,25 +259,25 @@ describe("StyleMemoryEditForm（plan-05 编辑回退提示）", () => {
     const { onClose, onSaved } = renderForm();
 
     const dialog = screen.getByRole("dialog");
-    await user.clear(within(dialog).getByLabelText(/名称/));
+    await user.clear(within(dialog).getByLabelText(/Name/));
     // 输入前不显示错误（中性帮助文案常驻，错误仅提交/失焦后出现）
     expect(within(dialog).queryByRole("alert")).not.toBeInTheDocument();
-    await user.click(within(dialog).getByRole("button", { name: /^保存/ }));
+    await user.click(within(dialog).getByRole("button", { name: /^Save/ }));
 
     expect(within(dialog).getByRole("alert")).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
 
-    await user.click(within(dialog).getByRole("button", { name: "取消", exact: true }));
+    await user.click(within(dialog).getByRole("button", { name: "Cancel", exact: true }));
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
     expect(onSaved).not.toHaveBeenCalled();
     fetchMock.mockRestore();
   });
 
-  it("待验证 Memory 编辑不显示「保持用户已验证」类提示", () => {
+  it("pending memory edit shows no stays-User-verified style hint", () => {
     renderForm(LEGACY_DETAIL);
 
     const dialog = screen.getByRole("dialog");
-    expect(within(dialog).queryByText(/保持.*已验证/)).not.toBeInTheDocument();
-    expect(within(dialog).queryByText(/保存后.*待验证/)).not.toBeInTheDocument();
+    expect(within(dialog).queryByText(/stays User verified/)).not.toBeInTheDocument();
+    expect(within(dialog).queryByText(/After saving.*Pending verification/)).not.toBeInTheDocument();
   });
 });

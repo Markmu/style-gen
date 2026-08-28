@@ -159,9 +159,9 @@ test.describe('FEAT-0004 structured style extraction', () => {
     let wizard = page.getByTestId('save-style-memory-dialog')
     await expect(wizard).toBeVisible()
     await expect(wizard.getByLabel('Subject')).toHaveValue('crystal vase')
-    await wizard.getByRole('button', { name: '下一步' }).click()
-    await wizard.getByRole('textbox', { name: /名称|name/i }).first().fill('Structured standard')
-    await wizard.getByRole('button', { name: /^保存|^save/i }).click()
+    await wizard.getByRole('button', { name: /^Next$/ }).click()
+    await wizard.getByRole('textbox', { name: /name/i }).first().fill('Structured standard')
+    await wizard.getByRole('button', { name: /^Sav/i }).click()
     await expect.poll(() => saved.length).toBe(1)
     expect(saved[0].variables).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: 'subject', defaultValue: 'crystal vase' }),
@@ -187,9 +187,9 @@ test.describe('FEAT-0004 structured style extraction', () => {
     await page.getByRole('button', { name: 'Save as Style Memory' }).click()
     wizard = page.getByTestId('save-style-memory-dialog')
     await expect(wizard).toBeVisible()
-    await wizard.getByRole('button', { name: '下一步' }).click()
-    await wizard.getByRole('textbox', { name: /名称|name/i }).first().fill('Custom prompt')
-    await wizard.getByRole('button', { name: /^保存|^save/i }).click()
+    await wizard.getByRole('button', { name: /^Next$/ }).click()
+    await wizard.getByRole('textbox', { name: /name/i }).first().fill('Custom prompt')
+    await wizard.getByRole('button', { name: /^Sav/i }).click()
     await expect.poll(() => saved.length).toBe(2)
     expect(saved[1]).toMatchObject({
       content: 'freeform custom style prompt',

@@ -705,7 +705,7 @@ export function IterationDetailPanel({
               className="shrink-0 text-[var(--accent-primary)]"
             />
             <p className="min-w-0 truncate text-xs leading-5 text-[var(--text-primary)]">
-              <span className="font-semibold">来源 Style Memory</span>
+              <span className="font-semibold">Source Style Memory</span>
               <span className="px-1 text-[var(--text-muted)]">·</span>
               <span className="text-[var(--text-secondary)]">
                 {detail.sourceTemplateName}

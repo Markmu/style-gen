@@ -8,7 +8,7 @@ import type { TemplateVariable } from "@/types/models";
 /**
  * plan-06 流程 B: 工作区草稿保存向导组件测试。
  *
- * 覆盖：首屏无代表结果说明（固定待验证预期）、{{var}} 并入变量预填、
+ * 覆盖：首屏无代表结果说明（固定 pending verification 预期）、{{var}} 并入变量预填、
  * 提交体携带既有来源字段（sourceAnalysisTaskId / sourceAssetId /
  * sourceImageUrl）且不带 representative / sourceGenerationTask。
  */
@@ -35,7 +35,7 @@ describe("TemplateSaveDialog — plan-06 草稿保存向导（流程 B）", () =
     routerPushMock.mockClear();
   });
 
-  it("首屏为规则确认（无代表结果勾选）+ 待验证说明 + 变量默认值可编辑", async () => {
+  it("first screen is rule confirmation (no representative checkbox) + pending note + editable variable defaults", async () => {
     const user = userEvent.setup();
     render(
       <TemplateSaveDialog
@@ -51,12 +51,12 @@ describe("TemplateSaveDialog — plan-06 草稿保存向导（流程 B）", () =
     expect(dialog).toHaveAttribute("role", "dialog");
 
     const note = screen.getByTestId("save-wizard-no-representative-note");
-    expect(note).toHaveTextContent(/当前没有代表结果/);
-    expect(note).toHaveTextContent(/待验证/);
+    expect(note).toHaveTextContent(/No representative result yet/);
+    expect(note).toHaveTextContent(/Pending verification/);
     // 无步骤 1 与代表结果勾选（流程 B 跳过）
     expect(within(dialog).queryByTestId("save-wizard-step-1")).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("checkbox", { name: /设为代表结果/ }),
+      screen.queryByRole("checkbox", { name: /Set as representative result/ }),
     ).not.toBeInTheDocument();
 
     // {{var}} 并入变量预填：默认值同屏可编辑
@@ -88,9 +88,9 @@ describe("TemplateSaveDialog — plan-06 草稿保存向导（流程 B）", () =
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: /下一步/ }));
-    await user.type(screen.getByLabelText(/^名称$/), "Saved");
-    await user.click(screen.getByRole("button", { name: /^保存/ }));
+    await user.click(screen.getByRole("button", { name: /^Next$/ }));
+    await user.type(screen.getByLabelText(/^Name$/), "Saved");
+    await user.click(screen.getByRole("button", { name: /^Save/ }));
 
     await waitFor(() =>
       expect(routerPushMock).toHaveBeenCalledWith("/workspace/templates/template-1"),

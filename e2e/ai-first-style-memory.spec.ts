@@ -127,10 +127,10 @@ test.describe('plan-06 Style Memory template library migration', () => {
     await expect(page.getByRole('heading', { name: listMemories[0].name })).toBeVisible()
     // 搜索提示 aria 承载全量谓词口径（plan-04）
     await expect(
-      page.getByRole('textbox', { name: /搜索 Style Memory：名称/ }),
+      page.getByRole('textbox', { name: /Search Style Memory by name/ }),
     ).toBeVisible()
-    await expect(page.getByText('2 条')).toBeVisible()
-    await expect(page.getByRole('button', { name: /打开工作区/ })).toBeVisible()
+    await expect(page.getByText('2 items')).toBeVisible()
+    await expect(page.getByRole('button', { name: /Open workspace/ })).toBeVisible()
   })
 
   test('TC-6.1 mobile Library uses a compact navigation rail without horizontal overflow', async ({
@@ -155,7 +155,7 @@ test.describe('plan-06 Style Memory template library migration', () => {
     expect(sidebarBox?.width).toBeLessThanOrEqual(80)
     expect(pageBox?.width).toBeGreaterThanOrEqual(300)
     expect(bodyWidth).toBeLessThanOrEqual(390)
-    await expect(page.getByRole('button', { name: '使用' }).first()).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Use', exact: true }).first()).toBeVisible()
   })
 
   test('TC-6.1 card previews, status badges, and rule summaries are visible', async ({ page }) => {
@@ -165,30 +165,30 @@ test.describe('plan-06 Style Memory template library migration', () => {
 
     // 已验证卡：代表结果主预览 + 参考图标注 + 真实规则摘要 + 变量数 + 最近使用
     const verifiedCard = page.getByTestId('style-memory-card').first()
-    await expect(verifiedCard.getByText('用户已验证')).toBeVisible()
+    await expect(verifiedCard.getByText('User verified')).toBeVisible()
     await expect(
       page.getByRole('heading', { name: listMemories[0].name }),
     ).toBeVisible()
     await expect(
-      verifiedCard.getByRole('img', { name: `${listMemories[0].name} 的代表结果` }),
+      verifiedCard.getByRole('img', { name: `Representative result for ${listMemories[0].name}` }),
     ).toBeVisible()
-    await expect(verifiedCard.getByText('参考图')).toBeVisible()
+    await expect(verifiedCard.getByText('Reference')).toBeVisible()
     await expect(verifiedCard.getByText(/柔和漫射光与半透明表面/)).toBeVisible()
-    await expect(verifiedCard.getByText('2 个变量')).toBeVisible()
-    await expect(verifiedCard.getByText('尚未使用')).toHaveCount(0)
+    await expect(verifiedCard.getByText('2 variables')).toBeVisible()
+    await expect(verifiedCard.getByText('Never used')).toHaveCount(0)
 
-    // 待验证卡（无来源图）：“无预览”占位 + “规则待补充” + “尚未使用”，不用成功语气
+    // pending 卡（无来源图）：No preview 占位 + No rules yet + Never used，不用成功语气
     const pendingCard = page.getByTestId('style-memory-card').nth(1)
-    await expect(pendingCard.getByText('待验证')).toBeVisible()
-    await expect(pendingCard.getByText('无预览')).toBeVisible()
-    await expect(pendingCard.getByText('规则待补充')).toBeVisible()
-    await expect(pendingCard.getByText('尚未使用')).toBeVisible()
+    await expect(pendingCard.getByText('Pending verification')).toBeVisible()
+    await expect(pendingCard.getByText('No preview')).toBeVisible()
+    await expect(pendingCard.getByText('No rules yet')).toBeVisible()
+    await expect(pendingCard.getByText('Never used')).toBeVisible()
 
     // 名称派生标签（Source-backed / Prompt-only / Style tags / Reuse intent）已移除
     await expect(
       page.getByText(/Source-backed|Prompt-only|Style tags|Reuse intent/i),
     ).toHaveCount(0)
-    await expect(page.getByRole('button', { name: '使用' }).first()).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Use', exact: true }).first()).toBeVisible()
   })
 
   test('TC-6.2 使用 injects prompt and variables through the existing template detail API', async ({
@@ -200,7 +200,7 @@ test.describe('plan-06 Style Memory template library migration', () => {
 
     await openStyleMemory(page)
     await page.getByRole('heading', { name: listMemories[0].name }).hover()
-    const useMemoryButton = page.getByRole('button', { name: '使用' })
+    const useMemoryButton = page.getByRole('button', { name: 'Use', exact: true })
     await expect(useMemoryButton).toBeVisible({ timeout: 5000 })
     await useMemoryButton.click()
 
@@ -208,7 +208,7 @@ test.describe('plan-06 Style Memory template library migration', () => {
     // 快照握手进入 /workspace?templateId= 并回落，提示与变量按既有 detail API 加载
     const reusePrecheck = page.getByTestId('reuse-precheck-dialog')
     await expect(reusePrecheck).toBeVisible({ timeout: 15000 })
-    await reusePrecheck.getByRole('button', { name: /^进入工作区$/ }).click()
+    await reusePrecheck.getByRole('button', { name: /^Enter workspace$/ }).click()
 
     await expect(page).toHaveURL(/\/workspace/)
     await expect(page.getByTestId('unified-prompt-editor')).toBeVisible({ timeout: 15000 })
@@ -221,7 +221,7 @@ test.describe('plan-06 Style Memory template library migration', () => {
     )
   })
 
-  // plan-04 起，卡片只保留“查看详情 / 使用”；Duplicate/Delete 的 UI 入口与
+  // plan-04 起，卡片只保留“View details / Use”；Duplicate/Delete 的 UI 入口与
   // API 契约断言移交详情页（plan-05）与 route 单测。原 TC-6.3 卡片治理用例随之移除。
 
   test('TC-6.4 empty library offers workspace and Iterations entries', async ({ page }) => {
@@ -232,13 +232,13 @@ test.describe('plan-06 Style Memory template library migration', () => {
     const emptyState = statePresenter(page, 'empty')
     await expect(emptyState).toBeVisible()
     await expect(emptyState).toContainText(/style memory/i)
-    await expect(emptyState).toContainText(/工作区|iteration/i)
-    // 空态双入口：打开工作区 / 查看 Iterations（href 断言）
-    await expect(emptyState.getByRole('link', { name: /打开工作区/ })).toHaveAttribute(
+    await expect(emptyState).toContainText(/workspace|iteration/i)
+    // 空态双入口：Open workspace / View iterations（href 断言）
+    await expect(emptyState.getByRole('link', { name: /Open workspace/ })).toHaveAttribute(
       'href',
       '/workspace',
     )
-    await expect(emptyState.getByRole('link', { name: /查看 Iterations/ })).toHaveAttribute(
+    await expect(emptyState.getByRole('link', { name: /View iterations/ })).toHaveAttribute(
       'href',
       '/workspace/iterations',
     )
@@ -258,15 +258,15 @@ test.describe('plan-06 Style Memory template library migration', () => {
 
     const noResultsState = statePresenter(page, 'noResults')
     await expect(noResultsState).toBeVisible({ timeout: 10000 })
-    await expect(noResultsState).toContainText(/style memor|没有匹配/i)
+    await expect(noResultsState).toContainText(/style memor|No matching/i)
     await expect(
-      noResultsState.getByRole('button', { name: /清除搜索|clear search/i }),
+      noResultsState.getByRole('button', { name: /clear search/i }),
     ).toBeVisible()
     await expect(
-      noResultsState.getByRole('button', { name: /返回工作区|back to workspace/i }),
+      noResultsState.getByRole('button', { name: /back to workspace/i }),
     ).toBeVisible()
 
-    await noResultsState.getByRole('button', { name: /清除搜索|clear search/i }).click()
+    await noResultsState.getByRole('button', { name: /clear search/i }).click()
     await expect(page.getByRole('textbox')).toHaveValue('')
   })
 
@@ -283,10 +283,10 @@ test.describe('plan-06 Style Memory template library migration', () => {
 
     const failedState = statePresenter(page, 'failedRecoverable')
     await expect(failedState).toBeVisible()
-    await expect(failedState).toContainText(/style memory|service|temporarily unavailable|重试/i)
-    await expect(failedState.getByRole('button', { name: /重试|retry/i })).toBeVisible()
+    await expect(failedState).toContainText(/style memory|service|temporarily unavailable|retry/i)
+    await expect(failedState.getByRole('button', { name: /retry/i })).toBeVisible()
     await expect(
-      failedState.getByRole('button', { name: /返回工作区|back to workspace/i }),
+      failedState.getByRole('button', { name: /back to workspace/i }),
     ).toBeVisible()
     await expect(statePresenter(page, 'empty')).toHaveCount(0)
     await expect(statePresenter(page, 'noResults')).toHaveCount(0)
@@ -317,12 +317,12 @@ test.describe('plan-06 Style Memory template library migration', () => {
 
     const authState = statePresenter(page, 'authRequired')
     await expect(authState).toBeVisible()
-    await expect(authState).toContainText(/登录|log in|sign in|login/i)
+    await expect(authState).toContainText(/log in|sign in|login/i)
     await expect(
-      authState.getByRole('button', { name: /登录|log in|sign in|login/i }),
+      authState.getByRole('button', { name: /log in|sign in|login/i }),
     ).toBeVisible()
     await expect(
-      authState.getByRole('button', { name: /返回工作区|back to workspace/i }),
+      authState.getByRole('button', { name: /back to workspace/i }),
     ).toBeVisible()
 
     const stored = await page.evaluate((key) => window.sessionStorage.getItem(key), STORAGE_KEY)

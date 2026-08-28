@@ -11,7 +11,7 @@ import type { StyleMemoryDetail } from "@/types/models";
 /**
  * plan-05（架构 §6.4 / ADR-2 引用不复制）：删除确认层（destructive ModalDialog）。
  *
- * - 文案说明删除对象（Memory 名称）与仍会保留的关联内容：来源参考图、来源
+ * - 文案说明删除对象（Memory 名称）与保留（What stays）的关联内容：来源参考图、来源
  *   Iteration、代表结果和历史生成记录（PRD 删除线框）。
  * - destructive：背景点击不关闭；取消关闭并还原焦点。
  * - 确认 → DELETE /api/templates/[id] → 204 后失效列表缓存并导航回列表
@@ -68,7 +68,7 @@ export function StyleMemoryDeleteDialog({
         } catch {
           // 保留默认错误信息
         }
-        setError(body.error ?? "删除失败，请稍后重试。");
+        setError(body.error ?? "Delete failed. Please try again later.");
         setDeleting(false);
         return;
       }
@@ -76,7 +76,7 @@ export function StyleMemoryDeleteDialog({
       await invalidateStyleMemoryLists(queryClient);
       router.push(listHref);
     } catch {
-      setError("网络异常，删除失败；可重试。");
+      setError("Network error — delete failed. You can retry.");
       setDeleting(false);
     }
   };
@@ -85,7 +85,7 @@ export function StyleMemoryDeleteDialog({
     <ModalDialog
       open={open}
       onClose={deleting ? () => undefined : onClose}
-      label="删除 Style Memory"
+      label="Delete Style Memory"
       labelledBy={titleId}
       destructive
     >
@@ -100,17 +100,19 @@ export function StyleMemoryDeleteDialog({
               size={16}
               className="text-[var(--color-error)]"
             />
-            删除 Style Memory
+            Delete Style Memory
           </h2>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
           <p className="text-sm leading-6 text-[var(--text-primary)]">
-            将删除「<span className="font-semibold">{detail.name}</span>
-            」。删除后它不再出现在列表中，也无法再被复用。
+            This will delete &quot;<span className="font-semibold">{detail.name}</span>
+            &quot;. It will no longer appear in the list and can no longer be
+            reused.
           </p>
           <p className="mt-3 rounded-xl border border-[var(--border-static)] bg-[var(--surface-low)]/60 px-3.5 py-2.5 text-xs leading-5 text-[var(--text-secondary)]">
-            仍会保留：来源参考图、来源 Iteration、代表结果和历史生成记录。
-            它们属于你自己的资产与生成历史，不受这条 Memory 删除影响。
+            What stays: the source reference, source iteration, representative
+            result, and generation history. They belong to your own assets and
+            generation history and are not affected by deleting this memory.
           </p>
           {error ? (
             <p
@@ -128,7 +130,7 @@ export function StyleMemoryDeleteDialog({
             disabled={deleting}
             className="btn-secondary inline-flex min-h-11 items-center rounded-xl px-4 text-xs font-medium"
           >
-            取消
+            Cancel
           </button>
           <button
             type="button"
@@ -136,7 +138,7 @@ export function StyleMemoryDeleteDialog({
             disabled={deleting}
             className="inline-flex min-h-11 items-center rounded-xl border border-[var(--color-error)]/50 bg-[var(--color-error)] px-4 text-xs font-semibold text-white shadow-sm transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
           >
-            {deleting ? "删除中…" : "删除"}
+            {deleting ? "Deleting…" : "Delete"}
           </button>
         </div>
       </div>

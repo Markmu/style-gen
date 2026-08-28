@@ -499,10 +499,10 @@ test.describe('plan-06 entry wiring and full Iteration Memory journey', () => {
     const dialogEl = saveDialog(page)
     await expect(dialogEl).toBeVisible()
     // 三步向导：步骤 2 规则确认 → 步骤 3 命名提交
-    await dialogEl.getByRole('button', { name: /下一步/ }).click()
-    await dialogEl.getByRole('button', { name: /下一步/ }).click()
-    await dialogEl.getByRole('textbox', { name: /名称|name/i }).first().fill(TEMPLATE_NAME)
-    await dialogEl.getByRole('button', { name: /^保存|^save/i }).click()
+    await dialogEl.getByRole('button', { name: /^Next$/ }).click()
+    await dialogEl.getByRole('button', { name: /^Next$/ }).click()
+    await dialogEl.getByRole('textbox', { name: /name/i }).first().fill(TEMPLATE_NAME)
+    await dialogEl.getByRole('button', { name: /^Sav/i }).click()
 
     // 恰好一次 POST /api/templates，提交体携带该次迭代的来源、快照与规则四元组
     await expect.poll(() => templates.createRequests.length, { timeout: 15000 }).toBe(1)

@@ -197,8 +197,8 @@ export function OutputCard({
           role="status"
           className="truncate px-1 text-xs leading-5 text-[var(--color-warning)]"
         >
-          仍需填写 {readiness.missingVariableNames.length} 项：
-          {readiness.missingVariableNames.join("、")}
+          {readiness.missingVariableNames.length} fields left to fill:{" "}
+          {readiness.missingVariableNames.join(", ")}
         </p>
       )}
     </section>

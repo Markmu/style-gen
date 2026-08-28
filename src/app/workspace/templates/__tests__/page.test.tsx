@@ -87,7 +87,7 @@ function renderPage() {
   );
 }
 
-describe("StyleMemoryPage（plan-04 列表页）", () => {
+describe("StyleMemoryPage (plan-04 list page)", () => {
   beforeEach(() => {
     mocks.push.mockClear();
     mocks.refresh.mockClear();
@@ -103,21 +103,21 @@ describe("StyleMemoryPage（plan-04 列表页）", () => {
     expect(screen.getByRole("heading", { name: /^Style Memory$/i })).toBeInTheDocument();
     // 搜索提示 aria 承载全量谓词口径
     expect(
-      screen.getByRole("textbox", { name: /搜索 Style Memory：名称、说明、风格规则/ }),
+      screen.getByRole("textbox", { name: /Search Style Memory by name, description, style rules/ }),
     ).toBeInTheDocument();
-    expect(screen.getByText("1 条")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /打开工作区/ })).toBeInTheDocument();
+    expect(screen.getByText("1 items")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Open workspace/ })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /^Template Library$/i })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: memory.name })).toBeInTheDocument();
     // plan-04 新卡片：验证徽标 + 代表结果主预览 + 参考图 + 真实规则摘要
     const card = screen.getByTestId("style-memory-card");
-    expect(within(card).getByText("用户已验证")).toBeInTheDocument();
+    expect(within(card).getByText("User verified")).toBeInTheDocument();
     expect(
-      screen.getByRole("img", { name: "Editorial Soft Light Memory 的代表结果" }),
+      screen.getByRole("img", { name: "Representative result for Editorial Soft Light Memory" }),
     ).toHaveAttribute("data-src", "https://cdn.example.com/result.png");
-    expect(within(card).getByText("参考图")).toBeInTheDocument();
+    expect(within(card).getByText("Reference")).toBeInTheDocument();
     expect(within(card).getByText(/柔和漫射光与半透明表面/)).toBeInTheDocument();
-    expect(within(card).getByText("2 个变量")).toBeInTheDocument();
+    expect(within(card).getByText("2 variables")).toBeInTheDocument();
     // 名称派生标签已移除（NAME_TAG_RULES / Source-backed 等）
     expect(
       screen.queryByText(/Source-backed|Prompt-only|Style tags|Reuse intent/i),
@@ -132,17 +132,17 @@ describe("StyleMemoryPage（plan-04 列表页）", () => {
 
     const state = container.querySelector('section[data-status="empty"]');
     expect(state).toBeInTheDocument();
-    expect(state).toHaveTextContent(/还没有保存的 Style Memory/i);
+    expect(state).toHaveTextContent(/No Style Memory saved yet/i);
     expect(
-      within(state as HTMLElement).getByRole("link", { name: /打开工作区/ }),
+      within(state as HTMLElement).getByRole("link", { name: /Open workspace/ }),
     ).toHaveAttribute("href", "/workspace");
     expect(
-      within(state as HTMLElement).getByRole("link", { name: /查看 Iterations/ }),
+      within(state as HTMLElement).getByRole("link", { name: /View iterations/ }),
     ).toHaveAttribute("href", "/workspace/iterations");
     expect(
-      screen.getByRole("textbox", { name: /搜索 Style Memory：名称、说明、风格规则/ }),
+      screen.getByRole("textbox", { name: /Search Style Memory by name, description, style rules/ }),
     ).toBeInTheDocument();
-    expect(screen.getByText("0 条")).toBeInTheDocument();
+    expect(screen.getByText("0 items")).toBeInTheDocument();
     expect(screen.queryByText(/No templates yet/i)).not.toBeInTheDocument();
   });
 
@@ -156,12 +156,12 @@ describe("StyleMemoryPage（plan-04 列表页）", () => {
 
     const state = container.querySelector('section[data-status="noResults"]');
     expect(state).toBeInTheDocument();
-    expect(state).toHaveTextContent(/没有匹配的 Style Memory/i);
+    expect(state).toHaveTextContent(/No matching Style Memory/i);
     // 说明实际搜索范围（与 aria 口径一致）
-    expect(state).toHaveTextContent(/名称、说明、风格规则/);
+    expect(state).toHaveTextContent(/name, description, style rules/);
 
     await user.click(
-      within(state as HTMLElement).getByRole("button", { name: /清除搜索与筛选/ }),
+      within(state as HTMLElement).getByRole("button", { name: /Clear search and filters/ }),
     );
     expect(setSearch).toHaveBeenCalledWith("");
     expect(setStatus).toHaveBeenCalledWith("all");
@@ -179,10 +179,10 @@ describe("StyleMemoryPage（plan-04 列表页）", () => {
 
     const state = container.querySelector('section[data-status="authRequired"]');
     expect(state).toBeInTheDocument();
-    expect(state).toHaveTextContent(/登录后查看云端 Style Memory/i);
-    expect(within(state as HTMLElement).getByRole("button", { name: "登录" })).toBeInTheDocument();
+    expect(state).toHaveTextContent(/Sign in to view cloud Style Memory/i);
+    expect(within(state as HTMLElement).getByRole("button", { name: "Sign in" })).toBeInTheDocument();
     expect(
-      within(state as HTMLElement).getByRole("button", { name: /返回工作区/ }),
+      within(state as HTMLElement).getByRole("button", { name: /Back to workspace/ }),
     ).toBeInTheDocument();
   });
 
@@ -191,21 +191,21 @@ describe("StyleMemoryPage（plan-04 列表页）", () => {
 
     const { setStatus } = renderPageWithState({});
 
-    expect(screen.getByText("1 条")).toBeInTheDocument();
+    expect(screen.getByText("1 items")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "全部", exact: true }),
+      screen.getByRole("button", { name: "All", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
 
-    // 三态互斥筛选：点击「用户已验证」→ setStatus(user_verified)
-    await user.click(screen.getByRole("button", { name: "用户已验证", exact: true }));
+    // 三态互斥筛选：点击「User verified」→ setStatus(user_verified)
+    await user.click(screen.getByRole("button", { name: "User verified", exact: true }));
     expect(setStatus).toHaveBeenCalledWith("user_verified");
 
-    // 点击「待验证」→ setStatus(pending_verification)
-    await user.click(screen.getByRole("button", { name: "待验证", exact: true }));
+    // 点击「Pending verification」→ setStatus(pending_verification)
+    await user.click(screen.getByRole("button", { name: "Pending verification", exact: true }));
     expect(setStatus).toHaveBeenCalledWith("pending_verification");
   });
 
-  it("清除筛选 resets both search and status when filters are active", async () => {
+  it("Clear filters resets both search and status when filters are active", async () => {
     const user = userEvent.setup();
     const { setSearch, setStatus } = renderPageWithState({
       search: "低饱和",
@@ -213,10 +213,10 @@ describe("StyleMemoryPage（plan-04 列表页）", () => {
     });
 
     expect(
-      screen.getByRole("button", { name: "待验证", exact: true }),
+      screen.getByRole("button", { name: "Pending verification", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
 
-    await user.click(screen.getByRole("button", { name: /清除筛选/ }));
+    await user.click(screen.getByRole("button", { name: /Clear filters/ }));
     expect(setSearch).toHaveBeenCalledWith("");
     expect(setStatus).toHaveBeenCalledWith("all");
   });
@@ -233,12 +233,12 @@ describe("StyleMemoryPage（plan-04 列表页）", () => {
 
     const state = container.querySelector('section[data-status="failedRecoverable"]');
     expect(state).toBeInTheDocument();
-    expect(state).toHaveTextContent(/Style Memory 服务暂不可用/i);
+    expect(state).toHaveTextContent(/Style Memory service unavailable/i);
     expect(state).toHaveTextContent(/temporarily unavailable/i);
-    expect(within(state as HTMLElement).getByRole("button", { name: /重试/ })).toBeInTheDocument();
+    expect(within(state as HTMLElement).getByRole("button", { name: /Retry/ })).toBeInTheDocument();
     // 503 保留搜索/筛选可见（工具栏不被整体隐藏）
     expect(
-      screen.getByRole("textbox", { name: /搜索 Style Memory：名称、说明、风格规则/ }),
+      screen.getByRole("textbox", { name: /Search Style Memory by name, description, style rules/ }),
     ).toBeInTheDocument();
     expect(container.querySelector('section[data-status="empty"]')).not.toBeInTheDocument();
     expect(container.querySelector('section[data-status="noResults"]')).not.toBeInTheDocument();
@@ -251,7 +251,7 @@ function renderPageWithState(overrides: Record<string, unknown>) {
   return { ...result, ...rendered };
 }
 
-describe("StyleMemoryPage — focus 定位（plan-05 / 架构 §6.4 步骤 4）", () => {
+describe("StyleMemoryPage — focus targeting (plan-05 / 架构 §6.4 步骤 4)", () => {
   beforeEach(() => {
     mocks.push.mockClear();
     mocks.refresh.mockClear();
@@ -261,7 +261,7 @@ describe("StyleMemoryPage — focus 定位（plan-05 / 架构 §6.4 步骤 4）"
     setTemplateSearch();
   });
 
-  it("focus=<id> 命中时目标卡片获得 data-focused 高亮，且参数消费后从 URL 清除（replace）", async () => {
+  it("focus=<id> hit: target card gets data-focused highlight and the param is consumed from the URL (replace)", async () => {
     mocks.searchParams = new URLSearchParams("focus=memory-1");
     renderPage();
 
@@ -283,7 +283,7 @@ describe("StyleMemoryPage — focus 定位（plan-05 / 架构 §6.4 步骤 4）"
     );
   });
 
-  it("focus 目标不在当前列表时静默忽略：无高亮，页面正常渲染，参数仍被消费", async () => {
+  it("focus target not in the current list is silently ignored: no highlight, page renders normally, param still consumed", async () => {
     mocks.searchParams = new URLSearchParams("focus=missing-memory");
     renderPage();
 

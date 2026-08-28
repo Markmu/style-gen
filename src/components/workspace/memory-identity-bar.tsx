@@ -10,9 +10,9 @@ import type { WorkspaceMemoryIdentity } from "@/hooks/use-workspace-state";
  * plan-07（架构 §6.5 / PRD 规则 21）：工作台 Style Memory 身份条。
  *
  * - 位于工作台顶栏/AI 状态条下方的条状区，持续可见直至移除/替换来源。
- * - 展示 USING STYLE MEMORY 标签、名称、验证状态徽标与「已恢复 N 条保留规则」；
+ * - 展示 USING STYLE MEMORY 标签、名称、验证状态徽标与「Restored N retained rules」；
  *   缺失变量清单来自就绪结论单一来源（ADR-7：由页面传入 readiness 派生值），
- *   以「仍需填写 X 项：…」如实呈现。
+ *   以「X fields left to fill: …」如实呈现。
  * - 动作：「查看」跳详情；「移除」清 currentTemplateId 与身份，工作区内容保留
  *   （容器 tabIndex=-1，确认导航后首屏焦点落点，AC-08）。
  */
@@ -47,7 +47,7 @@ export function MemoryIdentityBar({
       ref={containerRef}
       data-testid="memory-identity-bar"
       tabIndex={-1}
-      aria-label="当前使用的 Style Memory"
+      aria-label="Style Memory currently in use"
       className="mx-4 flex shrink-0 items-center gap-3 rounded-xl border border-[var(--border-static)]/60 bg-[var(--surface-floating)]/80 p-2.5 outline-none focus-visible:shadow-[var(--focus-ring)] sm:mx-6 lg:mx-8"
     >
       <span className="shrink-0 font-mono text-[0.625rem] font-bold uppercase tracking-[0.16em] text-[var(--text-muted)]">
@@ -64,10 +64,10 @@ export function MemoryIdentityBar({
             size={11}
             className={verified ? "text-[var(--accent-primary)]" : "text-[var(--text-muted)]"}
           />
-          {verified ? "用户已验证" : "待验证"}
+          {verified ? "User verified" : "Pending verification"}
         </span>
         <span className="shrink-0 text-xs leading-5 text-[var(--text-secondary)]">
-          已恢复 {identity.retainedRuleCount} 条保留规则
+          Restored {identity.retainedRuleCount} retained rules
         </span>
         {missingVariableNames.length > 0 && (
           <span
@@ -76,8 +76,8 @@ export function MemoryIdentityBar({
           >
             <AppIcon icon={EyeOff} size={12} className="shrink-0" />
             <span className="truncate">
-              仍需填写 {missingVariableNames.length} 项：
-              {missingVariableNames.join("、")}
+              {missingVariableNames.length} fields left to fill:{" "}
+              {missingVariableNames.join(", ")}
             </span>
           </span>
         )}
@@ -89,13 +89,13 @@ export function MemoryIdentityBar({
           onClick={() => router.push(`/workspace/templates/${identity.id}`)}
           className="btn-secondary inline-flex min-h-9 items-center rounded-lg px-3 text-xs font-medium"
         >
-          查看
+          View details
         </button>
         <button
           type="button"
           onClick={onRemove}
-          aria-label="移除"
-          title="移除该 Style Memory 身份（工作区内容保留）"
+          aria-label="Remove"
+          title="Remove this Style Memory identity (workspace content is kept)"
           className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
         >
           <AppIcon icon={X} size={14} />

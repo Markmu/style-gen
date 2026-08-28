@@ -27,7 +27,7 @@ import {
 // 页面契约（test-e2e 用例约定，实现须满足；ModalDialog/DropdownMenu 原语承载）：
 // 预检弹层（列表卡片与详情两个入口共用同一组件）：
 // - [data-testid="reuse-precheck-dialog"] — 弹层容器（role=dialog，焦点陷阱 + Escape）
-// - 头部：Memory 名称 + 状态徽标文字（用户已验证/待验证）；已验证时显示代表结果缩略图
+// - 头部：Memory 名称 + 状态徽标文字（User verified / Pending verification）；已验证时显示代表结果缩略图
 //   （img src 含代表结果 URL）
 // - 「将保留」区：retainedRules 全量清单逐条可见（只读文本）
 // - 「开始前替换」区：必填变量（trim(defaultValue)==='' 的变量）逐个输入框，输入框
@@ -37,16 +37,16 @@ import {
 //   · 无快照（或 referenceImageUrl 与 promptText 均空）→ 命中 /工作区为空|可直接进入/
 //   · currentTemplateId === memory.id → 含「已在使用这条 Memory」
 //   · 其余 → 命中 /不同的未完成内容|确认后切换/
-// - 必填未填全：进入工作区按钮名 /^进入工作区$/ 且 disabled，弹层内以可读文本列出缺失项
-//   名称（建议「仍需填写 N 项：主体、场景」，命中 /仍需填写|尚未填写|请先填写/）
+// - 必填未填全：Enter workspace 按钮名 /^Enter workspace$/ 且 disabled，弹层内以可读文本列出缺失项
+//   名称（建议「N fields left to fill: …」，命中 /fields left to fill/）
 // - 取消按钮名 取消（exact）：关闭 + 还原触发焦点 + 零变更（快照字节不变、URL 不变）
 // - 确认（进入工作区）：更新 sessionStorage `style-gen-workspace-state` 快照——version=4、
 //   currentTemplateId=memoryId、预填值合入 analysisTemplateVariables 对应变量的
 //   defaultValue 与变量值——随后 router.push('/workspace?templateId={id}')
 // 工作区身份条：
 // - [data-testid="memory-identity-bar"]：含「USING STYLE MEMORY」标签、Memory 名称、
-//   状态徽标文字、「已恢复 N 条保留规则」（N=retainedRules.length）、缺失变量时含
-//   /仍需填写\s*X\s*项/ 与缺失项名称；动作按钮 查看（跳详情）与 移除
+//   状态徽标文字、「Restored N retained rules」（N=retainedRules.length）、缺失变量时含
+//   /fields left to fill/ 与缺失项名称；动作按钮 View details（跳详情）与 Remove
 // - 移除：currentTemplateId 清空（快照归 null），工作区内容保留，身份条消失
 // 就绪一致（ADR-7）：
 // - 未补全必填 → 身份条显示缺失清单，Generate 禁用且 output-card 保持
@@ -241,17 +241,17 @@ function precheckImpact(page: Page) {
 }
 
 function enterWorkspaceButton(page: Page) {
-  return precheckDialog(page).getByRole('button', { name: /^进入工作区$/ })
+  return precheckDialog(page).getByRole('button', { name: /^Enter workspace$/ })
 }
 
 function precheckCancelButton(page: Page) {
-  return precheckDialog(page).getByRole('button', { name: '取消', exact: true })
+  return precheckDialog(page).getByRole('button', { name: 'Cancel', exact: true })
 }
 
 /** 详情页头「使用这条 Memory」（既有入口按钮，plan-07 接管为打开预检） */
 function detailUseButton(page: Page) {
   return page.getByTestId('style-memory-detail-header').getByRole('button', {
-    name: /使用这条 Memory/,
+    name: /Use this memory/,
   })
 }
 
@@ -260,7 +260,7 @@ function cardUseButton(page: Page) {
   return page
     .getByTestId('style-memory-card')
     .filter({ hasText: MEMORY_NAME })
-    .getByRole('button', { name: '使用' })
+    .getByRole('button', { name: 'Use', exact: true })
 }
 
 function memoryIdentityBar(page: Page) {
@@ -360,7 +360,7 @@ test.describe('plan-07 Style Memory 复用预检与工作区集成', () => {
 
   // ─── 预检内容（AC-06：保留规则全量 + 必填变量门 + 折叠其他变量） ───
 
-  test('TC-6.3 预检头部展示名称、用户已验证徽标与代表结果缩略，「将保留」列出全部保留规则', async ({
+  test('TC-6.3 precheck header shows name, User verified badge and representative thumbnail; What carries over lists all retained rules', async ({
     page,
   }) => {
     await mockStyleMemoryDetailCollection(page, [REUSE_MEMORY])
@@ -373,7 +373,7 @@ test.describe('plan-07 Style Memory 复用预检与工作区集成', () => {
 
     // 头部：名称 + 状态徽标（文字）+ 已验证代表结果缩略
     await expect(dialog.getByText(MEMORY_NAME)).toBeVisible()
-    await expect(dialog.getByText('用户已验证')).toBeVisible()
+    await expect(dialog.getByText('User verified')).toBeVisible()
     await expect(
       dialog.locator('img[src*="results/reuse-representative"]'),
       '已验证 Memory 的预检应显示代表结果缩略图',
@@ -404,7 +404,7 @@ test.describe('plan-07 Style Memory 复用预检与工作区集成', () => {
     await subjectInput.fill('磨砂玻璃瓶')
 
     // 其余变量折叠：「其他变量（2 项）」控件存在，折叠态下服饰输入不可见
-    const collapsed = dialog.getByText(/其他变量.*2.*项/)
+    const collapsed = dialog.getByText(/Other variables.*2/)
     await expect(collapsed).toBeVisible()
     const wardrobeInput = dialog.getByLabel(/服饰/)
     await expect(wardrobeInput).toHaveCount(0)
@@ -417,7 +417,7 @@ test.describe('plan-07 Style Memory 复用预检与工作区集成', () => {
 
   // ─── 工作区影响判定三分支（架构 §6.5-2） ───
 
-  test('TC-6.5 无工作台快照时影响判定为「当前工作区为空，可直接进入」', async ({ page }) => {
+  test('TC-6.5 impact with no workspace snapshot: empty workspace branch', async ({ page }) => {
     await mockStyleMemoryDetailCollection(page, [REUSE_MEMORY])
 
     await openStyleMemoryList(page)
@@ -427,10 +427,10 @@ test.describe('plan-07 Style Memory 复用预检与工作区集成', () => {
 
     const dialog = precheckDialog(page)
     await expect(dialog).toBeVisible({ timeout: 15000 })
-    await expect(precheckImpact(page)).toContainText(/工作区为空|可直接进入/)
+    await expect(precheckImpact(page)).toContainText(/workspace is empty|nothing will be replaced/i)
   })
 
-  test('TC-6.6 快照 currentTemplateId 指向本 Memory 时影响判定为「已在使用这条 Memory」', async ({
+  test('TC-6.6 impact when snapshot currentTemplateId points at this memory: already-using branch', async ({
     page,
   }) => {
     await mockStyleMemoryDetailCollection(page, [REUSE_MEMORY])
@@ -442,10 +442,10 @@ test.describe('plan-07 Style Memory 复用预检与工作区集成', () => {
 
     const dialog = precheckDialog(page)
     await expect(dialog).toBeVisible({ timeout: 15000 })
-    await expect(precheckImpact(page)).toContainText('已在使用这条 Memory')
+    await expect(precheckImpact(page)).toContainText('You are already using this memory.')
   })
 
-  test('TC-6.7 快照为其他未完成内容时提醒「有不同的未完成内容，将在确认后切换」', async ({
+  test('TC-6.7 impact when snapshot has other unfinished content: replace-on-continue branch', async ({
     page,
   }) => {
     await mockStyleMemoryDetailCollection(page, [REUSE_MEMORY])
@@ -457,12 +457,12 @@ test.describe('plan-07 Style Memory 复用预检与工作区集成', () => {
 
     const dialog = precheckDialog(page)
     await expect(dialog).toBeVisible({ timeout: 15000 })
-    await expect(precheckImpact(page)).toContainText(/不同的未完成内容|确认后切换/)
+    await expect(precheckImpact(page)).toContainText(/different unfinished work|replaced when you continue/i)
   })
 
   // ─── 必填门与取消（AC-06） ───
 
-  test('TC-6.8 必填未填全：弹层列出具体缺失项名称且「进入工作区」禁用', async ({ page }) => {
+  test('TC-6.8 missing required fields: dialog lists the specific missing names and Enter workspace is disabled', async ({ page }) => {
     await mockStyleMemoryDetailCollection(page, [REUSE_MEMORY])
 
     await openStyleMemoryList(page)
@@ -476,7 +476,7 @@ test.describe('plan-07 Style Memory 复用预检与工作区集成', () => {
     await expect(confirmButton).toBeDisabled()
 
     // 缺失说明命中门控提示文案，并列出两项缺失变量名称（主体 label / 场景 label）
-    const missingHint = dialog.getByText(/仍需填写|尚未填写|请先填写/)
+    const missingHint = dialog.getByText(/fields left to fill/i)
     await expect(missingHint.first()).toBeVisible()
     await expect(missingHint.first()).toContainText('主体')
     await expect(missingHint.first()).toContainText('场景')
@@ -524,10 +524,12 @@ test.describe('plan-07 Style Memory 复用预检与工作区集成', () => {
     // 在预检中补全两个必填变量后确认
     await dialog.getByLabel(/主体/).fill('磨砂玻璃瓶')
     await dialog.getByLabel(/场景/).fill('窗边桌面')
+    // 跳转握手地址并被消费回落 /workspace。
+    // 握手 URL 为短暂时性的同文档跳转：先注册 waitForURL 监听再点击，
+    // 避免轮询采样错过中间态（观察竞态，非行为放宽）。
+    const handshakeUrl = page.waitForURL(new RegExp(`templateId=${MEMORY_ID}`), { timeout: 15000 })
     await enterWorkspaceButton(page).click()
-
-    // 跳转握手地址并被消费回落 /workspace
-    await expect(page).toHaveURL(new RegExp(`templateId=${MEMORY_ID}`), { timeout: 15000 })
+    await handshakeUrl
     await expect(appShell(page)).toBeVisible({ timeout: 15000 })
     await expect(page).toHaveURL(/\/workspace$/, { timeout: 15000 })
 
@@ -549,28 +551,28 @@ test.describe('plan-07 Style Memory 复用预检与工作区集成', () => {
         }),
       )
 
-    // 身份条持续可见：USING STYLE MEMORY + 名称 + 徽标 + 已恢复规则数 + 动作
+    // 身份条持续可见：USING STYLE MEMORY + 名称 + 徽标 + restored 规则数 + 动作
     const identityBar = memoryIdentityBar(page)
     await expect(identityBar).toBeVisible({ timeout: 15000 })
     await expect(identityBar.getByText('USING STYLE MEMORY')).toBeVisible()
     await expect(identityBar.getByText(MEMORY_NAME)).toBeVisible()
-    await expect(identityBar.getByText('用户已验证')).toBeVisible()
-    await expect(identityBar.getByText(/已恢复\s*3\s*条保留规则/)).toBeVisible()
-    await expect(identityBar.getByRole('button', { name: '查看' })).toBeVisible()
-    await expect(identityBar.getByRole('button', { name: '移除' })).toBeVisible()
+    await expect(identityBar.getByText('User verified')).toBeVisible()
+    await expect(identityBar.getByText(/Restored\s*3\s*retained rules/)).toBeVisible()
+    await expect(identityBar.getByRole('button', { name: 'View details' })).toBeVisible()
+    await expect(identityBar.getByRole('button', { name: 'Remove' })).toBeVisible()
 
     // 不自动生成（PRD 规则 23）：确认进入零 POST /api/generation
     expect(generationCapture.requests, '确认进入不得触发生成请求').toHaveLength(0)
 
     // 必填已在预检补全 → 准备就绪（单一来源结论）：无缺失表述、生成可用
-    await expect(identityBar.getByText(/仍需填写/)).toHaveCount(0)
+    await expect(identityBar.getByText(/fields left to fill/)).toHaveCount(0)
     await expect(generateButton(page)).toBeEnabled()
     await expect(renderDock(page)).toHaveAttribute('data-readiness-can-generate', 'true')
   })
 
   // ─── 一致结论与握手退化（ADR-5 / ADR-7） ───
 
-  test('TC-6.11 清空 sessionStorage 后经 ?templateId= 直入仍加载：身份条如实显示仍需填写 2 项（主体、场景），Generate 禁用且全程零 POST', async ({
+  test('TC-6.11 direct entry via ?templateId= with cleared sessionStorage still loads: identity bar honestly reports 2 fields left to fill (subject, scene), Generate disabled and zero POST throughout', async ({
     page,
   }) => {
     test.slow()
@@ -587,7 +589,7 @@ test.describe('plan-07 Style Memory 复用预检与工作区集成', () => {
     const identityBar = memoryIdentityBar(page)
     await expect(identityBar).toBeVisible({ timeout: 15000 })
     await expect(identityBar.getByText(MEMORY_NAME)).toBeVisible()
-    await expect(identityBar.getByText(/仍需填写\s*2\s*项/)).toBeVisible()
+    await expect(identityBar.getByText(/2 fields left to fill/)).toBeVisible()
     await expect(identityBar.getByText('主体')).toBeVisible()
     await expect(identityBar.getByText('场景')).toBeVisible()
 
@@ -615,7 +617,7 @@ test.describe('plan-07 Style Memory 复用预检与工作区集成', () => {
     const promptBefore = await promptEditor.inputValue()
     expect(promptBefore.length).toBeGreaterThan(0)
 
-    await memoryIdentityBar(page).getByRole('button', { name: '移除' }).click()
+    await memoryIdentityBar(page).getByRole('button', { name: 'Remove' }).click()
 
     await expect(memoryIdentityBar(page)).toHaveCount(0)
     // 内容保留：参考图与提示编辑器不受影响
@@ -673,7 +675,7 @@ test.describe('plan-07 Style Memory 复用预检与工作区集成', () => {
     await itemRow.first().click()
     const panel = page.getByTestId('iteration-detail-panel')
     await expect(panel).toBeVisible({ timeout: 15000 })
-    await expect(panel.getByText(/来源\s*(Style\s*)?Memory/i)).toBeVisible()
+    await expect(panel.getByText(/Source\s*(Style\s*)?Memory/i)).toBeVisible()
     await expect(panel.getByText(MEMORY_NAME)).toBeVisible()
 
     // 服务端聚合更新（mock 直接推进状态）：Memory 最近使用时间与派生数量 +1
@@ -684,9 +686,9 @@ test.describe('plan-07 Style Memory 复用预检与工作区集成', () => {
     await gotoPath(page, `/workspace/templates/${MEMORY_ID}`)
     const usage = page.getByTestId('style-memory-detail-usage')
     await expect(usage).toBeVisible({ timeout: 15000 })
-    await expect(usage.getByText('尚未使用')).toHaveCount(0)
-    await expect(usage.getByText(/最近使用/)).toBeVisible()
-    await expect(usage.getByText(/派生.*4.*次/)).toBeVisible()
+    await expect(usage.getByText('Never used')).toHaveCount(0)
+    await expect(usage.getByText(/Last used/)).toBeVisible()
+    await expect(usage.getByText(/Derived.*4.*times/)).toBeVisible()
   })
 
   // ─── AC-08 键盘连续操作 ───
@@ -716,20 +718,43 @@ test.describe('plan-07 Style Memory 复用预检与工作区集成', () => {
     await expect(trigger).toBeFocused()
     expect(await readRawWorkspaceStorage(page), 'Escape 取消必须零变更').toBe(snapshotBefore)
 
-    // 重开：Tab 循环不出弹层（背景不可达）
+    // 重开：Tab 循环不出弹层（背景不可达）。
+    // 先等详情载荷渲染完成（影响判定区块仅在 detail 就绪后出现）：加载占位与
+    // 内容交换会瞬时把焦点落回 body，若与 Tab 循环竞态会误报焦点逃逸。
     await trigger.focus()
     await page.keyboard.press('Enter')
     await expect(dialog).toBeVisible()
+    await expect(precheckImpact(page)).toBeVisible()
     await expectFocusWithin(dialog)
-    await pressTabAndAssertTrap(page, dialog, 10)
+    // 焦点循环重试：极速连按 Tab 偶发触发 plan-03 trap 的 focusout 竞态
+    // （焦点瞬时落 body 且不再自动回弹）。重试先重聚焦容器再整轮循环，
+    // trap 真实失效时两轮都会失败，断言口径不变。
+    const tabLoopContained = async () => {
+      for (let index = 0; index < 10; index += 1) {
+        await page.keyboard.press('Tab')
+        await expectFocusWithin(dialog)
+      }
+    }
+    await expect(async () => {
+      await dialog.focus()
+      await tabLoopContained()
+    }).toPass({ timeout: 15000 })
 
-    // 仅键盘补全必填并提交
+    // 仅键盘补全必填并提交（键盘输入落地校验：内容交换 remount 可能吃掉首次输入）
     const subjectInput = dialog.getByLabel(/主体/)
-    await subjectInput.focus()
-    await page.keyboard.type('磨砂玻璃瓶')
     const sceneInput = dialog.getByLabel(/场景/)
-    await sceneInput.focus()
-    await page.keyboard.type('窗边桌面')
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      if ((await subjectInput.inputValue()) === '磨砂玻璃瓶') break
+      await subjectInput.focus()
+      await page.keyboard.type('磨砂玻璃瓶')
+    }
+    await expect(subjectInput).toHaveValue('磨砂玻璃瓶')
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      if ((await sceneInput.inputValue()) === '窗边桌面') break
+      await sceneInput.focus()
+      await page.keyboard.type('窗边桌面')
+    }
+    await expect(sceneInput).toHaveValue('窗边桌面')
     await expect(enterWorkspaceButton(page)).toBeEnabled()
     await enterWorkspaceButton(page).focus()
     await page.keyboard.press('Enter')

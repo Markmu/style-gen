@@ -12,7 +12,7 @@ import type { StoredVisualRecipe, TemplateVariable } from "@/types/models";
  * plan-06: 保存为 Style Memory 三步向导（架构 §6.3、§4.2-⑤、ADR-1/6）。
  *
  * 流程 A（`SaveStyleMemoryDialog`，宿主 iteration-detail-panel）：
- * 1. 并排参考图与本次结果 + "设为代表结果"（默认不勾选，Q5 决策）；
+ * 1. 并排参考图与本次结果 + "set as representative result"（默认不勾选，Q5 决策）；
  * 2. 确认核心保留规则 / 排除约束（逐条可勾选、编辑、增删，≤12 × 200）、
  *    可替换变量及默认值（同屏可编辑）+ 风格指纹 / 增强方向只读快照
  *    （缺失组显示"本次迭代无 X"，不推测补齐）；
@@ -20,7 +20,7 @@ import type { StoredVisualRecipe, TemplateVariable } from "@/types/models";
  *    完整提示（promptSnapshot 可编辑）；"保存后状态"随勾选即时联动。
  *
  * 流程 B（`TemplateSaveDialog` 复用 `StyleMemorySaveWizard`）：跳过步骤 1，
- * 首屏固定"当前没有代表结果，本次将保存为待验证"说明，状态固定待验证。
+ * 首屏固定"当前没有代表结果，本次将保存为 pending verification"说明，状态固定 pending。
  *
  * 提交 POST /api/templates 扩展体（SaveStyleMemoryRequest）：不携带
  * verificationStatus（ADR-1 服务端派生）；进行中锁定全部按钮防重复提交；
@@ -133,7 +133,7 @@ function EditableRuleList({
   if (missing && entries.length === 0) {
     return (
       <p className="text-[0.6875rem] leading-5 text-[var(--text-muted)]">
-        本次迭代无{itemNoun}
+        No {itemNoun} from this iteration
       </p>
     );
   }
@@ -155,7 +155,7 @@ function EditableRuleList({
                   kept.map((value, i) => (i === index ? event.target.checked : value)),
                 )
               }
-              aria-label={`${itemNoun} ${index + 1}${entry ? `：${entry}` : ""}`}
+              aria-label={`${itemNoun} ${index + 1}${entry ? `: ${entry}` : ""}`}
               className="mt-1 h-4 w-4 shrink-0 accent-[var(--accent-primary)]"
             />
             {editingIndex === index ? (
@@ -166,7 +166,7 @@ function EditableRuleList({
                   disabled={disabled}
                   autoFocus
                   maxLength={MAX_RULE_LENGTH}
-                  aria-label={`编辑${itemNoun} ${index + 1}`}
+                  aria-label={`Edit ${itemNoun} ${index + 1}`}
                   onChange={(event) => setDraft(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
@@ -182,19 +182,19 @@ function EditableRuleList({
                   onClick={() => commitEdit(index)}
                   className="btn-secondary rounded-md px-2 py-1 text-[0.6875rem] font-medium"
                 >
-                  确定
+                  Done
                 </button>
               </div>
             ) : (
               <div className="flex min-w-0 flex-1 items-start gap-1.5">
                 <span className="min-w-0 flex-1 break-words text-xs leading-5 text-[var(--text-primary)]">
-                  {entry || "（空）"}
+                  {entry || "(empty)"}
                 </span>
                 <button
                   type="button"
                   disabled={disabled}
                   onClick={() => startEdit(index)}
-                  aria-label={`编辑${itemNoun} ${index + 1}`}
+                  aria-label={`Edit ${itemNoun} ${index + 1}`}
                   className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
                 >
                   <AppIcon icon={Pencil} size={13} />
@@ -205,7 +205,7 @@ function EditableRuleList({
               type="button"
               disabled={disabled}
               onClick={() => removeEntry(index)}
-              aria-label={`删除${itemNoun} ${index + 1}`}
+              aria-label={`Delete ${itemNoun} ${index + 1}`}
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--color-error)]"
             >
               <AppIcon icon={Trash2} size={13} />
@@ -239,7 +239,7 @@ function SnapshotChips({
   if (missing) {
     return (
       <p className="text-[0.6875rem] leading-5 text-[var(--text-muted)]">
-        本次迭代无{itemNoun}
+        No {itemNoun} from this iteration
       </p>
     );
   }
@@ -272,7 +272,7 @@ function WizardReferenceImage({
       <div className="flex aspect-[4/3] flex-col items-center justify-center gap-1.5 rounded-xl border border-[var(--border-static)] bg-[var(--surface-low)] px-3 text-center">
         <AppIcon icon={ImageIcon} size={18} className="text-[var(--text-muted)]" />
         <span className="text-[0.6875rem] leading-4 text-[var(--text-secondary)]">
-          来源图缺失
+          Source image missing
         </span>
       </div>
     );
@@ -283,7 +283,7 @@ function WizardReferenceImage({
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={referenceImageUrl}
-        alt={`参考图：${promptHint}`}
+        alt={`Reference: ${promptHint}`}
         onError={() => setFailed(true)}
         className="aspect-[4/3] w-full object-cover"
       />
@@ -446,12 +446,12 @@ export function StyleMemorySaveWizard({
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (res.status === 409) {
         // 同名冲突：展示服务端文案，聚焦名称字段引导改名
-        setError(data.error ?? "同名 Style Memory 已存在，请换一个名称后重试");
+        setError(data.error ?? "A Style Memory with this name already exists. Choose a different name and try again.");
       } else {
-        setError(data.error ?? "保存暂时不可用，请稍后重试");
+        setError(data.error ?? "Saving is temporarily unavailable. Please try again later.");
       }
     } catch {
-      setError("网络异常，保存暂时不可用，请检查连接后重试");
+      setError("Network error — saving is temporarily unavailable. Check your connection and try again.");
     } finally {
       setIsSaving(false);
     }
@@ -472,26 +472,27 @@ export function StyleMemorySaveWizard({
             id={titleId}
             className="mt-0.5 text-lg font-semibold tracking-[-0.015em] text-[var(--text-primary)]"
           >
-            保存为 Style Memory
+            Save as Style Memory
           </h2>
           <p className="mt-1 font-mono text-[0.6875rem] tracking-wide text-[var(--text-muted)]">
-            步骤 {displayedStepNumber} / {totalSteps}
+            Step {displayedStepNumber} / {totalSteps}
           </p>
         </div>
 
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4">
-          {/* 流程 B 首屏说明区：无代表结果，将保存为待验证（固定预期，ADR-1） */}
+          {/* 流程 B 首屏说明区：无代表结果，将保存为 pending verification（固定预期，ADR-1） */}
           {!isIterationFlow && (
             <div
               data-testid="save-wizard-no-representative-note"
               className="rounded-xl border border-[var(--border-static)] bg-[var(--surface-low)]/60 px-3.5 py-2.5 text-xs leading-5 text-[var(--text-secondary)]"
             >
-              当前没有代表结果，本次将保存为待验证；之后可以从相关的已完成
-              Iteration 补充代表结果。
+              No representative result yet — this will be saved as Pending
+              verification. You can add a representative result later from a
+              related completed iteration.
             </div>
           )}
 
-          {/* 步骤 1（仅流程 A）：并排参考图与本次结果 + 设为代表结果 */}
+          {/* 步骤 1（仅流程 A）：并排参考图与本次结果 + set-as-representative 勾选 */}
           {isIterationFlow && step === 1 && (
             <section data-testid="save-wizard-step-1" className="space-y-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -501,7 +502,7 @@ export function StyleMemorySaveWizard({
                     promptHint={promptHint}
                   />
                   <figcaption className="mt-1.5 text-center font-mono text-[0.625rem] uppercase tracking-wider text-[var(--text-muted)]">
-                    参考图
+                    Reference
                   </figcaption>
                 </figure>
                 <figure className="min-w-0">
@@ -509,12 +510,12 @@ export function StyleMemorySaveWizard({
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={resultImageUrl ?? ""}
-                      alt={`本次结果：${promptHint}`}
+                      alt={`Result from this iteration: ${promptHint}`}
                       className="aspect-[4/3] w-full object-cover"
                     />
                   </div>
                   <figcaption className="mt-1.5 text-center font-mono text-[0.625rem] uppercase tracking-wider text-[var(--text-muted)]">
-                    本次结果
+                    Result
                   </figcaption>
                 </figure>
               </div>
@@ -528,9 +529,11 @@ export function StyleMemorySaveWizard({
                   className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--accent-primary)]"
                 />
                 <span className="text-xs leading-5 text-[var(--text-primary)]">
-                  <span className="font-semibold">设为代表结果</span>
+                  <span className="font-semibold">Set as representative result</span>
                   <span className="mt-0.5 block text-[0.6875rem] leading-5 text-[var(--text-secondary)]">
-                    勾选并保存后，这条 Memory 将标记为用户已验证；不勾选则保存为待验证。
+                    When checked and saved, this memory is marked as User
+                    verified; left unchecked, it is saved as Pending
+                    verification.
                   </span>
                 </span>
               </label>
@@ -542,14 +545,14 @@ export function StyleMemorySaveWizard({
             <section data-testid="save-wizard-step-2" className="space-y-5">
               <div className="space-y-2">
                 <p className="label-tech text-[0.6875rem] text-[var(--text-secondary)]">
-                  核心保留规则（勾选后随 Memory 保留，可编辑）
+                  Retained rules (checked items are kept with the memory; editable)
                 </p>
                 <EditableRuleList
                   entries={rules}
                   kept={rulesKept}
                   disabled={isSaving}
-                  itemNoun="核心保留规则"
-                  addLabel="添加保留规则"
+                  itemNoun="retained rule"
+                  addLabel="Add retained rule"
                   missing={prefill.missing.includes("rules")}
                   onEntriesChange={setRules}
                   onKeptChange={setRulesKept}
@@ -558,14 +561,14 @@ export function StyleMemorySaveWizard({
 
               <div className="space-y-2">
                 <p className="label-tech text-[0.6875rem] text-[var(--text-secondary)]">
-                  排除约束（勾选后随 Memory 保留，可编辑）
+                  Constraints (checked items are kept with the memory; editable)
                 </p>
                 <EditableRuleList
                   entries={constraints}
                   kept={constraintsKept}
                   disabled={isSaving}
-                  itemNoun="排除约束"
-                  addLabel="添加排除约束"
+                  itemNoun="constraint"
+                  addLabel="Add constraint"
                   missing={prefill.missing.includes("constraints")}
                   onEntriesChange={setConstraints}
                   onKeptChange={setConstraintsKept}
@@ -574,11 +577,11 @@ export function StyleMemorySaveWizard({
 
               <div className="space-y-2">
                 <p className="label-tech text-[0.6875rem] text-[var(--text-secondary)]">
-                  可替换变量与默认值（默认值可编辑，随提交携带）
+                  Variables and default values (defaults are editable and submitted with the save)
                 </p>
                 {variables.length === 0 ? (
                   <p className="text-[0.6875rem] leading-5 text-[var(--text-muted)]">
-                    本次迭代无可替换变量
+                    No variables from this iteration
                   </p>
                 ) : (
                   <div className="grid gap-2.5 sm:grid-cols-2">
@@ -618,23 +621,23 @@ export function StyleMemorySaveWizard({
 
               <div className="space-y-2">
                 <p className="label-tech text-[0.6875rem] text-[var(--text-secondary)]">
-                  风格指纹（只读快照，随提交携带）
+                  Style fingerprint (read-only snapshot, submitted with the save)
                 </p>
                 <SnapshotChips
                   values={prefill.styleTokens}
                   missing={prefill.missing.includes("tokens")}
-                  itemNoun="风格指纹"
+                  itemNoun="style fingerprint"
                 />
               </div>
 
               <div className="space-y-2">
                 <p className="label-tech text-[0.6875rem] text-[var(--text-secondary)]">
-                  增强方向（只读快照，随提交携带）
+                  Enhancement hints (read-only snapshot, submitted with the save)
                 </p>
                 <SnapshotChips
                   values={prefill.enhancementHints}
                   missing={prefill.missing.includes("enhancements")}
-                  itemNoun="增强方向"
+                  itemNoun="enhancement hint"
                 />
               </div>
             </section>
@@ -648,7 +651,7 @@ export function StyleMemorySaveWizard({
                   htmlFor="save-wizard-name"
                   className="label-tech text-[0.6875rem] text-[var(--text-secondary)]"
                 >
-                  名称
+                  Name
                 </label>
                 <input
                   id="save-wizard-name"
@@ -657,7 +660,7 @@ export function StyleMemorySaveWizard({
                   disabled={isSaving}
                   maxLength={MAX_NAME_LENGTH}
                   aria-invalid={showNameError}
-                  placeholder="例如：Neon dusk direction"
+                  placeholder="e.g. Neon dusk direction"
                   onChange={(event) => {
                     setName(event.target.value);
                     if (event.target.value.trim().length > 0) setNameTouched(false);
@@ -669,11 +672,11 @@ export function StyleMemorySaveWizard({
                 <div className="flex items-start justify-between gap-3 text-xs">
                   {showNameError ? (
                     <p role="alert" className="text-[var(--color-error)]">
-                      名称不能为空，请填写后再保存。
+                      Name cannot be empty. Fill it in before saving.
                     </p>
                   ) : (
                     <p className="text-[0.6875rem] leading-5 text-[var(--text-muted)]">
-                      名称为 1-50 个字符，保存后可随时修改。
+                      Name is 1-50 characters and can be changed any time after saving.
                     </p>
                   )}
                   <p className="shrink-0 font-mono text-[0.6875rem] text-[var(--text-muted)]">
@@ -696,7 +699,7 @@ export function StyleMemorySaveWizard({
                   htmlFor="save-wizard-description"
                   className="label-tech text-[0.6875rem] text-[var(--text-secondary)]"
                 >
-                  说明（可选）
+                  Description (optional)
                 </label>
                 <textarea
                   id="save-wizard-description"
@@ -717,7 +720,7 @@ export function StyleMemorySaveWizard({
                   onClick={() => setAdvancedOpen((current) => !current)}
                   className="btn-secondary inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium"
                 >
-                  {advancedOpen ? "收起高级信息（完整提示）" : "高级信息（完整提示）"}
+                  {advancedOpen ? "Hide advanced (full prompt)" : "Advanced (full prompt)"}
                 </button>
                 {advancedOpen && (
                   <div className="space-y-2 rounded-xl border border-[var(--border-static)] bg-[var(--surface-low)]/50 p-3.5">
@@ -725,7 +728,7 @@ export function StyleMemorySaveWizard({
                       htmlFor="save-wizard-content"
                       className="label-tech text-[0.625rem] text-[var(--text-muted)]"
                     >
-                      完整提示（可编辑，随 Memory 高级信息保存）
+                      Full prompt (editable, saved with the memory&apos;s advanced info)
                     </label>
                     <textarea
                       id="save-wizard-content"
@@ -748,7 +751,7 @@ export function StyleMemorySaveWizard({
                 data-testid="save-wizard-status-line"
                 className="rounded-xl border border-[var(--border-static)] bg-[var(--surface-low)]/60 px-3.5 py-2.5 text-xs leading-5 text-[var(--text-primary)]"
               >
-                保存后状态：{expectedVerified ? "用户已验证" : "待验证"}
+                After saving: {expectedVerified ? "User verified" : "Pending verification"}
               </p>
             </section>
           )}
@@ -762,7 +765,7 @@ export function StyleMemorySaveWizard({
               onClick={() => setStep((current) => (current > firstStep ? ((current - 1) as WizardStep) : current))}
               className="btn-secondary rounded-lg px-3.5 py-2 text-xs font-medium"
             >
-              上一步
+              Back
             </button>
           )}
           <button
@@ -771,7 +774,7 @@ export function StyleMemorySaveWizard({
             onClick={handleClose}
             className="btn-secondary rounded-lg px-3.5 py-2 text-xs font-medium"
           >
-            取消
+            Cancel
           </button>
           {step < 3 ? (
             <button
@@ -780,7 +783,7 @@ export function StyleMemorySaveWizard({
               onClick={() => setStep((current) => ((current + 1) as WizardStep))}
               className="btn-primary rounded-lg px-4 py-2 text-xs font-semibold tracking-wide"
             >
-              下一步
+              Next
             </button>
           ) : (
             <button
@@ -789,7 +792,7 @@ export function StyleMemorySaveWizard({
               onClick={() => void handleSubmit()}
               className="btn-primary rounded-lg px-4 py-2 text-xs font-semibold tracking-wide"
             >
-              {isSaving ? "保存中…" : "保存 Style Memory"}
+              {isSaving ? "Saving…" : "Save Style Memory"}
             </button>
           )}
         </div>

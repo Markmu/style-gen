@@ -201,7 +201,7 @@ export const templates = pgTable(
     negativeConstraints: text("negative_constraints").array().notNull().default([]),
     styleTokens: text("style_tokens").array().notNull().default([]),
     enhancementHints: text("enhancement_hints").array().notNull().default([]),
-    // plan-01（ADR-1）: 验证状态只能由服务端写点派生，存量默认待验证
+    // plan-01（ADR-1）: 验证状态只能由服务端写点派生，存量默认 pending_verification
     verificationStatus: varchar("verification_status", { length: 20 })
       .notNull()
       .default("pending_verification")

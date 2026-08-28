@@ -139,61 +139,61 @@ async function walkToStep3(
 ) {
   const user = userEvent.setup();
   if (options.representative) {
-    await user.click(screen.getByRole("checkbox", { name: /设为代表结果/ }));
+    await user.click(screen.getByRole("checkbox", { name: /Set as representative result/ }));
   }
-  await user.click(screen.getByRole("button", { name: /下一步/ }));
+  await user.click(screen.getByRole("button", { name: /^Next$/ }));
   const step2 = screen.getByTestId("save-wizard-step-2");
   if (options.editEnvironment) {
     await user.clear(within(step2).getByLabelText(/environment/i));
     await user.type(within(step2).getByLabelText(/environment/i), options.editEnvironment);
   }
-  await user.click(screen.getByRole("button", { name: /下一步/ }));
+  await user.click(screen.getByRole("button", { name: /^Next$/ }));
   return screen.getByTestId("save-wizard-step-3");
 }
 
 describe("StyleMemorySaveWizard — 三步结构（流程 A，架构 §6.3 / §4.2-⑤）", () => {
-  it("步骤 1：并排参考图与本次结果 +「设为代表结果」默认不勾选 + 已验证语义说明", () => {
+  it("step 1: side-by-side reference and result + Set as representative result unchecked by default + verified semantics note", () => {
     renderDialog();
 
     const dialog = screen.getByTestId("save-style-memory-dialog");
     expect(dialog).toHaveAttribute("role", "dialog");
     expect(screen.getByTestId("save-wizard-step-1")).toBeVisible();
-    expect(screen.getByText(/步骤 1 \/ 3/)).toBeVisible();
+    expect(screen.getByText(/Step 1 \/ 3/)).toBeVisible();
 
     const step1 = screen.getByTestId("save-wizard-step-1");
-    const referenceImg = within(step1).getByRole("img", { name: /参考图/ });
+    const referenceImg = within(step1).getByRole("img", { name: /Reference/ });
     expect(referenceImg).toHaveAttribute(
       "src",
       "https://cdn.example.com/references/iter-001/original.png",
     );
     expect(
-      within(step1).getByRole("img", { name: /本次结果/ }),
+      within(step1).getByRole("img", { name: /Result from this iteration/ }),
     ).toHaveAttribute("src", "https://cdn.example.com/generated/iter-001/result.webp");
-    expect(within(step1).getByText("参考图", { exact: true })).toBeVisible();
-    expect(within(step1).getByText("本次结果", { exact: true })).toBeVisible();
+    expect(within(step1).getByText("Reference", { exact: true })).toBeVisible();
+    expect(within(step1).getByText("Result", { exact: true })).toBeVisible();
 
-    const checkbox = screen.getByRole("checkbox", { name: /设为代表结果/ });
+    const checkbox = screen.getByRole("checkbox", { name: /Set as representative result/ });
     expect(checkbox).not.toBeChecked();
-    expect(step1).toHaveTextContent(/用户已验证/);
+    expect(step1).toHaveTextContent(/User verified/);
   });
 
-  it("旧数据边界：来源参考图缺失时步骤 1 显示「来源图缺失」占位，本次结果正常", () => {
+  it("legacy data boundary: missing source reference shows the Source image missing placeholder in step 1, result renders normally", () => {
     renderDialog({ sourceImageUrl: null });
 
     const step1 = screen.getByTestId("save-wizard-step-1");
-    expect(within(step1).getByText("来源图缺失")).toBeVisible();
-    expect(within(step1).queryByRole("img", { name: /参考图/ })).toBeNull();
+    expect(within(step1).getByText("Source image missing")).toBeVisible();
+    expect(within(step1).queryByRole("img", { name: /Reference/ })).toBeNull();
     // 结果图不受来源缺失影响，向导流程可继续（下一步可用）
     expect(
-      within(step1).getByRole("img", { name: /本次结果/ }),
+      within(step1).getByRole("img", { name: /Result from this iteration/ }),
     ).toHaveAttribute("src", "https://cdn.example.com/generated/iter-001/result.webp");
-    expect(screen.getByRole("button", { name: /下一步/ })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /^Next$/ })).toBeEnabled();
   });
 
-  it("步骤 2：V2 预填规则（hard 优先）/排除约束/只读快照 + 变量默认值同屏可编辑", async () => {
+  it("step 2: V2 prefilled rules (hard first) / constraints / read-only snapshots + editable variable defaults on the same screen", async () => {
     const user = userEvent.setup();
     renderDialog();
-    await user.click(screen.getByRole("button", { name: /下一步/ }));
+    await user.click(screen.getByRole("button", { name: /^Next$/ }));
 
     const step2 = screen.getByTestId("save-wizard-step-2");
     // 保留规则来自配方不变量值（soft 排在 hard 之后）
@@ -215,26 +215,26 @@ describe("StyleMemorySaveWizard — 三步结构（流程 A，架构 §6.3 / §4
     expect(environment).toHaveValue("night market stall");
   });
 
-  it("步骤往返不丢内容：步骤 3 回步骤 1 取消勾选后，状态文案联动为待验证", async () => {
+  it("step round-trip keeps content: unchecking representative in step 1 updates the status line to Pending verification", async () => {
     const user = userEvent.setup();
     renderDialog();
     await walkToStep3({ representative: true });
 
     const step3 = screen.getByTestId("save-wizard-step-3");
-    expect(step3).toHaveTextContent("保存后状态：用户已验证");
+    expect(step3).toHaveTextContent("After saving: User verified");
 
-    await user.click(screen.getByRole("button", { name: /上一步/ }));
-    await user.click(screen.getByRole("button", { name: /上一步/ }));
+    await user.click(screen.getByRole("button", { name: /^Back$/ }));
+    await user.click(screen.getByRole("button", { name: /^Back$/ }));
     expect(screen.getByTestId("save-wizard-step-1")).toBeVisible();
-    await user.click(screen.getByRole("checkbox", { name: /设为代表结果/ }));
-    await user.click(screen.getByRole("button", { name: /下一步/ }));
-    await user.click(screen.getByRole("button", { name: /下一步/ }));
+    await user.click(screen.getByRole("checkbox", { name: /Set as representative result/ }));
+    await user.click(screen.getByRole("button", { name: /^Next$/ }));
+    await user.click(screen.getByRole("button", { name: /^Next$/ }));
     expect(screen.getByTestId("save-wizard-step-3")).toHaveTextContent(
-      "保存后状态：待验证",
+      "After saving: Pending verification",
     );
   });
 
-  it("高级信息默认折叠，展开后完整提示可见且可编辑", async () => {
+  it("advanced section collapsed by default; full prompt visible and editable after expanding", async () => {
     const user = userEvent.setup();
     renderDialog();
     await walkToStep3();
@@ -243,15 +243,15 @@ describe("StyleMemorySaveWizard — 三步结构（流程 A，架构 §6.3 / §4
     expect(step3.textContent).not.toContain(INITIAL_CONTENT);
 
     await user.click(
-      screen.getByRole("button", { name: /高级信息|完整提示/ }),
+      screen.getByRole("button", { name: /Advanced/ }),
     );
-    const contentInput = within(step3).getByLabelText(/完整提示（可编辑/);
+    const contentInput = within(step3).getByLabelText(/Full prompt \(editable/);
     expect(contentInput).toHaveValue(INITIAL_CONTENT);
     await user.type(contentInput, " revised");
     expect(contentInput).toHaveValue(`${INITIAL_CONTENT} revised`);
   });
 
-  it("步骤 3 首渲染无必填错误（中性帮助存在），空名提交报错且不发请求", async () => {
+  it("step 3 first render has no required error (neutral help present); empty-name submit shows error and sends no request", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
@@ -259,11 +259,11 @@ describe("StyleMemorySaveWizard — 三步结构（流程 A，架构 §6.3 / §4
     await walkToStep3();
 
     const step3 = screen.getByTestId("save-wizard-step-3");
-    expect(step3).toHaveTextContent(/1-50 个字符/);
-    expect(step3.textContent).not.toMatch(/必填|不能为空/);
+    expect(step3).toHaveTextContent(/1-50 characters/);
+    expect(step3.textContent).not.toMatch(/Required|cannot be empty/);
 
-    await user.click(screen.getByRole("button", { name: /^保存/ }));
-    expect(within(step3).getByText(/不能为空/)).toBeVisible();
+    await user.click(screen.getByRole("button", { name: /^Save/ }));
+    expect(within(step3).getByText(/cannot be empty/)).toBeVisible();
     expect(fetchMock).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
   });
@@ -275,7 +275,7 @@ describe("StyleMemorySaveWizard — 提交契约（POST /api/templates 扩展体
     routerPushMock.mockClear();
   });
 
-  it("勾选代表结果：提交体携带规则四元组、编辑后变量与 representativeGenerationTaskId，成功跳转新详情", async () => {
+  it("representative checked: body carries the rule quadruple, edited variables and representativeGenerationTaskId; success navigates to the new detail", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       jsonResponse(201, { id: "tpl-saved-1", name: "Neon Dusk Memory" }),
     );
@@ -284,8 +284,8 @@ describe("StyleMemorySaveWizard — 提交契约（POST /api/templates 扩展体
     const { onSaved } = renderDialog();
 
     await walkToStep3({ representative: true, editEnvironment: "night market stall" });
-    await user.type(screen.getByLabelText(/^名称$/), "Neon Dusk Memory");
-    await user.click(screen.getByRole("button", { name: /^保存/ }));
+    await user.type(screen.getByLabelText(/^Name$/), "Neon Dusk Memory");
+    await user.click(screen.getByRole("button", { name: /^Save/ }));
 
     await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
     expect(onSaved).toHaveBeenCalledWith({
@@ -323,7 +323,7 @@ describe("StyleMemorySaveWizard — 提交契约（POST /api/templates 扩展体
     expect(body.verificationStatus).toBeUndefined();
   });
 
-  it("不勾选：提交体不带 representativeGenerationTaskId（来源迭代仍携带）", async () => {
+  it("representative unchecked: body omits representativeGenerationTaskId (source iteration still carried)", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       jsonResponse(201, { id: "tpl-saved-2", name: "Pending memory" }),
     );
@@ -332,8 +332,8 @@ describe("StyleMemorySaveWizard — 提交契约（POST /api/templates 扩展体
     renderDialog();
 
     await walkToStep3();
-    await user.type(screen.getByLabelText(/^名称$/), "Pending memory");
-    await user.click(screen.getByRole("button", { name: /^保存/ }));
+    await user.type(screen.getByLabelText(/^Name$/), "Pending memory");
+    await user.click(screen.getByRole("button", { name: /^Save/ }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
     const body = JSON.parse(
@@ -343,7 +343,7 @@ describe("StyleMemorySaveWizard — 提交契约（POST /api/templates 扩展体
     expect(body.sourceGenerationTaskId).toBe("iter-001");
   });
 
-  it("保存进行中锁定提交与取消按钮（防重复提交）", async () => {
+  it("saving locks submit and cancel buttons (no duplicate submit)", async () => {
     let resolveFetch: ((value: Response) => void) | undefined;
     const fetchMock = vi.fn().mockImplementation(
       () =>
@@ -356,14 +356,14 @@ describe("StyleMemorySaveWizard — 提交契约（POST /api/templates 扩展体
     const { onClose } = renderDialog();
 
     await walkToStep3({ representative: true });
-    await user.type(screen.getByLabelText(/^名称$/), "Locked memory");
-    await user.click(screen.getByRole("button", { name: /^保存/ }));
+    await user.type(screen.getByLabelText(/^Name$/), "Locked memory");
+    await user.click(screen.getByRole("button", { name: /^Save/ }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-    expect(screen.getByRole("button", { name: /保存中/ })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "取消" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Saving/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
     expect(screen.getByTestId("save-wizard-step-3")).toHaveTextContent(
-      "保存后状态：用户已验证",
+      "After saving: User verified",
     );
 
     resolveFetch?.(jsonResponse(201, { id: "tpl-locked", name: "Locked memory" }));
@@ -381,8 +381,8 @@ describe("StyleMemorySaveWizard — 失败保留与无损重试（AC-11）", () 
     routerPushMock.mockClear();
   });
 
-  it("409 同名冲突：服务端文案原样呈现，步骤 3 与名称、勾选状态保留，改名重试成功", async () => {
-    const conflictCopy = "同名 Style Memory 已存在，请换一个名称后重试";
+  it("409 name conflict: server copy shown as-is, step 3 with name and checkbox preserved; rename and retry succeeds", async () => {
+    const conflictCopy = "A template with this name already exists";
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -396,18 +396,18 @@ describe("StyleMemorySaveWizard — 失败保留与无损重试（AC-11）", () 
     const { onSaved } = renderDialog();
 
     await walkToStep3({ representative: true });
-    await user.type(screen.getByLabelText(/^名称$/), "Conflict memory");
-    await user.click(screen.getByRole("button", { name: /^保存/ }));
+    await user.type(screen.getByLabelText(/^Name$/), "Conflict memory");
+    await user.click(screen.getByRole("button", { name: /^Save/ }));
 
     const step3 = screen.getByTestId("save-wizard-step-3");
     await waitFor(() => expect(step3).toHaveTextContent(conflictCopy));
-    expect(screen.getByLabelText(/^名称$/)).toHaveValue("Conflict memory");
-    expect(step3).toHaveTextContent("保存后状态：用户已验证");
+    expect(screen.getByLabelText(/^Name$/)).toHaveValue("Conflict memory");
+    expect(step3).toHaveTextContent("After saving: User verified");
 
-    const nameInput = screen.getByLabelText(/^名称$/);
+    const nameInput = screen.getByLabelText(/^Name$/);
     await user.clear(nameInput);
     await user.type(nameInput, "Conflict v2");
-    await user.click(screen.getByRole("button", { name: /^保存/ }));
+    await user.click(screen.getByRole("button", { name: /^Save/ }));
 
     await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -418,12 +418,12 @@ describe("StyleMemorySaveWizard — 失败保留与无损重试（AC-11）", () 
     expect(retryBody.representativeGenerationTaskId).toBe("iter-001");
   });
 
-  it("5xx 暂时失败：错误条呈现，直接重试成功且提交体与首次一致", async () => {
+  it("5xx transient failure: error banner shown, direct retry succeeds and the body matches the first attempt", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
         jsonResponse(503, {
-          error: "保存暂时不可用，请稍后重试",
+          error: "Saving is temporarily unavailable. Please try again later.",
           code: "SERVICE_UNAVAILABLE",
           retryable: true,
         }),
@@ -434,14 +434,14 @@ describe("StyleMemorySaveWizard — 失败保留与无损重试（AC-11）", () 
     renderDialog();
 
     await walkToStep3({ representative: true });
-    await user.type(screen.getByLabelText(/^名称$/), "Retry");
-    await user.click(screen.getByRole("button", { name: /^保存/ }));
+    await user.type(screen.getByLabelText(/^Name$/), "Retry");
+    await user.click(screen.getByRole("button", { name: /^Save/ }));
 
     const step3 = screen.getByTestId("save-wizard-step-3");
-    await waitFor(() => expect(step3).toHaveTextContent(/保存暂时不可用/));
-    expect(screen.getByLabelText(/^名称$/)).toHaveValue("Retry");
+    await waitFor(() => expect(step3).toHaveTextContent(/temporarily unavailable/));
+    expect(screen.getByLabelText(/^Name$/)).toHaveValue("Retry");
 
-    await user.click(screen.getByRole("button", { name: /^保存/ }));
+    await user.click(screen.getByRole("button", { name: /^Save/ }));
     await waitFor(() =>
       expect(routerPushMock).toHaveBeenCalledWith("/workspace/templates/tpl-retry-2"),
     );
@@ -449,22 +449,22 @@ describe("StyleMemorySaveWizard — 失败保留与无损重试（AC-11）", () 
     expect(fetchMock.mock.calls[1][1].body).toBe(fetchMock.mock.calls[0][1].body);
   });
 
-  it("网络异常：可重试文案呈现，已填内容保留", async () => {
+  it("network error: retryable copy shown, filled content preserved", async () => {
     const fetchMock = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
     renderDialog();
 
     await walkToStep3();
-    await user.type(screen.getByLabelText(/^名称$/), "Network attempt");
-    await user.click(screen.getByRole("button", { name: /^保存/ }));
+    await user.type(screen.getByLabelText(/^Name$/), "Network attempt");
+    await user.click(screen.getByRole("button", { name: /^Save/ }));
 
     await waitFor(() =>
       expect(screen.getByTestId("save-wizard-step-3")).toHaveTextContent(
-        /保存暂时不可用/,
+        /temporarily unavailable/,
       ),
     );
-    expect(screen.getByLabelText(/^名称$/)).toHaveValue("Network attempt");
+    expect(screen.getByLabelText(/^Name$/)).toHaveValue("Network attempt");
   });
 });
 
@@ -473,7 +473,7 @@ describe("StyleMemorySaveWizard — 重置与关闭", () => {
     vi.unstubAllGlobals();
   });
 
-  it("关闭后重新打开：重置回步骤 1 与预填初始态（名称清空、勾选复位）", async () => {
+  it("reopening after close: reset to step 1 with prefilled initial state (name cleared, checkbox reset)", async () => {
     const user = userEvent.setup();
     const props: SaveStyleMemoryDialogProps = {
       open: true,
@@ -491,9 +491,9 @@ describe("StyleMemorySaveWizard — 重置与关闭", () => {
     };
     const { rerender } = render(<SaveStyleMemoryDialog {...props} />);
 
-    await user.click(screen.getByRole("checkbox", { name: /设为代表结果/ }));
+    await user.click(screen.getByRole("checkbox", { name: /Set as representative result/ }));
     await walkToStep3FromMounted();
-    await user.type(screen.getByLabelText(/^名称$/), "Leftover name");
+    await user.type(screen.getByLabelText(/^Name$/), "Leftover name");
 
     rerender(<SaveStyleMemoryDialog {...props} open={false} />);
     expect(
@@ -502,16 +502,16 @@ describe("StyleMemorySaveWizard — 重置与关闭", () => {
     rerender(<SaveStyleMemoryDialog {...props} open />);
 
     expect(screen.getByTestId("save-wizard-step-1")).toBeVisible();
-    expect(screen.getByRole("checkbox", { name: /设为代表结果/ })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: /Set as representative result/ })).not.toBeChecked();
   });
 
-  it("取消只触发 onClose，不发请求；Escape 同语义", async () => {
+  it("cancel only triggers onClose and sends no request; Escape behaves the same", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
     const { onSaved, onClose } = renderDialog();
 
-    await user.click(screen.getByRole("button", { name: "取消" }));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onSaved).not.toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();
@@ -525,8 +525,8 @@ describe("StyleMemorySaveWizard — 重置与关闭", () => {
 /** 已挂载向导内直达步骤 3（复用全局 screen 查询） */
 async function walkToStep3FromMounted() {
   const user = userEvent.setup();
-  await user.click(screen.getByRole("button", { name: /下一步/ }));
-  await user.click(screen.getByRole("button", { name: /下一步/ }));
+  await user.click(screen.getByRole("button", { name: /^Next$/ }));
+  await user.click(screen.getByRole("button", { name: /^Next$/ }));
 }
 
 describe("StyleMemorySaveWizard — 流程 B（workspace-draft，无代表结果）", () => {
@@ -558,21 +558,21 @@ describe("StyleMemorySaveWizard — 流程 B（workspace-draft，无代表结果
     return { onSaved, onClose };
   }
 
-  it("首屏为步骤 2 + 无代表结果说明（待验证预期），无步骤 1 与勾选框", () => {
+  it("first screen is step 2 + no-representative note (Pending verification expectation), no step 1 or checkbox", () => {
     renderDraft();
 
     const note = screen.getByTestId("save-wizard-no-representative-note");
     expect(note).toBeVisible();
-    expect(note).toHaveTextContent(/当前没有代表结果/);
-    expect(note).toHaveTextContent(/待验证/);
+    expect(note).toHaveTextContent(/No representative result yet/);
+    expect(note).toHaveTextContent(/Pending verification/);
     expect(screen.queryByTestId("save-wizard-step-1")).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("checkbox", { name: /设为代表结果/ }),
+      screen.queryByRole("checkbox", { name: /Set as representative result/ }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText(/步骤 1 \/ 2/)).toBeVisible();
+    expect(screen.getByText(/Step 1 \/ 2/)).toBeVisible();
   });
 
-  it("提交体不含 representative/sourceGenerationTask，携带来源资产与分析任务，状态固定待验证", async () => {
+  it("body omits representative/sourceGenerationTask, carries source asset and analysis task, status fixed to Pending verification", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       jsonResponse(201, { id: "tpl-draft-1", name: "Workspace Draft" }),
     );
@@ -580,11 +580,11 @@ describe("StyleMemorySaveWizard — 流程 B（workspace-draft，无代表结果
     const user = userEvent.setup();
     renderDraft();
 
-    await user.click(screen.getByRole("button", { name: /下一步/ }));
+    await user.click(screen.getByRole("button", { name: /^Next$/ }));
     const step3 = screen.getByTestId("save-wizard-step-3");
-    expect(step3).toHaveTextContent("保存后状态：待验证");
-    await user.type(screen.getByLabelText(/^名称$/), "Workspace Draft");
-    await user.click(screen.getByRole("button", { name: /^保存/ }));
+    expect(step3).toHaveTextContent("After saving: Pending verification");
+    await user.type(screen.getByLabelText(/^Name$/), "Workspace Draft");
+    await user.click(screen.getByRole("button", { name: /^Save/ }));
 
     await waitFor(() =>
       expect(routerPushMock).toHaveBeenCalledWith("/workspace/templates/tpl-draft-1"),
@@ -599,7 +599,7 @@ describe("StyleMemorySaveWizard — 流程 B（workspace-draft，无代表结果
     expect(body.verificationStatus).toBeUndefined();
   });
 
-  it("fallback 配方：四组缺失标记（本次迭代无 X），流程可继续", async () => {
+  it("fallback recipe: four missing markers (No X from this iteration), flow continues", async () => {
     const user = userEvent.setup();
     renderDraft({
       recipe: {
@@ -612,11 +612,11 @@ describe("StyleMemorySaveWizard — 流程 B（workspace-draft，无代表结果
     });
 
     const step2 = screen.getByTestId("save-wizard-step-2");
-    const missingMarks = within(step2).getAllByText(/本次迭代无/);
+    const missingMarks = within(step2).getAllByText(/No .* from this iteration/);
     expect(missingMarks.length).toBeGreaterThanOrEqual(4);
     expect(step2.textContent).not.toContain("warm amber and sand palette");
 
-    await user.click(screen.getByRole("button", { name: /下一步/ }));
+    await user.click(screen.getByRole("button", { name: /^Next$/ }));
     expect(screen.getByTestId("save-wizard-step-3")).toBeVisible();
   });
 });

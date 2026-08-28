@@ -106,9 +106,9 @@ export function deriveReuseWorkspaceImpact(
 }
 
 const WORKSPACE_IMPACT_COPY: Record<WorkspaceImpactKind, string> = {
-  empty: "当前工作区为空，可直接进入。",
-  same: "已在使用这条 Memory。",
-  different: "当前工作区有不同的未完成内容，将在确认后切换。",
+  empty: "Your workspace is empty, so nothing will be replaced.",
+  same: "You are already using this memory.",
+  different: "Your workspace has different unfinished work — it will be replaced when you continue.",
 };
 
 /** 确认时的快照合入与导航组装（ADR-5：一次性握手，确认即落盘） */
@@ -161,7 +161,7 @@ function StatusBadge({ verified }: { verified: boolean }) {
         size={12}
         className={verified ? "text-[var(--accent-primary)]" : "text-[var(--text-muted)]"}
       />
-      {verified ? "用户已验证" : "待验证"}
+      {verified ? "User verified" : "Pending verification"}
     </span>
   );
 }
@@ -190,7 +190,7 @@ export function ReusePrecheckDialog({
     setLoadError(null);
     try {
       const res = await fetch(`/api/templates/${memoryId}`);
-      if (!res.ok) throw new Error("Style Memory 详情加载失败");
+      if (!res.ok) throw new Error("Failed to load Style Memory details");
       const data = (await res.json()) as PrecheckDetail;
       if (sequence !== loadSequenceRef.current) return;
       setDetail(normalizePrecheckDetail(data));
@@ -199,7 +199,7 @@ export function ReusePrecheckDialog({
       setImpactKind(deriveReuseWorkspaceImpact(memoryId, readCurrentSnapshot()));
     } catch {
       if (sequence !== loadSequenceRef.current) return;
-      setLoadError("预检信息暂时无法加载。可重试或取消，当前工作台不受影响。");
+      setLoadError("Precheck details could not be loaded. Retry or cancel — your current workspace is unaffected.");
     } finally {
       if (sequence === loadSequenceRef.current) {
         setIsLoading(false);
@@ -252,17 +252,17 @@ export function ReusePrecheckDialog({
     <ModalDialog
       open={open}
       onClose={onClose}
-      label="使用前预检：将保留的风格规则、必填变量与工作区影响"
+      label="Precheck before use: retained style rules, required variables, and workspace impact"
       testId="reuse-precheck-dialog"
     >
       {/* 头部标题（labelledBy 锚点） */}
       <h2 id="reuse-precheck-title" className="sr-only">
-        使用前预检
+        Precheck before use
       </h2>
 
       {isLoading && (
         <div className="flex min-h-56 flex-col items-center justify-center gap-3 p-6">
-          <p className="text-sm text-[var(--text-secondary)]">正在加载预检信息…</p>
+          <p className="text-sm text-[var(--text-secondary)]">Loading precheck details…</p>
         </div>
       )}
 
@@ -281,14 +281,14 @@ export function ReusePrecheckDialog({
               onClick={() => void loadDetail()}
               className="btn-secondary rounded-lg px-4 py-2 text-xs font-medium"
             >
-              重试
+              Retry
             </button>
             <button
               type="button"
               onClick={onClose}
               className="rounded-lg px-4 py-2 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             >
-              取消
+              Cancel
             </button>
           </div>
         </div>
@@ -304,7 +304,8 @@ export function ReusePrecheckDialog({
                   {detail.name}
                 </h3>
                 <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">
-                  进入工作区前确认将保留的规则与需要替换的内容。
+                  Confirm the retained rules and what needs replacing before
+                  entering the workspace.
                 </p>
               </div>
               <StatusBadge verified={detail.verificationStatus === "user_verified"} />
@@ -313,7 +314,7 @@ export function ReusePrecheckDialog({
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={detail.representativeResult.imageUrl}
-                    alt={`${detail.name} 的代表结果缩略`}
+                    alt={`${detail.name} representative result thumbnail`}
                     className="hidden h-14 w-20 shrink-0 rounded-lg object-cover ring-1 ring-[var(--border-static)] sm:block"
                   />
                 )}
@@ -322,9 +323,9 @@ export function ReusePrecheckDialog({
 
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5 sm:p-6">
             {/* 将保留 */}
-            <section aria-label="将保留">
+            <section aria-label="What carries over">
               <h4 className="text-[0.6875rem] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">
-                将保留
+                What carries over
               </h4>
               {detail.retainedRules.length > 0 ? (
                 <ul className="mt-2 space-y-1.5">
@@ -339,19 +340,20 @@ export function ReusePrecheckDialog({
                 </ul>
               ) : (
                 <p className="mt-2 text-sm text-[var(--text-secondary)]">
-                  这条 Memory 未登记保留规则，仅按提示内容进入工作区。
+                  This memory has no retained rules recorded — it enters the
+                  workspace with its prompt content only.
                 </p>
               )}
             </section>
 
             {/* 开始前替换 */}
-            <section aria-label="开始前替换">
+            <section aria-label="Replace before you start">
               <h4 className="text-[0.6875rem] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">
-                开始前替换
+                Replace before you start
               </h4>
               {requiredVariables.length === 0 ? (
                 <p className="mt-2 text-sm text-[var(--text-secondary)]">
-                  无需必填变量，可直接进入工作区。
+                  No required variables — you can enter the workspace directly.
                 </p>
               ) : (
                 <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -376,7 +378,7 @@ export function ReusePrecheckDialog({
                             }));
                           }}
                           className="min-h-9 w-full rounded-lg bg-[var(--surface-control)]/80 px-3 text-sm text-[var(--text-primary)] outline-none ring-1 ring-[var(--border-static)] focus-visible:ring-[var(--accent-primary)]"
-                          placeholder={`请填写${labelText}`}
+                          placeholder={`Enter ${labelText}`}
                         />
                       </label>
                     );
@@ -392,7 +394,7 @@ export function ReusePrecheckDialog({
                     aria-expanded={showOtherVariables}
                     className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-[var(--border-static)]/60 bg-[var(--surface-control)]/60 px-3 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
                   >
-                    其他变量（{otherVariables.length} 项）
+                    Other variables ({otherVariables.length})
                   </button>
                   {showOtherVariables && (
                     <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -429,9 +431,9 @@ export function ReusePrecheckDialog({
             </section>
 
             {/* 工作区影响判定（架构 §6.5-2 三分支，只读展示） */}
-            <section aria-label="对当前工作区的影响">
+            <section aria-label="Impact on your current workspace">
               <h4 className="text-[0.6875rem] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">
-                对当前工作区的影响
+                Impact on your current workspace
               </h4>
               <p
                 data-testid="precheck-workspace-impact"
@@ -446,8 +448,8 @@ export function ReusePrecheckDialog({
           <footer className="shrink-0 space-y-3 border-t border-[var(--border-static)]/60 p-5 pt-4 sm:p-6 sm:pt-4">
             {missingNames.length > 0 && (
               <p role="status" className="text-xs leading-5 text-[var(--color-error)]">
-                仍需填写 {missingNames.length} 项：
-                {missingNames.map((v) => v.label ?? v.name).join("、")}
+                {missingNames.length} fields left to fill:{" "}
+                {missingNames.map((v) => v.label ?? v.name).join(", ")}
               </p>
             )}
             <div className="flex items-center justify-end gap-2">
@@ -456,7 +458,7 @@ export function ReusePrecheckDialog({
                 onClick={onClose}
                 className="btn-secondary inline-flex min-h-11 items-center rounded-xl px-4 text-xs font-medium"
               >
-                取消
+                Cancel
               </button>
               <button
                 type="button"
@@ -464,10 +466,10 @@ export function ReusePrecheckDialog({
                 disabled={!canEnterWorkspace}
                 title={
                   canEnterWorkspace
-                    ? "应用这条 Memory 并进入工作区"
-                    : `仍需填写 ${missingNames.length} 项：${missingNames
+                    ? "Apply this memory and enter the workspace"
+                    : `${missingNames.length} fields left to fill: ${missingNames
                         .map((v) => v.label ?? v.name)
-                        .join("、")}`
+                        .join(", ")}`
                 }
                 className={`inline-flex min-h-11 items-center rounded-xl px-5 text-xs font-semibold transition-colors ${
                   canEnterWorkspace
@@ -475,7 +477,7 @@ export function ReusePrecheckDialog({
                     : "cursor-not-allowed bg-[var(--surface-control)] text-[var(--text-muted)] ring-1 ring-[var(--border-static)]"
                 }`}
               >
-                进入工作区
+                Enter workspace
               </button>
             </div>
           </footer>

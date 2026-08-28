@@ -32,7 +32,7 @@ import type { StyleMemoryDetail } from "@/types/models";
 
 export interface StyleMemoryDetailViewProps {
   detail: StyleMemoryDetail;
-  /** 打开代表结果选择器（待验证引导 / 已验证替换共用） */
+  /** 打开代表结果选择器（pending 引导 / verified 替换共用） */
   onSelectRepresentative: () => void;
 }
 
@@ -107,8 +107,8 @@ export function StyleMemoryDetailView({
       {/* ── 验证依据 ── */}
       <SectionCard
         testId="style-memory-detail-evidence"
-        title="验证依据"
-        description="这条 Memory 的结论由以下真实产物支撑。"
+        title="Evidence"
+        description="This memory's conclusions are backed by the following real artifacts."
       >
         <div className="grid gap-4 sm:grid-cols-2">
           {/* 参考图 */}
@@ -120,16 +120,16 @@ export function StyleMemoryDetailView({
                 <span className="flex flex-col items-center gap-2 px-4 text-center">
                   <AppIcon icon={ImageOff} size={20} className="text-[var(--text-muted)]" />
                   <span className="text-xs font-medium text-[var(--text-secondary)]">
-                    来源缺失：未记录参考图
+                    Missing source: no reference image was recorded
                   </span>
                   <span className="text-[0.6875rem] leading-4 text-[var(--text-muted)]">
-                    这条 Memory 保存时没有关联参考图（待补充）。
+                    This memory was saved without a reference image (not yet provided).
                   </span>
                 </span>
               </div>
             )}
             <figcaption className="mt-1.5 text-center text-[0.6875rem] font-medium text-[var(--text-secondary)]">
-              参考图
+              Reference
             </figcaption>
           </figure>
 
@@ -144,7 +144,7 @@ export function StyleMemoryDetailView({
               ) : (
                 <div className="flex aspect-[4/3] w-full items-center justify-center rounded-xl border border-dashed border-[var(--border-static)] bg-[var(--surface-low)]/60">
                   <span className="px-4 text-center text-xs text-[var(--text-secondary)]">
-                    代表结果图暂不可用
+                    Representative result unavailable
                   </span>
                 </div>
               )
@@ -156,31 +156,32 @@ export function StyleMemoryDetailView({
                   className="text-[var(--text-muted)]"
                 />
                 <span className="text-xs font-medium text-[var(--text-secondary)]">
-                  尚无代表结果
+                  No representative result yet
                 </span>
                 <p className="text-[0.6875rem] leading-4 text-[var(--text-muted)]">
-                  从相关的已完成 Iteration 选择代表结果
+                  Choose a representative result from a related completed
+                  iteration
                 </p>
                 <button
                   type="button"
                   onClick={onSelectRepresentative}
                   className="btn-secondary inline-flex min-h-9 items-center gap-1.5 rounded-xl px-3 text-xs font-medium shadow-sm transition-all hover:border-[var(--border-interactive)] active:scale-[0.98]"
                 >
-                  选择代表结果
+                  Select representative result
                 </button>
               </div>
             )}
             {hasRepresentative ? (
               <div className="mt-1.5 flex items-center justify-center gap-2">
                 <figcaption className="text-[0.6875rem] font-medium text-[var(--text-secondary)]">
-                  代表结果
+                  Representative result
                 </figcaption>
                 <button
                   type="button"
                   onClick={onSelectRepresentative}
                   className="inline-flex items-center gap-1 rounded-md text-[0.6875rem] font-medium text-[var(--accent-primary)] transition-colors hover:underline"
                 >
-                  替换代表结果
+                  Replace representative result
                   <AppIcon icon={ArrowUpRight} size={11} />
                 </button>
               </div>
@@ -192,18 +193,18 @@ export function StyleMemoryDetailView({
         <div className="mt-3.5 border-t border-[var(--border-static)] pt-3">
           {hasSourceIteration && sourceIterationId ? (
             <p className="flex flex-wrap items-center gap-2 text-xs text-[var(--text-secondary)]">
-              <span className="font-medium text-[var(--text-primary)]">来源 Iteration</span>
-              <span>这条 Memory 的规则与结论来自该次生成。</span>
+              <span className="font-medium text-[var(--text-primary)]">Source iteration</span>
+              <span>This memory&apos;s rules and conclusions come from this generation.</span>
               <Link
                 href={`/workspace/iterations?focus=${sourceIterationId}`}
                 className="inline-flex items-center gap-1 font-medium text-[var(--accent-primary)] transition-colors hover:underline"
               >
-                打开
+                Open
                 <AppIcon icon={ArrowUpRight} size={12} />
               </Link>
             </p>
           ) : (
-            <MissingNote>来源缺失：这条 Memory 没有记录来源 Iteration（待补充）。</MissingNote>
+            <MissingNote>Missing source: this memory has no recorded source iteration (not yet provided).</MissingNote>
           )}
         </div>
       </SectionCard>
@@ -212,13 +213,13 @@ export function StyleMemoryDetailView({
         {/* ── 保留的风格 ── */}
         <SectionCard
           testId="style-memory-detail-style"
-          title="保留的风格"
-          description="复用时需要延续的风格指纹与核心规则。"
+          title="Retained style"
+          description="The style fingerprint and retained rules to carry over when reusing."
         >
           <div className="space-y-4">
             <div>
               <h3 className="text-[0.6875rem] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-                风格指纹
+                Style fingerprint
               </h3>
               {detail.styleTokens.length > 0 ? (
                 <div className="mt-2 flex flex-wrap gap-1.5">
@@ -233,13 +234,13 @@ export function StyleMemoryDetailView({
                 </div>
               ) : (
                 <div className="mt-2">
-                  <MissingNote>待补充：这条 Memory 保存时未记录风格指纹。</MissingNote>
+                  <MissingNote>Not yet provided: this memory was saved without a style fingerprint.</MissingNote>
                 </div>
               )}
             </div>
             <div>
               <h3 className="text-[0.6875rem] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-                核心保留规则
+                Retained rules
               </h3>
               {detail.retainedRules.length > 0 ? (
                 <ul className="mt-2 space-y-1.5">
@@ -259,7 +260,7 @@ export function StyleMemoryDetailView({
                 </ul>
               ) : (
                 <div className="mt-2">
-                  <MissingNote>待补充：尚未记录核心保留规则。</MissingNote>
+                  <MissingNote>Not yet provided: no retained rules recorded yet.</MissingNote>
                 </div>
               )}
             </div>
@@ -269,8 +270,8 @@ export function StyleMemoryDetailView({
         {/* ── 可替换内容 ── */}
         <SectionCard
           testId="style-memory-detail-variables"
-          title="可替换内容"
-          description="复用时按变量替换的内容与默认值；空默认值在生成前需要填写。"
+          title="Replaceable"
+          description="Content and default values replaced per variable when reusing; empty defaults must be filled in before generating."
         >
           {detail.variables.length > 0 ? (
             <ul className="divide-y divide-[var(--border-static)]">
@@ -293,14 +294,14 @@ export function StyleMemoryDetailView({
                     </span>
                   ) : (
                     <span className="rounded-full border border-[var(--accent-primary)]/40 bg-[var(--accent-primary)]/10 px-2 py-0.5 text-[0.6875rem] font-semibold text-[var(--accent-primary)]">
-                      必填
+                      Required
                     </span>
                   )}
                 </li>
               ))}
             </ul>
           ) : (
-            <MissingNote>待补充：这条 Memory 没有可替换变量。</MissingNote>
+            <MissingNote>Not yet provided: this memory has no replaceable variables.</MissingNote>
           )}
         </SectionCard>
       </div>
@@ -308,13 +309,13 @@ export function StyleMemoryDetailView({
       {/* ── 排除约束与增强方向 ── */}
       <SectionCard
         testId="style-memory-detail-constraints"
-        title="排除约束与增强方向"
-        description="复用时应当避免的内容，以及可以进一步强化的方向。"
+        title="Constraints & enhancements"
+        description="What to avoid when reusing, and directions that can be pushed further."
       >
         <div className="grid gap-5 lg:grid-cols-2">
           <div>
             <h3 className="text-[0.6875rem] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-              排除约束
+              Constraints
             </h3>
             {detail.negativeConstraints.length > 0 ? (
               <ul className="mt-2 space-y-1.5">
@@ -332,13 +333,13 @@ export function StyleMemoryDetailView({
               </ul>
             ) : (
               <div className="mt-2">
-                <MissingNote>待补充：尚未记录排除约束。</MissingNote>
+                <MissingNote>Not yet provided: no constraints recorded yet.</MissingNote>
               </div>
             )}
           </div>
           <div>
             <h3 className="text-[0.6875rem] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-              增强方向
+              Enhancement hints
             </h3>
             {detail.enhancementHints.length > 0 ? (
               <div className="mt-2 flex flex-wrap gap-1.5">
@@ -353,7 +354,7 @@ export function StyleMemoryDetailView({
               </div>
             ) : (
               <div className="mt-2">
-                <MissingNote>待补充：保存时未记录增强方向。</MissingNote>
+                <MissingNote>Not yet provided: no enhancement hints were recorded at save time.</MissingNote>
               </div>
             )}
           </div>
@@ -371,10 +372,11 @@ export function StyleMemoryDetailView({
               id={advancedTitleId}
               className="text-sm font-bold tracking-[-0.01em] text-[var(--text-primary)]"
             >
-              高级信息：完整提示
+              Advanced: Full prompt
             </h2>
             <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">
-              含变量占位符的完整提示文本，默认收起；展开仅用于查看与核对。
+              The full prompt text including variable placeholders, collapsed by
+              default; expand only to review it.
             </p>
           </div>
           <button
@@ -389,7 +391,7 @@ export function StyleMemoryDetailView({
               size={13}
               strokeWidth={1.5}
             />
-            {advancedExpanded ? "收起完整提示" : "展开完整提示"}
+            {advancedExpanded ? "Hide full prompt" : "Show full prompt"}
           </button>
         </div>
         {advancedExpanded ? (
@@ -404,8 +406,8 @@ export function StyleMemoryDetailView({
       {/* ── 使用情况 ── */}
       <SectionCard
         testId="style-memory-detail-usage"
-        title="使用情况"
-        description="这条 Memory 被复用与派生的真实记录。"
+        title="Usage"
+        description="A real record of how this memory was reused and derived."
       >
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-[var(--text-secondary)]">
           <span className="inline-flex items-center gap-1.5">
@@ -416,19 +418,19 @@ export function StyleMemoryDetailView({
             />
             {detail.usage.lastUsedAt ? (
               <span>
-                最近使用：
+                Last used:
                 <span className="font-mono font-medium text-[var(--text-primary)]">
                   {formatUsageDateTime(detail.usage.lastUsedAt)}
                 </span>
               </span>
             ) : (
-              <span>最近使用：尚未使用</span>
+              <span>Last used: Never used</span>
             )}
           </span>
           <span className="inline-flex items-center gap-1.5">
             <AppIcon icon={BadgeCheck} size={13} className="text-[var(--text-muted)]" />
             <span className="font-mono font-medium text-[var(--text-primary)]">
-              派生 {detail.usage.derivedIterationCount} 次
+              Derived {detail.usage.derivedIterationCount} times
             </span>
           </span>
         </div>
@@ -443,7 +445,7 @@ function ReferenceImageBlock({ imageUrl, name }: { imageUrl: string; name: strin
     return (
       <div className="flex aspect-[4/3] w-full items-center justify-center rounded-xl border border-dashed border-[var(--border-static)] bg-[var(--surface-low)]/60">
         <span className="px-4 text-center text-xs text-[var(--text-secondary)]">
-          参考图暂不可用
+          Reference unavailable
         </span>
       </div>
     );
@@ -452,7 +454,7 @@ function ReferenceImageBlock({ imageUrl, name }: { imageUrl: string; name: strin
     <div className="media-lens relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-[var(--surface-media)]">
       <Image
         src={imageUrl}
-        alt={`${name} 的参考图`}
+        alt={`Reference for ${name}`}
         fill
         onError={() => setFailed(true)}
         className="object-cover"
@@ -475,7 +477,7 @@ function RepresentativeImageBlock({
     return (
       <div className="flex aspect-[4/3] w-full items-center justify-center rounded-xl border border-dashed border-[var(--border-static)] bg-[var(--surface-low)]/60">
         <span className="px-4 text-center text-xs text-[var(--text-secondary)]">
-          代表结果图暂不可用
+          Representative result unavailable
         </span>
       </div>
     );
@@ -484,7 +486,7 @@ function RepresentativeImageBlock({
     <div className="media-lens relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-[var(--surface-media)]">
       <Image
         src={imageUrl}
-        alt={`${name} 的代表结果`}
+        alt={`Representative result for ${name}`}
         fill
         onError={() => setFailed(true)}
         className="object-cover"

@@ -421,7 +421,7 @@ export function clearWorkspacePersistedState(): void {
 function restoreFromPersistedState(
   persisted: Partial<WorkspacePersistedState>,
 ): WorkspaceContext | null {
-  // plan-04: 恢复链路（待应用载荷或已恢复的工作区）以恢复态挂载——
+  // plan-04: 恢复链路（待应用载荷或 restored 的工作区）以恢复态挂载——
   // 快照即真相：不重建 V2 结构化视图（提示为纯文本快照）、不恢复分析模板、
   // 不进入分析轮询，避免过期分析结果覆盖恢复内容。
   const isIterationRestored =
@@ -884,7 +884,7 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // 初次渲染只Done恢复/初始化，不立即回写，避免覆盖已恢复状态。
+    // 初次渲染只Done恢复/初始化，不立即回写，避免覆盖 restored 状态。
     if (!didSkipInitialPersistRef.current) {
       didSkipInitialPersistRef.current = true;
       return;

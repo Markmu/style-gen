@@ -91,11 +91,11 @@ async function openStyleMemoryList(page: Page, path = '/workspace/templates') {
   await expect(page.locator('body')).toBeVisible({ timeout: 15000 })
 }
 
-/** 「查看详情」入口（链接或按钮均可，路由到 /workspace/templates/{id}） */
+/** 「View details」入口（链接或按钮均可，路由到 /workspace/templates/{id}） */
 function viewDetailEntry(card: Locator) {
   return card
-    .getByRole('link', { name: '查看详情' })
-    .or(card.getByRole('button', { name: '查看详情' }))
+    .getByRole('link', { name: 'View details' })
+    .or(card.getByRole('button', { name: 'View details' }))
 }
 
 test.describe('plan-04 Style Memory 列表页', () => {
@@ -108,9 +108,9 @@ test.describe('plan-04 Style Memory 列表页', () => {
     await mockCdnImages(page)
   })
 
-  // ─── AC-01 卡片语义 ───
+  // ─── AC-01 card semantics ───
 
-  test('TC-1.1 已验证卡显示代表结果主预览与真实规则摘要，待验证卡只用来源图且无名称派生标签', async ({
+  test('TC-1.1 verified card shows representative main preview and real rules summary; pending card uses source image only with no name-derived tags', async ({
     page,
   }) => {
     await mockStyleMemoryList(page, ALL_MEMORIES)
@@ -122,19 +122,19 @@ test.describe('plan-04 Style Memory 列表页', () => {
 
     // 已验证卡：状态徽标（文字）+ 真实规则摘要 + 变量数 + 最近使用信息
     const verifiedCard = cards.nth(0)
-    await expect(verifiedCard.getByText('用户已验证')).toBeVisible()
-    await expect(verifiedCard.getByText('待验证')).toHaveCount(0)
+    await expect(verifiedCard.getByText('User verified')).toBeVisible()
+    await expect(verifiedCard.getByText('Pending verification')).toHaveCount(0)
     await expect(verifiedCard.getByText('低饱和暖灰基调')).toBeVisible()
     await expect(verifiedCard.getByText('柔和漫射光并保留细颗粒质感')).toBeVisible()
-    await expect(verifiedCard.getByText('6 个变量')).toBeVisible()
-    await expect(verifiedCard.getByText('尚未使用')).toHaveCount(0)
+    await expect(verifiedCard.getByText('6 variables')).toBeVisible()
+    await expect(verifiedCard.getByText('Never used')).toHaveCount(0)
 
     // 已验证卡：代表结果为主预览 + 来源图小图并带「参考图」标注
     const representativeImg = verifiedCard.locator('img[src*="results/verified-representative"]')
     const referenceImg = verifiedCard.locator('img[src*="references/verified-source"]')
     await expect(representativeImg).toBeVisible()
     await expect(referenceImg).toBeVisible()
-    await expect(verifiedCard.getByText('参考图')).toBeVisible()
+    await expect(verifiedCard.getByText('Reference')).toBeVisible()
     const [representativeBox, referenceBox] = await Promise.all([
       representativeImg.boundingBox(),
       referenceImg.boundingBox(),
@@ -143,20 +143,20 @@ test.describe('plan-04 Style Memory 列表页', () => {
       (referenceBox?.width ?? 0) * (referenceBox?.height ?? 0),
     )
 
-    // 待验证卡（有来源图）：徽标 + 来源图主预览，不出现代表结果图与成功语气
+    // pending 卡（有来源图）：徽标 + 来源图主预览，不出现代表结果图与成功语气
     const pendingCard = cards.nth(1)
-    await expect(pendingCard.getByText('待验证')).toBeVisible()
-    await expect(pendingCard.getByText('用户已验证')).toHaveCount(0)
+    await expect(pendingCard.getByText('Pending verification')).toBeVisible()
+    await expect(pendingCard.getByText('User verified')).toHaveCount(0)
     await expect(pendingCard.locator('img[src*="references/pending-source"]')).toBeVisible()
     await expect(pendingCard.locator('img[src*="results/"]')).toHaveCount(0)
     await expect(pendingCard.getByText('编辑式构图并保留大面积留白')).toBeVisible()
-    await expect(pendingCard.getByText('4 个变量')).toBeVisible()
-    await expect(pendingCard.getByText('尚未使用')).toBeVisible()
+    await expect(pendingCard.getByText('4 variables')).toBeVisible()
+    await expect(pendingCard.getByText('Never used')).toBeVisible()
 
-    // 待验证卡（无来源图）：「无预览」占位，不渲染任何图片
+    // pending 卡（无来源图）：「No preview」占位，不渲染任何图片
     const textOnlyCard = cards.nth(2)
-    await expect(textOnlyCard.getByText('待验证')).toBeVisible()
-    await expect(textOnlyCard.getByText('无预览')).toBeVisible()
+    await expect(textOnlyCard.getByText('Pending verification')).toBeVisible()
+    await expect(textOnlyCard.getByText('No preview')).toBeVisible()
     await expect(textOnlyCard.locator('img')).toHaveCount(0)
 
     // 名称派生标签全部移除（NAME_TAG_RULES / Source-backed / Prompt-only 等）
@@ -164,12 +164,12 @@ test.describe('plan-04 Style Memory 列表页', () => {
       page.getByText(/Source-backed|Prompt-only|Variable structure|Fixed prompt/i),
     ).toHaveCount(0)
 
-    // 卡片动作只有「查看详情 / 使用」，治理动作（更多/复制/删除）不在卡片上
-    await expect(verifiedCard.getByRole('button', { name: '使用' })).toBeVisible()
+    // 卡片动作只有「View details / Use」，治理动作（更多/复制/删除）不在卡片上
+    await expect(verifiedCard.getByRole('button', { name: 'Use', exact: true })).toBeVisible()
     await expect(viewDetailEntry(verifiedCard)).toBeVisible()
     await expect(
       page.getByRole('button', {
-        name: /more actions|更多操作|duplicate|复制|delete|删除|edit|编辑/i,
+        name: /more actions|duplicate|delete|edit/i,
       }),
     ).toHaveCount(0)
   })
@@ -254,7 +254,7 @@ test.describe('plan-04 Style Memory 列表页', () => {
     await expect(page).toHaveURL(/search=/, { timeout: 10000 })
   })
 
-  test('TC-2.3 状态筛选：点击「用户已验证」发送 status=user_verified 并只显示已验证卡', async ({
+  test('TC-2.3 status filter: clicking User verified sends status=user_verified and shows verified cards only', async ({
     page,
   }) => {
     const queries: StyleMemoryListRequestQuery[] = []
@@ -265,7 +265,7 @@ test.describe('plan-04 Style Memory 列表页', () => {
     await openStyleMemoryList(page)
     await expect(page.getByTestId('style-memory-card').first()).toBeVisible()
 
-    await page.getByRole('button', { name: '用户已验证' }).click()
+    await page.getByRole('button', { name: 'User verified' }).click()
 
     await expect
       .poll(() => queries.some((query) => query.status === 'user_verified'), { timeout: 10000 })
@@ -288,7 +288,7 @@ test.describe('plan-04 Style Memory 列表页', () => {
     await searchBox.fill('编辑式构图')
     await expect(page).toHaveURL(/search=/, { timeout: 10000 })
 
-    await page.getByRole('button', { name: '待验证' }).click()
+    await page.getByRole('button', { name: 'Pending verification' }).click()
 
     await expect
       .poll(
@@ -312,10 +312,10 @@ test.describe('plan-04 Style Memory 列表页', () => {
 
     const searchBox = page.getByRole('textbox')
     await waitForReactInput(searchBox)
-    // 「低饱和暖灰」只命中已验证卡；叠加「待验证」筛选 → 无结果
+    // 「低饱和暖灰」只命中 verified 卡；叠加 pending 筛选 → 无结果
     await searchBox.fill('低饱和暖灰')
     await expect(page).toHaveURL(/search=/, { timeout: 10000 })
-    await page.getByRole('button', { name: '待验证' }).click()
+    await page.getByRole('button', { name: 'Pending verification' }).click()
 
     const noResults = page.locator('section[data-status="noResults"]')
     await expect(noResults).toBeVisible({ timeout: 10000 })
@@ -326,7 +326,7 @@ test.describe('plan-04 Style Memory 列表页', () => {
     await expect(page).toHaveURL(/status=pending_verification/)
 
     // 清除动作：输入清空、URL 参数移除、卡片恢复
-    const clearButton = noResults.getByRole('button', { name: /清除|clear/i })
+    const clearButton = noResults.getByRole('button', { name: /clear/i })
     await expect(clearButton).toBeVisible()
     await clearButton.click()
 
@@ -346,7 +346,7 @@ test.describe('plan-04 Style Memory 列表页', () => {
     await waitForReactInput(searchBox)
     await searchBox.fill('编辑式构图')
     await expect(page).toHaveURL(/search=/, { timeout: 10000 })
-    await page.getByRole('button', { name: '待验证' }).click()
+    await page.getByRole('button', { name: 'Pending verification' }).click()
     await expect(page).toHaveURL(/status=pending_verification/, { timeout: 10000 })
 
     const pendingCard = page
@@ -376,11 +376,11 @@ test.describe('plan-04 Style Memory 列表页', () => {
 
     const searchBox = page.getByRole('textbox')
     await expect(searchBox).toBeVisible({ timeout: 15000 })
-    await expect(searchBox).toHaveAccessibleName(/名称/)
-    await expect(searchBox).toHaveAccessibleName(/说明/)
-    await expect(searchBox).toHaveAccessibleName(/风格规则/)
-    await expect(searchBox).toHaveAccessibleName(/排除约束/)
-    await expect(searchBox).toHaveAccessibleName(/变量/)
+    await expect(searchBox).toHaveAccessibleName(/name/)
+    await expect(searchBox).toHaveAccessibleName(/description/)
+    await expect(searchBox).toHaveAccessibleName(/style rules/)
+    await expect(searchBox).toHaveAccessibleName(/constraints/)
+    await expect(searchBox).toHaveAccessibleName(/variable names/)
   })
 
   // ─── AC-08 清除搜索按钮 ───
@@ -396,7 +396,7 @@ test.describe('plan-04 Style Memory 列表页', () => {
 
     // 定位输入框所在搜索控件内的清除按钮（排除 noResults 状态区的同名主操作）
     const searchControl = searchBox.locator('..')
-    const clearButton = searchControl.getByRole('button', { name: /清除搜索|clear search/i })
+    const clearButton = searchControl.getByRole('button', { name: /clear search/i })
     await expect(clearButton).toBeVisible()
 
     const box = await clearButton.boundingBox()
@@ -414,10 +414,10 @@ test.describe('plan-04 Style Memory 列表页', () => {
     const emptyState = page.locator('section[data-status="empty"]')
     await expect(emptyState).toBeVisible({ timeout: 15000 })
 
-    const workspaceEntry = emptyState.getByRole('link', { name: /打开工作区/ })
+    const workspaceEntry = emptyState.getByRole('link', { name: /Open workspace/ })
     await expect(workspaceEntry).toHaveAttribute('href', '/workspace')
 
-    const iterationsEntry = emptyState.getByRole('link', { name: /查看 Iterations/ })
+    const iterationsEntry = emptyState.getByRole('link', { name: /View iterations/ })
     await expect(iterationsEntry).toHaveAttribute('href', '/workspace/iterations')
   })
 
@@ -444,14 +444,14 @@ test.describe('plan-04 Style Memory 列表页', () => {
 
     const authState = page.locator('section[data-status="authRequired"]')
     await expect(authState).toBeVisible({ timeout: 15000 })
-    await expect(authState.getByRole('button', { name: /登录|log in|sign in/i })).toBeVisible()
+    await expect(authState.getByRole('button', { name: /log in|sign in/i })).toBeVisible()
 
     // 未登录态保留查询条件（URL 不被重置）
     await expect(page).toHaveURL(/search=/)
     await expect(page).toHaveURL(/status=user_verified/)
 
     // 登录入口返回原入口时携带原查询条件
-    await authState.getByRole('button', { name: /登录|log in|sign in/i }).click()
+    await authState.getByRole('button', { name: /log in|sign in/i }).click()
     await expect.poll(() => signinRequestUrl, { timeout: 10000 }).not.toBeNull()
     const callbackUrl = decodeURIComponent(signinRequestUrl ?? '')
     expect(callbackUrl).toContain('callbackUrl=')
@@ -492,14 +492,14 @@ test.describe('plan-04 Style Memory 列表页', () => {
 
     const failedState = page.locator('section[data-status="failedRecoverable"]')
     await expect(failedState).toBeVisible({ timeout: 15000 })
-    await expect(failedState.getByRole('button', { name: /重试|retry/i })).toBeVisible()
+    await expect(failedState.getByRole('button', { name: /retry/i })).toBeVisible()
 
     // 错误态下搜索/筛选条件仍可见（工具栏不被整体隐藏），输入值保留
     const searchBox = page.getByRole('textbox')
     await expect(searchBox).toBeVisible()
     await expect(searchBox).toHaveValue('低饱和暖灰')
 
-    await failedState.getByRole('button', { name: /重试|retry/i }).click()
+    await failedState.getByRole('button', { name: /retry/i }).click()
 
     // 重试成功恢复原条件与内容
     await expect(page.getByText(VERIFIED_MEMORY.name)).toBeVisible({ timeout: 15000 })
