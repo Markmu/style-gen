@@ -3,19 +3,30 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   AnalysisTemplateStatus,
+  CreationPace,
   GenerationParams,
+  PromptDetailLevel,
+  PromptIntent,
+  QuickAuthorization,
+  QuickGenerationAuthorizationSnapshot,
   StoredVisualRecipe,
   TemplateVariable,
   V2PromptWorkspaceState,
 } from "@/types/models";
 import { isVisualRecipeV2Success } from "@/lib/visual-recipe";
 import type { WorkspaceSnapshot } from "@/lib/iterations/restore-guard";
+import {
+  isSupportedAspectRatio,
+  type AspectRatioSource,
+  type SupportedAspectRatio,
+} from "@/lib/generation/aspect-ratio";
+import { DEFAULT_IMAGE_GEN_MODEL_ID } from "@/lib/ai/model-config";
 
 /** sessionStorage key */
 export const WORKSPACE_STORAGE_KEY = "style-gen-workspace-state";
 
 /** 当前持久化数据版本号 */
-export const WORKSPACE_STORAGE_VERSION = 4;
+export const WORKSPACE_STORAGE_VERSION = 5;
 
 /**
  * plan-07（架构 §6.5）：工作台身份条与就绪结论共用的 Memory 身份信息。
@@ -75,6 +86,109 @@ export interface IterationRestorePayload {
   resultFileUrl: string | null;
 }
 
+// ─── 第 15 期 plan-02（架构 §3.3 / ADR-2）：Workspace v5 创作节奏与快速授权 ────
+
+/** 工作台生成参数（确认 UI、Render Dock 与统一 submit 共用的单一来源） */
+export interface WorkspaceGenerationParams {
+  /** 唯一画幅白名单成员（plan-01 SSOT；未知值恢复时回退 1:1） */
+  aspectRatio: SupportedAspectRatio;
+  quality: "standard" | "hd";
+  model: string;
+}
+
+/** Prompt 两轴控制草稿（plan-04 扩展编辑方式/调整；plan-02 持久化基线） */
+export interface WorkspacePromptControls {
+  intent: PromptIntent;
+  detailLevel: PromptDetailLevel;
+}
+
+/** 快速授权清除原因（阻塞/失败/退出后向用户解释；瞬时态，不持久化） */
+export const QUICK_AUTHORIZATION_CLEARED_REASONS = {
+  analysisFailed:
+    "Quick recreate was cleared because the analysis failed. Your reference and edits are preserved; confirm the quick path again or generate manually.",
+  exit:
+    "You exited quick recreate. Generation settings are editable again and nothing will be submitted automatically.",
+  invalidSnapshot:
+    "The saved quick recreate confirmation was invalid and has been cleared. Confirm the quick path again to enable automatic generation.",
+  blocked: "Quick recreate is currently blocked.",
+} as const;
+
+/**
+ * 防御性校验快速授权快照（架构 §3.3：armed 必须与合法快照成对）。
+ * 损坏/缺字段/字面量不符均返回 null，恢复时按 none 处理。
+ */
+export function sanitizeQuickGenerationAuthorizationSnapshot(
+  value: unknown,
+): QuickGenerationAuthorizationSnapshot | null {
+  if (!value || typeof value !== "object") return null;
+  const candidate = value as Partial<QuickGenerationAuthorizationSnapshot>;
+  if (candidate.schemaVersion !== 1) return null;
+  if (candidate.intent !== "reconstruction") return null;
+  if (candidate.detailLevel !== "standard") return null;
+  if (candidate.aspectRatioPolicy !== "reference_or_fallback") return null;
+  const settings = candidate.generationSettings;
+  if (
+    !settings ||
+    typeof settings !== "object" ||
+    typeof settings.quality !== "string" ||
+    settings.quality.length === 0 ||
+    typeof settings.model !== "string" ||
+    settings.model.length === 0
+  ) {
+    return null;
+  }
+  return {
+    schemaVersion: 1,
+    intent: "reconstruction",
+    detailLevel: "standard",
+    aspectRatioPolicy: "reference_or_fallback",
+    generationSettings: {
+      quality: settings.quality,
+      model: settings.model,
+    },
+  };
+}
+
+/** 恢复/迁移时归一化工作台生成参数（未知画幅回退 1:1，缺省模型回退配置默认） */
+function sanitizeWorkspaceGenerationParams(
+  value: unknown,
+): WorkspaceGenerationParams {
+  const candidate = (value ?? {}) as Partial<WorkspaceGenerationParams>;
+  return {
+    aspectRatio:
+      typeof candidate.aspectRatio === "string" &&
+      isSupportedAspectRatio(candidate.aspectRatio)
+        ? candidate.aspectRatio
+        : "1:1",
+    quality:
+      candidate.quality === "hd" || candidate.quality === "standard"
+        ? candidate.quality
+        : "standard",
+    model:
+      typeof candidate.model === "string" && candidate.model.length > 0
+        ? candidate.model
+        : DEFAULT_IMAGE_GEN_MODEL_ID,
+  };
+}
+
+/** 恢复/迁移时归一化 Prompt 控制草稿（缺省 detail=standard，架构 §6.1） */
+function sanitizeWorkspacePromptControls(
+  value: unknown,
+): WorkspacePromptControls {
+  const candidate = (value ?? {}) as Partial<WorkspacePromptControls>;
+  const detailLevel: PromptDetailLevel =
+    candidate.detailLevel === "concise" ||
+    candidate.detailLevel === "professional" ||
+    candidate.detailLevel === "standard"
+      ? candidate.detailLevel
+      : "standard";
+  const intent: PromptIntent =
+    candidate.intent === "reconstruction" || candidate.intent === "same_style"
+      ? candidate.intent
+      : "same_style";
+  return { intent, detailLevel };
+}
+
 /** 持久化状态结构（仅包含需要跨页面恢复的关键数据） */
 export interface WorkspacePersistedState {
   version: number;
@@ -105,6 +219,23 @@ export interface WorkspacePersistedState {
    * 版本不 bump——旧快照缺省视为 null）
    */
   memoryIdentity?: WorkspaceMemoryIdentity | null;
+  /**
+   * plan-02（架构 §7.2 WorkspaceCreativeState v5）: 创作节奏。v4 迁移缺省
+   * `analyze_edit`，不从旧 pace/outputMode 推测快速授权。
+   */
+  creationPace?: CreationPace;
+  /** plan-02: 快速复刻一次性授权闩锁（none → armed → consumed） */
+  quickAuthorization?: QuickAuthorization;
+  /** plan-02: armed 时伴随的确认快照；清除时置 null */
+  quickGenerationAuthorizationSnapshot?: QuickGenerationAuthorizationSnapshot | null;
+  /** plan-02: Prompt 两轴控制草稿（intent/detailLevel） */
+  promptControls?: WorkspacePromptControls;
+  /** plan-02: 工作台生成参数（确认 UI 与 Render Dock 共用默认值） */
+  generationParams?: WorkspaceGenerationParams;
+  /** plan-02: 画幅来源（plan-04 消费展示；user/restore 优先于 reference 推荐） */
+  aspectRatioSource?: AspectRatioSource;
+  /** plan-02: 当前方向首选结果（plan-05/06 消费；只表示会话偏好） */
+  preferredIterationId?: string | null;
 }
 
 export type WorkspaceState =
@@ -166,6 +297,25 @@ export interface WorkspaceContext {
   restoredParams: GenerationParams | null;
   /** plan-07: 当前应用的 Style Memory 身份（身份条与就绪结论同源） */
   memoryIdentity: WorkspaceMemoryIdentity | null;
+  /** plan-02: 创作节奏（空工作区默认 analyze_edit） */
+  creationPace: CreationPace;
+  /** plan-02: 快速复刻一次性授权闩锁 */
+  quickAuthorization: QuickAuthorization;
+  /** plan-02: armed 伴随的确认快照；consumed 后保留用于解释 */
+  quickGenerationAuthorizationSnapshot: QuickGenerationAuthorizationSnapshot | null;
+  /**
+   * plan-02: 授权清除原因（分析失败/生成门阻塞/用户退出/快照无效）；
+   * 瞬时提示，不持久化。
+   */
+  quickAuthorizationClearedReason: string | null;
+  /** plan-02: Prompt 两轴控制草稿 */
+  promptControls: WorkspacePromptControls;
+  /** plan-02: 工作台生成参数（确认 UI、Render Dock 与 submit 共用） */
+  generationParams: WorkspaceGenerationParams;
+  /** plan-02: 画幅来源（user/restore 优先，plan-04 展示） */
+  aspectRatioSource: AspectRatioSource;
+  /** plan-02: 当前方向首选结果 id（会话偏好，plan-05/06 消费） */
+  preferredIterationId: string | null;
 }
 
 interface WorkspaceAnalysisTemplatePayload {
@@ -220,6 +370,13 @@ const initialDegradation: DegradationState = {
   analysisUnavailable: false,
 };
 
+/** plan-02: 工作台生成参数默认值（确认 UI 与 Render Dock 消费的同一默认） */
+export const DEFAULT_WORKSPACE_GENERATION_PARAMS: WorkspaceGenerationParams = {
+  aspectRatio: "1:1",
+  quality: "standard",
+  model: DEFAULT_IMAGE_GEN_MODEL_ID,
+};
+
 const initialContext: WorkspaceContext = {
   state: "idle",
   referenceImageUrl: null,
@@ -244,6 +401,14 @@ const initialContext: WorkspaceContext = {
   previousResultUrl: null,
   restoredParams: null,
   memoryIdentity: null,
+  creationPace: "analyze_edit",
+  quickAuthorization: "none",
+  quickGenerationAuthorizationSnapshot: null,
+  quickAuthorizationClearedReason: null,
+  promptControls: { intent: "same_style", detailLevel: "standard" },
+  generationParams: DEFAULT_WORKSPACE_GENERATION_PARAMS,
+  aspectRatioSource: "fallback",
+  preferredIterationId: null,
 };
 
 export function createInitialV2PromptState(
@@ -264,6 +429,38 @@ export function createInitialV2PromptState(
   };
 }
 
+/**
+ * plan-02（架构 §7.2）：v4 → v5 迁移。保留参考、Prompt、变量、来源与参数；
+ * 新分析 detail 默认 standard（可识别的旧 outputMode 字段映射）；
+ * 缺合法快速快照时强制 authorization=none，不从旧数据推测授权。
+ */
+function migrateV4PersistedState(
+  data: WorkspacePersistedState,
+): WorkspacePersistedState {
+  const legacyOutputMode = data.v2PromptState?.outputMode;
+  const promptControls: WorkspacePromptControls = {
+    intent:
+      legacyOutputMode === "reconstruction" ? "reconstruction" : "same_style",
+    detailLevel:
+      legacyOutputMode === "concise" || legacyOutputMode === "professional"
+        ? legacyOutputMode
+        : "standard",
+  };
+  return {
+    ...data,
+    version: WORKSPACE_STORAGE_VERSION,
+    creationPace: "analyze_edit",
+    quickAuthorization: "none",
+    quickGenerationAuthorizationSnapshot: null,
+    promptControls,
+    generationParams: sanitizeWorkspaceGenerationParams(
+      data.generationParams ?? data.restoredParams,
+    ),
+    aspectRatioSource: "fallback",
+    preferredIterationId: null,
+  };
+}
+
 /** 从 sessionStorage 读取持久化状态 */
 function loadPersistedState(): Partial<WorkspacePersistedState> | null {
   if (typeof window === "undefined") return null;
@@ -274,7 +471,11 @@ function loadPersistedState(): Partial<WorkspacePersistedState> | null {
 
     const data = JSON.parse(raw) as WorkspacePersistedState;
 
-    // 版本检查：未来可在此处处理数据迁移
+    if (data.version === 4) {
+      return migrateV4PersistedState(data);
+    }
+
+    // 版本检查：其余不兼容版本按陈旧数据处理
     if (data.version !== WORKSPACE_STORAGE_VERSION) {
       console.warn(`[workspace] Storage version mismatch, clearing stale data: ${data.version} !== ${WORKSPACE_STORAGE_VERSION}`);
       sessionStorage.removeItem(WORKSPACE_STORAGE_KEY);
@@ -388,6 +589,13 @@ export function writeIterationRestoreSnapshot(
     previousResultUrl: payload.resultFileUrl,
     restoredParams: payload.params,
     pendingIterationRestore: payload,
+    // plan-02: 恢复进入新工作区上下文——创作节奏回默认，快速授权归 none
+    creationPace: "analyze_edit",
+    quickAuthorization: "none",
+    quickGenerationAuthorizationSnapshot: null,
+    // plan-04（AC-03）：Iteration 恢复的画幅优先于推荐（restore 来源）
+    generationParams: sanitizeWorkspaceGenerationParams(payload.params),
+    aspectRatioSource: "restore",
   };
   writePersistedStateSync(entry);
 }
@@ -427,6 +635,29 @@ function restoreFromPersistedState(
   const isIterationRestored =
     !!persisted.pendingIterationRestore || !!persisted.currentIterationId;
 
+  // plan-02（架构 §3.3）：armed 必须与合法快照成对；损坏/缺字段视为 none
+  // 并清除快照，不从旧 pace 推测授权。
+  const sanitizedSnapshot = sanitizeQuickGenerationAuthorizationSnapshot(
+    persisted.quickGenerationAuthorizationSnapshot,
+  );
+  const restoredAuthorization: QuickAuthorization =
+    persisted.quickAuthorization === "armed" ||
+    persisted.quickAuthorization === "consumed"
+      ? persisted.quickAuthorization
+      : "none";
+  const quickAuthorization: QuickAuthorization =
+    restoredAuthorization === "armed" && !sanitizedSnapshot
+      ? "none"
+      : restoredAuthorization;
+  const quickGenerationAuthorizationSnapshot =
+    quickAuthorization === "none" ? null : sanitizedSnapshot;
+  const quickAuthorizationClearedReason =
+    restoredAuthorization === "armed" && quickAuthorization === "none"
+      ? QUICK_AUTHORIZATION_CLEARED_REASONS.invalidSnapshot
+      : null;
+  const creationPace: CreationPace =
+    persisted.creationPace === "quick_recreate" ? "quick_recreate" : "analyze_edit";
+
   // 数据校验：普通状态至少需要有 assetId 和 referenceImageUrl 才算有效；
   // 恢复态豁免该校验——来源图缺失（旧记录）时其余字段照常恢复，
   // 来源位保持空态占位（plan-04 边界场景）。
@@ -434,7 +665,29 @@ function restoreFromPersistedState(
     !isIterationRestored &&
     (!persisted.assetId || !persisted.referenceImageUrl)
   ) {
-    return null;
+    // plan-02（ADR-2）：空工作区的快速授权闩锁独立于参考内容——
+    // 确认后尚未上传参考图时刷新，armed/consumed 仍需成对恢复，
+    // 防止已确认授权静默丢失导致重复确认或意外重放。
+    if (
+      creationPace === "analyze_edit" &&
+      quickAuthorization === "none" &&
+      !quickGenerationAuthorizationSnapshot
+    ) {
+      return null;
+    }
+    return {
+      ...initialContext,
+      creationPace,
+      quickAuthorization,
+      quickGenerationAuthorizationSnapshot,
+      quickAuthorizationClearedReason,
+      promptControls: sanitizeWorkspacePromptControls(persisted.promptControls),
+      generationParams: sanitizeWorkspaceGenerationParams(
+        persisted.generationParams,
+      ),
+      aspectRatioSource:
+        persisted.aspectRatioSource ?? initialContext.aspectRatioSource,
+    };
   }
 
   return {
@@ -472,6 +725,17 @@ function restoreFromPersistedState(
     previousResultUrl: persisted.previousResultUrl ?? null,
     restoredParams: persisted.restoredParams ?? null,
     memoryIdentity: sanitizeMemoryIdentity(persisted.memoryIdentity),
+    creationPace,
+    quickAuthorization,
+    quickGenerationAuthorizationSnapshot,
+    quickAuthorizationClearedReason,
+    promptControls: sanitizeWorkspacePromptControls(persisted.promptControls),
+    generationParams: sanitizeWorkspaceGenerationParams(
+      persisted.generationParams,
+    ),
+    aspectRatioSource:
+      persisted.aspectRatioSource ?? initialContext.aspectRatioSource,
+    preferredIterationId: persisted.preferredIterationId ?? null,
   };
 }
 
@@ -496,6 +760,15 @@ function toPersistedState(ctx: WorkspaceContext): WorkspacePersistedState {
     previousResultUrl: ctx.previousResultUrl,
     restoredParams: ctx.restoredParams,
     memoryIdentity: ctx.memoryIdentity,
+    // plan-02: v5 持久化创作节奏/授权/快照/控制草稿/参数/画幅来源/首选；
+    // 授权清除原因等瞬时态不落盘。
+    creationPace: ctx.creationPace,
+    quickAuthorization: ctx.quickAuthorization,
+    quickGenerationAuthorizationSnapshot: ctx.quickGenerationAuthorizationSnapshot,
+    promptControls: ctx.promptControls,
+    generationParams: ctx.generationParams,
+    aspectRatioSource: ctx.aspectRatioSource,
+    preferredIterationId: ctx.preferredIterationId,
   };
 }
 
@@ -539,6 +812,26 @@ export interface WorkspaceActions {
   setMemoryIdentity: (identity: WorkspaceMemoryIdentity | null) => void;
   /** plan-07: Memory 直入/复用切换时应用来源参考图（不改动工作流状态与错误位） */
   setSourceReference: (assetId: string, fileUrl: string) => void;
+  /**
+   * plan-02（ADR-2）: 确认快速复刻——同一 QuickGenerationAuthorizationSnapshot
+   * 与 armed 原子持久化并同步 flush；确认 UI/readiness/submit 共用该快照。
+   */
+  confirmQuickRecreate: (snapshot: QuickGenerationAuthorizationSnapshot) => void;
+  /** plan-02: armed → consumed；必须在发起生成请求前调用（同步落盘防刷新重放） */
+  consumeQuickAuthorization: () => void;
+  /** plan-02: 生成门阻塞/分析失败等清除授权——none + 清快照 + 原因（同步 flush） */
+  clearQuickAuthorization: (reason: string) => void;
+  /** plan-02: 用户退出快速路径——回 analyze_edit、清授权并恢复可编辑（同步 flush） */
+  exitQuickRecreate: () => void;
+  /** plan-02: 切换创作节奏（选择「分析后编辑」；armed 期间等价退出快速路径） */
+  setCreationPace: (pace: CreationPace) => void;
+  /** plan-02: 更新工作台生成参数；画幅变化可携带来源（user/restore） */
+  setGenerationParams: (
+    params: WorkspaceGenerationParams,
+    source?: AspectRatioSource,
+  ) => void;
+  /** plan-02: 记录当前方向首选结果（仅会话偏好，plan-05/06 消费） */
+  setPreferredIterationId: (iterationId: string | null) => void;
   /**
    * plan-07: 直入路径按调用方口径写入分析模板载荷——不经过 completeAnalysis
    * 的归一化（Memory 来源的变量定义需保留 label 参与缺失门派生；状态取
@@ -588,6 +881,23 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
   const ctxRef = useRef(ctx);
   ctxRef.current = ctx;
 
+  /**
+   * plan-02（ADR-2 / 架构 §6.1.7）：关键状态原子提交——基于最新 ctx 计算下一
+   * 状态、同步写 sessionStorage（取消挂起防抖）再提交 React 状态，保证
+   * 「先持久化 consumed 再发请求」、阻塞清理与「提交后刷新可恢复生成终态」
+   * 的落盘时序不依赖 300ms 防抖窗口。
+   */
+  const commitSync = useCallback(
+    (mutate: (prev: WorkspaceContext) => WorkspaceContext) => {
+      const next = mutate(ctxRef.current);
+      if (next === ctxRef.current) return;
+      ctxRef.current = next;
+      writePersistedStateSync(toPersistedState(next));
+      setCtx(next);
+    },
+    [],
+  );
+
   const startUpload = useCallback((mimeType?: string) => {
     setCtx((prev) => ({
       ...prev,
@@ -609,6 +919,14 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
       currentIterationId: null,
       previousResultUrl: null,
       restoredParams: null,
+      // plan-02（架构 §3.3「更换方向重置为 none」）：上一方向的 consumed
+      // 授权不带入新方向；armed 保留——确认先于上传发生，正是待兑现的授权。
+      quickAuthorization:
+        prev.quickAuthorization === "consumed" ? "none" : prev.quickAuthorization,
+      quickGenerationAuthorizationSnapshot:
+        prev.quickAuthorization === "consumed"
+          ? null
+          : prev.quickGenerationAuthorizationSnapshot,
     }));
   }, []);
 
@@ -659,7 +977,9 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
   );
 
   const failAnalysis = useCallback((message: string, stage?: string, code?: string, retryable?: boolean) => {
-    setCtx((prev) => ({
+    // plan-02（AC-07）：分析失败时清除 armed 快照并说明原因——
+    // 条件恢复（重试成功）后不复活授权，用户手动生成或重新确认。
+    commitSync((prev) => ({
       ...prev,
       state: "idle",
       error: { message, stage, code, retryable },
@@ -669,18 +989,28 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
         // L4: 分析返回 SERVICE_UNAVAILABLE 时标记不可用
         analysisUnavailable: code === "SERVICE_UNAVAILABLE" ? true : prev.degradation.analysisUnavailable,
       },
+      ...(prev.quickAuthorization === "armed"
+        ? {
+            quickAuthorization: "none" as const,
+            quickGenerationAuthorizationSnapshot: null,
+            quickAuthorizationClearedReason:
+              QUICK_AUTHORIZATION_CLEARED_REASONS.analysisFailed,
+          }
+        : {}),
     }));
-  }, []);
+  }, [commitSync]);
 
   const startGeneration = useCallback((taskId: string) => {
-    setCtx((prev) => ({
+    // plan-02（架构 §6.1.7）：生成任务创建即同步落盘——提交后立刻刷新页面也能
+    // 恢复生成轮询终态，不依赖 300ms 防抖窗口。
+    commitSync((prev) => ({
       ...prev,
       state: "generating",
       generationTaskId: taskId,
       resultImageUrl: null,
       error: null,
     }));
-  }, []);
+  }, [commitSync]);
 
   const completeGeneration = useCallback((resultImageUrl: string) => {
     setCtx((prev) => ({
@@ -835,6 +1165,112 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
       setCtx((prev) => ({ ...prev, ...payload }));
     }, []);
 
+  // ─── plan-02：创作节奏与快速授权原子 actions（均同步 flush，ADR-2） ──────────
+
+  const confirmQuickRecreate = useCallback<
+    WorkspaceActions["confirmQuickRecreate"]
+  >(
+    (snapshot) => {
+      commitSync((prev) => ({
+        ...prev,
+        creationPace: "quick_recreate",
+        quickAuthorization: "armed",
+        quickGenerationAuthorizationSnapshot: snapshot,
+        quickAuthorizationClearedReason: null,
+      }));
+    },
+    [commitSync],
+  );
+
+  const consumeQuickAuthorization = useCallback<
+    WorkspaceActions["consumeQuickAuthorization"]
+  >(
+    () => {
+      commitSync((prev) =>
+        prev.quickAuthorization === "armed"
+          ? { ...prev, quickAuthorization: "consumed" }
+          : prev,
+      );
+    },
+    [commitSync],
+  );
+
+  const clearQuickAuthorization = useCallback<
+    WorkspaceActions["clearQuickAuthorization"]
+  >(
+    (reason) => {
+      commitSync((prev) =>
+        prev.quickAuthorization === "none" &&
+        !prev.quickGenerationAuthorizationSnapshot &&
+        prev.creationPace === "analyze_edit"
+          ? prev
+          : {
+              ...prev,
+              quickAuthorization: "none",
+              quickGenerationAuthorizationSnapshot: null,
+              quickAuthorizationClearedReason: reason,
+            },
+      );
+    },
+    [commitSync],
+  );
+
+  const exitQuickRecreate = useCallback<WorkspaceActions["exitQuickRecreate"]>(
+    () => {
+      commitSync((prev) => ({
+        ...prev,
+        creationPace: "analyze_edit",
+        quickAuthorization: "none",
+        quickGenerationAuthorizationSnapshot: null,
+        quickAuthorizationClearedReason:
+          QUICK_AUTHORIZATION_CLEARED_REASONS.exit,
+      }));
+    },
+    [commitSync],
+  );
+
+  const setCreationPace = useCallback<WorkspaceActions["setCreationPace"]>(
+    (pace) => {
+      if (pace !== "analyze_edit") return;
+      commitSync((prev) => {
+        if (
+          prev.creationPace === "analyze_edit" &&
+          prev.quickAuthorization === "none"
+        ) {
+          return prev;
+        }
+        // armed 期间切回「分析后编辑」= 退出快速路径（清授权并恢复可编辑）
+        return {
+          ...prev,
+          creationPace: "analyze_edit",
+          quickAuthorization: "none",
+          quickGenerationAuthorizationSnapshot: null,
+          quickAuthorizationClearedReason:
+            prev.quickAuthorization === "armed"
+              ? QUICK_AUTHORIZATION_CLEARED_REASONS.exit
+              : prev.quickAuthorizationClearedReason,
+        };
+      });
+    },
+    [commitSync],
+  );
+
+  const setGenerationParams = useCallback<
+    WorkspaceActions["setGenerationParams"]
+  >((params, source) => {
+    setCtx((prev) => ({
+      ...prev,
+      generationParams: params,
+      aspectRatioSource: source ?? prev.aspectRatioSource,
+    }));
+  }, []);
+
+  const setPreferredIterationId = useCallback<
+    WorkspaceActions["setPreferredIterationId"]
+  >((iterationId) => {
+    setCtx((prev) => ({ ...prev, preferredIterationId: iterationId }));
+  }, []);
+
   const flush = useCallback(() => {
     writePersistedStateSync(toPersistedState(ctxRef.current));
   }, []);
@@ -893,7 +1329,13 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
     if (!ctx.assetId || !ctx.referenceImageUrl) {
       // plan-04: 恢复态豁免——来源缺失的恢复快照仍保留在通道中
       //（守卫读取与来源模板标记依赖该上下文）
-      if (!ctx.currentIterationId) {
+      // plan-02: 快速授权闩锁（ADR-2）独立于参考内容——确认后尚未上传
+      // 参考图的空工作区仍需保留 armed/consumed 快照，不得被清盘。
+      const hasQuickAuthorizationContext =
+        ctx.quickAuthorization !== "none" ||
+        ctx.quickGenerationAuthorizationSnapshot !== null ||
+        ctx.creationPace === "quick_recreate";
+      if (!ctx.currentIterationId && !hasQuickAuthorizationContext) {
         clearWorkspacePersistedState();
         return;
       }
@@ -918,6 +1360,13 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
     ctx.previousResultUrl,
     ctx.restoredParams,
     ctx.memoryIdentity,
+    ctx.creationPace,
+    ctx.quickAuthorization,
+    ctx.quickGenerationAuthorizationSnapshot,
+    ctx.promptControls,
+    ctx.generationParams,
+    ctx.aspectRatioSource,
+    ctx.preferredIterationId,
   ]);
 
   return {
@@ -945,6 +1394,13 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
     setMemoryIdentity,
     setSourceReference,
     applyAnalysisTemplatePayload,
+    confirmQuickRecreate,
+    consumeQuickAuthorization,
+    clearQuickAuthorization,
+    exitQuickRecreate,
+    setCreationPace,
+    setGenerationParams,
+    setPreferredIterationId,
     flush,
     enterHistoryRestored,
     exitHistoryRestored,

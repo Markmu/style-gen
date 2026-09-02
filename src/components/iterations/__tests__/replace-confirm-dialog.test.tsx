@@ -126,3 +126,49 @@ describe("ReplaceConfirmDialog — “确认期间切换详情关闭不应用”
     expect(onCancel).not.toHaveBeenCalled();
   });
 });
+
+describe("ReplaceConfirmDialog — plan-06「结果作为新参考」方向切换守卫变体", () => {
+  it("new-reference 变体：容器/按钮 testid 契约 + 未完成内容说明清单", () => {
+    renderDialog({
+      variant: "new-reference",
+      unfinishedSummary: [
+        "Prompt：当前草稿与所选结果的提交快照不同",
+        "当前参考来源将替换为该结果的图片资产（复用同一 Asset，不重新上传）",
+      ],
+    });
+
+    const dialog = screen.getByTestId("new-reference-confirm-dialog");
+    expect(dialog).toHaveAttribute("role", "dialog");
+    expect(screen.queryByTestId("replace-confirm-dialog")).toBeNull();
+
+    const summary = within(dialog).getByTestId("new-reference-unfinished-summary");
+    expect(summary).toHaveTextContent("Prompt：当前草稿与所选结果的提交快照不同");
+    expect(summary).toHaveTextContent("复用同一 Asset");
+
+    expect(
+      within(dialog).getByTestId("new-reference-confirm-cancel"),
+    ).toBeVisible();
+    expect(
+      within(dialog).getByTestId("new-reference-confirm-accept"),
+    ).toBeVisible();
+  });
+
+  it("取消/确认分别只触发对应回调；接受失败错误经 errorText 展示且不弹第二套弹层", async () => {
+    const user = userEvent.setup();
+    const { onCancel, onConfirm } = renderDialog({
+      variant: "new-reference",
+      unfinishedSummary: ["Prompt：当前草稿与所选结果的提交快照不同"],
+      errorText: "无法使用该结果作为新参考，请稍后重试。",
+    });
+
+    expect(screen.getByText("无法使用该结果作为新参考，请稍后重试。")).toBeVisible();
+
+    await user.click(screen.getByTestId("new-reference-confirm-cancel"));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onConfirm).not.toHaveBeenCalled();
+
+    await user.click(screen.getByTestId("new-reference-confirm-accept"));
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+});

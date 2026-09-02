@@ -4,10 +4,12 @@ import {
   mockAnalysisCreate,
   mockAnalysisPolling,
   mockAuthSession,
+  mockDirectionFeedStateful,
   mockGenerationCreate,
   mockGenerationList,
   mockGenerationPolling,
   mockUploadPresign,
+  type MockDirectionFeedItem,
 } from './helpers/mock-api'
 import { waitForReactInput } from './helpers/react-ready'
 import { gotoWorkspace, TEST_IMAGE_PATH, uploadAndCompleteAnalysis } from './helpers/workspace-actions'
@@ -46,6 +48,20 @@ function promptColumn(page: Page) {
 /** 现行生成入口：Prompt and Render 列 Render Dock（output-card）内的 Generate 按钮 */
 function generateButton(page: Page) {
   return promptColumn(page).getByTestId('output-card').getByRole('button', { name: /^Generate$/i })
+}
+
+/** plan-07：方向 feed 完成条目（结果内联呈现于本次结果区的锚点） */
+function railItem(id: string): MockDirectionFeedItem {
+  return {
+    id,
+    status: 'completed',
+    promptSummary: `Happy path iteration ${id}`,
+    resultFileUrl: `https://cdn.example.com/results/${id}/result.webp`,
+    params: { aspectRatio: '1:1', quality: 'standard' },
+    createdAt: '2026-09-01T00:00:00.000Z',
+    resultAssetId: `asset-${id}`,
+    errorMessage: null,
+  }
 }
 
 const processingAnalysisResponse = {
@@ -118,6 +134,12 @@ test.describe('Happy Path', () => {
 
   test('Confirm Prompt 后生成图片', async ({ page }) => {
     const genTaskId = 'happy-generation-task'
+    // plan-07（实现规格 §4）：成功内联进入方向 rail——stateful feed 提供锚点
+    const feed = await mockDirectionFeedStateful(page, {
+      completed: [],
+      active: null,
+      latestFailure: null,
+    })
     await mockGenerationCreate(page, genTaskId)
     await mockGenerationPolling(page, genTaskId, loadFixture('generation-completed.json'))
 
@@ -129,15 +151,27 @@ test.describe('Happy Path', () => {
     await expect(generateBtn).toBeEnabled()
     await generateBtn.click()
 
-    // 生成结果在 Generation Task 弹窗中呈现
-    await expect(page.getByRole('dialog', { name: 'Generation Task' })).toBeVisible()
-    await expect(page.getByTestId('generation-dialog')).toContainText('Generated Result', {
-      timeout: 15000,
+    // 生成结果内联进入本次结果区（渲染真实图片），不打开阻断式弹层
+    feed.set({
+      completed: [railItem(genTaskId)],
+      active: null,
+      latestFailure: null,
     })
+    const completedItem = page.locator(
+      `[data-testid="direction-completed-item"][data-iteration-id="${genTaskId}"]`,
+    )
+    await expect(completedItem).toBeVisible({ timeout: 15000 })
+    await expect(completedItem.locator('img')).toBeVisible()
+    await expect(page.getByTestId('generation-dialog')).toHaveCount(0)
   })
 
   test('对比Reference和结果图', async ({ page }) => {
     const genTaskId = 'happy-compare-generation-task'
+    const feed = await mockDirectionFeedStateful(page, {
+      completed: [],
+      active: null,
+      latestFailure: null,
+    })
     await mockGenerationCreate(page, genTaskId)
     await mockGenerationPolling(page, genTaskId, loadFixture('generation-completed.json'))
 
@@ -145,16 +179,20 @@ test.describe('Happy Path', () => {
     await uploadAndCompleteAnalysis(page, { analysisTaskId: 'happy-compare-analysis-task' })
     await generateButton(page).click()
 
-    // 结果图在弹窗中呈现（现行“结果图”载体：Generation Task 弹窗）
-    await expect(page.getByTestId('generation-dialog')).toContainText('Generated Result', {
-      timeout: 15000,
+    // 结果图内联进入本次结果区（plan-07：真实图片缩略图，无弹层关闭步骤）
+    feed.set({
+      completed: [railItem(genTaskId)],
+      active: null,
+      latestFailure: null,
     })
-    await expect(page.getByAltText('Generated Result')).toBeVisible()
-
-    // Verify the result dialog can be closed without losing workspace context
-    await page.getByText('Close Dialog', { exact: true }).click()
+    const completedItem = page.locator(
+      `[data-testid="direction-completed-item"][data-iteration-id="${genTaskId}"]`,
+    )
+    await expect(completedItem).toBeVisible({ timeout: 15000 })
+    await expect(completedItem.locator('img')).toBeVisible()
     await expect(page.getByTestId('generation-dialog')).toHaveCount(0)
-    // 旧「two-pane 布局」的现行等价物：三栏布局下 Reference 与配方同屏保留
+
+    // 三栏布局下 Reference 与配方同屏保留，结果与参考可直接比较
     await expect(page.getByTestId('workspace-three-column-layout')).toBeVisible()
     await expect(referenceColumn(page).getByTestId('reference-card').getByAltText('Reference')).toBeVisible()
     await expect(styleColumn(page).getByTestId('recipe-card')).toContainText('Ocean sunset')
@@ -180,6 +218,12 @@ test.describe('Happy Path', () => {
         body: JSON.stringify({ id: taskId, status: 'pending' }),
       })
     })
+    // plan-07：两次完成事实经方向 feed 内联呈现
+    const feed = await mockDirectionFeedStateful(page, {
+      completed: [],
+      active: null,
+      latestFailure: null,
+    })
     await mockGenerationPolling(page, 'happy-iteration-task-1', {
       ...loadFixture('generation-completed.json'),
       id: 'happy-iteration-task-1',
@@ -192,10 +236,16 @@ test.describe('Happy Path', () => {
     // Complete first generation
     await uploadAndCompleteAnalysis(page, { analysisTaskId: 'happy-iteration-analysis-task' })
     await generateButton(page).click()
-    await expect(page.getByTestId('generation-dialog')).toContainText('Generated Result', {
-      timeout: 15000,
+    feed.set({
+      completed: [railItem('happy-iteration-task-1')],
+      active: null,
+      latestFailure: null,
     })
-    await page.getByText('Close Dialog', { exact: true }).click()
+    await expect(
+      page.locator(
+        '[data-testid="direction-completed-item"][data-iteration-id="happy-iteration-task-1"]',
+      ),
+    ).toBeVisible({ timeout: 15000 })
     await expect(page.getByTestId('generation-dialog')).toHaveCount(0)
 
     // 修改 Prompt 后迭代生成：Generate 仍可用，第二次请求携带修改后的 prompt
@@ -205,9 +255,20 @@ test.describe('Happy Path', () => {
     await expect(generateBtn).toBeEnabled()
     await generateBtn.click()
 
-    await expect(page.getByTestId('generation-dialog')).toContainText('Generated Result', {
-      timeout: 15000,
+    feed.set({
+      completed: [
+        railItem('happy-iteration-task-2'),
+        railItem('happy-iteration-task-1'),
+      ],
+      active: null,
+      latestFailure: null,
     })
+    await expect(
+      page.locator(
+        '[data-testid="direction-completed-item"][data-iteration-id="happy-iteration-task-2"]',
+      ),
+    ).toBeVisible({ timeout: 15000 })
+    await expect(page.getByTestId('generation-dialog')).toHaveCount(0)
     expect(generationPostCount).toBe(2)
     expect(capturedPrompt).toBe('A vibrant sunrise over the mountains with mist')
   })

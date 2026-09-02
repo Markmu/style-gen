@@ -529,6 +529,105 @@ async function walkToStep3FromMounted() {
   await user.click(screen.getByRole("button", { name: /^Next$/ }));
 }
 
+describe("StyleMemorySaveWizard — plan-06 工作台 preferred 入口（预选代表结果）", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    routerPushMock.mockClear();
+  });
+
+  it("defaultRepresentative：打开即勾选「Set as representative result」，状态行联动 User verified", () => {
+    renderDialog({ defaultRepresentative: true });
+
+    expect(
+      screen.getByRole("checkbox", { name: /Set as representative result/ }),
+    ).toBeChecked();
+    // 步骤 1 的勾选即时联动「保存后状态」
+    expect(screen.getByTestId("save-wizard-step-1")).toHaveTextContent(
+      /User verified/,
+    );
+  });
+
+  it("预选入口取消零写入：Cancel 只触发 onClose，不发任何 create 请求", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+    const { onSaved, onClose } = renderDialog({ defaultRepresentative: true });
+
+    await user.click(screen.getByRole("button", { name: "Cancel", exact: true }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("预选入口直接提交：无需再勾选，提交体携带 representativeGenerationTaskId = 来源迭代", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse(201, { id: "tpl-pref-1", name: "Preferred direction memory" }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+    const { onSaved } = renderDialog({ defaultRepresentative: true });
+
+    await user.click(screen.getByRole("button", { name: /^Next$/ }));
+    await user.click(screen.getByRole("button", { name: /^Next$/ }));
+    await user.type(screen.getByLabelText(/^Name$/), "Preferred direction memory");
+    await user.click(screen.getByRole("button", { name: /^Save/ }));
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    const body = JSON.parse(
+      String(fetchMock.mock.calls[0][1].body),
+    ) as Record<string, unknown>;
+    expect(body.sourceGenerationTaskId).toBe("iter-001");
+    expect(body.representativeGenerationTaskId).toBe("iter-001");
+  });
+
+  it("预选入口失败保留：5xx 后向导内容与预选保留，重试成功后提交体一致", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse(503, {
+          error: "Saving is temporarily unavailable. Please try again later.",
+          code: "SERVICE_UNAVAILABLE",
+          retryable: true,
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse(201, { id: "tpl-pref-2", name: "Preferred retry" }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+    renderDialog({ defaultRepresentative: true });
+
+    await user.click(screen.getByRole("button", { name: /^Next$/ }));
+    await user.click(screen.getByRole("button", { name: /^Next$/ }));
+    await user.type(screen.getByLabelText(/^Name$/), "Preferred retry");
+    await user.click(screen.getByRole("button", { name: /^Save/ }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("save-wizard-step-3")).toHaveTextContent(
+        /temporarily unavailable/,
+      ),
+    );
+    // 失败保留：名称与预选代表结果不丢（回步骤 1 仍勾选）
+    expect(screen.getByLabelText(/^Name$/)).toHaveValue("Preferred retry");
+    await user.click(screen.getByRole("button", { name: /^Back$/ }));
+    await user.click(screen.getByRole("button", { name: /^Back$/ }));
+    expect(
+      screen.getByRole("checkbox", { name: /Set as representative result/ }),
+    ).toBeChecked();
+    await user.click(screen.getByRole("button", { name: /^Next$/ }));
+    await user.click(screen.getByRole("button", { name: /^Next$/ }));
+    await user.click(screen.getByRole("button", { name: /^Save/ }));
+
+    await waitFor(() =>
+      expect(routerPushMock).toHaveBeenCalledWith("/workspace/templates/tpl-pref-2"),
+    );
+    const retryBody = JSON.parse(
+      String(fetchMock.mock.calls[1][1].body),
+    ) as Record<string, unknown>;
+    expect(retryBody.representativeGenerationTaskId).toBe("iter-001");
+  });
+});
+
 describe("StyleMemorySaveWizard — 流程 B（workspace-draft，无代表结果）", () => {
   afterEach(() => {
     vi.unstubAllGlobals();

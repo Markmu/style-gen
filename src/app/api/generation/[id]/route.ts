@@ -49,7 +49,9 @@ export async function GET(
     });
 
     // 响应为既有字段超集（架构 §7.3）：resultAssetId、analysisTemplateVariables 等
-    // 既有轮询/恢复消费字段保留，新增快照来源标记与已保存关联只增不删
+    // 既有轮询/恢复消费字段保留，新增快照来源标记与已保存关联只增不删；
+    // plan-03（ADR-4）: promptControlSnapshot 原样透传——新任务回证提交时控制值，
+    // 旧任务为 null（消费端以 promptSnapshot 全文降级，不虚构历史控制值）
     return NextResponse.json({
       id: detail.id,
       analysisTaskId: detail.analysisTaskId,
@@ -71,6 +73,7 @@ export async function GET(
       sourceTemplateName: detail.sourceTemplateName,
       savedTemplate: detail.savedTemplate,
       analysisTemplateVariables: detail.analysisTemplateVariables,
+      promptControlSnapshot: detail.promptControlSnapshot,
       createdAt: detail.createdAt.toISOString(),
       updatedAt: detail.updatedAt.toISOString(),
     });

@@ -42,6 +42,14 @@ interface UnifiedPromptEditorProps {
   onTemplateVariablesChange?: (variables: TemplateVariable[]) => void;
   onAuxiliaryVariableChange?: (name: string, value: string) => void;
   onSaveContentChange?: (value: string) => void;
+  /**
+   * plan-04：受控编辑方式（variables/text）。提供时由工作台两轴控制区驱动；
+   * 旧调用方不传则保留内部切换行为。
+   */
+  controlledMode?: "variables" | "text";
+  onModeChange?: (mode: "variables" | "text") => void;
+  /** plan-04：手动改写全文（非变量联动编辑）时上抛，页面标记 customPromptDirty */
+  onManualTextChange?: (value: string) => void;
 }
 
 function variablesByName(variables: TemplateVariable[] = []) {
@@ -149,6 +157,9 @@ export function UnifiedPromptEditor({
   onTemplateVariablesChange,
   onAuxiliaryVariableChange,
   onSaveContentChange,
+  controlledMode,
+  onModeChange,
+  onManualTextChange,
 }: UnifiedPromptEditorProps) {
   const normalizedTemplateContent = initialTemplateContent ?? null;
   const hasUsableTemplate =
@@ -289,7 +300,9 @@ export function UnifiedPromptEditor({
     () => replaceVariables(templateSource, combinedVariableValues),
     [combinedVariableValues, templateSource],
   );
-  const renderableMode = mode === "json" ? lastRenderableMode : mode;
+  // plan-04：受控模式下视图由工作台两轴控制区决定（json 不可达）。
+  const viewMode: PromptMode = controlledMode ?? mode;
+  const renderableMode = viewMode === "json" ? lastRenderableMode : viewMode;
   const resolvedPrompt =
     renderableMode === "variables" ? resolvedTemplatePrompt : textPrompt;
   const shouldSaveTemplateSource =
@@ -379,20 +392,33 @@ export function UnifiedPromptEditor({
     linkedTextVariableRef.current = null;
     textTouchedRef.current = true;
     setTextPrompt(value);
-  }, [templateVariables, textPrompt, variableValues]);
+    // plan-04（架构 §6.2.6）：手动改写全文上抛，由页面标记 customPromptDirty。
+    onManualTextChange?.(value);
+  }, [onManualTextChange, templateVariables, textPrompt, variableValues]);
 
   const switchToText = useCallback(() => {
+    if (controlledMode !== undefined) {
+      onModeChange?.("text");
+      if (!textTouchedRef.current) {
+        setTextPrompt(resolvedTemplatePrompt);
+      }
+      return;
+    }
     setMode("text");
     setLastRenderableMode("text");
     if (!textTouchedRef.current) {
       setTextPrompt(resolvedTemplatePrompt);
     }
-  }, [resolvedTemplatePrompt]);
+  }, [controlledMode, onModeChange, resolvedTemplatePrompt]);
 
   const switchToVariables = useCallback(() => {
+    if (controlledMode !== undefined) {
+      onModeChange?.("variables");
+      return;
+    }
     setMode("variables");
     setLastRenderableMode("variables");
-  }, []);
+  }, [controlledMode, onModeChange]);
 
   return (
     <div
@@ -405,14 +431,14 @@ export function UnifiedPromptEditor({
           compact ? "p-2" : "p-3"
         }`}
       >
-        {mode === "variables" ? (
+        {viewMode === "variables" ? (
           <div className="min-h-full space-y-2">
             <div className="flex shrink-0 items-center justify-between gap-3">
               <p className="text-xs font-semibold text-[var(--text-primary)]">
                 Variable-linked prompt
               </p>
               <PromptModeSwitcher
-                mode={mode}
+                mode={viewMode}
                 variableCount={variables.length}
                 onVariablesMode={switchToVariables}
                 onTextMode={switchToText}
@@ -434,14 +460,14 @@ export function UnifiedPromptEditor({
               />
             </div>
           </div>
-        ) : mode === "text" ? (
+        ) : viewMode === "text" ? (
           <div className="flex h-full min-h-full flex-col gap-3">
             <div className="flex shrink-0 items-center justify-between gap-3">
               <p className="text-xs font-semibold text-[var(--text-primary)]">
                 Full generation prompt
               </p>
               <PromptModeSwitcher
-                mode={mode}
+                mode={viewMode}
                 variableCount={variables.length}
                 onVariablesMode={switchToVariables}
                 onTextMode={switchToText}
@@ -464,6 +490,7 @@ export function UnifiedPromptEditor({
               provenanceSpans={provenanceSpans}
               selectedProvenanceSpan={selectedProvenanceSpan}
               onChange={handleTextChange}
+              testId="fulltext-prompt-editor"
             />
             {auxiliaryVariables.length > 0 && (
               <div className="min-h-0 flex-1 overflow-y-auto">
@@ -492,7 +519,7 @@ export function UnifiedPromptEditor({
                   className="btn-secondary rounded-lg px-2 py-1 text-[0.68rem] font-semibold"
                 />
                 <PromptModeSwitcher
-                  mode={mode}
+                  mode={viewMode}
                   variableCount={variables.length}
                   onVariablesMode={switchToVariables}
                   onTextMode={switchToText}

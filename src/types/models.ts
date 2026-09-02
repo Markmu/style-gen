@@ -177,6 +177,89 @@ export interface V2PromptWorkspaceState {
   customPrompt: string;
 }
 
+// ─── 第 15 期 plan-01（Workspace 证据引导生成闭环，架构 §7.2） ────────────────
+
+/** 创作节奏（架构 §7.2；UI「分析后编辑 / 快速复刻」） */
+export type CreationPace = "analyze_edit" | "quick_recreate";
+
+/** 快速复刻一次性授权闩锁状态；armed 必须伴随合法 QuickGenerationAuthorizationSnapshot */
+export type QuickAuthorization = "none" | "armed" | "consumed";
+
+/** Prompt 创作意图（UI「贴近复刻 / 同风格创作」） */
+export type PromptIntent = "reconstruction" | "same_style";
+
+/** Prompt 表达程度（UI「快速 / 平衡 / 详细」） */
+export type PromptDetailLevel = "concise" | "standard" | "professional";
+
+/** Prompt 编辑方式 */
+export type PromptEditorMode = "variables" | "text" | "structured";
+
+/** 面向真实 invariant 的四类用户调整（UI「加强保留 / 放宽 / 替换 / 不再保留」） */
+export type AdjustmentAction = "strengthen" | "relax" | "replace" | "disable";
+
+/** 用户对单条风格规则的调整；只引用 Recipe 中真实 invariantId，不写回模型事实（ADR-3） */
+export interface InvariantAdjustment {
+  invariantId: string;
+  action: AdjustmentAction;
+  replacementValue?: string;
+}
+
+/** Prompt 控制快照：当前草稿（sessionStorage v5）与提交任务共用同一契约（ADR-4） */
+export interface PromptControlSnapshot {
+  schemaVersion: 1;
+  trigger: "manual" | "quick_recreate";
+  intent: PromptIntent;
+  detailLevel: PromptDetailLevel;
+  editorMode: PromptEditorMode;
+  customPromptDirty: boolean;
+  enabledInvariantIds: string[];
+  variableValues: Record<string, string>;
+  enabledModifierNames: string[];
+  modifierValues: Record<string, string>;
+  adjustments: InvariantAdjustment[];
+  customTemplate?: string;
+}
+
+/**
+ * 快速复刻确认快照（ADR-2）：intent/detail/policy 为字面量类型，类型层不可写成其他值；
+ * generationSettings 排除 aspectRatio（画幅由 reference_or_fallback 策略解析，架构 §6.1）。
+ */
+export interface QuickGenerationAuthorizationSnapshot {
+  schemaVersion: 1;
+  intent: "reconstruction";
+  detailLevel: "standard";
+  aspectRatioPolicy: "reference_or_fallback";
+  generationSettings: Omit<GenerationParams, "aspectRatio">;
+}
+
+/** 编译后 Prompt 的可追溯来源片段；字符范围对应 CompiledPrompt.text */
+export interface CompiledPromptSegment {
+  sourceKind: "content" | "invariant" | "observation" | "modifier" | "adjustment";
+  sourceId: string;
+  dimension?: StyleDimension;
+  startIndex: number;
+  endIndex: number;
+}
+
+/** 确定性 Prompt 编译产物（无 LLM 二次改写，架构 §6.2） */
+export interface CompiledPrompt {
+  text: string;
+  segments: CompiledPromptSegment[];
+}
+
+/** 方向结果条目（GET /api/generation?view=direction，架构 §7.2） */
+export interface DirectionIterationListItem extends IterationListItem {
+  resultAssetId: string | null;
+  errorMessage: string | null;
+}
+
+/** 方向 feed：五成功 + 一进行中 + 一最近失败，三组不共享名额（ADR-5） */
+export interface DirectionIterationFeed {
+  completed: DirectionIterationListItem[];
+  active: DirectionIterationListItem | null;
+  latestFailure: DirectionIterationListItem | null;
+}
+
 /** 视觉分析 Provider */
 export type VisionProviderName = 'replicate' | 'gemini';
 
@@ -259,6 +342,8 @@ export interface GenerationTask {
   recipeSnapshot: StoredVisualRecipe | null;
   /** plan-01（ADR-2）: 提交时服务端固化的变量快照；存量旧行为 null */
   variablesSnapshot: TemplateVariable[] | null;
+  /** plan-03（ADR-4）: 提交时固化的 Prompt 控制快照；存量旧行为 null，消费端全文降级 */
+  promptControlSnapshot: PromptControlSnapshot | null;
   /** plan-01（AC-02）: 提交时工作台应用的 Style Memory id，可空 */
   sourceTemplateId: string | null;
   createdAt: Date;
@@ -311,6 +396,8 @@ export interface IterationDetail {
   savedTemplate: { id: string; name: string } | null;
   /** 兼容字段：use-history-restore 依赖其做变量回退 */
   analysisTemplateVariables: TemplateVariable[];
+  /** plan-03（ADR-4）: 提交时 Prompt 控制快照；旧任务为 null，消费端以 promptSnapshot 全文降级 */
+  promptControlSnapshot: PromptControlSnapshot | null;
   /** ISO 8601 */
   createdAt: string;
   /** ISO 8601 */

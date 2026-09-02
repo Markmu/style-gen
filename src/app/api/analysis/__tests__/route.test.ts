@@ -11,8 +11,21 @@ vi.mock("@/auth", () => ({
 }));
 
 const mockUpsertAsset = vi.fn();
+const mockFindAssetByIdForUser = vi.fn();
 vi.mock("@/lib/repositories/asset-repository", () => ({
   upsertAsset: (...args: unknown[]) => mockUpsertAsset(...args),
+  findAssetByIdForUser: (...args: unknown[]) => mockFindAssetByIdForUser(...args),
+}));
+
+const mockCheckRateLimit = vi.fn();
+vi.mock("@/lib/rate-limit", () => ({
+  checkRateLimit: (...args: unknown[]) => mockCheckRateLimit(...args),
+  RATE_LIMIT_CONFIGS: {
+    upload: { windowMs: 60 * 60 * 1000, maxRequests: 10 },
+    analysis: { windowMs: 60 * 60 * 1000, maxRequests: 10 },
+    generation: { windowMs: 60 * 60 * 1000, maxRequests: 20 },
+    templateWrite: { windowMs: 60 * 60 * 1000, maxRequests: 30 },
+  },
 }));
 
 const mockCreateAnalysisTask = vi.fn();
@@ -69,6 +82,20 @@ const ASSET: Asset = {
   width: 800,
   height: 600,
   mimeType: "image/jpeg",
+  userId: "user-1",
+  createdAt: new Date("2025-01-01"),
+};
+
+// ─── plan-03: 已归属当前用户的生成 Asset（ADR-6 结果作为新参考） ──────────
+
+const GENERATED_ASSET: Asset = {
+  id: "asset-gen-1",
+  type: "generated",
+  fileUrl: "https://r2.example.com/generated/gen-1/result.webp",
+  thumbnailUrl: null,
+  width: 1024,
+  height: 576,
+  mimeType: "image/webp",
   userId: "user-1",
   createdAt: new Date("2025-01-01"),
 };
@@ -420,5 +447,150 @@ describe("POST /api/analysis", () => {
         errorStage: 'vision',
       })
     );
+  });
+
+  // ─── plan-03: 已有 Asset 分析分支（§4 / ADR-6 / AC-07） ─────────────────
+
+  describe("已有 Asset 分析分支 (plan-03)", () => {
+    it("sourceAssetId 模式：服务端读取归属 Asset 元数据并创建分析任务（不复制 Asset）", async () => {
+      mockFindAssetByIdForUser.mockResolvedValueOnce(GENERATED_ASSET);
+
+      const response = await POST(makeRequest({ sourceAssetId: "asset-gen-1" }));
+      const data = await response.json();
+
+      expect(mockFindAssetByIdForUser).toHaveBeenCalledWith(
+        "asset-gen-1",
+        "user-1"
+      );
+      // 不 upsert、不复制 Asset，不改类型
+      expect(mockUpsertAsset).not.toHaveBeenCalled();
+      expect(mockCreateAnalysisTask).toHaveBeenCalledWith("user-1", {
+        sourceAssetId: "asset-gen-1",
+        provider: "gemini",
+        modelName: "gemini-2.5-flash",
+      });
+      // Vision Provider 只拿服务端派生的元数据
+      expect(mockVisionProvider.analyze).toHaveBeenCalledWith(
+        expect.objectContaining({
+          imageUrl: GENERATED_ASSET.fileUrl,
+          mimeType: GENERATED_ASSET.mimeType,
+        })
+      );
+      expect(response.status).toBe(200);
+      expect(data.status).toBe("completed");
+    });
+
+    it("输出 analysis_existing_asset_started 结构化日志（§8.5）", async () => {
+      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      mockFindAssetByIdForUser.mockResolvedValueOnce(GENERATED_ASSET);
+
+      await POST(makeRequest({ sourceAssetId: "asset-gen-1" }));
+
+      const logged = logSpy.mock.calls
+        .map((call) => String(call[0]))
+        .find((line) => line.includes("analysis_existing_asset_started"));
+      expect(logged).toBeDefined();
+      expect(logged).toContain('"assetId":"asset-gen-1"');
+
+      logSpy.mockRestore();
+    });
+
+    it("非法联合（sourceAssetId 混入 fileUrl/width/height/mimeType）→ 400，不读 Asset 不调 Provider", async () => {
+      const response = await POST(
+        makeRequest({
+          sourceAssetId: "asset-gen-1",
+          fileUrl: "https://attacker.example.com/fake.jpg",
+          width: 800,
+          height: 600,
+          mimeType: "image/jpeg",
+        })
+      );
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.code).toBe("INVALID_REQUEST");
+      expect(mockFindAssetByIdForUser).not.toHaveBeenCalled();
+      expect(mockVisionProvider.analyze).not.toHaveBeenCalled();
+      expect(mockCreateAnalysisTask).not.toHaveBeenCalled();
+    });
+
+    it("sourceAssetId 不存在或不归属当前用户 → 404 稳定错误，不调 Provider 不建任务", async () => {
+      mockFindAssetByIdForUser.mockResolvedValueOnce(null);
+
+      const response = await POST(makeRequest({ sourceAssetId: "asset-other-user" }));
+      const data = await response.json();
+
+      expect(response.status).toBe(404);
+      expect(data.code).toBe("NOT_FOUND");
+      expect(mockVisionProvider.analyze).not.toHaveBeenCalled();
+      expect(mockCreateAnalysisTask).not.toHaveBeenCalled();
+      expect(mockUpsertAsset).not.toHaveBeenCalled();
+    });
+
+    it("Asset 元数据非图片 MIME → 400 INVALID_REQUEST（防御：不进入分析管线）", async () => {
+      mockFindAssetByIdForUser.mockResolvedValueOnce({
+        ...GENERATED_ASSET,
+        mimeType: "text/plain",
+      });
+
+      const response = await POST(makeRequest({ sourceAssetId: "asset-gen-1" }));
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.code).toBe("INVALID_REQUEST");
+      expect(mockVisionProvider.analyze).not.toHaveBeenCalled();
+    });
+
+    it("上传模式不触发 findAssetByIdForUser（既有契约不变）", async () => {
+      await POST(makeRequest(VALID_BODY));
+
+      expect(mockFindAssetByIdForUser).not.toHaveBeenCalled();
+      expect(mockUpsertAsset).toHaveBeenCalledWith("user-1", "asset-1", {
+        fileUrl: "https://example.com/image.jpg",
+        width: 800,
+        height: 600,
+        mimeType: "image/jpeg",
+      });
+    });
+  });
+
+  // ─── plan-03: 分析用户级限流（§8.3） ────────────────────────────────────
+
+  describe("分析用户级限流 (plan-03 / §8.3)", () => {
+    it("接入 analysis 配置：identifier 取 session userId，10 次/小时", async () => {
+      mockCheckRateLimit.mockReturnValue({
+        allowed: true,
+        remaining: 9,
+        resetAt: Date.now() + 60 * 60 * 1000,
+      });
+
+      await POST(makeRequest(VALID_BODY));
+
+      expect(mockCheckRateLimit).toHaveBeenCalledWith(
+        "user-1",
+        "analysis",
+        expect.objectContaining({
+          windowMs: 60 * 60 * 1000,
+          maxRequests: 10,
+        })
+      );
+    });
+
+    it("超限返回 429 RATE_LIMITED，不调 Provider 不建任务", async () => {
+      mockCheckRateLimit.mockReturnValue({
+        allowed: false,
+        remaining: 0,
+        resetAt: Date.now() + 60 * 60 * 1000,
+      });
+
+      const response = await POST(makeRequest(VALID_BODY));
+      const data = await response.json();
+
+      expect(response.status).toBe(429);
+      expect(data.code).toBe("RATE_LIMITED");
+      expect(data.retryable).toBe(true);
+      expect(mockVisionProvider.analyze).not.toHaveBeenCalled();
+      expect(mockCreateAnalysisTask).not.toHaveBeenCalled();
+    });
   });
 });

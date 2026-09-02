@@ -34,8 +34,38 @@ vi.mock("@/lib/db/schema", async (importOriginal) => {
 import {
   createAsset,
   findAssetById,
+  findAssetByIdForUser,
   upsertAsset,
 } from "@/lib/repositories/asset-repository";
+
+/** 从 Drizzle 条件对象中递归收集绑定参数（eq 的 Param.value） */
+function collectParams(node: unknown, out: unknown[] = []): unknown[] {
+  if (node === null || node === undefined) return out;
+  if (
+    typeof node === "string" ||
+    typeof node === "number" ||
+    typeof node === "boolean"
+  ) {
+    out.push(node);
+    return out;
+  }
+  if (typeof node !== "object") return out;
+  if (Array.isArray(node)) {
+    for (const item of node) collectParams(item, out);
+    return out;
+  }
+  const record = node as Record<string, unknown>;
+  if ("value" in record) {
+    const value = record.value;
+    if (value === null || typeof value !== "object") {
+      out.push(value);
+    }
+  }
+  if (Array.isArray(record.queryChunks)) {
+    collectParams(record.queryChunks, out);
+  }
+  return out;
+}
 
 function makeCamelCaseRow(overrides: Partial<Record<string, unknown>> = {}) {
   return {
@@ -163,6 +193,52 @@ describe("asset-repository", () => {
       expect(asset.id).toBe("ASSET_ID_001");
       expect(asset.type).toBe("reference");
       expect(mockOnConflictDoUpdate).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ─── plan-03: findAssetByIdForUser（ADR-6 / §4 已有资产分析） ───────────
+
+  describe("findAssetByIdForUser (plan-03)", () => {
+    it("返回归属当前用户的 Asset（含完整元数据供服务端派生）", async () => {
+      const generatedRow = makeCamelCaseRow({
+        id: "ASSET_GEN_001",
+        type: "generated",
+        fileUrl: "https://cdn.example.com/generated/result.webp",
+        thumbnailUrl: null,
+        width: 1024,
+        height: 576,
+        mimeType: "image/webp",
+      });
+      mockWhere.mockResolvedValueOnce([generatedRow]);
+
+      const asset = await findAssetByIdForUser("ASSET_GEN_001", "USER_001");
+
+      expect(asset).not.toBeNull();
+      expect(asset!.id).toBe("ASSET_GEN_001");
+      expect(asset!.type).toBe("generated");
+      expect(asset!.fileUrl).toBe("https://cdn.example.com/generated/result.webp");
+      expect(asset!.mimeType).toBe("image/webp");
+      expect(asset!.width).toBe(1024);
+      expect(asset!.height).toBe(576);
+    });
+
+    it("未找到返回 null", async () => {
+      mockWhere.mockResolvedValueOnce([]);
+
+      const asset = await findAssetByIdForUser("NON_EXISTENT", "USER_001");
+
+      expect(asset).toBeNull();
+    });
+
+    it("查询条件同时绑定 asset id 与 userId（跨用户资产不可见，不泄露存在性）", async () => {
+      mockWhere.mockResolvedValueOnce([]);
+
+      await findAssetByIdForUser("ASSET_GEN_001", "USER_OTHER");
+
+      expect(mockWhere).toHaveBeenCalledTimes(1);
+      const params = collectParams(mockWhere.mock.calls[0][0]);
+      expect(params).toContain("ASSET_GEN_001");
+      expect(params).toContain("USER_OTHER");
     });
   });
 });

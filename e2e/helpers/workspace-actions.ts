@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test'
+import { expect } from '@playwright/test'
 import { resolve } from 'path'
 import {
   mockUploadPresign,
@@ -9,6 +10,7 @@ import {
   loadFixture,
 } from './mock-api'
 import { mockAuthSession } from './mock-api'
+import { waitForReactElement } from './react-ready'
 
 const TEST_IMAGE_PATH = resolve(__dirname, '../fixtures/test-image.png')
 
@@ -129,9 +131,57 @@ export async function completeFullFlow(
     .getByRole('button', { name: /^Generate$/i })
   await generateBtn.click()
 
-  await page.getByTestId('generation-dialog').getByText('Generated Result').waitFor({ timeout: 15000 })
+  // plan-07（实现规格 §4）：成功不再打开阻断式 GenerationDialog——完成事实
+  // 以工作区状态带进入 Result 阶段为完成锚点（终态由详情轮询驱动，无需 feed；
+  // 「Result」仅在 generation_ready 出现，分析完成态为「Editing」）
+  await page.getByTestId('ai-copilot-ribbon').getByText('Result').first().waitFor({
+    timeout: 15000,
+  })
 
   return { ...result, generationTaskId: genTaskId }
 }
 
 export { TEST_IMAGE_PATH }
+
+// ─── 第 15 期 plan-02：创作节奏选择与快速确认操作 helper ─────────────────────
+
+/** plan-02: 空工作区默认停留在 analyze_edit，选择快速复刻后确认区可打开 */
+export async function chooseQuickRecreatePace(page: Page) {
+  const selector = page.getByTestId('creation-pace-selector')
+  await expect(selector).toBeVisible({ timeout: 10000 })
+  await expect(selector.getByTestId('pace-option-analyze-edit')).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  // Dev server 下 SSR HTML 先于 hydration 就绪；等待 React 事件挂载，避免点击被丢弃
+  const quickOption = selector.getByTestId('pace-option-quick-recreate')
+  await waitForReactElement(quickOption)
+  await quickOption.click()
+  const dialog = page.getByTestId('quick-confirm-dialog')
+  await expect(dialog).toBeVisible({ timeout: 10000 })
+  return dialog
+}
+
+/** plan-02: 确认快速复刻授权——同一 QuickGenerationAuthorizationSnapshot 原子写入并置 armed */
+export async function confirmQuickRecreate(page: Page) {
+  const dialog = page.getByTestId('quick-confirm-dialog')
+  await waitForReactElement(dialog.getByTestId('quick-confirm-confirm'))
+  await dialog.getByTestId('quick-confirm-confirm').click()
+  await expect(page.getByTestId('quick-authorization-status')).toHaveAttribute(
+    'data-authorization',
+    'armed',
+    { timeout: 10000 },
+  )
+}
+
+/** plan-02: armed 期间退出快速路径——授权复位 none 并恢复可编辑 */
+export async function exitQuickRecreate(page: Page) {
+  const exitButton = page.getByTestId('exit-quick-recreate')
+  await waitForReactElement(exitButton)
+  await exitButton.click()
+  await expect(page.getByTestId('quick-authorization-status')).toHaveAttribute(
+    'data-authorization',
+    'none',
+    { timeout: 10000 },
+  )
+}

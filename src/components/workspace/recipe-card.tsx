@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import {
   Aperture,
   Braces,
@@ -44,6 +44,11 @@ interface RecipeCardProps {
   onFacetSelect?: (facetId: EvidenceFacetId) => void;
   enabledInvariantIds?: string[];
   onInvariantToggle?: (invariantId: string) => void;
+  /**
+   * plan-04（AC-05）：被「保留 / 改变」摘要定位的真实规则 id。
+   * 提供时展开 Style rules 列表并在对应 invariant 行标记 data-located。
+   */
+  locatedInvariantId?: string | null;
 }
 
 interface FacetGroup {
@@ -398,18 +403,27 @@ interface StyleRulesProps {
   viewModel: AnalysisResultViewModel;
   enabledInvariantIds?: string[];
   onInvariantToggle?: (invariantId: string) => void;
+  locatedInvariantId?: string | null;
 }
 
 function StyleRules({
   viewModel,
   enabledInvariantIds,
   onInvariantToggle,
+  locatedInvariantId = null,
 }: StyleRulesProps) {
   const [expanded, setExpanded] = useState(false);
   const detailsId = useId();
   const enabledInvariants = new Set(
     enabledInvariantIds ?? viewModel.invariants.map((item) => item.id),
   );
+
+  // plan-04：摘要定位真实规则时展开列表，保证定位目标可见（可键盘到达）。
+  useEffect(() => {
+    if (locatedInvariantId) {
+      setExpanded(true);
+    }
+  }, [locatedInvariantId]);
 
   if (viewModel.version !== "v2" || viewModel.invariants.length === 0) return null;
 
@@ -449,7 +463,15 @@ function StyleRules({
           {viewModel.invariants.map((invariant) => (
             <label
               key={invariant.id}
-              className="flex cursor-pointer gap-2 rounded-lg bg-[var(--surface-bright)]/72 p-2.5 text-xs"
+              data-testid={`invariant-item-${invariant.id}`}
+              data-located={
+                locatedInvariantId === invariant.id ? "true" : "false"
+              }
+              className={`flex cursor-pointer gap-2 rounded-lg p-2.5 text-xs transition-colors ${
+                locatedInvariantId === invariant.id
+                  ? "bg-[var(--accent-primary-soft)]/60 ring-1 ring-[var(--border-interactive)]"
+                  : "bg-[var(--surface-bright)]/72"
+              }`}
             >
               <input
                 type="checkbox"
@@ -499,6 +521,7 @@ export function RecipeCard({
   onFacetSelect,
   enabledInvariantIds,
   onInvariantToggle,
+  locatedInvariantId = null,
 }: RecipeCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const titleId = useId();
@@ -603,6 +626,7 @@ export function RecipeCard({
                 viewModel={viewModel}
                 enabledInvariantIds={enabledInvariantIds}
                 onInvariantToggle={onInvariantToggle}
+                locatedInvariantId={locatedInvariantId}
               />
             </div>
           ) : (

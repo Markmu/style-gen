@@ -3,7 +3,10 @@ import {
   createAnalysisTask,
   updateAnalysisTask,
 } from "@/lib/repositories/analysis-task-repository";
-import { upsertAsset } from "@/lib/repositories/asset-repository";
+import {
+  upsertAsset,
+  findAssetByIdForUser,
+} from "@/lib/repositories/asset-repository";
 import { structureAnalysis } from "@/lib/ai/structurer";
 import {
   toAnalysisCompletionUpdate,
@@ -13,24 +16,68 @@ import { getVisionProvider } from "@/lib/ai/providers";
 import { resolveVisionModel } from "@/lib/ai/model-config";
 import { buildWebhookUrl, startTimeoutTimer } from "@/lib/ai/webhook-utils";
 import { log } from "@/lib/ai/log";
+import { checkRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit";
 import { auth } from "@/auth";
 
 /** Replicate 异步模式超时 5 分钟 */
 const REPLICATE_TIMEOUT_MS = 5 * 60 * 1000;
 
-interface AnalysisRequestBody {
-  assetId: string;
-  fileUrl: string;
-  width: number;
-  height: number;
-  mimeType: string;
-}
+/** 允许直接进入分析管线的图片 MIME（与 assets 表 mime_type CHECK 一致） */
+const ANALYSIS_IMAGE_MIME_TYPES: ReadonlySet<string> = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
 
-/** 校验请求体 */
+/**
+ * plan-03（ADR-6 / 架构 §6.6、§7.3）: 判别联合请求体。
+ * - 上传模式：assetId/fileUrl/width/height/mimeType 均为 frontend_computed（既有契约）；
+ * - 已有资产模式：仅接受 sourceAssetId，元数据全部由服务端按 userId 派生，
+ *   混入任何客户端元数据字段一律 400，防止越权或元数据伪造。
+ */
+type AnalysisRequestBody =
+  | {
+      mode: "upload";
+      assetId: string;
+      fileUrl: string;
+      width: number;
+      height: number;
+      mimeType: string;
+    }
+  | {
+      mode: "existing_asset";
+      sourceAssetId: string;
+    };
+
+/** 上传模式独有字段；已有资产模式下出现任意一个即视为非法联合 */
+const UPLOAD_ONLY_FIELDS = [
+  "assetId",
+  "fileUrl",
+  "width",
+  "height",
+  "mimeType",
+] as const;
+
+/** 校验请求体（判别联合） */
 function validateBody(body: unknown): AnalysisRequestBody | null {
   if (!body || typeof body !== "object") return null;
 
   const obj = body as Record<string, unknown>;
+
+  if (obj.sourceAssetId !== undefined) {
+    // 已有资产模式：仅接受 sourceAssetId，拒绝混入任何客户端元数据
+    if (
+      typeof obj.sourceAssetId !== "string" ||
+      obj.sourceAssetId.length === 0 ||
+      obj.sourceAssetId.length > 26
+    ) {
+      return null;
+    }
+    if (UPLOAD_ONLY_FIELDS.some((field) => obj[field] !== undefined)) {
+      return null;
+    }
+    return { mode: "existing_asset", sourceAssetId: obj.sourceAssetId };
+  }
 
   if (typeof obj.assetId !== "string" || !obj.assetId) return null;
   if (typeof obj.fileUrl !== "string" || !obj.fileUrl) return null;
@@ -39,6 +86,7 @@ function validateBody(body: unknown): AnalysisRequestBody | null {
   if (typeof obj.mimeType !== "string" || !obj.mimeType) return null;
 
   return {
+    mode: "upload",
     assetId: obj.assetId,
     fileUrl: obj.fileUrl,
     width: obj.width,
@@ -61,25 +109,73 @@ export async function POST(request: NextRequest) {
     }
     const userId = session.user.id;
 
+    // plan-03（架构 §8.3）: 用户级限流（10 次/小时），超限不读 Provider 不建任务
+    const rateLimit = checkRateLimit(
+      userId,
+      "analysis",
+      RATE_LIMIT_CONFIGS.analysis
+    );
+    if (rateLimit && !rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too Many Requests", code: "RATE_LIMITED", retryable: true },
+        { status: 429 }
+      );
+    }
+
     const body: unknown = await request.json();
     const validated = validateBody(body);
 
     if (!validated) {
       return NextResponse.json(
-        { error: "Invalid request body. Required: assetId, fileUrl, width, height, mimeType", code: "INVALID_REQUEST", retryable: false },
+        { error: "Invalid request body. Required: assetId, fileUrl, width, height, mimeType or sourceAssetId", code: "INVALID_REQUEST", retryable: false },
         { status: 400 }
       );
     }
 
-    log("analysis_request_received", { assetId: validated.assetId });
+    // 1. 解析来源 Asset（上传模式 upsert；已有资产模式服务端按 userId 读取，不复制不改类型）
+    let sourceAsset: { id: string; fileUrl: string; mimeType: string };
+    if (validated.mode === "existing_asset") {
+      // plan-03（ADR-6）: 元数据全部服务端派生；不存在/不归属统一 404，不泄露存在性
+      const asset = await findAssetByIdForUser(validated.sourceAssetId, userId);
+      if (!asset) {
+        return NextResponse.json(
+          { error: "Source asset not found", code: "NOT_FOUND", retryable: false },
+          { status: 404 }
+        );
+      }
+      if (!ANALYSIS_IMAGE_MIME_TYPES.has(asset.mimeType)) {
+        return NextResponse.json(
+          { error: "Source asset is not a supported image", code: "INVALID_REQUEST", retryable: false },
+          { status: 400 }
+        );
+      }
 
-    // 1. 创建 Asset 记录（type: 'reference'）
-    const asset = await upsertAsset(userId, validated.assetId, {
-      fileUrl: validated.fileUrl,
-      width: validated.width,
-      height: validated.height,
-      mimeType: validated.mimeType,
-    });
+      log("analysis_existing_asset_started", {
+        assetId: asset.id,
+        userId,
+        assetType: asset.type,
+      });
+
+      sourceAsset = {
+        id: asset.id,
+        fileUrl: asset.fileUrl,
+        mimeType: asset.mimeType,
+      };
+    } else {
+      log("analysis_request_received", { assetId: validated.assetId });
+
+      const asset = await upsertAsset(userId, validated.assetId, {
+        fileUrl: validated.fileUrl,
+        width: validated.width,
+        height: validated.height,
+        mimeType: validated.mimeType,
+      });
+      sourceAsset = {
+        id: asset.id,
+        fileUrl: validated.fileUrl,
+        mimeType: validated.mimeType,
+      };
+    }
 
     // 2. 解析视觉模型 → VisionProvider（models.json SSOT）
     const visionResolution = resolveVisionModel();
@@ -88,17 +184,17 @@ export async function POST(request: NextRequest) {
       provider: visionProvider.name,
       model: visionResolution.providerModelId,
       userId,
-      assetId: validated.assetId,
+      assetId: sourceAsset.id,
     });
 
     // 3. 创建 AnalysisTask 记录（status: 'pending'）
     let task = await createAnalysisTask(userId, {
-      sourceAssetId: asset.id,
+      sourceAssetId: sourceAsset.id,
       provider: visionProvider.name,
       modelName: visionResolution.providerModelId,
     });
 
-    log("analysis_task_created", { taskId: task.id, assetId: asset.id, provider: visionProvider.name });
+    log("analysis_task_created", { taskId: task.id, assetId: sourceAsset.id, provider: visionProvider.name });
 
     // 4. 更新任务状态为 'processing'
     task = await updateAnalysisTask(task.id, { status: "processing" });
@@ -115,8 +211,8 @@ export async function POST(request: NextRequest) {
 
     try {
       const result = await visionProvider.analyze({
-        imageUrl: validated.fileUrl,
-        mimeType: validated.mimeType,
+        imageUrl: sourceAsset.fileUrl,
+        mimeType: sourceAsset.mimeType,
         webhookUrl,
       });
 
@@ -131,7 +227,7 @@ export async function POST(request: NextRequest) {
       // 6. 根据模式分支处理
       if (result.mode === 'sync') {
         // Gemini 同步模式：保留原有两阶段管线逻辑
-        const syncResult = await executeSyncPipeline(task.id, result.result, validated.fileUrl, validated.mimeType);
+        const syncResult = await executeSyncPipeline(task.id, result.result, sourceAsset.fileUrl, sourceAsset.mimeType);
         log("analysis_completed", {
           taskId: task.id,
           duration: Date.now() - startTime,

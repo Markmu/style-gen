@@ -228,25 +228,55 @@ describe("FalImageGenProvider", () => {
     );
   });
 
-  // 12. P1: aspectRatio 其他值 -> square (default)
-  it("aspectRatio 其他值应默认映射为 square", async () => {
+  // 12. P0: aspectRatio 映射 3:4 -> portrait_4_3（plan-01 §4：完整映射公开画幅）
+  it("aspectRatio 3:4 应映射为 portrait_4_3", async () => {
     mockSubscribe.mockResolvedValueOnce({
       data: { images: [fakeFalImage] },
     });
 
-    await generate({ aspectRatio: "3:2" });
+    await generate({ aspectRatio: "3:4" });
 
     expect(mockSubscribe).toHaveBeenCalledWith(
       "fal-ai/flux-2",
       expect.objectContaining({
         input: expect.objectContaining({
-          image_size: "square",
+          image_size: "portrait_4_3",
         }),
       })
     );
   });
 
-  // 13. P1: 使用正确模型 (fal-ai/flux-2)
+  // 13. P0: aspectRatio 映射 9:16 -> portrait_16_9（plan-01 §4）
+  it("aspectRatio 9:16 应映射为 portrait_16_9", async () => {
+    mockSubscribe.mockResolvedValueOnce({
+      data: { images: [fakeFalImage] },
+    });
+
+    await generate({ aspectRatio: "9:16" });
+
+    expect(mockSubscribe).toHaveBeenCalledWith(
+      "fal-ai/flux-2",
+      expect.objectContaining({
+        input: expect.objectContaining({
+          image_size: "portrait_16_9",
+        }),
+      })
+    );
+  });
+
+  // 14. P0: 未知 aspectRatio 在调用 Provider 前拒绝，禁止静默回退 square（plan-01 §4 / 后端边界场景）
+  it("未知 aspectRatio 应在调用 Provider 前抛可识别校验错误（不回退 square）", async () => {
+    mockSubscribe.mockResolvedValueOnce({
+      data: { images: [fakeFalImage] },
+    });
+
+    await expect(generate({ aspectRatio: "3:2" })).rejects.toThrowError(ImageGenError);
+    await expect(generate({ aspectRatio: "3:2" })).rejects.toThrowError(/3:2/);
+
+    expect(mockSubscribe).not.toHaveBeenCalled();
+  });
+
+  // 15. P1: 使用正确模型 (fal-ai/flux-2)
   it("应使用 fal-ai/flux-2 模型", async () => {
     mockSubscribe.mockResolvedValueOnce({
       data: { images: [fakeFalImage] },
@@ -260,7 +290,7 @@ describe("FalImageGenProvider", () => {
     );
   });
 
-  // 14. P1: num_images 为 1
+  // 16. P1: num_images 为 1
   it("num_images 应为 1", async () => {
     mockSubscribe.mockResolvedValueOnce({
       data: { images: [fakeFalImage] },
@@ -278,7 +308,7 @@ describe("FalImageGenProvider", () => {
     );
   });
 
-  // 15. P2: 非 Error 异常
+  // 17. P2: 非 Error 异常
   it("非 Error 异常应包装为 ImageGenError 并使用 Unknown 消息", async () => {
     mockSubscribe.mockRejectedValueOnce("string error");
 

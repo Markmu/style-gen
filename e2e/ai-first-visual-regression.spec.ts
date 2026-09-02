@@ -6,6 +6,7 @@ import {
   mockAnalysisPolling,
   mockApiError,
   mockAuthSession,
+  mockDirectionFeedStateful,
   mockGenerationCreate,
   mockIterationDetail,
   mockIterationList,
@@ -14,6 +15,7 @@ import {
   mockStyleMemoryList,
   mockTemplateCollection,
   mockUploadPresign,
+  type MockDirectionFeed,
   type MockIterationDetail,
   type MockIterationListItem,
   type MockStyleMemoryListItem,
@@ -211,6 +213,30 @@ async function openWorkspaceWithAnalysisReady(page: Page, taskId: string) {
   await expect(page.getByTestId('ai-status-header')).toHaveAttribute('data-phase', 'analysis_ready', {
     timeout: 15000,
   })
+}
+
+/**
+ * plan-07：带方向 feed 的工作区 analysis_ready（rail/比较/降级视觉断言入口）。
+ * mockVisualQaBase 先注册 `mockGenerationList`（fallback 链底），随后注册的
+ * `mockDirectionFeedStateful` 接管 `view=direction` GET——与主 spec 的注册顺序一致。
+ */
+async function openWorkspaceWithDirectionFeed(
+  page: Page,
+  taskId: string,
+  feed: MockDirectionFeed,
+) {
+  await mockVisualQaBase(page)
+  const feedMock = await mockDirectionFeedStateful(page, feed)
+  await mockUploadPresign(page)
+  await mockAnalysisCreate(page, taskId)
+  await mockAnalysisPolling(page, taskId, loadFixture('analysis-completed.json'))
+
+  await openRoute(page, '/workspace')
+  await uploadReference(page)
+  await expect(page.getByTestId('ai-status-header')).toHaveAttribute('data-phase', 'analysis_ready', {
+    timeout: 15000,
+  })
+  return feedMock
 }
 
 function appShell(page: Page) {
@@ -584,7 +610,7 @@ test.describe('plan-08 targeted visual QA and legacy gate', () => {
     }
   })
 
-  test('TC-8.3 generation failed keeps compact Render Dock from covering Prompt', async ({ page }) => {
+  test('TC-8.3 generation failed stays inline in the rail and keeps Render Dock compact', async ({ page }) => {
     const generationTaskId = 'visual-qa-generation-failed'
     await page.setViewportSize({ width: 1440, height: 900 })
     await mockGenerationCreate(page, generationTaskId)
@@ -603,14 +629,49 @@ test.describe('plan-08 targeted visual QA and legacy gate', () => {
       updatedAt: '2024-01-01T00:00:05.000Z',
     })
 
-    await openWorkspaceWithAnalysisReady(page, 'visual-qa-generation-analysis')
+    const feed = await openWorkspaceWithDirectionFeed(page, 'visual-qa-generation-analysis', {
+      completed: [],
+      active: null,
+      latestFailure: null,
+    })
+    // 提交后服务端事实：active → Provider 失败终态（feed SSOT）
+    feed.set({
+      completed: [],
+      active: {
+        id: generationTaskId,
+        status: 'processing',
+        promptSummary: 'Visual QA in-flight generation',
+        resultFileUrl: null,
+        params: { aspectRatio: '1:1', quality: 'standard' },
+        createdAt: '2024-01-01T00:00:04.000Z',
+        resultAssetId: null,
+        errorMessage: null,
+      },
+      latestFailure: null,
+    })
     await renderDock(page).getByRole('button', { name: /^Generate$/i }).click()
 
-    const dialog = page.getByTestId('generation-dialog')
-    await expect(dialog).toBeVisible({ timeout: 15000 })
-    await expect(dialog).toContainText(/Generation Failed/i)
-    await dialog.getByRole('button', { name: /close dialog/i }).click()
-    await expect(dialog).toHaveCount(0)
+    feed.set({
+      completed: [],
+      active: null,
+      latestFailure: {
+        id: generationTaskId,
+        status: 'failed',
+        promptSummary: 'Visual QA failed generation',
+        resultFileUrl: null,
+        params: { aspectRatio: '1:1', quality: 'standard' },
+        createdAt: '2024-01-01T00:00:05.000Z',
+        resultAssetId: null,
+        errorMessage: 'Generation provider failed after queueing',
+      },
+    })
+
+    // plan-07：失败内联呈现于本次结果区，不再打开阻断式 GenerationDialog
+    const failureFace = page.getByTestId('direction-failure-face')
+    await expect(failureFace).toBeVisible({ timeout: 15000 })
+    await expect(failureFace).toContainText(/Generation provider failed/i)
+    await expect(page.getByTestId('direction-failure-retry')).toBeVisible()
+    await expect(page.getByTestId('generation-dialog')).toBeHidden()
 
     await expect(renderDock(page).getByTestId('render-recovery-actions')).toHaveCount(0)
     await expect(renderDock(page).locator('[data-testid^="render-readiness-item-"]')).toHaveCount(0)
@@ -692,5 +753,154 @@ test.describe('plan-08 targeted visual QA and legacy gate', () => {
     ).toBeVisible()
     await expectButtonsDoNotOverflow(authState)
     await authPage.close()
+  })
+})
+
+// ─── plan-07：Workspace 闭环三视口 rail / 比较 / 降级可见性（架构 §8.5） ──────────────
+
+const railCompletedIds = ['visual-rail-completed-a', 'visual-rail-completed-b']
+
+/** plan-07 视觉断言用方向 feed：2 completed + 1 active + 1 latestFailure 并存 */
+function visualRailFeed(): MockDirectionFeed {
+  return {
+    completed: railCompletedIds.map((id, index) => ({
+      id,
+      status: 'completed' as const,
+      promptSummary: `Visual rail result ${id}`,
+      resultFileUrl: `https://cdn.example.com/generated/${id}/result.webp`,
+      params: { aspectRatio: '1:1', quality: 'standard' },
+      createdAt: `2026-09-01T00:0${index + 1}:00.000Z`,
+      resultAssetId: `asset-${id}`,
+      errorMessage: null,
+    })),
+    active: {
+      id: 'visual-rail-active',
+      status: 'processing',
+      promptSummary: 'Visual rail in-flight render',
+      resultFileUrl: null,
+      params: { aspectRatio: '1:1', quality: 'standard' },
+      createdAt: '2026-09-01T00:03:00.000Z',
+      resultAssetId: null,
+      errorMessage: null,
+    },
+    latestFailure: {
+      id: 'visual-rail-failed',
+      status: 'failed',
+      promptSummary: 'Visual rail failed render',
+      resultFileUrl: null,
+      params: { aspectRatio: '1:1', quality: 'standard' },
+      createdAt: '2026-09-01T00:02:30.000Z',
+      resultAssetId: null,
+      errorMessage: 'Visual rail provider failure',
+    },
+  }
+}
+
+async function expectNoHorizontalOverflow(root: Locator) {
+  const result = await root.evaluate((element) => {
+    const ok = element.scrollWidth <= element.clientWidth + 1
+    if (ok) return { ok }
+    const rootRect = element.getBoundingClientRect()
+    const overflowers: string[] = []
+    element.querySelectorAll<HTMLElement>('*').forEach((child) => {
+      const rect = child.getBoundingClientRect()
+      if (rect.right > rootRect.right + 0.5) {
+        overflowers.push(
+          `${child.dataset.testid ?? child.tagName} right=${Math.round(rect.right * 10) / 10} w=${Math.round(rect.width * 10) / 10}`,
+        )
+      }
+    })
+    return {
+      ok,
+      scrollWidth: element.scrollWidth,
+      clientWidth: element.clientWidth,
+      rootRight: Math.round(rootRect.right * 10) / 10,
+      overflowers: overflowers.slice(0, 12),
+    }
+  })
+  console.log('OVERFLOW-DEBUG', JSON.stringify(result))
+  expect(result.ok).toBe(true)
+}
+
+test.describe('plan-07 workspace loop visual QA (rail / comparison / degradation)', () => {
+  test('TC-7.9 direction rail, inline comparison, and degradation stay visible across acceptance viewports', async ({
+    page,
+  }, testInfo) => {
+    const initialFeed = visualRailFeed()
+    // 比较详情：复用既有 visual detail 形态，id 对齐 rail 首个完成条目
+    await mockIterationDetail(page, {
+      ...visualIterationDetail,
+      id: railCompletedIds[0],
+      analysisTaskId: 'visual-rail-analysis',
+      resultFileUrl: `https://cdn.example.com/generated/${railCompletedIds[0]}/result.webp`,
+    })
+
+    const feedMock = await openWorkspaceWithDirectionFeed(
+      page,
+      'visual-rail-analysis',
+      initialFeed,
+    )
+    const layout = page.getByTestId('workspace-three-column-layout')
+
+    // 架构 §8.5 显式验收视口：1440×900 / 1280×800 / 390×844
+    // （视口切换只 resize 不重新导航：工作区保持已挂载的方向上下文，
+    //   避免持久化防抖与 restore 竞态——布局断言只依赖响应式重排）
+    for (const viewport of qaViewports) {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height })
+      await expect(page.getByTestId('workspace-three-column-layout').first()).toBeVisible()
+
+      // rail 三组状态并存且可见，无结构性横向溢出
+      const rail = page.getByTestId('direction-result-rail')
+      await expect(rail).toBeVisible({ timeout: 15000 })
+      await expect(page.getByTestId('direction-completed-item')).toHaveCount(2)
+      await expect(page.getByTestId('direction-active-face')).toBeVisible()
+      await expect(page.getByTestId('direction-failure-face')).toBeVisible()
+      await expectNoHorizontalOverflow(layout)
+
+      await page.screenshot({
+        path: testInfo.outputPath(`plan07-rail-${viewport.name}.png`),
+        fullPage: false,
+      })
+
+      // 内联比较：打开不产生横向溢出，取消后关闭、rail 保持
+      await page
+        .locator(
+          `[data-testid="direction-completed-item"][data-iteration-id="${railCompletedIds[0]}"]`,
+        )
+        .getByTestId('direction-item-compare')
+        .click()
+      const panel = page.getByTestId('result-comparison-panel')
+      await expect(panel).toBeVisible({ timeout: 10000 })
+      await expectNoHorizontalOverflow(panel)
+      await expectNoHorizontalOverflow(layout)
+      await page.screenshot({
+        path: testInfo.outputPath(`plan07-compare-${viewport.name}.png`),
+        fullPage: false,
+      })
+      await panel.getByTestId('comparison-adjustment-cancel').click()
+      await expect(panel).toBeHidden()
+      await expect(rail).toBeVisible()
+
+      // L2 降级：feed 失败错误位可见、不遮挡三栏、无横向溢出；重试后恢复
+      feedMock.fail()
+      await expect(page.getByTestId('direction-feed-error')).toBeVisible({ timeout: 15000 })
+      await expect(page.getByTestId('reference-card').first()).toBeVisible()
+      await expectNoHorizontalOverflow(layout)
+      feedMock.set(initialFeed)
+      await page.getByTestId('direction-feed-retry').click()
+      await expect(page.getByTestId('direction-feed-error')).toBeHidden({ timeout: 15000 })
+      await expect(page.getByTestId('direction-completed-item')).toHaveCount(2)
+    }
+
+    // ── 1280×720 视口归属决策（plan-05 review S-2 移交本 plan 处理）──
+    // plan-07 与架构 §8.5 的显式验收视口为 1440×900 / 1280×800 / 390×844；
+    // 1280×720 不纳入截图验收，认领方式为最小 DOM 守卫：rail 三组可见且
+    // 无结构性横向溢出（旧形态 49px 挤压在 rail 收口后不得回退为结构性破坏）。
+    await page.setViewportSize({ width: 1280, height: 720 })
+    await expect(page.getByTestId('direction-result-rail')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByTestId('direction-completed-item')).toHaveCount(2)
+    await expect(page.getByTestId('direction-active-face')).toBeVisible()
+    await expect(page.getByTestId('direction-failure-face')).toBeVisible()
+    await expectNoHorizontalOverflow(layout)
   })
 })

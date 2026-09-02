@@ -133,6 +133,89 @@ export async function mockAnalysisCreate(
   })
 }
 
+/**
+ * Mock analysis POST with a sequence of task ids — 第 15 期 plan-02 TC-2.10
+ * 「分析失败后重试」场景：真实后端每次 POST 都创建新任务，mock 依次返回
+ * `taskIds` 中的 id（耗尽后保持最后一项），驱动重试轮询走新 query key。
+ */
+export async function mockAnalysisCreateSequence(
+  page: Page,
+  taskIds: string[],
+) {
+  let callIndex = 0
+  await page.route('**/api/analysis', async (route) => {
+    if (route.request().method() === 'POST') {
+      const taskId = taskIds[Math.min(callIndex, taskIds.length - 1)]
+      callIndex++
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: taskId,
+          status: 'pending',
+          sourceAssetId: 'mock-asset-id',
+          recipe: null,
+          promptText: null,
+          negativePromptText: null,
+          rawResponse: null,
+          errorMessage: null,
+          errorStage: null,
+        }),
+      })
+    } else {
+      await route.continue()
+    }
+  })
+}
+
+/** plan-06: 捕获到的分析创建请求（POST /api/analysis），供「结果作为新参考」断言 */
+export interface CapturedAnalysisCreateRequest {
+  url: string
+  body: Record<string, unknown>
+}
+
+/**
+ * Mock POST /api/analysis with request-body capture — 第 15 期 plan-06
+ * 「结果作为新参考」场景：断言已有资产分析分支只提交 `{sourceAssetId}`
+ * （ADR-6：不下载/重传/复制 Asset，服务端绝不接受客户端 fileUrl/尺寸/MIME）。
+ * 每次 POST 返回 `taskId` 的 pending 任务；仅拦截 POST，GET 轮询继续由
+ * `mockAnalysisPolling` 提供。在既有 `mockAnalysisCreate` 之后注册即可只捕获
+ * 后续新请求（Playwright route 后注册优先），与 `mockGenerationCreateCapture`
+ * 口径一致。
+ */
+export async function mockAnalysisCreateCapture(
+  page: Page,
+  taskId = 'mock-analysis-task-id',
+) {
+  const requests: CapturedAnalysisCreateRequest[] = []
+  await page.route('**/api/analysis', async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.continue()
+      return
+    }
+    requests.push({
+      url: route.request().url(),
+      body: (route.request().postDataJSON() ?? {}) as Record<string, unknown>,
+    })
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: taskId,
+        status: 'pending',
+        sourceAssetId: 'mock-asset-id',
+        recipe: null,
+        promptText: null,
+        negativePromptText: null,
+        rawResponse: null,
+        errorMessage: null,
+        errorStage: null,
+      }),
+    })
+  })
+  return { requests }
+}
+
 /** Mock analysis polling GET — returns a fixed response */
 export async function mockAnalysisPolling(
   page: Page,
@@ -248,6 +331,61 @@ export async function mockGenerationCreateCapture(
     } else {
       await route.continue()
     }
+  })
+  return { requests }
+}
+
+/** plan-07: POST /api/generation 序列步——成功步（201 + taskId）或错误步（>=400 + body） */
+export interface MockGenerationCreateStep {
+  /** 错误步的 HTTP 状态码（>=400 时按错误响应返回；缺省视为成功步） */
+  status?: number
+  /** 错误步响应体 */
+  body?: Record<string, unknown>
+  /** 成功步返回的任务 id（默认 'mock-generation-task-id'） */
+  taskId?: string
+}
+
+/**
+ * Mock POST /api/generation with per-request response steps — 第 15 期 plan-07
+ * 全旅程 / L5 降级场景：第 n 次提交返回 steps[n]（越界沿用最后一步），
+ * 并捕获全部请求体（与 `mockGenerationCreateCapture` 同构）。
+ * 成功步返回 201 `{id, status:'pending'}`；错误步返回给定 status/body
+ * （驱动「提交失败内联呈现、主动重试创建新任务」的序列）。
+ * 仅拦截 POST；GET 列表/详情继续由其余 generation mock 提供。
+ */
+export async function mockGenerationCreateSequence(
+  page: Page,
+  steps: MockGenerationCreateStep[],
+) {
+  const requests: CapturedGenerationCreateRequest[] = []
+  let callIndex = 0
+  await page.route('**/api/generation', async (route) => {
+    if (route.request().method() === 'POST') {
+      requests.push({
+        url: route.request().url(),
+        body: (route.request().postDataJSON() ?? {}) as Record<string, unknown>,
+      })
+      const step = steps[Math.min(callIndex, steps.length - 1)] ?? {}
+      callIndex++
+      if ((step.status ?? 201) >= 400) {
+        await route.fulfill({
+          status: step.status ?? 500,
+          contentType: 'application/json',
+          body: JSON.stringify(step.body ?? { error: 'Generation service error' }),
+        })
+        return
+      }
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: step.taskId ?? 'mock-generation-task-id',
+          status: 'pending',
+        }),
+      })
+      return
+    }
+    await route.continue()
   })
   return { requests }
 }
@@ -415,6 +553,11 @@ export interface MockIterationDetail {
   savedTemplate: { id: string; name: string } | null;
   /** 兼容字段：use-history-restore 变量回退依赖 */
   analysisTemplateVariables: MockIterationDetailVariable[];
+  /**
+   * 第 15 期 plan-03/plan-05: 提交时固化的 Prompt 控制快照；旧任务为 null。
+   * 可选字段：既有 spec 构造的详情对象不受影响（真实 DTO 始终携带该键）。
+   */
+  promptControlSnapshot?: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -865,6 +1008,24 @@ export async function mockTemplateCollection(
   return { templates, duplicateRequests, deleteRequests, createRequests }
 }
 
+/** Mock CDN image requests (references/results) with a 1x1 PNG — no external network */
+export async function mockCdnImages(page: Page) {
+  const pixel = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+    'base64',
+  )
+  await page.route('https://cdn.example.com/**', async (route) => {
+    if (
+      route.request().resourceType() === 'image' ||
+      /\.(png|jpg|webp)$/.test(route.request().url())
+    ) {
+      await route.fulfill({ status: 200, contentType: 'image/png', body: pixel })
+      return
+    }
+    await route.continue()
+  })
+}
+
 /** Mock API error response */
 export async function mockApiError(
   page: Page,
@@ -1104,6 +1265,13 @@ export async function mockStyleMemoryDetailCollection(
   const duplicateRequests: string[] = [];
   const representativeResultRequests: CapturedRepresentativeResultRequest[] = [];
   const candidateQueries: RepresentativeCandidateRequestQuery[] = [];
+  /**
+   * plan-06: 已发生的列表 GET（search/status query 快照）——统一刷新协调器
+   * 「templates 列表前缀回读」的计数断言。
+   */
+  const listQueries: Array<{ search: string | null; status: string | null }> = [];
+  /** plan-06: 已发生的详情 GET（memory id 序列）——「style-memory-detail/{id} 回读」的计数断言 */
+  const detailGets: string[] = [];
   const candidatePageSize = options.candidatePageSize ?? 20;
 
   const find = (id: string) => memories.find((memory) => memory.id === id);
@@ -1118,6 +1286,7 @@ export async function mockStyleMemoryDetailCollection(
     if (pathname === '/api/templates' && method === 'GET') {
       const search = (url.searchParams.get('search') ?? '').trim().toLowerCase();
       const status = url.searchParams.get('status');
+      listQueries.push({ search: url.searchParams.get('search'), status });
       let filtered = memories;
       if (status && status !== 'all') {
         filtered = filtered.filter(
@@ -1288,6 +1457,7 @@ export async function mockStyleMemoryDetailCollection(
           });
           return;
         }
+        detailGets.push(id);
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -1376,6 +1546,171 @@ export async function mockStyleMemoryDetailCollection(
     duplicateRequests,
     representativeResultRequests,
     candidateQueries,
+    listQueries,
+    detailGets,
+  };
+}
+
+// ─── 第 15 期 plan-05：方向结果 feed / 比较详情 mock（架构 §6.4 / §6.5 / §7.2 契约） ───
+
+/** 第 15 期 plan-05: 方向结果条目 — GET /api/generation?view=direction 条目（DirectionIterationListItem） */
+export interface MockDirectionFeedItem {
+  id: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  /** 服务端截断 120 字符口径 */
+  promptSummary: string;
+  resultFileUrl: string | null;
+  params: { aspectRatio: string; quality: string };
+  /** ISO 8601（服务端按 createdAt/id 倒序返回） */
+  createdAt: string;
+  resultAssetId: string | null;
+  errorMessage: string | null;
+}
+
+/** 第 15 期 plan-05: 方向分组 feed — DirectionIterationFeed（ADR-5：三组不共享名额） */
+export interface MockDirectionFeed {
+  /** 最多 5 条成功结果（服务端 pageSize 契约） */
+  completed: MockDirectionFeedItem[];
+  /** 最近 pending/processing（真实状态值透传，前端归并展示 processing） */
+  active: MockDirectionFeedItem | null;
+  /** 最近 failed */
+  latestFailure: MockDirectionFeedItem | null;
+}
+
+/** 第 15 期 plan-05: 捕获到的 direction GET query（view/analysisTaskId/pageSize 契约断言） */
+export interface DirectionFeedRequestQuery {
+  view: string | null;
+  analysisTaskId: string | null;
+  pageSize: number | null;
+}
+
+export interface MockDirectionFeedOptions {
+  /** Receives the parsed query of every direction GET /api/generation request */
+  onRequest?: (query: DirectionFeedRequestQuery) => void;
+}
+
+/** 第 15 期 plan-05: 方向 feed 错误响应（L2：列表失败保留 previous data） */
+export interface MockDirectionFeedError {
+  status: number;
+  body: Record<string, unknown>;
+}
+
+const DEFAULT_DIRECTION_FEED_ERROR: MockDirectionFeedError = {
+  status: 503,
+  body: {
+    error: 'Direction feed temporarily unavailable',
+    code: 'SERVICE_UNAVAILABLE',
+    retryable: true,
+  },
+};
+
+/**
+ * Mock GET /api/generation?view=direction — 第 15 期 plan-05 可控状态方向 feed。
+ *
+ * 每次方向 GET 返回当前 feed 状态；测试通过 `set(feed)` 推进服务端事实
+ * （如 active→completed 终态迁移），通过 `fail()` 进入 L2 错误、`set()` 恢复，
+ * 不依赖请求次数敏感的序列 mock（真实后端状态在源头变化，而非按请求序变化）。
+ *
+ * 仅拦截 `view=direction` 的 GET；普通列表 GET（无 view）fallback 给先注册的
+ * `mockGenerationList` / `mockIterationList`（后注册的 route 优先，fallback 逐级下放）。
+ */
+export async function mockDirectionFeedStateful(
+  page: Page,
+  initial: MockDirectionFeed,
+  options: MockDirectionFeedOptions = {},
+) {
+  let current:
+    | { kind: 'ok'; feed: MockDirectionFeed }
+    | { kind: 'error'; error: MockDirectionFeedError } = { kind: 'ok', feed: initial };
+
+  await page.route('**/api/generation?**', async (route) => {
+    if (route.request().method() !== 'GET') {
+      await route.fallback();
+      return;
+    }
+    const url = new URL(route.request().url());
+    if (url.searchParams.get('view') !== 'direction') {
+      await route.fallback();
+      return;
+    }
+
+    const rawPageSize = url.searchParams.get('pageSize');
+    const query: DirectionFeedRequestQuery = {
+      view: url.searchParams.get('view'),
+      analysisTaskId: url.searchParams.get('analysisTaskId'),
+      pageSize: rawPageSize === null ? null : Number(rawPageSize),
+    };
+    options.onRequest?.(query);
+
+    if (current.kind === 'error') {
+      await route.fulfill({
+        status: current.error.status,
+        contentType: 'application/json',
+        body: JSON.stringify(current.error.body),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(current.feed),
+    });
+  });
+
+  return {
+    /** 推进服务端事实：切换 feed 并清除错误态 */
+    set(feed: MockDirectionFeed) {
+      current = { kind: 'ok', feed };
+    },
+    /** 进入 L2 错误态：后续方向 GET 全部返回该错误（直到下一次 set） */
+    fail(error: MockDirectionFeedError = DEFAULT_DIRECTION_FEED_ERROR) {
+      current = { kind: 'error', error };
+    },
+  };
+}
+
+/**
+ * Mock GET /api/generation/[id] 可控状态详情 — 第 15 期 plan-05 比较详情失败/恢复
+ * 场景：`fail()` 后所有详情 GET 返回 503（retryable），`set(detail)` 恢复 200。
+ * 仅拦截该 id 的 GET；其余方法 fallback。
+ */
+export async function mockIterationDetailStateful(
+  page: Page,
+  detail: MockIterationDetail,
+) {
+  let current:
+    | { kind: 'ok'; detail: MockIterationDetail }
+    | { kind: 'error'; error: MockDirectionFeedError } = { kind: 'ok', detail };
+
+  await page.route(`**/api/generation/${detail.id}**`, async (route) => {
+    if (route.request().method() !== 'GET') {
+      await route.fallback();
+      return;
+    }
+    if (current.kind === 'error') {
+      await route.fulfill({
+        status: current.error.status,
+        contentType: 'application/json',
+        body: JSON.stringify(current.error.body),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(current.detail),
+    });
+  });
+
+  return {
+    /** 后续详情 GET 返回 503（retryable），驱动比较详情错误态 */
+    fail() {
+      current = { kind: 'error', error: DEFAULT_DIRECTION_FEED_ERROR };
+    },
+    /** 恢复 200 详情（重试成功路径） */
+    set(next: MockIterationDetail) {
+      current = { kind: 'ok', detail: next };
+    },
   };
 }
 

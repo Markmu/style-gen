@@ -49,6 +49,8 @@ interface PromptHighlightedEditorProps {
   selectedProvenanceSpan?: PromptProvenanceSpan | null;
   readOnly?: boolean;
   testId: string;
+  /** plan-04：落在真实 textarea 上的 testid（全文编辑契约 fulltext-prompt-editor） */
+  textareaTestId?: string;
 }
 
 interface PromptAnnotation {
@@ -445,6 +447,7 @@ export function PromptHighlightedEditor({
   selectedProvenanceSpan = null,
   readOnly = false,
   testId,
+  textareaTestId,
 }: PromptHighlightedEditorProps) {
   const highlightLayerRef = useRef<HTMLDivElement>(null);
   const { variableAnnotations, provenanceAnnotations } = useMemo(() => {
@@ -489,6 +492,7 @@ export function PromptHighlightedEditor({
       </div>
       <textarea
         aria-label={ariaLabel}
+        {...(textareaTestId ? { "data-testid": textareaTestId } : {})}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         onScroll={handleScroll}

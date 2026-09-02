@@ -15,6 +15,7 @@ import type {
   AnalysisTemplateStatus,
   StoredVisualRecipe,
   GenerationParams,
+  PromptControlSnapshot,
   TemplateVariable,
   TemplateVerificationStatus,
 } from "@/types/models";
@@ -148,6 +149,11 @@ export const generationTasks = pgTable(
     recipeSnapshot: jsonb("recipe_snapshot").$type<StoredVisualRecipe | null>(),
     variablesSnapshot: jsonb("variables_snapshot")
       .$type<TemplateVariable[] | null>(),
+    // plan-03（ADR-4）: 提交时固化的 Prompt 控制快照（意图/表达/变量/调整/trigger），
+    // 存量旧行为 NULL，详情诚实降级全文模式，禁止回填推测值
+    promptControlSnapshot: jsonb("prompt_control_snapshot").$type<
+      PromptControlSnapshot | null
+    >(),
     // plan-01（AC-02）: 提交时工作台应用的 Style Memory，支撑按模板名检索。
     // AnyPgColumn 注解打断与 templates 的循环类型推断（循环 FK 的既定处理方式）
     // plan-01（AC-07 / ADR-2）: 删除 Memory 时由 FK SET NULL 自动解链，不阻断删除

@@ -5,6 +5,7 @@ import {
   mockAnalysisCreate,
   mockAnalysisPolling,
   mockAuthSession,
+  mockDirectionFeedStateful,
   mockGenerationList,
   mockGenerationPolling,
   mockUploadPresign,
@@ -229,10 +230,15 @@ test.describe('plan-04 Render Dock readiness and generation recovery', () => {
     await openWithCompletedAnalysis(page, 'render-dock-service-unavailable-analysis')
     await renderDock(page).getByRole('button', { name: /^Generate$/i }).click()
 
+    // plan-07（§8.2 L5）：提交失败内联呈现，不打开阻断式弹层——服务错误可见、
+    // 不声称任务已创建；恢复入口为内联「重试提交」（创建新任务，TC-7.8 契约）
+    const submitError = page.getByTestId('generation-submit-error')
+    await expect(submitError).toBeVisible({ timeout: 15000 })
+    await expect(submitError).toContainText(/Generation service temporarily unavailable/i)
+    await expect(page.getByTestId('generation-submit-retry')).toBeVisible()
+    await expect(page.getByTestId('generation-dialog')).toHaveCount(0)
+
     const dock = renderDock(page)
-    await expect(dock.getByRole('button', { name: /^Generate$/i })).toBeDisabled({
-      timeout: 15000,
-    })
     await expect(dock.getByTestId('render-disabled-reason')).toHaveCount(0)
     await expect(dock.locator('[data-testid^="render-readiness-item-"]')).toHaveCount(0)
     await expect(promptCard(page).getByLabel('Full Generation Prompt')).toBeEditable()
@@ -240,11 +246,6 @@ test.describe('plan-04 Render Dock readiness and generation recovery', () => {
     await expect(
       promptCard(page).getByRole('button', { name: /save as style memory/i }),
     ).toBeEnabled()
-
-    const generationDialog = page.getByTestId('generation-dialog')
-    await expect(generationDialog).toBeVisible()
-    await generationDialog.getByRole('button', { name: /close dialog/i }).click()
-    await expect(generationDialog).toBeHidden()
 
     await promptCard(page).getByRole('button', { name: /save as style memory/i }).click()
     // plan-06：保存入口打开三步向导；完整提示预填在步骤 3 高级信息内
@@ -288,6 +289,13 @@ test.describe('plan-04 Render Dock readiness and generation recovery', () => {
 
   test('TC-4.6 generation failure preserves context while Render Dock stays compact', async ({ page }) => {
     const generationTaskId = 'render-dock-failed-generation'
+    // plan-07（实现规格 §4）：失败内联呈现于本次结果区——view=direction feed
+    // 由 stateful mock 驱动 latestFailure 的服务端事实
+    const feed = await mockDirectionFeedStateful(page, {
+      completed: [],
+      active: null,
+      latestFailure: null,
+    })
     await mockGenerationCreateWithCapture(page, generationTaskId)
     await mockGenerationPolling(page, generationTaskId, {
       id: generationTaskId,
@@ -309,16 +317,31 @@ test.describe('plan-04 Render Dock readiness and generation recovery', () => {
 
     await renderDock(page).getByRole('button', { name: /^Generate$/i }).click()
 
-    await expect(page.getByTestId('generation-dialog')).toBeVisible({ timeout: 15000 })
-    await expect(page.getByTestId('generation-dialog')).toContainText(/Generation Failed/i)
-    await expect(page.getByTestId('generation-dialog')).toContainText(
-      /reference|prompt|params|preserved|kept|保留/i,
-    )
+    // 失败内联进入本次结果区：截断原因 + 主动重试入口，不打开弹层（plan-07）
+    feed.set({
+      completed: [],
+      active: null,
+      latestFailure: {
+        id: generationTaskId,
+        status: 'failed',
+        promptSummary: 'Render dock failure iteration',
+        resultFileUrl: null,
+        params: { aspectRatio: '1:1', quality: 'standard' },
+        createdAt: '2024-01-01T00:00:05.000Z',
+        resultAssetId: null,
+        errorMessage: 'Generation provider failed after queueing',
+      },
+    })
+    const failureFace = page.getByTestId('direction-failure-face')
+    await expect(failureFace).toBeVisible({ timeout: 15000 })
+    await expect(failureFace).toContainText(/Generation provider failed after queueing/i)
+    await expect(page.getByTestId('direction-failure-retry')).toBeVisible()
+    await expect(page.getByTestId('generation-dialog')).toHaveCount(0)
 
     const dock = renderDock(page)
     await expect(dock.getByTestId('render-recovery-actions')).toHaveCount(0)
     await expect(dock.locator('[data-testid^="render-readiness-item-"]')).toHaveCount(0)
     await expect(promptCard(page).getByLabel('Full Generation Prompt')).toHaveValue(originalPrompt)
-    await expect(dock.getByLabel(/Aspect Ratio/i)).toHaveValue('1:1')
+    await expect(dock.getByLabel(/Aspect Ratio/i)).toBeVisible()
   })
 })

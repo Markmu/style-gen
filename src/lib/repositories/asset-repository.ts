@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { assets } from "@/lib/db/schema";
 import { generateId } from "@/lib/ulid";
@@ -46,6 +46,23 @@ export async function createAsset(
 /** 按 ID 查询 Asset */
 export async function findAssetById(id: string): Promise<Asset | null> {
   const rows = await db.select().from(assets).where(eq(assets.id, id));
+  if (rows.length === 0) return null;
+  return rowToAsset(rows[0]);
+}
+
+/**
+ * plan-03（ADR-6 / 架构 §6.6）: 按 id + userId 查询当前用户拥有的 Asset。
+ * 已有资产分析分支的唯一元数据来源：跨用户/不存在统一返回 null（不泄露存在性），
+ * 不改变现有 findAssetById 内部消费方。
+ */
+export async function findAssetByIdForUser(
+  id: string,
+  userId: string
+): Promise<Asset | null> {
+  const rows = await db
+    .select()
+    .from(assets)
+    .where(and(eq(assets.id, id), eq(assets.userId, userId)));
   if (rows.length === 0) return null;
   return rowToAsset(rows[0]);
 }

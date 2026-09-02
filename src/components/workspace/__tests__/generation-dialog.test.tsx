@@ -12,6 +12,13 @@ vi.mock("next/image", () => ({
   },
 }));
 
+/**
+ * plan-07（架构 §2.1.6 / §6.4）兼容性契约：GenerationDialog 组件本体保留，
+ * 本组用例继续钉住其显式打开时的行为（进度/成功/失败 + 关闭/返回编辑）；
+ * 「Workspace 成功/提交路径不再打开该弹层」的行为契约由
+ * `e2e/workspace-generation-dialog.spec.ts` 与 `e2e/error-path.spec.ts`
+ * 承载（内联终态/内联提交失败），不在此重复。
+ */
 describe("GenerationDialog", () => {
   const defaultProps = {
     open: true,

@@ -3,6 +3,7 @@ import { getTableConfig } from "drizzle-orm/pg-core";
 import type {
   GenerationParams,
   GenerationTaskStatus,
+  PromptControlSnapshot,
   StoredVisualRecipe,
   TemplateVariable,
   VisualRecipe,
@@ -79,12 +80,44 @@ import {
   findByIdWithRecipe,
   findGenerationTaskById,
   findIterationDetail,
+  getDirectionIterationFeed,
   linkTemplateToGenerationTask,
   listIterations,
   updateGenerationTask,
 } from "@/lib/repositories/generation-task-repository";
 
 const NOW = new Date("2025-01-01T00:00:00Z");
+
+// plan-03 implementer 修复 fixture：makeDetailRow 原声明在 findIterationDetail (plan-01)
+// describe 块内，plan-03 新增的同级 describe 引用会 ReferenceError；提升到外层作用域，
+// 两个 describe 共用同一构造器，不改变任何断言。
+function makeDetailRow(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    id: "GEN_001",
+    analysisTaskId: "TASK_001",
+    status: "completed",
+    promptSnapshot: "a beautiful mountain landscape",
+    negativePromptSnapshot: "no blur",
+    params: sampleParams,
+    modelName: "flux.2",
+    resultAssetId: "RESULT_ASSET_001",
+    resultFileUrl: "https://cdn.example.com/result.webp",
+    errorMessage: null,
+    recipeSnapshot: sampleRecipe as StoredVisualRecipe,
+    analysisRecipe: sampleRecipe as StoredVisualRecipe,
+    variablesSnapshot: sampleVariables,
+    analysisTemplateVariables: sampleVariables,
+    sourceAssetId: "SOURCE_ASSET_001",
+    sourceImageUrl: "https://cdn.example.com/source.png",
+    sourceTemplateId: "TPL_001",
+    sourceTemplateName: "Glass Study",
+    savedTemplateId: "TPL_SAVED_001",
+    savedTemplateName: "Saved Direction",
+    createdAt: NOW,
+    updatedAt: NOW,
+    ...overrides,
+  };
+}
 
 const sampleParams: GenerationParams = {
   aspectRatio: "16:9",
@@ -110,6 +143,22 @@ const sampleRecipe: VisualRecipe = {
 const sampleVariables: TemplateVariable[] = [
   { name: "subject", defaultValue: "Glass flower", label: "Subject" },
 ];
+
+// ─── plan-03: Prompt 控制快照 fixture（架构 §7.2 PromptControlSnapshot） ────
+
+const samplePromptControlSnapshot: PromptControlSnapshot = {
+  schemaVersion: 1,
+  trigger: "quick_recreate",
+  intent: "reconstruction",
+  detailLevel: "standard",
+  editorMode: "variables",
+  customPromptDirty: false,
+  enabledInvariantIds: ["inv_color_1"],
+  variableValues: { subject: "Crystal peony" },
+  enabledModifierNames: [],
+  modifierValues: {},
+  adjustments: [{ invariantId: "inv_color_1", action: "strengthen" }],
+};
 
 function makeCamelCaseRow(overrides: Partial<Record<string, unknown>> = {}) {
   return {
@@ -236,6 +285,9 @@ describe("generation-task-repository", () => {
         userId: "USER_001",
         recipeSnapshot: null,
         variablesSnapshot: null,
+        // plan-03 implementer 修复 fixture：新契约（red 证据「测试中固化的新契约」）
+        // 要求 GenerationTask 携带 promptControlSnapshot（存量行 null），补齐精确匹配对象
+        promptControlSnapshot: null,
         sourceTemplateId: null,
         createdAt: NOW,
         updatedAt: NOW,
@@ -778,34 +830,6 @@ describe("generation-task-repository", () => {
   // ─── plan-01: findIterationDetail ──────────────────────────────────────
 
   describe("findIterationDetail (plan-01)", () => {
-    function makeDetailRow(overrides: Partial<Record<string, unknown>> = {}) {
-      return {
-        id: "GEN_001",
-        analysisTaskId: "TASK_001",
-        status: "completed",
-        promptSnapshot: "a beautiful mountain landscape",
-        negativePromptSnapshot: "no blur",
-        params: sampleParams,
-        modelName: "flux.2",
-        resultAssetId: "RESULT_ASSET_001",
-        resultFileUrl: "https://cdn.example.com/result.webp",
-        errorMessage: null,
-        recipeSnapshot: sampleRecipe as StoredVisualRecipe,
-        analysisRecipe: sampleRecipe as StoredVisualRecipe,
-        variablesSnapshot: sampleVariables,
-        analysisTemplateVariables: sampleVariables,
-        sourceAssetId: "SOURCE_ASSET_001",
-        sourceImageUrl: "https://cdn.example.com/source.png",
-        sourceTemplateId: "TPL_001",
-        sourceTemplateName: "Glass Study",
-        savedTemplateId: "TPL_SAVED_001",
-        savedTemplateName: "Saved Direction",
-        createdAt: NOW,
-        updatedAt: NOW,
-        ...overrides,
-      };
-    }
-
     it("快照优先：recipe/variables 取 snapshot 列并标记 snapshot", async () => {
       const otherRecipe = { ...sampleRecipe, subject: "Drifted subject" };
       mockRows.mockResolvedValueOnce([
@@ -956,6 +980,231 @@ describe("generation-task-repository", () => {
       expect(setSpy).toHaveBeenCalledWith(
         expect.objectContaining({ sourceGenerationTaskId: "GEN_001" })
       );
+    });
+  });
+
+  // ─── plan-03: prompt_control_snapshot 透传（§2 / AC-01） ────────────────
+
+  describe("createGenerationTask promptControlSnapshot (plan-03)", () => {
+    it("透传 promptControlSnapshot 写入 insert values 并回读", async () => {
+      const row = makeCamelCaseRow({
+        promptControlSnapshot: samplePromptControlSnapshot,
+      });
+      mockReturning.mockResolvedValueOnce([row]);
+
+      const task = await createGenerationTask("USER_001", {
+        ...createInput,
+        promptControlSnapshot: samplePromptControlSnapshot,
+      });
+
+      expect(mockValues).toHaveBeenCalledWith(
+        expect.objectContaining({
+          promptControlSnapshot: samplePromptControlSnapshot,
+        })
+      );
+      expect(task.promptControlSnapshot).toEqual(samplePromptControlSnapshot);
+    });
+
+    it("存量旧行没有快照列值时任务字段为 null，不从 promptSnapshot 推测控制值", async () => {
+      const legacyRow = {
+        ...makeCamelCaseRow(),
+        promptControlSnapshot: undefined,
+      };
+      mockReturning.mockResolvedValueOnce([legacyRow]);
+
+      const task = await createGenerationTask("USER_001", createInput);
+
+      expect(task.promptControlSnapshot).toBeNull();
+    });
+  });
+
+  describe("findIterationDetail promptControlSnapshot (plan-03 / AC-01)", () => {
+    it("详情返回 prompt_control_snapshot 列值（含 trigger/intent/adjustments）", async () => {
+      mockRows.mockResolvedValueOnce([
+        makeDetailRow({ promptControlSnapshot: samplePromptControlSnapshot }),
+      ]);
+
+      const detail = await findIterationDetail("GEN_001", "USER_001");
+
+      expect(detail?.promptControlSnapshot).toEqual(samplePromptControlSnapshot);
+    });
+
+    it("旧任务快照为 null 时原样返回 null，不虚构意图/变量（全文降级）", async () => {
+      mockRows.mockResolvedValueOnce([
+        makeDetailRow({ promptControlSnapshot: null }),
+      ]);
+
+      const detail = await findIterationDetail("GEN_001", "USER_001");
+
+      expect(detail?.promptControlSnapshot).toBeNull();
+      // 全文降级依据仍由 promptSnapshot 提供，不被改写
+      expect(detail?.promptSnapshot).toBe("a beautiful mountain landscape");
+    });
+  });
+
+  // ─── plan-03: getDirectionIterationFeed（§2 / AC-04） ──────────────────
+
+  describe("getDirectionIterationFeed (plan-03 / AC-04)", () => {
+    function makeDirectionRow(overrides: Partial<Record<string, unknown>> = {}) {
+      return {
+        id: "GEN_COMPLETED_1",
+        status: "completed",
+        promptSnapshot: "a beautiful mountain landscape",
+        params: sampleParams,
+        resultAssetId: "RESULT_ASSET_001",
+        resultFileUrl: "https://cdn.example.com/result.webp",
+        errorMessage: null,
+        createdAt: NOW,
+        ...overrides,
+      };
+    }
+
+    it("执行三个有界查询：completed 5、active 1、failed 1，三组不共享配额", async () => {
+      mockRows.mockResolvedValueOnce([
+        makeDirectionRow({ id: "GEN_C5" }),
+        makeDirectionRow({ id: "GEN_C4" }),
+        makeDirectionRow({ id: "GEN_C3" }),
+        makeDirectionRow({ id: "GEN_C2" }),
+        makeDirectionRow({ id: "GEN_C1" }),
+      ]);
+      mockRows.mockResolvedValueOnce([
+        makeDirectionRow({
+          id: "GEN_ACTIVE",
+          status: "processing",
+          resultAssetId: null,
+          resultFileUrl: null,
+        }),
+      ]);
+      mockRows.mockResolvedValueOnce([
+        makeDirectionRow({
+          id: "GEN_FAILED",
+          status: "failed",
+          resultAssetId: null,
+          resultFileUrl: null,
+          errorMessage: "provider timeout",
+        }),
+      ]);
+
+      const feed = await getDirectionIterationFeed("USER_001", "TASK_001");
+
+      expect(mockLimit.mock.calls.map((call) => call[0])).toEqual([5, 1, 1]);
+      expect(mockWhere).toHaveBeenCalledTimes(3);
+
+      const completedParams = collectParams(mockWhere.mock.calls[0][0]);
+      expect(completedParams).toContain("USER_001");
+      expect(completedParams).toContain("TASK_001");
+      expect(completedParams).toContain("completed");
+      expect(completedParams).not.toContain("pending");
+
+      const activeParams = collectParams(mockWhere.mock.calls[1][0]);
+      expect(activeParams).toContain("USER_001");
+      expect(activeParams).toContain("TASK_001");
+      expect(activeParams).toContain("pending");
+      expect(activeParams).toContain("processing");
+      expect(activeParams).not.toContain("completed");
+
+      const failedParams = collectParams(mockWhere.mock.calls[2][0]);
+      expect(failedParams).toContain("USER_001");
+      expect(failedParams).toContain("TASK_001");
+      expect(failedParams).toContain("failed");
+
+      // 有 ≥6 completed 时 completed 仍只取最近 5 条，active/failed 独立返回
+      expect(feed.completed.map((item) => item.id)).toEqual([
+        "GEN_C5",
+        "GEN_C4",
+        "GEN_C3",
+        "GEN_C2",
+        "GEN_C1",
+      ]);
+      expect(feed.active?.id).toBe("GEN_ACTIVE");
+      expect(feed.latestFailure?.id).toBe("GEN_FAILED");
+    });
+
+    it("每次查询均按 createdAt/id 倒序（orderBy 双列）", async () => {
+      mockRows.mockResolvedValueOnce([]);
+      mockRows.mockResolvedValueOnce([]);
+      mockRows.mockResolvedValueOnce([]);
+
+      await getDirectionIterationFeed("USER_001", "TASK_001");
+
+      expect(mockOrderBy).toHaveBeenCalledTimes(3);
+      for (const call of mockOrderBy.mock.calls) {
+        expect(call).toHaveLength(2);
+      }
+    });
+
+    it("pageSize 参数收紧 completed 限额（active/latestFailure 仍各 1）", async () => {
+      mockRows.mockResolvedValueOnce([]);
+      mockRows.mockResolvedValueOnce([]);
+      mockRows.mockResolvedValueOnce([]);
+
+      await getDirectionIterationFeed("USER_001", "TASK_001", 3);
+
+      expect(mockLimit.mock.calls.map((call) => call[0])).toEqual([3, 1, 1]);
+    });
+
+    it("completed 命中真实 resultAssetId/resultFileUrl；缺 resultAssetId 诚实返回 null", async () => {
+      mockRows.mockResolvedValueOnce([
+        makeDirectionRow(),
+        makeDirectionRow({
+          id: "GEN_C_NOASSET",
+          resultAssetId: null,
+          resultFileUrl: null,
+        }),
+      ]);
+      mockRows.mockResolvedValueOnce([]);
+      mockRows.mockResolvedValueOnce([]);
+
+      const feed = await getDirectionIterationFeed("USER_001", "TASK_001");
+
+      expect(feed.completed[0].resultAssetId).toBe("RESULT_ASSET_001");
+      expect(feed.completed[0].resultFileUrl).toBe(
+        "https://cdn.example.com/result.webp"
+      );
+      expect(feed.completed[1].resultAssetId).toBeNull();
+      expect(feed.completed[1].resultFileUrl).toBeNull();
+    });
+
+    it("active 归并为 processing 展示态且不返回 resultFileUrl；errorMessage 截断", async () => {
+      mockRows.mockResolvedValueOnce([]);
+      mockRows.mockResolvedValueOnce([
+        makeDirectionRow({
+          id: "GEN_PENDING",
+          status: "pending",
+          resultAssetId: null,
+          resultFileUrl: null,
+        }),
+      ]);
+      mockRows.mockResolvedValueOnce([
+        makeDirectionRow({
+          id: "GEN_FAILED",
+          status: "failed",
+          resultAssetId: null,
+          resultFileUrl: null,
+          errorMessage: "x".repeat(400),
+        }),
+      ]);
+
+      const feed = await getDirectionIterationFeed("USER_001", "TASK_001");
+
+      expect(feed.active?.id).toBe("GEN_PENDING");
+      expect(feed.active?.status).toBe("processing");
+      expect(feed.active?.resultFileUrl).toBeNull();
+      // 错误文本输出前截断（≤200 字符）
+      expect(feed.latestFailure?.errorMessage?.length).toBe(200);
+      expect(feed.latestFailure?.errorMessage).toBe("x".repeat(200));
+    });
+
+    it("无进行中/失败任务时 active 与 latestFailure 为 null", async () => {
+      mockRows.mockResolvedValueOnce([makeDirectionRow()]);
+      mockRows.mockResolvedValueOnce([]);
+      mockRows.mockResolvedValueOnce([]);
+
+      const feed = await getDirectionIterationFeed("USER_001", "TASK_001");
+
+      expect(feed.completed).toHaveLength(1);
+      expect(feed.active).toBeNull();
+      expect(feed.latestFailure).toBeNull();
     });
   });
 });

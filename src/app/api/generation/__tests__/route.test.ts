@@ -16,11 +16,24 @@ const mockCreateGenerationTask = vi.fn();
 const mockUpdateGenerationTask = vi.fn();
 const mockListCompleted = vi.fn();
 const mockListIterations = vi.fn();
+const mockGetDirectionIterationFeed = vi.fn();
 vi.mock("@/lib/repositories/generation-task-repository", () => ({
   createGenerationTask: (...args: unknown[]) => mockCreateGenerationTask(...args),
   updateGenerationTask: (...args: unknown[]) => mockUpdateGenerationTask(...args),
   listCompleted: (...args: unknown[]) => mockListCompleted(...args),
   listIterations: (...args: unknown[]) => mockListIterations(...args),
+  getDirectionIterationFeed: (...args: unknown[]) => mockGetDirectionIterationFeed(...args),
+}));
+
+const mockCheckRateLimit = vi.fn();
+vi.mock("@/lib/rate-limit", () => ({
+  checkRateLimit: (...args: unknown[]) => mockCheckRateLimit(...args),
+  RATE_LIMIT_CONFIGS: {
+    upload: { windowMs: 60 * 60 * 1000, maxRequests: 10 },
+    analysis: { windowMs: 60 * 60 * 1000, maxRequests: 10 },
+    generation: { windowMs: 60 * 60 * 1000, maxRequests: 20 },
+    templateWrite: { windowMs: 60 * 60 * 1000, maxRequests: 30 },
+  },
 }));
 
 const mockFindTemplateById = vi.fn();
@@ -144,6 +157,90 @@ const mockGeminiProvider = {
   name: "gemini" as const,
   generate: vi.fn(),
 };
+
+// ─── plan-03 fixtures：V2 Recipe 分析任务与合法 Prompt 控制快照 ────────────
+
+const v2RecipeAnalysisTask = {
+  ...completedAnalysisTask,
+  recipe: {
+    schemaVersion: 2,
+    extractionStatus: "ready",
+    extractionReasons: [],
+    contentDescription: {
+      summary: "Glass flower study",
+      subjectAttributes: [],
+      supportingElements: [],
+    },
+    styleProfile: {},
+    styleInvariants: [
+      {
+        id: "inv_color_1",
+        value: "cool blue palette",
+        evidence: ["img-01"],
+        confidence: 0.9,
+        kind: "hard",
+        dimension: "color",
+        sourceObservationIds: [],
+      },
+      {
+        id: "inv_camera_1",
+        value: "macro lens",
+        evidence: ["img-02"],
+        confidence: 0.8,
+        kind: "soft",
+        dimension: "camera",
+        sourceObservationIds: [],
+      },
+    ],
+    contentVariables: [
+      {
+        name: "subject",
+        label: "Subject",
+        defaultValue: "Glass flower",
+        sourceField: "subject",
+      },
+    ],
+    optionalModifiers: [],
+    negativeConstraints: [],
+    styleFingerprint: { tokens: [], scores: {} },
+    promptOutputs: {
+      reconstructionPrompt: "reconstruct",
+      conciseTemplate: "concise",
+      standardTemplate: "standard",
+      professionalTemplate: "professional",
+    },
+  },
+};
+
+const validPromptControlSnapshot = {
+  schemaVersion: 1,
+  trigger: "quick_recreate" as const,
+  intent: "reconstruction" as const,
+  detailLevel: "standard" as const,
+  editorMode: "variables" as const,
+  customPromptDirty: false,
+  enabledInvariantIds: ["inv_color_1", "inv_camera_1"],
+  variableValues: { subject: "Crystal peony" },
+  enabledModifierNames: [] as string[],
+  modifierValues: {} as Record<string, string>,
+  adjustments: [
+    { invariantId: "inv_color_1", action: "strengthen" as const },
+  ],
+};
+
+/** 快照变体构造器 */
+function snapshotWith(
+  overrides: Record<string, unknown>
+): typeof validPromptControlSnapshot {
+  return { ...validPromptControlSnapshot, ...overrides };
+}
+
+/** 刷新微任务队列（fake-timer 场景下不推进任何定时器） */
+async function flushMicrotasks(times = 30): Promise<void> {
+  for (let i = 0; i < times; i++) {
+    await Promise.resolve();
+  }
+}
 
 // ---- Tests ----
 
@@ -362,6 +459,230 @@ describe("GET /api/generation", () => {
   });
 });
 
+// ─── plan-03: GET ?view=direction 方向分组 feed（§3 / AC-04） ─────────────
+
+describe("GET /api/generation?view=direction (plan-03)", () => {
+  function directionItem(overrides: Record<string, unknown> = {}) {
+    return {
+      id: "gen-dir-1",
+      status: "completed" as const,
+      promptSummary: "a beautiful sunset",
+      resultFileUrl: "https://cdn.example.com/result.webp",
+      params: { aspectRatio: "16:9", quality: "high" },
+      createdAt: new Date("2026-09-01T00:00:00.000Z"),
+      resultAssetId: "asset-dir-1",
+      errorMessage: null,
+      ...overrides,
+    };
+  }
+
+  function createDirectionRequest(query: string): NextRequest {
+    return new NextRequest(`http://localhost:3000/api/generation?${query}`, {
+      method: "GET",
+    });
+  }
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockAuth.mockReset();
+    mockAuth.mockResolvedValue({ user: { id: "user-1" } });
+    mockGetDirectionIterationFeed.mockReset();
+    // plan-03 implementer 修复测试 fixture：vi.restoreAllMocks() 不清除 vi.fn() 的调用记录，
+    // 上一 describe 末次 listIterations 调用会泄漏进本 describe 的 not.toHaveBeenCalled() 断言；
+    // reset 仅隔离跨 describe 状态，不改变任何断言语义。
+    mockListIterations.mockReset();
+  });
+
+  it("返回 completed/active/latestFailure 分组 feed（DirectionIterationFeed DTO）", async () => {
+    mockGetDirectionIterationFeed.mockResolvedValueOnce({
+      completed: [
+        directionItem(),
+        directionItem({
+          id: "gen-dir-2",
+          resultAssetId: "asset-dir-2",
+          createdAt: new Date("2026-08-31T00:00:00.000Z"),
+        }),
+      ],
+      active: directionItem({
+        id: "gen-dir-active",
+        status: "processing",
+        resultFileUrl: null,
+        resultAssetId: null,
+      }),
+      latestFailure: directionItem({
+        id: "gen-dir-failed",
+        status: "failed",
+        resultFileUrl: null,
+        resultAssetId: null,
+        errorMessage: "provider timeout",
+      }),
+    });
+
+    const res = await GET(
+      createDirectionRequest("view=direction&analysisTaskId=analysis-1&pageSize=5")
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(mockGetDirectionIterationFeed).toHaveBeenCalledWith(
+      "user-1",
+      "analysis-1",
+      5
+    );
+    expect(mockListIterations).not.toHaveBeenCalled();
+    expect(json.completed).toEqual([
+      {
+        id: "gen-dir-1",
+        status: "completed",
+        promptSummary: "a beautiful sunset",
+        resultFileUrl: "https://cdn.example.com/result.webp",
+        params: { aspectRatio: "16:9", quality: "high" },
+        createdAt: "2026-09-01T00:00:00.000Z",
+        resultAssetId: "asset-dir-1",
+        errorMessage: null,
+      },
+      {
+        id: "gen-dir-2",
+        status: "completed",
+        promptSummary: "a beautiful sunset",
+        resultFileUrl: "https://cdn.example.com/result.webp",
+        params: { aspectRatio: "16:9", quality: "high" },
+        createdAt: "2026-08-31T00:00:00.000Z",
+        resultAssetId: "asset-dir-2",
+        errorMessage: null,
+      },
+    ]);
+    expect(json.active).toEqual(
+      expect.objectContaining({ id: "gen-dir-active", status: "processing" })
+    );
+    expect(json.latestFailure).toEqual(
+      expect.objectContaining({
+        id: "gen-dir-failed",
+        status: "failed",
+        errorMessage: "provider timeout",
+      })
+    );
+  });
+
+  it("无进行中/失败任务时 active 与 latestFailure 返回 null", async () => {
+    mockGetDirectionIterationFeed.mockResolvedValueOnce({
+      completed: [directionItem()],
+      active: null,
+      latestFailure: null,
+    });
+
+    const res = await GET(
+      createDirectionRequest("view=direction&analysisTaskId=analysis-1")
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.active).toBeNull();
+    expect(json.latestFailure).toBeNull();
+    // pageSize 缺省为 5
+    expect(mockGetDirectionIterationFeed).toHaveBeenCalledWith(
+      "user-1",
+      "analysis-1",
+      5
+    );
+  });
+
+  it("缺少 analysisTaskId 返回 400 INVALID_REQUEST 且不查询方向 feed", async () => {
+    const res = await GET(createDirectionRequest("view=direction"));
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(json.code).toBe("INVALID_REQUEST");
+    expect(mockGetDirectionIterationFeed).not.toHaveBeenCalled();
+    expect(mockListIterations).not.toHaveBeenCalled();
+  });
+
+  it("方向 pageSize 仅允许 1-5：0 与 6 均返回 400", async () => {
+    const zero = await GET(
+      createDirectionRequest("view=direction&analysisTaskId=analysis-1&pageSize=0")
+    );
+    expect(zero.status).toBe(400);
+    expect((await zero.json()).code).toBe("INVALID_REQUEST");
+
+    const six = await GET(
+      createDirectionRequest("view=direction&analysisTaskId=analysis-1&pageSize=6")
+    );
+    expect(six.status).toBe(400);
+    expect((await six.json()).code).toBe("INVALID_REQUEST");
+
+    expect(mockGetDirectionIterationFeed).not.toHaveBeenCalled();
+  });
+
+  it("view 为未知值时返回 400（枚举白名单，不静默回退普通列表）", async () => {
+    const res = await GET(createDirectionRequest("view=other"));
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(json.code).toBe("INVALID_REQUEST");
+    expect(mockGetDirectionIterationFeed).not.toHaveBeenCalled();
+    expect(mockListIterations).not.toHaveBeenCalled();
+  });
+
+  it("成功路径输出 direction_iterations_queried（duration/completedCount/hasActive/hasLatestFailure）", async () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    mockGetDirectionIterationFeed.mockResolvedValueOnce({
+      completed: [directionItem()],
+      active: directionItem({
+        id: "gen-dir-active",
+        status: "processing",
+        resultFileUrl: null,
+        resultAssetId: null,
+      }),
+      latestFailure: null,
+    });
+
+    await GET(
+      createDirectionRequest("view=direction&analysisTaskId=analysis-1")
+    );
+
+    const logged = logSpy.mock.calls
+      .map((call) => String(call[0]))
+      .find((line) => line.includes("direction_iterations_queried"));
+    expect(logged).toBeDefined();
+    expect(logged).toContain('"completedCount":1');
+    expect(logged).toContain('"hasActive":true');
+    expect(logged).toContain('"hasLatestFailure":false');
+    expect(logged).toContain('"duration"');
+
+    logSpy.mockRestore();
+  });
+
+  it("未登录返回 401 且不查询方向 feed", async () => {
+    mockAuth.mockResolvedValueOnce(null);
+
+    const res = await GET(
+      createDirectionRequest("view=direction&analysisTaskId=analysis-1")
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(401);
+    expect(json).toEqual(
+      expect.objectContaining({ code: "UNAUTHORIZED", retryable: false })
+    );
+    expect(mockGetDirectionIterationFeed).not.toHaveBeenCalled();
+  });
+
+  it("方向查询异常返回 500 SERVICE_UNAVAILABLE（可重试）", async () => {
+    mockGetDirectionIterationFeed.mockRejectedValueOnce(
+      new Error("connect ECONNREFUSED 127.0.0.1:5433")
+    );
+
+    const res = await GET(
+      createDirectionRequest("view=direction&analysisTaskId=analysis-1")
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(json.code).toBe("SERVICE_UNAVAILABLE");
+    expect(json.retryable).toBe(true);
+  });
+});
+
 describe("POST /api/generation", () => {
   const originalFetch = globalThis.fetch;
   const ORIGINAL_ENV = { ...process.env };
@@ -388,6 +709,13 @@ describe("POST /api/generation", () => {
     mockReplicateProvider.generate.mockReset();
     mockGeminiProvider.generate.mockReset();
     mockFetch.mockReset();
+    mockCheckRateLimit.mockReset();
+    mockCheckRateLimit.mockReturnValue({
+      allowed: true,
+      remaining: 19,
+      resetAt: Date.now() + 60 * 60 * 1000,
+    });
+    mockGetDirectionIterationFeed.mockReset();
     globalThis.fetch = mockFetch;
 
     // 默认返回 fal Provider
@@ -1191,6 +1519,502 @@ describe("POST /api/generation", () => {
       expect(res.status).toBe(400);
       expect(json.code).toBe("INVALID_REQUEST");
       expect(mockFindAnalysisTaskById).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── plan-03: POST 快照校验与 trigger（§3 / AC-01） ─────────────────────
+
+  describe("POST 快照校验与 trigger (plan-03)", () => {
+    beforeEach(() => {
+      process.env.IMAGE_GEN_PROVIDER = "fal";
+    });
+
+    /** 快照合法路径的标准 mock（Provider 挂起避免后台任务干扰） */
+    function setupSnapshotSuccess() {
+      mockFindAnalysisTaskById.mockResolvedValueOnce(v2RecipeAnalysisTask);
+      mockCreateGenerationTask.mockResolvedValueOnce(createdTask);
+      mockFalProvider.generate.mockResolvedValueOnce({
+        mode: "sync" as const,
+        imageUrl: "https://fal.ai/tmp/result.webp",
+        width: 1024,
+        height: 1024,
+      });
+      mockFalProvider.generate.mockReturnValueOnce(new Promise(() => {}));
+    }
+
+    it("携带合法 promptControlSnapshot 时透传持久化（含 trigger）", async () => {
+      setupSnapshotSuccess();
+
+      const res = await POST(
+        createRequest({ ...validBody, promptControlSnapshot: validPromptControlSnapshot })
+      );
+
+      expect(res.status).toBe(201);
+      expect(mockCreateGenerationTask).toHaveBeenCalledWith(
+        "user-1",
+        expect.objectContaining({
+          promptControlSnapshot: validPromptControlSnapshot,
+        })
+      );
+    });
+
+    it("generation_request_received 日志携带快照 trigger（§8.5）", async () => {
+      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      setupSnapshotSuccess();
+
+      await POST(
+        createRequest({ ...validBody, promptControlSnapshot: validPromptControlSnapshot })
+      );
+
+      const logged = logSpy.mock.calls
+        .map((call) => String(call[0]))
+        .find((line) => line.includes("generation_request_received"));
+      expect(logged).toBeDefined();
+      expect(logged).toContain('"trigger":"quick_recreate"');
+
+      logSpy.mockRestore();
+    });
+
+    it("未携带快照的存量请求兼容：promptControlSnapshot 持久化为 null，trigger 记 manual", async () => {
+      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      mockFindAnalysisTaskById.mockResolvedValueOnce(completedAnalysisTask);
+      mockCreateGenerationTask.mockResolvedValueOnce(createdTask);
+      mockFalProvider.generate.mockResolvedValueOnce({
+        mode: "sync" as const,
+        imageUrl: "https://fal.ai/tmp/result.webp",
+        width: 1024,
+        height: 1024,
+      });
+      mockFalProvider.generate.mockReturnValueOnce(new Promise(() => {}));
+
+      const res = await POST(createRequest(validBody));
+
+      expect(res.status).toBe(201);
+      expect(mockCreateGenerationTask).toHaveBeenCalledWith(
+        "user-1",
+        expect.objectContaining({ promptControlSnapshot: null })
+      );
+
+      const logged = logSpy.mock.calls
+        .map((call) => String(call[0]))
+        .find((line) => line.includes("generation_request_received"));
+      expect(logged).toContain('"trigger":"manual"');
+
+      logSpy.mockRestore();
+    });
+
+    it("快照 intent 非法枚举 → 400 prompt_control_snapshot_rejected，任务不创建、Provider 不调用", async () => {
+      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      mockFindAnalysisTaskById.mockResolvedValueOnce(v2RecipeAnalysisTask);
+
+      const res = await POST(
+        createRequest({
+          ...validBody,
+          promptControlSnapshot: snapshotWith({ intent: "wrong_intent" }),
+        })
+      );
+      const json = await res.json();
+
+      expect(res.status).toBe(400);
+      expect(json.code).toBe("INVALID_REQUEST");
+      expect(mockCreateGenerationTask).not.toHaveBeenCalled();
+      expect(mockFalProvider.generate).not.toHaveBeenCalled();
+      expect(
+        logSpy.mock.calls.some((call) =>
+          String(call[0]).includes("prompt_control_snapshot_rejected")
+        )
+      ).toBe(true);
+
+      logSpy.mockRestore();
+    });
+
+    it("快照 detailLevel/editorMode/trigger 非法枚举 → 400", async () => {
+      mockFindAnalysisTaskById.mockResolvedValueOnce(v2RecipeAnalysisTask);
+
+      for (const overrides of [
+        { detailLevel: "verbose" },
+        { editorMode: "markdown" },
+        { trigger: "auto" },
+      ]) {
+        const res = await POST(
+          createRequest({
+            ...validBody,
+            promptControlSnapshot: snapshotWith(overrides),
+          })
+        );
+        expect(res.status).toBe(400);
+        expect((await res.json()).code).toBe("INVALID_REQUEST");
+      }
+      expect(mockCreateGenerationTask).not.toHaveBeenCalled();
+      expect(mockFalProvider.generate).not.toHaveBeenCalled();
+    });
+
+    it("enabledInvariantIds 引用 Recipe 外 invariant → 400，Provider 不调用", async () => {
+      mockFindAnalysisTaskById.mockResolvedValueOnce(v2RecipeAnalysisTask);
+
+      const res = await POST(
+        createRequest({
+          ...validBody,
+          promptControlSnapshot: snapshotWith({
+            enabledInvariantIds: ["inv_unknown_1"],
+          }),
+        })
+      );
+      const json = await res.json();
+
+      expect(res.status).toBe(400);
+      expect(json.code).toBe("INVALID_REQUEST");
+      expect(mockCreateGenerationTask).not.toHaveBeenCalled();
+      expect(mockFalProvider.generate).not.toHaveBeenCalled();
+    });
+
+    it("adjustments 引用 Recipe 外 invariantId → 400", async () => {
+      mockFindAnalysisTaskById.mockResolvedValueOnce(v2RecipeAnalysisTask);
+
+      const res = await POST(
+        createRequest({
+          ...validBody,
+          promptControlSnapshot: snapshotWith({
+            adjustments: [
+              { invariantId: "inv_unknown_9", action: "disable" as const },
+            ],
+          }),
+        })
+      );
+
+      expect(res.status).toBe(400);
+      expect(mockCreateGenerationTask).not.toHaveBeenCalled();
+    });
+
+    it("variableValues 含非 Recipe 变量名 → 400", async () => {
+      mockFindAnalysisTaskById.mockResolvedValueOnce(v2RecipeAnalysisTask);
+
+      const res = await POST(
+        createRequest({
+          ...validBody,
+          promptControlSnapshot: snapshotWith({
+            variableValues: { not_a_recipe_variable: "x" },
+          }),
+        })
+      );
+
+      expect(res.status).toBe(400);
+      expect(mockCreateGenerationTask).not.toHaveBeenCalled();
+      expect(mockFalProvider.generate).not.toHaveBeenCalled();
+    });
+
+    it("超过 20 个变量或 10 个 adjustment → 400（§7.3 上限）", async () => {
+      mockFindAnalysisTaskById.mockResolvedValueOnce(v2RecipeAnalysisTask);
+
+      const tooManyVariables = Object.fromEntries(
+        Array.from({ length: 21 }, (_, i) => [`var_${i}`, "v"])
+      );
+      const variableRes = await POST(
+        createRequest({
+          ...validBody,
+          promptControlSnapshot: snapshotWith({
+            variableValues: tooManyVariables,
+          }),
+        })
+      );
+      expect(variableRes.status).toBe(400);
+
+      const tooManyAdjustments = Array.from({ length: 11 }, () => ({
+        invariantId: "inv_color_1",
+        action: "strengthen" as const,
+      }));
+      const adjustmentRes = await POST(
+        createRequest({
+          ...validBody,
+          promptControlSnapshot: snapshotWith({
+            adjustments: tooManyAdjustments,
+          }),
+        })
+      );
+      expect(adjustmentRes.status).toBe(400);
+
+      expect(mockCreateGenerationTask).not.toHaveBeenCalled();
+      expect(mockFalProvider.generate).not.toHaveBeenCalled();
+    });
+
+    it("变量单值超过 200 字符 → 400；customTemplate 超过 6000 字符 → 400", async () => {
+      mockFindAnalysisTaskById.mockResolvedValueOnce(v2RecipeAnalysisTask);
+
+      const longValue = await POST(
+        createRequest({
+          ...validBody,
+          promptControlSnapshot: snapshotWith({
+            variableValues: { subject: "x".repeat(201) },
+          }),
+        })
+      );
+      expect(longValue.status).toBe(400);
+
+      const longTemplate = await POST(
+        createRequest({
+          ...validBody,
+          promptControlSnapshot: snapshotWith({
+            customTemplate: "x".repeat(6001),
+          }),
+        })
+      );
+      expect(longTemplate.status).toBe(400);
+
+      expect(mockCreateGenerationTask).not.toHaveBeenCalled();
+      expect(mockFalProvider.generate).not.toHaveBeenCalled();
+    });
+
+    it("params.aspectRatio 不在支持白名单 → 400 INVALID_REQUEST，Provider 不调用（§3 画幅校验）", async () => {
+      mockFindAnalysisTaskById.mockResolvedValueOnce(v2RecipeAnalysisTask);
+
+      const res = await POST(
+        createRequest({
+          ...validBody,
+          params: { ...validBody.params, aspectRatio: "4:5" },
+        })
+      );
+      const json = await res.json();
+
+      expect(res.status).toBe(400);
+      expect(json.code).toBe("INVALID_REQUEST");
+      expect(mockCreateGenerationTask).not.toHaveBeenCalled();
+      expect(mockFalProvider.generate).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── plan-03: POST Provider 启动异常终态（§3 / AC-07） ──────────────────
+
+  describe("POST Provider 启动异常终态 (plan-03 / AC-07)", () => {
+    beforeEach(() => {
+      process.env.IMAGE_GEN_PROVIDER = "fal";
+    });
+
+    it("Provider 启动抛错：best-effort 回写 failed 后返回可重试错误", async () => {
+      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      mockFindAnalysisTaskById.mockResolvedValueOnce(completedAnalysisTask);
+      mockCreateGenerationTask.mockResolvedValueOnce(createdTask);
+      mockUpdateGenerationTask.mockResolvedValue(createdTask);
+      mockFalProvider.generate.mockRejectedValueOnce(
+        new Error("FAL_KEY is not configured")
+      );
+
+      const res = await POST(createRequest(validBody));
+      const json = await res.json();
+
+      expect(res.status).toBe(500);
+      expect(json.code).toBe("SERVICE_UNAVAILABLE");
+      expect(json.retryable).toBe(true);
+      expect(json.error).toContain("FAL_KEY is not configured");
+      // 任务必须落入终态 failed，而非永久 processing
+      expect(mockUpdateGenerationTask).toHaveBeenCalledWith("gen-task-1", {
+        status: "failed",
+        errorMessage: expect.stringContaining("FAL_KEY is not configured"),
+      });
+      expect(
+        logSpy.mock.calls.some((call) =>
+          String(call[0]).includes("generation_provider_start_failed")
+        )
+      ).toBe(true);
+
+      logSpy.mockRestore();
+    });
+
+    it("failed 回写本身失败：输出 generation_failed_status_write_failed critical 日志且不含 Prompt", async () => {
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      mockFindAnalysisTaskById.mockResolvedValueOnce(completedAnalysisTask);
+      mockCreateGenerationTask.mockResolvedValueOnce(createdTask);
+      // 第 1 次（processing）成功；第 2 次（failed 终态）写失败
+      mockUpdateGenerationTask
+        .mockResolvedValueOnce(createdTask)
+        .mockRejectedValueOnce(new Error("db connection lost"));
+      mockFalProvider.generate.mockRejectedValueOnce(
+        new Error("FAL_KEY is not configured")
+      );
+
+      const res = await POST(createRequest(validBody));
+
+      expect(res.status).toBe(500);
+
+      const critical = errorSpy.mock.calls
+        .map((call) => String(call[0]))
+        .find((line) => line.includes("generation_failed_status_write_failed"));
+      expect(critical).toBeDefined();
+      expect(critical).toContain('"taskId":"gen-task-1"');
+      expect(critical).toContain('"analysisTaskId":"analysis-1"');
+      expect(critical).toContain('"provider":"fal"');
+      // critical 日志不记录 Prompt 全文（§8.5）
+      expect(critical).not.toContain("a beautiful sunset");
+
+      errorSpy.mockRestore();
+    });
+
+    it("Replicate 异步提交成功后调用 startTimeoutTimer(..., 300_000)", async () => {
+      mockFindAnalysisTaskById.mockResolvedValueOnce(completedAnalysisTask);
+      const replicateTask = {
+        ...createdTask,
+        provider: "replicate" as const,
+        modelName: "black-forest-labs/flux-2-dev",
+      };
+      mockCreateGenerationTask.mockResolvedValueOnce(replicateTask);
+      mockUpdateGenerationTask.mockResolvedValue(replicateTask);
+      mockGetImageGenProvider.mockReturnValue(mockReplicateProvider);
+      mockReplicateProvider.generate.mockResolvedValueOnce({
+        mode: "async" as const,
+        externalId: "replicate-pred-timeout",
+      });
+
+      await POST(createRequest(validBody));
+
+      expect(mockStartTimeoutTimer).toHaveBeenCalledWith(
+        "gen-task-1",
+        "generation",
+        300_000
+      );
+    });
+
+    it("同步生成超时固定 120_000ms：到点写 failed 且错误信息含超时说明", async () => {
+      vi.useFakeTimers();
+      try {
+        mockFindAnalysisTaskById.mockResolvedValueOnce(completedAnalysisTask);
+        mockCreateGenerationTask.mockResolvedValueOnce(createdTask);
+        mockUpdateGenerationTask.mockResolvedValue(createdTask);
+        mockFalProvider.generate.mockResolvedValueOnce({
+          mode: "sync" as const,
+          imageUrl: "https://fal.ai/tmp/result.webp",
+          width: 1024,
+          height: 1024,
+        });
+        // 下载挂起，使 120s 超时定时器先触发
+        mockFetch.mockReturnValue(new Promise(() => {}));
+
+        const res = await POST(createRequest(validBody));
+        expect(res.status).toBe(201);
+
+        // 119_999ms 时尚未写 failed
+        await vi.advanceTimersByTimeAsync(119_999);
+        expect(mockUpdateGenerationTask).not.toHaveBeenCalledWith(
+          "gen-task-1",
+          expect.objectContaining({ status: "failed" })
+        );
+
+        // 到 120_000ms 写 failed
+        await vi.advanceTimersByTimeAsync(1);
+        await vi.advanceTimersByTimeAsync(0);
+        expect(mockUpdateGenerationTask).toHaveBeenCalledWith("gen-task-1", {
+          status: "failed",
+          errorMessage: expect.stringContaining("timed out"),
+        });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("同步超时不覆盖已落 completed 终态（先 completed，后到点不写 failed）", async () => {
+      vi.useFakeTimers();
+      try {
+        mockFindAnalysisTaskById.mockResolvedValueOnce(completedAnalysisTask);
+        mockCreateGenerationTask.mockResolvedValueOnce(createdTask);
+        mockUpdateGenerationTask.mockResolvedValue(createdTask);
+        mockFalProvider.generate.mockResolvedValueOnce({
+          mode: "sync" as const,
+          imageUrl: "https://fal.ai/tmp/result.webp",
+          width: 1024,
+          height: 1024,
+        });
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          arrayBuffer: () => Promise.resolve(new ArrayBuffer(100)),
+        });
+        mockUploadBuffer.mockResolvedValueOnce(undefined);
+        mockGetPublicUrl.mockReturnValueOnce(
+          "https://r2.example.com/generated/gen-task-1/result.webp"
+        );
+        mockCreateAsset.mockResolvedValueOnce({
+          id: "asset-gen-1",
+          type: "generated",
+          fileUrl: "https://r2.example.com/generated/gen-task-1/result.webp",
+          thumbnailUrl: null,
+          width: 1024,
+          height: 1024,
+          mimeType: "image/webp",
+          createdAt: new Date("2025-01-01"),
+        });
+
+        const res = await POST(createRequest(validBody));
+        expect(res.status).toBe(201);
+
+        // 不推进定时器，仅刷新微任务：completed 先落库
+        await flushMicrotasks();
+        expect(mockUpdateGenerationTask).toHaveBeenCalledWith("gen-task-1", {
+          status: "completed",
+          resultAssetId: "asset-gen-1",
+        });
+
+        // 超过 120s 后也不得改写为 failed
+        await vi.advanceTimersByTimeAsync(130_000);
+        await flushMicrotasks();
+        expect(mockUpdateGenerationTask).not.toHaveBeenCalledWith(
+          "gen-task-1",
+          expect.objectContaining({ status: "failed" })
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
+  // ─── plan-03: POST 用户级限流（§3 / §8.3） ─────────────────────────────
+
+  describe("POST 用户级限流 (plan-03 / §8.3)", () => {
+    it("接入 generation 配置：identifier 取 session userId，20 次/小时", async () => {
+      mockFindAnalysisTaskById.mockResolvedValueOnce(completedAnalysisTask);
+      mockCreateGenerationTask.mockResolvedValueOnce(createdTask);
+      mockFalProvider.generate.mockResolvedValueOnce({
+        mode: "sync" as const,
+        imageUrl: "https://fal.ai/tmp/result.webp",
+        width: 1024,
+        height: 1024,
+      });
+      mockFalProvider.generate.mockReturnValueOnce(new Promise(() => {}));
+
+      const res = await POST(createRequest(validBody));
+
+      expect(res.status).toBe(201);
+      expect(mockCheckRateLimit).toHaveBeenCalledWith(
+        "user-1",
+        "generation",
+        expect.objectContaining({
+          windowMs: 60 * 60 * 1000,
+          maxRequests: 20,
+        })
+      );
+    });
+
+    it("超限返回 429 RATE_LIMITED，任务不创建、Provider 不调用", async () => {
+      mockCheckRateLimit.mockReturnValueOnce({
+        allowed: false,
+        remaining: 0,
+        resetAt: Date.now() + 60 * 60 * 1000,
+      });
+      // 未接入限流时这些 mock 本应让请求走到 201，使 429 断言成为纯限流红点
+      mockFindAnalysisTaskById.mockResolvedValueOnce(completedAnalysisTask);
+      mockCreateGenerationTask.mockResolvedValueOnce(createdTask);
+      mockFalProvider.generate.mockResolvedValueOnce({
+        mode: "sync" as const,
+        imageUrl: "https://fal.ai/tmp/result.webp",
+        width: 1024,
+        height: 1024,
+      });
+      mockFalProvider.generate.mockReturnValueOnce(new Promise(() => {}));
+
+      const res = await POST(createRequest(validBody));
+      const json = await res.json();
+
+      expect(res.status).toBe(429);
+      expect(json.code).toBe("RATE_LIMITED");
+      expect(json.retryable).toBe(true);
+      expect(mockCreateGenerationTask).not.toHaveBeenCalled();
+      expect(mockFalProvider.generate).not.toHaveBeenCalled();
     });
   });
 });

@@ -69,10 +69,10 @@ test.describe('Workspace Degradation Scenarios', () => {
   /**
    * L1: 排队降级（>60s）。
    * 旧 UI 的“Analysis is queued”提示卡（RecipeStep/RecipeEditor）已随三栏重构移除；
-   * 60s 排队计时逻辑仍在（useEffect + QUEUEING_THRESHOLD_MS），现行可观察呈现是
-   * 生成任务弹窗内的排队提示，故保留 fake-clock 触发方式并断言该等价行为。
+   * 60s 排队计时逻辑仍在（useEffect + QUEUEING_THRESHOLD_MS），plan-07 后排队提示
+   * 内联呈现于 Render Dock（不再打开生成任务弹窗），保留 fake-clock 触发方式。
    */
-  test('L1 排队：60秒后任务弹窗展示排队提示', async ({ page }) => {
+  test('L1 排队：60秒后 Render Dock 内联展示排队提示', async ({ page }) => {
     const generationTaskId = 'degradation-queueing-generation-task'
     await mockGenerationCreate(page, generationTaskId)
     await mockGenerationPolling(page, generationTaskId, {
@@ -91,18 +91,22 @@ test.describe('Workspace Degradation Scenarios', () => {
 
     await generateButton(page).click()
 
-    const dialog = page.getByTestId('generation-dialog')
-    await expect(page.getByRole('dialog', { name: 'Generation Task' })).toBeVisible()
-    await expect(dialog).toContainText('Generating image...', { timeout: 15000 })
+    // 进行中内联呈现：阶段进入 generating，不打开生成任务弹层
+    await expect(page.getByTestId('ai-status-header')).toHaveAttribute(
+      'data-phase',
+      'generating',
+      { timeout: 15000 },
+    )
+    await expect(page.getByTestId('generation-dialog')).toHaveCount(0)
 
-    // Fast-forward 61 seconds to trigger the L1 queueing hint
+    // Fast-forward 61 seconds to trigger the L1 queueing hint（Render Dock 内联）
     await page.clock.fastForward(61000)
 
-    await expect(dialog).toContainText('Generation is queued. Thanks for waiting')
+    await expect(renderDock(page)).toContainText('Generation is queued. Thanks for waiting')
   })
 
   // L2: Generation unavailable
-  test('L2 生成不可用：错误提示 + 按钮 disabled + Prompt 可用', async ({ page }) => {
+  test('L2 生成不可用：内联错误提示 + 主动重试 + Prompt 可用', async ({ page }) => {
     await mockApiError(page, '**/api/generation', 500, SERVICE_UNAVAILABLE_BODY)
 
     await uploadAndCompleteAnalysis(page, {
@@ -112,30 +116,17 @@ test.describe('Workspace Degradation Scenarios', () => {
 
     await generateButton(page).click()
 
-    // 生成任务弹窗以三段式呈现失败：发生了什么 / 保留了什么 / 下一步
-    const dialog = page.getByTestId('generation-dialog')
-    await expect(dialog).toContainText('Generation Failed', { timeout: 15000 })
-    await expect(dialog).toContainText('Service Temporarily Unavailable')
-    await expect(dialog).toContainText('are preserved')
-
-    // 返回编辑态：Render Dock 因 generationUnavailable 降级为不可生成
-    await page.getByRole('button', { name: 'Back to Edit' }).click()
+    // plan-07（§8.2 L5）：提交失败以内联错误位三段式呈现
+    //（发生了什么 / 保留了什么 / 下一步），不打开阻断式弹层
+    const submitError = page.getByTestId('generation-submit-error')
+    await expect(submitError).toBeVisible({ timeout: 15000 })
+    await expect(submitError).toContainText('Service Temporarily Unavailable')
+    await expect(submitError).toContainText('保持不变')
+    await expect(page.getByTestId('generation-submit-retry')).toBeVisible()
     await expect(page.getByTestId('generation-dialog')).toHaveCount(0)
 
-    await expect(renderDock(page)).toHaveAttribute('data-readiness-can-generate', 'false')
-    await expect(generateButton(page)).toBeDisabled()
-    await expect(generateButton(page)).toHaveAttribute(
-      'title',
-      'Generation service is temporarily unavailable. Retry service when ready.',
-    )
-
-    // AI 状态带标记服务降级：failure phase + Services Limited
-    await expect(page.getByTestId('ai-status-header')).toHaveAttribute('data-phase', 'failure')
-    await expect(page.getByTestId('ai-copilot-ribbon')).toHaveAttribute(
-      'data-service',
-      'limited',
-    )
-    await expect(page.getByTestId('ai-copilot-ribbon')).toContainText('Limited')
+    // 提交失败不长期禁用生成：主动重试入口保持可用（创建新任务，TC-7.8 契约）
+    await expect(generateButton(page)).toBeEnabled()
 
     // Prompt 编辑器仍可用（上下文保留）
     const promptCard = promptColumn(page).getByTestId('prompt-card')
@@ -262,7 +253,7 @@ test.describe('Workspace Degradation Scenarios', () => {
   })
 
   // Generation error retry
-  test('生成错误Retry：失败弹窗Retry后错误清除', async ({ page }) => {
+  test('生成错误Retry：内联错误主动重试后清除', async ({ page }) => {
     let generationPostCount = 0
     await page.route('**/api/generation', async (route) => {
       if (route.request().method() !== 'POST') {
@@ -271,11 +262,31 @@ test.describe('Workspace Degradation Scenarios', () => {
       }
 
       generationPostCount += 1
+      // plan-07：重试创建新任务（TC-7.8 契约）——首次 POST 失败，重试成功
+      if (generationPostCount === 1) {
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify(SERVICE_UNAVAILABLE_BODY),
+        })
+        return
+      }
       await route.fulfill({
-        status: 500,
+        status: 201,
         contentType: 'application/json',
-        body: JSON.stringify(SERVICE_UNAVAILABLE_BODY),
+        body: JSON.stringify({ id: 'degeneration-generation-retry-task', status: 'pending' }),
       })
+    })
+
+    // B-1 修复（task-review 20260901）：重试 POST 201 后 submitGeneration 会
+    // ws.startGeneration(task.id)，useGeneration 随即轮询 GET /api/generation/{id}；
+    // 此前未 mock 该 GET，请求落到真实 dev server 返回 401，useGeneration 的
+    // 401 处理触发 signIn 导航离开 Workspace，后续断言必然失败。参照
+    // workspace-layout.spec.ts 生成用例的 mock 组合补 completed 终态详情：
+    // completeGeneration → state=generation_ready，Generate 恢复可用。
+    await mockGenerationPolling(page, 'degeneration-generation-retry-task', {
+      ...loadFixture('generation-completed.json'),
+      id: 'degeneration-generation-retry-task',
     })
 
     await uploadAndCompleteAnalysis(page, {
@@ -283,19 +294,16 @@ test.describe('Workspace Degradation Scenarios', () => {
     })
     await generateButton(page).click()
 
-    // 生成任务弹窗展示失败（发生了什么 / 保留了什么 / 下一步）
-    const dialog = page.getByTestId('generation-dialog')
-    await expect(dialog).toContainText('Generation Failed', { timeout: 15000 })
-    await expect(dialog).toContainText('Service Temporarily Unavailable')
-    await expect(renderDock(page)).toHaveAttribute('data-readiness-can-generate', 'false')
+    // 提交失败内联呈现（发生了什么 / 保留了什么 / 下一步），不打开弹层
+    const submitError = page.getByTestId('generation-submit-error')
+    await expect(submitError).toBeVisible({ timeout: 15000 })
+    await expect(submitError).toContainText('Service Temporarily Unavailable')
+    await expect(page.getByTestId('generation-dialog')).toHaveCount(0)
 
-    // SERVICE_UNAVAILABLE 的 Retry 仅恢复服务（清错误 + 解除降级），不自动重新发起生成
-    await dialog.getByRole('button', { name: 'Regenerate' }).click()
-
-    await expect(dialog.getByText('Generation Failed')).toHaveCount(0)
-    await expect(dialog.getByText('Service Temporarily Unavailable')).toHaveCount(0)
-    await expect(renderDock(page)).toHaveAttribute('data-readiness-can-generate', 'true')
+    // 主动重试创建新任务：重试成功后内联错误清除
+    await page.getByTestId('generation-submit-retry').click()
+    await expect(page.getByTestId('generation-submit-error')).toBeHidden({ timeout: 15000 })
     await expect(generateButton(page)).toBeEnabled()
-    expect(generationPostCount).toBe(1)
+    expect(generationPostCount).toBe(2)
   })
 })

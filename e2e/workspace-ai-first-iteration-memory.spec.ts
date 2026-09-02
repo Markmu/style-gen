@@ -183,9 +183,9 @@ test.describe('plan-05 Iteration Memory and Save Style Memory entry', () => {
 
     await openWithCompletedAnalysis(page, 'iteration-memory-analysis-task')
     await renderDock(page).getByRole('button', { name: /^Generate$/i }).click()
-    await expect(page.getByTestId('generation-dialog')).toContainText(/Generated Result/i, {
-      timeout: 15000,
-    })
+    // plan-07（实现规格 §4）：成功不再打开阻断式 GenerationDialog——完成事实
+    // 经历史列表/方向 feed 内联刷新，本用例以 Recent iterations 缩略图为完成锚点
+    await expect(page.getByTestId('generation-dialog')).toHaveCount(0)
 
     await expect(historyStrip(page).getByRole('button', { name: /open history item/i })).toHaveCount(
       1,

@@ -1,4 +1,8 @@
 import { createFalClient } from "@fal-ai/client";
+import {
+  SUPPORTED_ASPECT_RATIOS,
+  type SupportedAspectRatio,
+} from "@/lib/generation/aspect-ratio";
 import { ImageGenError } from "./types";
 import type { ImageGenProvider } from "./types";
 
@@ -19,12 +23,30 @@ interface FalImageOutput {
   images: FalImage[];
 }
 
-type FalImageSize = "landscape_16_9" | "landscape_4_3" | "square";
+type FalImageSize =
+  | "landscape_16_9"
+  | "landscape_4_3"
+  | "square"
+  | "portrait_4_3"
+  | "portrait_16_9";
+
+/** 显式映射全部公开画幅（plan-01 §4 / 架构 §6.3.6），禁止未知值静默回退 square */
+const FAL_IMAGE_SIZES: Record<SupportedAspectRatio, FalImageSize> = {
+  "1:1": "square",
+  "4:3": "landscape_4_3",
+  "16:9": "landscape_16_9",
+  "3:4": "portrait_4_3",
+  "9:16": "portrait_16_9",
+};
 
 function toFalImageSize(aspectRatio: string): FalImageSize {
-  if (aspectRatio === "16:9") return "landscape_16_9";
-  if (aspectRatio === "4:3") return "landscape_4_3";
-  return "square";
+  const supported = (SUPPORTED_ASPECT_RATIOS as readonly string[]).find(
+    (ratio) => ratio === aspectRatio,
+  ) as SupportedAspectRatio | undefined;
+  if (!supported) {
+    throw new ImageGenError(`Unsupported aspect ratio: ${aspectRatio}`);
+  }
+  return FAL_IMAGE_SIZES[supported];
 }
 
 export class FalImageGenProvider implements ImageGenProvider {
@@ -52,12 +74,15 @@ export class FalImageGenProvider implements ImageGenProvider {
       credentials: apiKey,
     });
 
+    // 画幅校验先于任何 Provider 调用：未知值在此抛出可识别错误，不静默回退（plan-01 §4）
+    const imageSize = toFalImageSize(params.aspectRatio);
+
     try {
       const result = await Promise.race([
         client.subscribe(this.model, {
           input: {
             prompt: params.prompt,
-            image_size: toFalImageSize(params.aspectRatio),
+            image_size: imageSize,
             num_images: 1,
           },
           logs: false,

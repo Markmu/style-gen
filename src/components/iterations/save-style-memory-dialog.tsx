@@ -68,6 +68,11 @@ export interface StyleMemorySaveWizardProps {
   sourceAnalysisTaskId?: string | null;
   /** 流程 B：来源图 URL 快照（既有工作台链路，随 sourceAssetId 一并携带） */
   sourceImageUrl?: string | null;
+  /**
+   * plan-06：打开时预选「Set as representative result」。工作台 preferred
+   * 入口传 true；第 14 期 iteration-detail 入口缺省 false（语义保持不变）。
+   */
+  defaultRepresentative?: boolean;
   /** 保存成功：携带 201 响应的 { id, name }（向导负责跳转新详情） */
   onSaved?: (template: SavedStyleMemory) => void;
   onClose: () => void;
@@ -305,6 +310,7 @@ export function StyleMemorySaveWizard({
   sourceGenerationTaskId,
   sourceAnalysisTaskId,
   sourceImageUrl,
+  defaultRepresentative = false,
   onSaved,
   onClose,
 }: StyleMemorySaveWizardProps) {
@@ -345,12 +351,13 @@ export function StyleMemorySaveWizard({
 
   const promptHint = useMemo(() => content.slice(0, 120), [content]);
 
-  // 打开时（或切换来源）以该次来源快照重置向导（沿用现有 useEffect 重置模式）
+  // 打开时（或切换来源）以该次来源快照重置向导（沿用现有 useEffect 重置模式）；
+  // plan-06：代表结果预选随来源入口（工作台 preferred 传 true，缺省不勾选）
   const sourceKey = sourceGenerationTaskId ?? sourceAnalysisTaskId ?? "";
   useEffect(() => {
     if (!open) return;
     setStep(firstStep);
-    setIsRepresentative(false);
+    setIsRepresentative(Boolean(defaultRepresentative));
     setRules(prefill.retainedRules);
     setRulesKept(prefill.retainedRules.map(() => true));
     setConstraints(prefill.negativeConstraints);
@@ -365,7 +372,7 @@ export function StyleMemorySaveWizard({
     setError(null);
     // 重置语义依赖打开动作与来源身份，预填/初始值按当次渲染取值
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, sourceKey, firstStep]);
+  }, [open, sourceKey, firstStep, defaultRepresentative]);
 
   const trimmedName = name.trim();
   const isNameEmpty = trimmedName.length === 0;
@@ -825,6 +832,11 @@ export interface SaveStyleMemoryDialogProps {
   sourceAssetId: string | null;
   /** 来源迭代 id（frontend_computed，ADR-5 反向关联） */
   sourceGenerationTaskId: string;
+  /**
+   * plan-06：工作台 preferred 入口传 true——打开即预选该完成结果为代表结果；
+   * 第 14 期 iteration-detail 入口缺省不勾选（语义不变）。
+   */
+  defaultRepresentative?: boolean;
   /** 保存成功：携带 201 响应的 { id, name }，由宿主局部联动（向导负责跳转新详情） */
   onSaved: (template: SavedStyleMemory) => void;
   onClose: () => void;
@@ -841,6 +853,7 @@ export function SaveStyleMemoryDialog({
   resultFileUrl,
   sourceAssetId,
   sourceGenerationTaskId,
+  defaultRepresentative = false,
   onSaved,
   onClose,
 }: SaveStyleMemoryDialogProps) {
@@ -857,6 +870,7 @@ export function SaveStyleMemoryDialog({
       resultImageUrl={resultFileUrl}
       sourceAssetId={sourceAssetId}
       sourceGenerationTaskId={sourceGenerationTaskId}
+      defaultRepresentative={defaultRepresentative}
       onSaved={onSaved}
       onClose={onClose}
     />

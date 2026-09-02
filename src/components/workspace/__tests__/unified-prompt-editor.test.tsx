@@ -535,3 +535,105 @@ describe("UnifiedPromptEditor", () => {
     );
   });
 });
+
+// ─── plan-04（架构 §3.2 / §6.2.6）：旧全文路径的受控模式与手动改写 dirty 标记 ──
+
+describe("UnifiedPromptEditor plan-04 controlled full-text flow", () => {
+  it("renders the legacy full-text editor with the fulltext-prompt-editor contract testid", () => {
+    render(
+      <UnifiedPromptEditor
+        initialPromptText="Restored iteration full prompt snapshot"
+        onResolvedPromptChange={vi.fn()}
+      />,
+    );
+
+    // 旧任务无控制快照：默认进入全文模式，textarea 挂契约 testid
+    const fulltext = screen.getByTestId(
+      "fulltext-prompt-editor",
+    ) as HTMLTextAreaElement;
+    expect(fulltext.tagName).toBe("TEXTAREA");
+    expect(fulltext).toHaveValue("Restored iteration full prompt snapshot");
+    // 高亮视图（既有能力）与契约 testid 共存
+    expect(screen.getByTestId("text-mode-highlight-editor")).toContainElement(fulltext);
+  });
+
+  it("reports manual full-text edits so the page can mark customPromptDirty", async () => {
+    const user = userEvent.setup();
+    const onManualTextChange = vi.fn();
+    render(
+      <UnifiedPromptEditor
+        initialPromptText="Initial full prompt"
+        onResolvedPromptChange={vi.fn()}
+        onManualTextChange={onManualTextChange}
+      />,
+    );
+
+    await user.clear(screen.getByTestId("fulltext-prompt-editor"));
+    await user.type(screen.getByTestId("fulltext-prompt-editor"), "manual draft");
+    expect(onManualTextChange).toHaveBeenCalledWith("manual draft");
+  });
+
+  it("does not mark dirty for variable-linked edits inside the text prompt", () => {
+    const onManualTextChange = vi.fn();
+    render(
+      <UnifiedPromptEditor
+        initialTemplateContent="Create {{subject}} in soft daylight."
+        initialTemplateVariables={[{ name: "subject", defaultValue: "glass fox" }]}
+        templateStatus="ready"
+        onResolvedPromptChange={vi.fn()}
+        onManualTextChange={onManualTextChange}
+      />,
+    );
+
+    // 先切到 text 模式，再做一个变量联动改写（glass fox → crystal fox）
+    fireEvent.change(screen.getByLabelText("Prompt mode"), { target: { value: "text" } });
+    const textPrompt = screen.getByLabelText("Full Generation Prompt") as HTMLTextAreaElement;
+    fireEvent.change(textPrompt, {
+      target: { value: textPrompt.value.replace("glass fox", "crystal fox") },
+    });
+
+    expect(screen.getByLabelText("Full Generation Prompt")).toHaveValue(
+      "Create crystal fox in soft daylight.",
+    );
+    expect(onManualTextChange).not.toHaveBeenCalled();
+  });
+
+  it("supports the controlled editor mode driven by the intent controls", async () => {
+    const user = userEvent.setup();
+    const onModeChange = vi.fn();
+    const { rerender } = render(
+      <UnifiedPromptEditor
+        initialTemplateContent="Create {{subject}} inside {{scene}}."
+        initialTemplateVariables={[
+          { name: "subject", defaultValue: "glass fox" },
+          { name: "scene", defaultValue: "neon garden" },
+        ]}
+        templateStatus="ready"
+        onResolvedPromptChange={vi.fn()}
+        controlledMode="variables"
+        onModeChange={onModeChange}
+      />,
+    );
+
+    expect(screen.getByLabelText("Template Source")).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("Prompt mode"), "text");
+    expect(onModeChange).toHaveBeenCalledWith("text");
+
+    // 页面应用受控模式后，渲染 text 视图
+    rerender(
+      <UnifiedPromptEditor
+        initialTemplateContent="Create {{subject}} inside {{scene}}."
+        initialTemplateVariables={[
+          { name: "subject", defaultValue: "glass fox" },
+          { name: "scene", defaultValue: "neon garden" },
+        ]}
+        templateStatus="ready"
+        onResolvedPromptChange={vi.fn()}
+        controlledMode="text"
+        onModeChange={onModeChange}
+      />,
+    );
+    expect(screen.getByTestId("fulltext-prompt-editor")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Template Source")).not.toBeInTheDocument();
+  });
+});

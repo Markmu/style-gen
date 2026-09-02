@@ -2,10 +2,6 @@
 import { render, screen } from "@testing-library/react";
 import { ComparisonView } from "@/components/workspace/comparison-view";
 
-vi.mock("next/image", () => ({
-  default: (props: any) => <img {...props} />,
-}));
-
 describe("ComparisonView", () => {
   const defaultProps = {
     referenceImageUrl: "https://example.com/ref.png",
@@ -31,8 +27,50 @@ describe("ComparisonView", () => {
   });
 
   it('两列网格布局 - container has "grid-cols-2" class', () => {
-    const { container } = render(<ComparisonView {...defaultProps} />);
+    const { container } = render(
+      <ComparisonView {...defaultProps} aspectRatio="1:1" />,
+    );
     const gridEl = container.querySelector(".grid-cols-2");
     expect(gridEl).toBeInTheDocument();
+  });
+
+  it("竖画幅切换为堆叠布局", () => {
+    const { container } = render(
+      <ComparisonView {...defaultProps} aspectRatio="9:16" />,
+    );
+    expect(container.querySelector(".grid-cols-2")).toBeNull();
+    expect(container.querySelector(".grid-cols-1")).toBeInTheDocument();
+  });
+
+  it("plan-05：双图 img 挂 testid 且 src 使用真实 URL", () => {
+    render(<ComparisonView {...defaultProps} />);
+    const refImg = screen.getByTestId("comparison-reference-image");
+    const resultImg = screen.getByTestId("comparison-result-image");
+    expect(refImg).toHaveAttribute("src", "https://example.com/ref.png");
+    expect(resultImg).toHaveAttribute("src", "https://example.com/result.png");
+  });
+
+  it("plan-05：参考图缺失显示真实缺失态，不渲染假图", () => {
+    render(
+      <ComparisonView
+        referenceImageUrl={null}
+        resultImageUrl="https://example.com/result.png"
+      />,
+    );
+    expect(screen.getByTestId("comparison-reference-missing")).toBeInTheDocument();
+    expect(screen.queryByTestId("comparison-reference-image")).toBeNull();
+    expect(screen.getByTestId("comparison-result-image")).toBeInTheDocument();
+  });
+
+  it("plan-05：结果图缺失显示真实缺失态，不渲染假图", () => {
+    render(
+      <ComparisonView
+        referenceImageUrl="https://example.com/ref.png"
+        resultImageUrl={null}
+      />,
+    );
+    expect(screen.getByTestId("comparison-result-missing")).toBeInTheDocument();
+    expect(screen.queryByTestId("comparison-result-image")).toBeNull();
+    expect(screen.getByTestId("comparison-reference-image")).toBeInTheDocument();
   });
 });

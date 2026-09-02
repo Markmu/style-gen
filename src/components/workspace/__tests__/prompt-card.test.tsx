@@ -319,3 +319,293 @@ describe("PromptCard", () => {
     ).toBeInTheDocument();
   });
 });
+
+// ─── plan-04（架构 §6.2 / AC-02 / AC-05）：两轴控制、摘要与最终 Prompt 挂载 ────
+
+import type {
+  PromptCardControlsState,
+  PromptCardKeepChangeState,
+} from "@/components/workspace/prompt-card";
+import type { V2PromptWorkspaceState, VisualRecipeV2Success } from "@/types/models";
+
+const v2Recipe: VisualRecipeV2Success = {
+  schemaVersion: 2,
+  extractionStatus: "ready",
+  extractionReasons: [],
+  contentDescription: {
+    summary: "An amber bottle on folded linen",
+    subject: "amber bottle",
+    subjectAttributes: [],
+    supportingElements: [],
+  },
+  styleProfile: {
+    visualMedium: [],
+    composition: [],
+    camera: [],
+    color: [
+      { id: "color_1", value: "warm amber and sand palette", evidence: [], confidence: 0.92 },
+    ],
+    lighting: [],
+    formLanguage: [],
+    materialTexture: [],
+    atmosphere: [],
+    rendering: [],
+  },
+  styleInvariants: [
+    {
+      id: "color_invariant_1",
+      kind: "hard",
+      dimension: "color",
+      value: "warm amber and sand palette",
+      evidence: [],
+      confidence: 0.92,
+      sourceObservationIds: ["color_1"],
+    },
+  ],
+  contentVariables: [
+    { name: "subject", label: "Subject", defaultValue: "amber bottle", sourceField: "subject" },
+  ],
+  optionalModifiers: [],
+  negativeConstraints: [],
+  styleFingerprint: {
+    tokens: [],
+    scores: {
+      realism: null, abstraction: null, contrast: null, saturation: null,
+      softness: null, detailDensity: null, symmetry: null, depth: null,
+      atmosphericIntensity: null,
+    },
+  },
+  promptOutputs: {
+    reconstructionPrompt: "",
+    conciseTemplate: "",
+    standardTemplate: "",
+    professionalTemplate: "",
+  },
+};
+
+const v2State: V2PromptWorkspaceState = {
+  outputMode: "standard",
+  enabledInvariantIds: ["color_invariant_1"],
+  variableValues: { subject: "amber bottle" },
+  enabledModifierNames: [],
+  modifierValues: {},
+  customPrompt: "",
+};
+
+const controlsState: PromptCardControlsState = {
+  intent: "same_style",
+  detailLevel: "standard",
+  editorMode: "variables",
+  customPromptDirty: false,
+  disabled: false,
+  locked: false,
+  structuredAvailable: true,
+};
+
+const keepChangeState: PromptCardKeepChangeState = {
+  keepItems: [
+    {
+      invariantId: "color_invariant_1",
+      value: "warm amber and sand palette",
+      dimension: "color",
+    },
+  ],
+  changeItems: [],
+  highlightedTargetId: null,
+  announcement: null,
+};
+
+describe("PromptCard plan-04 structure and degraded states", () => {
+  it("mounts intent controls, keep/change summary, and compiled prompt above the editor", () => {
+    const onIntentChange = vi.fn();
+    const onDetailChange = vi.fn();
+    const onEditorModeChange = vi.fn();
+    const onKeepChangeLocate = vi.fn();
+
+    render(
+      <PromptCard
+        state="analysis_ready"
+        promptText="Content: amber bottle; Color: warm amber and sand palette"
+        recipe={v2Recipe}
+        v2PromptState={v2State}
+        onV2PromptStateChange={vi.fn()}
+        onResolvedPromptChange={vi.fn()}
+        promptControlsState={controlsState}
+        onIntentChange={onIntentChange}
+        onDetailChange={onDetailChange}
+        onEditorModeChange={onEditorModeChange}
+        compiledPromptText="Content: amber bottle; Color: warm amber and sand palette"
+        keepChange={keepChangeState}
+        onKeepChangeLocate={onKeepChangeLocate}
+      />,
+    );
+
+    const controls = screen.getByTestId("prompt-intent-controls");
+    expect(controls).toHaveAttribute("data-intent", "same_style");
+    expect(controls).toHaveAttribute("data-detail", "standard");
+    expect(controls).toHaveAttribute("data-editor-mode", "variables");
+
+    const summary = screen.getByTestId("keep-change-summary");
+    expect(summary).toHaveAttribute("data-intent", "same_style");
+    expect(summary.querySelectorAll('[data-kind="keep"]')).toHaveLength(1);
+
+    expect(screen.getByTestId("compiled-prompt-text")).toHaveTextContent(
+      "Content: amber bottle; Color: warm amber and sand palette",
+    );
+    expect(screen.getByTestId("structured-prompt-editor")).toBeInTheDocument();
+  });
+
+  it("keeps the control area rendered in disabled state while analyzing", () => {
+    render(
+      <PromptCard
+        state="analyzing"
+        promptText=""
+        promptControlsState={{ ...controlsState, disabled: true }}
+        onIntentChange={vi.fn()}
+        onDetailChange={vi.fn()}
+        onEditorModeChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("prompt-intent-controls")).toBeVisible();
+    expect(screen.getByTestId("detail-option-concise")).toBeDisabled();
+    expect(screen.queryByTestId("compiled-prompt-text")).not.toBeInTheDocument();
+  });
+
+  it("falls back to the legacy layout when no plan-04 controls are provided", () => {
+    render(
+      <PromptCard
+        state="analysis_ready"
+        promptText="Restored full prompt snapshot"
+        onResolvedPromptChange={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.queryByTestId("prompt-intent-controls"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("keep-change-summary")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("compiled-prompt-text")).not.toBeInTheDocument();
+    expect(screen.getByTestId("unified-prompt-editor")).toBeInTheDocument();
+    expect(screen.getByTestId("fulltext-prompt-editor")).toBeInTheDocument();
+  });
+
+  it("passes the controlled editor mode and manual dirty callback down to the unified editor", async () => {
+    const user = userEvent.setup();
+    const onManualTextChange = vi.fn();
+    const onEditorModeChange = vi.fn();
+
+    render(
+      <PromptCard
+        state="history_restored"
+        promptText="Restored full prompt snapshot"
+        promptControlsState={{ ...controlsState, editorMode: "text" }}
+        onIntentChange={vi.fn()}
+        onDetailChange={vi.fn()}
+        onEditorModeChange={onEditorModeChange}
+        compiledPromptText="Restored full prompt snapshot"
+        onManualTextChange={onManualTextChange}
+      />,
+    );
+
+    expect(screen.getByTestId("prompt-intent-controls")).toHaveAttribute(
+      "data-editor-mode",
+      "text",
+    );
+    await user.type(screen.getByTestId("fulltext-prompt-editor"), "x");
+    expect(onManualTextChange).toHaveBeenCalled();
+  });
+
+  it("exposes the keep-change locate action from the summary", async () => {
+    const user = userEvent.setup();
+    const onKeepChangeLocate = vi.fn();
+
+    render(
+      <PromptCard
+        state="analysis_ready"
+        promptText="Content: amber bottle; Color: warm amber and sand palette"
+        recipe={v2Recipe}
+        v2PromptState={v2State}
+        onV2PromptStateChange={vi.fn()}
+        onResolvedPromptChange={vi.fn()}
+        promptControlsState={controlsState}
+        onIntentChange={vi.fn()}
+        onDetailChange={vi.fn()}
+        onEditorModeChange={vi.fn()}
+        compiledPromptText="Content: amber bottle; Color: warm amber and sand palette"
+        keepChange={keepChangeState}
+        onKeepChangeLocate={onKeepChangeLocate}
+      />,
+    );
+
+    await user.click(screen.getByTestId("keep-change-item"));
+    expect(onKeepChangeLocate).toHaveBeenCalledWith({
+      kind: "keep",
+      invariantId: "color_invariant_1",
+    });
+  });
+
+  it("renders the L1 adjustment miss note next to the keep/change summary (plan-07)", () => {
+    render(
+      <PromptCard
+        state="analysis_ready"
+        promptText="A fully hand-written prompt without rule expressions."
+        recipe={v2Recipe}
+        v2PromptState={v2State}
+        onV2PromptStateChange={vi.fn()}
+        onResolvedPromptChange={vi.fn()}
+        promptControlsState={controlsState}
+        onIntentChange={vi.fn()}
+        onDetailChange={vi.fn()}
+        onEditorModeChange={vi.fn()}
+        compiledPromptText="A fully hand-written prompt without rule expressions."
+        keepChange={keepChangeState}
+        onKeepChangeLocate={vi.fn()}
+        adjustmentMissNote={{
+          invariantId: "lighting_invariant_1",
+          invariantValue: "soft directional window light",
+        }}
+      />,
+    );
+
+    const missNote = screen.getByTestId("prompt-adjustment-miss-note");
+    expect(missNote).toBeVisible();
+    expect(missNote).toHaveAttribute(
+      "data-invariant-id",
+      "lighting_invariant_1",
+    );
+    // 不静默、不声称已删除：说明未找到可删除表达且全文逐字保留
+    expect(missNote).toHaveTextContent(/未找到可删除的表达/);
+    expect(missNote).toHaveTextContent(/逐字保留/);
+    expect(missNote).not.toHaveTextContent(/已删除/);
+    // 说明位于「保留 / 改变」摘要邻近（同一内容列，摘要之后）
+    const summary = screen.getByTestId("keep-change-summary");
+    expect(
+      summary.compareDocumentPosition(missNote) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("does not render the adjustment miss note when no miss is pending", () => {
+    render(
+      <PromptCard
+        state="analysis_ready"
+        promptText="Content: amber bottle"
+        recipe={v2Recipe}
+        v2PromptState={v2State}
+        onV2PromptStateChange={vi.fn()}
+        onResolvedPromptChange={vi.fn()}
+        promptControlsState={controlsState}
+        onIntentChange={vi.fn()}
+        onDetailChange={vi.fn()}
+        onEditorModeChange={vi.fn()}
+        compiledPromptText="Content: amber bottle"
+        keepChange={keepChangeState}
+        onKeepChangeLocate={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.queryByTestId("prompt-adjustment-miss-note"),
+    ).not.toBeInTheDocument();
+  });
+});

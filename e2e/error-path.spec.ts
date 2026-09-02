@@ -154,6 +154,10 @@ test.describe('Error Path', () => {
     expect(analysisCallCount).toBe(2)
   })
 
+  // plan-07（实现规格 §4 / §8.2 L5）：生成提交失败不再打开阻断式 GenerationDialog，
+  // 改为内联 `generation-submit-error` + `generation-submit-retry`——不声称任务已
+  // 创建、草稿与参数保留。本两条由旧「失败弹层」断言最小对齐为内联失败断言，
+  // 行为强度不放宽（错误可见 + 恢复入口 + 编辑上下文保留）。
   test('生成 API 失败展示错误', async ({ page }) => {
     // Mock generation POST returning 500
     await mockApiError(page, '**/api/generation', 500, {
@@ -168,14 +172,11 @@ test.describe('Error Path', () => {
     // Click generate from the Render Dock
     await generateButton(page).click()
 
-    // 生成任务弹窗以失败态展示错误标题与信息
-    await expect(page.getByRole('dialog', { name: 'Generation Task' })).toBeVisible()
-    await expect(page.getByTestId('generation-dialog')).toContainText('Generation Failed', {
-      timeout: 15000,
-    })
-    await expect(page.getByTestId('generation-dialog')).toContainText(
-      'Service Temporarily Unavailable',
-    )
+    // 生成提交失败以内联错误位展示服务端错误文本，不打开阻断式弹层
+    const submitError = page.getByTestId('generation-submit-error')
+    await expect(submitError).toBeVisible({ timeout: 15000 })
+    await expect(submitError).toContainText('Service Temporarily Unavailable')
+    await expect(page.getByTestId('generation-dialog')).toHaveCount(0)
   })
 
   test('Generation Failed保留 Prompt 和Retry入口', async ({ page }) => {
@@ -188,16 +189,14 @@ test.describe('Error Path', () => {
     await uploadAndCompleteAnalysis(page, { analysisTaskId: 'mock-analysis-task-id' })
     await generateButton(page).click()
 
-    // 失败弹窗保留 Retry 入口（Regenerate）
-    const dialog = page.getByTestId('generation-dialog')
-    await expect(dialog).toContainText('Generation Failed', { timeout: 15000 })
-    await expect(dialog).toContainText('Service Temporarily Unavailable')
-    await expect(dialog.getByRole('button', { name: 'Regenerate' })).toBeVisible()
-
-    // Back to Edit 后 Prompt 编辑器仍在且内容未丢
-    await page.getByRole('button', { name: 'Back to Edit' }).click()
+    // 失败内联呈现：错误文本 + 主动重试入口（创建新任务），不打开弹层
+    const submitError = page.getByTestId('generation-submit-error')
+    await expect(submitError).toBeVisible({ timeout: 15000 })
+    await expect(submitError).toContainText('Service Temporarily Unavailable')
+    await expect(page.getByTestId('generation-submit-retry')).toBeVisible()
     await expect(page.getByTestId('generation-dialog')).toHaveCount(0)
 
+    // 提交失败不清除编辑上下文：Prompt 编辑器仍在且内容未丢
     const promptCard = promptColumn(page).getByTestId('prompt-card')
     await expect(promptCard.getByTestId('unified-prompt-editor')).toBeVisible()
     const promptTextarea = promptCard.getByLabel('Full Generation Prompt')

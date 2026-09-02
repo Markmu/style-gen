@@ -6,6 +6,7 @@ import {
   mockAnalysisPolling,
   mockApiError,
   mockAuthSession,
+  mockDirectionFeedStateful,
   mockGenerationCreate,
   mockGenerationList,
   mockGenerationPollingSequence,
@@ -207,6 +208,13 @@ test.describe('plan-02 AppShell and AI status header', () => {
     await mockUploadPresign(page)
     await mockAnalysisCreate(page, analysisTaskId)
     await mockAnalysisPolling(page, analysisTaskId, loadFixture('analysis-completed.json'))
+    // plan-07（实现规格 §4）：失败内联呈现于本次结果区——view=direction feed
+    // 由 stateful mock 驱动 latestFailure 的服务端事实
+    const feed = await mockDirectionFeedStateful(page, {
+      completed: [],
+      active: null,
+      latestFailure: null,
+    })
     await mockGenerationCreate(page, generationTaskId)
     await mockGenerationPollingSequence(page, generationTaskId, [
       {
@@ -232,16 +240,51 @@ test.describe('plan-02 AppShell and AI status header', () => {
       timeout: 15000,
     })
 
+    // 提交前预置服务端 active 事实：POST 后的失效回读把 active 带入本次结果区，
+    // 并启动 active 存在时的 2-3s 定时刷新（后续终态由定时刷新拾取）
+    feed.set({
+      completed: [],
+      active: {
+        id: generationTaskId,
+        status: 'processing',
+        promptSummary: 'AI shell in-flight iteration',
+        resultFileUrl: null,
+        params: { aspectRatio: '1:1', quality: 'standard' },
+        createdAt: '2024-01-01T00:00:04.000Z',
+        resultAssetId: null,
+        errorMessage: null,
+      },
+      latestFailure: null,
+    })
+
     await page.getByTestId('output-card').getByRole('button', { name: /^Generate$/i }).click()
 
+    // 进行中内联：阶段进入 generating（消费后端 processing 详情）
     await expect(aiCopilot(page)).toHaveAttribute('data-phase', 'generating', {
       timeout: 15000,
     })
     await expect(aiCopilot(page)).toContainText(/rendering|generating|processing|queued/i)
 
-    const generationDialog = page.getByTestId('generation-dialog')
-    await expect(generationDialog).toContainText(/generation failed/i, { timeout: 15000 })
-    await expect(generationDialog).toContainText(/preserved|retry|back to edit/i)
+    // 失败内联呈现：本次结果区 failure face 携带原因与主动恢复入口，不弹层
+    feed.set({
+      completed: [],
+      active: null,
+      latestFailure: {
+        id: generationTaskId,
+        status: 'failed',
+        promptSummary: 'AI shell failure iteration',
+        resultFileUrl: null,
+        params: { aspectRatio: '1:1', quality: 'standard' },
+        createdAt: '2024-01-01T00:00:05.000Z',
+        resultAssetId: null,
+        errorMessage: 'Generation provider unavailable',
+      },
+    })
+    const failureFace = page.getByTestId('direction-failure-face')
+    await expect(failureFace).toBeVisible({ timeout: 15000 })
+    await expect(failureFace).toContainText(/Generation provider unavailable/i)
+    await expect(page.getByTestId('direction-failure-retry')).toBeVisible()
+    await expect(page.getByTestId('generation-dialog')).toHaveCount(0)
 
     await expect
       .poll(

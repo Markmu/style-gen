@@ -43,6 +43,13 @@
       "when": 1787712592129,
       "tag": "0005_cuddly_spot",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788202387215,
+      "tag": "0006_pale_darkhawk",
+      "breakpoints": true
     }
   ]
 }

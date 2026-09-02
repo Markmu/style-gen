@@ -4,11 +4,13 @@ import {
   mockAnalysisPolling,
   mockApiError,
   mockAuthSession,
+  mockDirectionFeedStateful,
   mockGenerationCreate,
   mockGenerationList,
   mockGenerationPolling,
   mockGenerationPollingSequence,
   mockUploadPresign,
+  type MockDirectionFeedItem,
 } from './helpers/mock-api'
 import { waitForReactInput } from './helpers/react-ready'
 import {
@@ -57,6 +59,20 @@ function renderDock(page: Page) {
 
 function generateButton(page: Page) {
   return renderDock(page).getByRole('button', { name: /^Generate$/i })
+}
+
+/** plan-07：方向 feed 完成条目（结果内联呈现于本次结果区的锚点） */
+function layoutRailItem(id: string): MockDirectionFeedItem {
+  return {
+    id,
+    status: 'completed',
+    promptSummary: `Layout iteration ${id}`,
+    resultFileUrl: `https://cdn.example.com/results/${id}/result.webp`,
+    params: { aspectRatio: '1:1', quality: 'standard' },
+    createdAt: '2026-09-01T00:00:00.000Z',
+    resultAssetId: `asset-${id}`,
+    errorMessage: null,
+  }
 }
 
 test.describe('Workspace Layout & State Flow', () => {
@@ -172,7 +188,13 @@ test.describe('Workspace Layout & State Flow', () => {
     await expect(generateButton(page)).toBeEnabled()
   })
 
-  test('生成图片：弹窗进度、结果图、关闭后保留上下文', async ({ page }) => {
+  test('生成图片：内联进度、结果图进入结果区、上下文保留', async ({ page }) => {
+    // plan-07：成功/进行中全部内联——stateful feed 提供结果锚点，不打开弹层
+    const feed = await mockDirectionFeedStateful(page, {
+      completed: [],
+      active: null,
+      latestFailure: null,
+    })
     await mockGenerationCreate(page, 'layout-generation-task')
     await mockGenerationPollingSequence(page, 'layout-generation-task', [
       { id: 'layout-generation-task', status: 'processing', resultFileUrl: null, errorMessage: null },
@@ -180,17 +202,46 @@ test.describe('Workspace Layout & State Flow', () => {
     ])
 
     await uploadAndCompleteAnalysis(page, { analysisTaskId: 'layout-generation-analysis-task' })
+
+    // 提交前预置服务端 active 事实：POST 后的失效回读把 active 带入本次结果区，
+    // 并启动 active 存在时的 2-3s 定时刷新（终态由定时刷新拾取）
+    feed.set({
+      completed: [],
+      active: {
+        id: 'layout-generation-task',
+        status: 'processing',
+        promptSummary: 'Layout in-flight generation',
+        resultFileUrl: null,
+        params: { aspectRatio: '1:1', quality: 'standard' },
+        createdAt: '2026-09-01T00:00:04.000Z',
+        resultAssetId: null,
+        errorMessage: null,
+      },
+      latestFailure: null,
+    })
     await generateButton(page).click()
 
-    await expect(page.getByRole('dialog', { name: 'Generation Task' })).toBeVisible()
-    await expect(page.getByText('Generating image...')).toBeVisible({ timeout: 10000 })
-    await expect(page.getByTestId('generation-dialog')).toContainText('Generated Result', {
-      timeout: 15000,
-    })
-    await page.getByText('Close Dialog', { exact: true }).click()
-
-    // 关闭弹窗后停留在 Result 阶段，三栏编辑上下文完整保留
+    // 进行中内联：阶段进入 generating，无阻断弹层
+    await expect(page.getByTestId('ai-status-header')).toHaveAttribute(
+      'data-phase',
+      'generating',
+      { timeout: 15000 },
+    )
     await expect(page.getByTestId('generation-dialog')).toHaveCount(0)
+
+    // 终态内联：新成功进入本次结果区（真实图片）并成为当前选择
+    feed.set({
+      completed: [layoutRailItem('layout-generation-task')],
+      active: null,
+      latestFailure: null,
+    })
+    const completedItem = page.locator(
+      '[data-testid="direction-completed-item"][data-iteration-id="layout-generation-task"]',
+    )
+    await expect(completedItem).toBeVisible({ timeout: 15000 })
+    await expect(completedItem.locator('img')).toBeVisible()
+
+    // 完成后停留在 Result 阶段，三栏编辑上下文完整保留（无弹层关闭步骤）
     await expect(page.getByTestId('ai-copilot-ribbon')).toContainText('Result')
     await expect(page.getByTestId('workspace-three-column-layout')).toBeVisible()
     await expect(referenceColumn(page).getByTestId('reference-card').getByAltText('Reference')).toBeVisible()
@@ -226,6 +277,12 @@ test.describe('Workspace Layout & State Flow', () => {
       })
     })
 
+    // plan-07：两次完成事实经方向 feed 内联呈现
+    const feed = await mockDirectionFeedStateful(page, {
+      completed: [],
+      active: null,
+      latestFailure: null,
+    })
     await mockGenerationPolling(page, 'layout-generation-first-task', {
       ...loadFixture('generation-completed.json'),
       id: 'layout-generation-first-task',
@@ -237,23 +294,39 @@ test.describe('Workspace Layout & State Flow', () => {
 
     await uploadAndCompleteAnalysis(page, { analysisTaskId: 'layout-iteration-analysis-task' })
     await generateButton(page).click()
-    await expect(page.getByTestId('generation-dialog')).toContainText('Generated Result', {
-      timeout: 15000,
+    feed.set({
+      completed: [layoutRailItem('layout-generation-first-task')],
+      active: null,
+      latestFailure: null,
     })
-    await page.getByText('Close Dialog', { exact: true }).click()
+    await expect(
+      page.locator(
+        '[data-testid="direction-completed-item"][data-iteration-id="layout-generation-first-task"]',
+      ),
+    ).toBeVisible({ timeout: 15000 })
+    await expect(page.getByTestId('generation-dialog')).toHaveCount(0)
 
     await page.getByLabel('Full Generation Prompt').fill('A vibrant sunrise over the mountains with mist')
     await generateButton(page).click()
 
-    await expect(page.getByTestId('generation-dialog')).toContainText('Generated Result', {
-      timeout: 15000,
+    feed.set({
+      completed: [
+        layoutRailItem('layout-generation-second-task'),
+        layoutRailItem('layout-generation-first-task'),
+      ],
+      active: null,
+      latestFailure: null,
     })
+    await expect(
+      page.locator(
+        '[data-testid="direction-completed-item"][data-iteration-id="layout-generation-second-task"]',
+      ),
+    ).toBeVisible({ timeout: 15000 })
     expect(capturedPrompt).toBe('A vibrant sunrise over the mountains with mist')
   })
 
   test('Replace Reference会重置Workspace状态', async ({ page }) => {
     await completeFullFlow(page, { generationTaskId: 'layout-reset-generation-task' })
-    await page.getByText('Close Dialog', { exact: true }).click()
 
     await page.getByRole('button', { name: 'Replace', exact: true }).click()
 
@@ -338,15 +411,14 @@ test.describe('Workspace Layout & State Flow', () => {
     await uploadAndCompleteAnalysis(page, { analysisTaskId: 'layout-generation-error-analysis-task' })
     await generateButton(page).click()
 
-    await expect(page.getByRole('dialog', { name: 'Generation Task' })).toContainText(
-      'Generation Failed',
-      { timeout: 15000 },
-    )
-    await expect(page.getByText('Service Temporarily Unavailable').first()).toBeVisible()
-    await page.getByRole('button', { name: 'Back to Edit' }).click()
+    // plan-07（§8.2 L5）：提交失败内联呈现 + 主动重试，不打开阻断式弹层
+    const submitError = page.getByTestId('generation-submit-error')
+    await expect(submitError).toBeVisible({ timeout: 15000 })
+    await expect(submitError).toContainText('Service Temporarily Unavailable')
+    await expect(page.getByTestId('generation-submit-retry')).toBeVisible()
+    await expect(page.getByTestId('generation-dialog')).toHaveCount(0)
 
     const promptCard = promptColumn(page).getByTestId('prompt-card')
-    await expect(page.getByTestId('generation-dialog')).toHaveCount(0)
     await expect(promptCard.getByTestId('unified-prompt-editor')).toBeVisible()
     await expect(promptCard.getByLabel('Full Generation Prompt')).not.toBeEmpty()
     await expect(promptCard.getByLabel('Full Generation Prompt')).toBeEditable()

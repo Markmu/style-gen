@@ -1,0 +1,1 @@
+ALTER TABLE "generation_tasks" ADD COLUMN "prompt_control_snapshot" jsonb;

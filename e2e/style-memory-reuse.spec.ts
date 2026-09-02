@@ -62,7 +62,9 @@ import {
 // ---------------------------------------------------------------------------
 
 const WORKSPACE_STORAGE_KEY = 'style-gen-workspace-state'
-const WORKSPACE_STORAGE_VERSION = 4
+// plan-02 将工作台快照 SSOT 升级为 v5（quick authorization/promptControls 等）；
+// 复用确认快照由 precheck 组件从 use-workspace-state 导入同一常量写入。
+const WORKSPACE_STORAGE_VERSION = 5
 
 /** 主角 Memory（已验证：有代表结果缩略、3 条保留规则、4 变量其中 2 个必填） */
 const REUSE_MEMORY: MockStyleMemoryDetail = {
@@ -664,9 +666,11 @@ test.describe('plan-07 Style Memory 复用预检与工作区集成', () => {
 
     // 新 Iteration 显示来源 Memory 名称（详情面板的来源标注由实现提供：
     // 单行组合「来源 Style Memory」标签与名称，或 panel 内出现来源名称文本）
-    await expect(page.getByTestId('generation-dialog').getByText('Generated Result')).toBeVisible({
+    // plan-07：成功不再打开生成任务弹层——以状态带 Result 阶段为完成锚点
+    await page.getByTestId('ai-copilot-ribbon').getByText('Result').first().waitFor({
       timeout: 15000,
     })
+    await expect(page.getByTestId('generation-dialog')).toHaveCount(0)
     await gotoPath(page, '/workspace/iterations')
     const itemRow = page
       .getByTestId('iteration-list-item')

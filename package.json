@@ -20,7 +20,7 @@
     "test:workflow": "node --test scripts/__tests__/check-workflow-consistency.test.mjs",
     "e2e": "playwright test",
     "e2e:smoke": "playwright test e2e/smoke.spec.ts e2e/ai-first-design-system.spec.ts e2e/workspace-ai-first-iteration-memory.spec.ts e2e/workspace-ai-first-render-dock.spec.ts --project=workspace",
-    "e2e:targeted": "playwright test e2e/ai-first-design-system.spec.ts e2e/ai-first-shell.spec.ts e2e/workspace-ai-first-evidence.spec.ts e2e/workspace-ai-first-render-dock.spec.ts e2e/workspace-ai-first-iteration-memory.spec.ts e2e/ai-first-style-memory.spec.ts e2e/ai-first-landing-states.spec.ts e2e/ai-first-visual-regression.spec.ts e2e/workspace-iteration-memory-list.spec.ts e2e/workspace-iteration-detail.spec.ts e2e/workspace-iteration-restore.spec.ts e2e/workspace-iteration-save-style-memory.spec.ts e2e/workspace-iteration-memory-integration.spec.ts --project=workspace",
+    "e2e:targeted": "playwright test e2e/ai-first-design-system.spec.ts e2e/ai-first-shell.spec.ts e2e/workspace-ai-first-evidence.spec.ts e2e/workspace-ai-first-render-dock.spec.ts e2e/workspace-ai-first-iteration-memory.spec.ts e2e/ai-first-style-memory.spec.ts e2e/ai-first-landing-states.spec.ts e2e/ai-first-visual-regression.spec.ts e2e/workspace-evidence-guided-render-loop.spec.ts e2e/workspace-iteration-memory-list.spec.ts e2e/workspace-iteration-detail.spec.ts e2e/workspace-iteration-restore.spec.ts e2e/workspace-iteration-save-style-memory.spec.ts e2e/workspace-iteration-memory-integration.spec.ts --project=workspace",
     "e2e:ui": "playwright test --ui",
     "e2e:report": "playwright show-report",
     "workflow:check": "node scripts/check-workflow-consistency.mjs",

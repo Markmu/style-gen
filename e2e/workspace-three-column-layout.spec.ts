@@ -216,15 +216,17 @@ test.describe('PLAN-01 three column workspace layout', () => {
       expect(recipeBox).not.toBeNull()
       expect(promptBox).not.toBeNull()
       if (referenceBox && recipeBox && promptBox) {
-        // 现行 grid（workspace-three-column-layout.tsx）：
-        // reference 为 clamp(max(17.5rem, 25vw), aspect 驱动, 33.333vw)，
-        // Style Intelligence 与 Prompt and Render 为 0.86fr : 1.15fr，gap-3。
+        // 现行 grid（workspace-three-column-layout.tsx，plan-07 Task 4 收口）：
+        // reference 为 clamp(17.5rem, aspect 驱动 dvh, 22rem)——下/上界改为绝对
+        // rem（25vw/33.333vw 含侧栏，在 1280 视口会把三列最小宽度推过主区
+        // 产生横向溢出，见 TC-7.9）；Style Intelligence 与 Prompt and Render
+        // 为 0.86fr : 1.15fr，gap-3，列间邻接关系不变。
         const promptToRecipeRatio = promptBox.width / recipeBox.width
         expect(promptToRecipeRatio).toBeGreaterThan(1.26)
         expect(promptToRecipeRatio).toBeLessThan(1.42)
 
-        expect(referenceBox.width).toBeGreaterThanOrEqual(Math.max(280, width * 0.25) - 1)
-        expect(referenceBox.width).toBeLessThanOrEqual(width * 0.3334 + 1)
+        expect(referenceBox.width).toBeGreaterThanOrEqual(280 - 1)
+        expect(referenceBox.width).toBeLessThanOrEqual(352 + 1)
 
         expect(Math.abs(recipeBox.x - (referenceBox.x + referenceBox.width + 12))).toBeLessThanOrEqual(6)
         expect(Math.abs(promptBox.x - (recipeBox.x + recipeBox.width + 12))).toBeLessThanOrEqual(6)

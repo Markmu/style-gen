@@ -5,6 +5,7 @@ import {
   mockAnalysisCreate,
   mockAnalysisPolling,
   mockAuthSession,
+  mockDirectionFeedStateful,
   mockGenerationCreate,
   mockGenerationList,
   mockGenerationPolling,
@@ -85,9 +86,16 @@ test.describe('PLAN-03 prompt editing and Render Dock generation', () => {
     await expect(promptCard(page).getByLabel(/quality/i)).toBeVisible()
   })
 
-  test('TC-3.2 uses the Render Dock generate button to open the generation dialog', async ({ page }) => {
+  test('TC-3.2 uses the Render Dock generate button to submit and show the result inline', async ({ page }) => {
     const analysisTaskId = 'render-dock-generate-analysis-task'
     const generationTaskId = 'render-dock-generate-task'
+    // plan-07（实现规格 §4）：成功不再打开生成任务弹层——完成事实经方向 feed
+    // 内联进入本次结果区
+    const feed = await mockDirectionFeedStateful(page, {
+      completed: [],
+      active: null,
+      latestFailure: null,
+    })
     await mockUploadPresign(page)
     await mockAnalysisCreate(page, analysisTaskId)
     await mockAnalysisPolling(page, analysisTaskId, loadFixture('analysis-completed.json'))
@@ -102,7 +110,27 @@ test.describe('PLAN-03 prompt editing and Render Dock generation', () => {
     await expect(generateButton).toBeEnabled()
     await generateButton.click()
 
-    await expect(page.getByTestId('generation-dialog')).toBeVisible()
-    await expect(page.getByText(/generated result/i)).toBeVisible({ timeout: 15000 })
+    feed.set({
+      completed: [
+        {
+          id: generationTaskId,
+          status: 'completed',
+          promptSummary: 'Render dock generation iteration',
+          resultFileUrl: `https://cdn.example.com/results/${generationTaskId}/result.webp`,
+          params: { aspectRatio: '1:1', quality: 'standard' },
+          createdAt: '2026-09-01T00:00:00.000Z',
+          resultAssetId: `asset-${generationTaskId}`,
+          errorMessage: null,
+        },
+      ],
+      active: null,
+      latestFailure: null,
+    })
+    const completedItem = page.locator(
+      `[data-testid="direction-completed-item"][data-iteration-id="${generationTaskId}"]`,
+    )
+    await expect(completedItem).toBeVisible({ timeout: 15000 })
+    await expect(completedItem.locator('img')).toBeVisible()
+    await expect(page.getByTestId('generation-dialog')).toHaveCount(0)
   })
 })

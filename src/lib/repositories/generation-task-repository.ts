@@ -16,6 +16,7 @@ import type {
   IterationContextSource,
   IterationDisplayStatus,
   IterationStatusFilter,
+  PromptControlSnapshot,
   StoredVisualRecipe,
   TemplateVariable,
 } from "@/types/models";
@@ -41,6 +42,8 @@ function rowToGenerationTask(row: GenerationTaskRow): GenerationTask {
     userId: row.userId,
     recipeSnapshot: row.recipeSnapshot ?? null,
     variablesSnapshot: row.variablesSnapshot ?? null,
+    // plan-03（ADR-4）: 存量旧行无快照列值时为 null，不从 promptSnapshot 推测控制值
+    promptControlSnapshot: row.promptControlSnapshot ?? null,
     sourceTemplateId: row.sourceTemplateId ?? null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -61,6 +64,8 @@ export async function createGenerationTask(
     recipeSnapshot?: StoredVisualRecipe | null;
     /** ADR-2: 服务端从所引用 analysis task 固化的变量快照 */
     variablesSnapshot?: TemplateVariable[] | null;
+    /** plan-03（ADR-4）: 提交时客户端 Prompt 控制快照（服务端已按 Recipe 校验）；缺省持久化 null */
+    promptControlSnapshot?: PromptControlSnapshot | null;
     /** AC-02: 工作台当前应用的 Style Memory id */
     sourceTemplateId?: string | null;
   }
@@ -82,6 +87,9 @@ export async function createGenerationTask(
         : {}),
       ...(data.variablesSnapshot !== undefined
         ? { variablesSnapshot: data.variablesSnapshot }
+        : {}),
+      ...(data.promptControlSnapshot !== undefined
+        ? { promptControlSnapshot: data.promptControlSnapshot }
         : {}),
       ...(data.sourceTemplateId !== undefined
         ? { sourceTemplateId: data.sourceTemplateId }
@@ -341,6 +349,8 @@ export interface IterationDetailRow {
   sourceTemplateName: string | null;
   savedTemplate: { id: string; name: string } | null;
   analysisTemplateVariables: TemplateVariable[];
+  /** plan-03（ADR-4）: 提交时 Prompt 控制快照；旧任务为 null（全文降级，不推测） */
+  promptControlSnapshot: PromptControlSnapshot | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -484,6 +494,7 @@ export async function findIterationDetail(
       analysisRecipe: analysisTasks.recipe,
       variablesSnapshot: generationTasks.variablesSnapshot,
       analysisTemplateVariables: analysisTasks.analysisTemplateVariables,
+      promptControlSnapshot: generationTasks.promptControlSnapshot,
       sourceAssetId: analysisTasks.sourceAssetId,
       sourceImageUrl: sourceAssets.fileUrl,
       sourceTemplateId: generationTasks.sourceTemplateId,
@@ -555,6 +566,8 @@ export async function findIterationDetail(
       ? { id: row.savedTemplateId, name: row.savedTemplateName ?? "" }
       : null,
     analysisTemplateVariables: row.analysisTemplateVariables ?? [],
+    // plan-03（ADR-4）: 旧任务快照为 null 原样返回，promptSnapshot 不被改写（全文降级依据）
+    promptControlSnapshot: row.promptControlSnapshot ?? null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -576,4 +589,132 @@ export async function linkTemplateToGenerationTask(
       updatedAt: sql`NOW()`,
     })
     .where(and(eq(templates.id, templateId), eq(templates.userId, userId)));
+}
+
+// ─── plan-03: 方向结果 feed（ADR-5 / 架构 §6.4、§7.2） ─────────────────
+
+/** 仓库层方向结果条目（DirectionIterationListItem 同形，createdAt 为 Date，路由负责 ISO 序列化） */
+export interface DirectionIterationItemRow extends IterationListItemRow {
+  resultAssetId: string | null;
+  errorMessage: string | null;
+}
+
+/** 仓库层方向 feed：五成功 + 一进行中 + 一最近失败，三组不共享名额 */
+export interface DirectionIterationFeedRow {
+  completed: DirectionIterationItemRow[];
+  active: DirectionIterationItemRow | null;
+  latestFailure: DirectionIterationItemRow | null;
+}
+
+/** failed errorMessage 输出前截断上限（架构 §8.3「结果错误文本输出前截断」的固化口径） */
+const DIRECTION_ERROR_MESSAGE_MAX_LENGTH = 200;
+
+function truncateErrorMessage(message: string | null): string | null {
+  if (message === null) return null;
+  return message.length > DIRECTION_ERROR_MESSAGE_MAX_LENGTH
+    ? message.slice(0, DIRECTION_ERROR_MESSAGE_MAX_LENGTH)
+    : message;
+}
+
+/** 方向 feed 行投影（单条联表：completed 命中真实结果资产，缺失诚实返回 null） */
+function toDirectionItem(row: {
+  id: string;
+  status: string;
+  promptSnapshot: string;
+  params: GenerationParams;
+  resultAssetId: string | null;
+  resultFileUrl: string | null;
+  errorMessage: string | null;
+  createdAt: Date;
+}): DirectionIterationItemRow {
+  return {
+    id: row.id,
+    status: toDisplayStatus(row.status),
+    promptSummary: row.promptSnapshot.slice(0, 120),
+    resultFileUrl:
+      row.status === "completed" ? row.resultFileUrl ?? null : null,
+    params: row.params,
+    createdAt: row.createdAt,
+    resultAssetId: row.resultAssetId ?? null,
+    errorMessage: truncateErrorMessage(row.errorMessage),
+  };
+}
+
+/**
+ * plan-03（ADR-5 / AC-04）: 按用户 + 分析方向查询迭代 feed。
+ * 三个有界数据库查询（禁止内存混合分组）：completed 最近 pageSize 条、
+ * pending/processing 最新 1 条、failed 最新 1 条；全部 createdAt/id 倒序
+ * 并强制 userId + analysisTaskId 归属过滤，三组不共享配额。
+ */
+export async function getDirectionIterationFeed(
+  userId: string,
+  analysisTaskId: string,
+  pageSize: number = 5
+): Promise<DirectionIterationFeedRow> {
+  // completed 限额 1-5（路由已白名单校验，此处防御性收紧）
+  const size = Math.max(1, Math.min(5, Math.trunc(pageSize)));
+
+  const directionColumns = {
+    id: generationTasks.id,
+    status: generationTasks.status,
+    promptSnapshot: generationTasks.promptSnapshot,
+    params: generationTasks.params,
+    resultAssetId: generationTasks.resultAssetId,
+    resultFileUrl: assets.fileUrl,
+    errorMessage: generationTasks.errorMessage,
+    createdAt: generationTasks.createdAt,
+  };
+  const directionOrder = [
+    desc(generationTasks.createdAt),
+    desc(generationTasks.id),
+  ];
+
+  const [completedRows, activeRows, failedRows] = await Promise.all([
+    db
+      .select(directionColumns)
+      .from(generationTasks)
+      .leftJoin(assets, eq(generationTasks.resultAssetId, assets.id))
+      .where(
+        and(
+          eq(generationTasks.userId, userId),
+          eq(generationTasks.analysisTaskId, analysisTaskId),
+          eq(generationTasks.status, "completed")
+        )
+      )
+      .orderBy(...directionOrder)
+      .limit(size),
+    db
+      .select(directionColumns)
+      .from(generationTasks)
+      .leftJoin(assets, eq(generationTasks.resultAssetId, assets.id))
+      .where(
+        and(
+          eq(generationTasks.userId, userId),
+          eq(generationTasks.analysisTaskId, analysisTaskId),
+          inArray(generationTasks.status, ["pending", "processing"])
+        )
+      )
+      .orderBy(...directionOrder)
+      .limit(1),
+    db
+      .select(directionColumns)
+      .from(generationTasks)
+      .leftJoin(assets, eq(generationTasks.resultAssetId, assets.id))
+      .where(
+        and(
+          eq(generationTasks.userId, userId),
+          eq(generationTasks.analysisTaskId, analysisTaskId),
+          eq(generationTasks.status, "failed")
+        )
+      )
+      .orderBy(...directionOrder)
+      .limit(1),
+  ]);
+
+  return {
+    completed: completedRows.map(toDirectionItem),
+    active: activeRows.length > 0 ? toDirectionItem(activeRows[0]) : null,
+    latestFailure:
+      failedRows.length > 0 ? toDirectionItem(failedRows[0]) : null,
+  };
 }

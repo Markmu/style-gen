@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { StructuredPromptEditor } from "@/components/workspace/structured-prompt-editor";
 import type { V2PromptWorkspaceState, VisualRecipeV2Success } from "@/types/models";
 
@@ -230,5 +230,115 @@ describe("StructuredPromptEditor", () => {
       (screen.getByLabelText("Variable-linked prompt preview") as HTMLTextAreaElement)
         .value,
     ).toContain("Color: cobalt blue palette");
+  });
+
+  // ─── plan-04（架构 §6.2.7 / AC-02）：受控编辑方式与只读 structured 视图 ──────
+
+  const COMPILED_TEMPLATE =
+    "Content: {{subject}}; Composition: centered composition; Color: cobalt blue palette";
+  const RESOLVED_FINAL =
+    "Content: blue chair; Composition: centered composition; Color: cobalt blue palette";
+
+  /**
+   * 受控模式页面行为的最小镜像：finalPromptText 未手动改写时来自编译文档解析，
+   * 手动改写后来自 customPrompt（dirty）。
+   */
+  function ControlledHarness(props: {
+    editorMode: "variables" | "text" | "structured";
+  }) {
+    const [state, setState] = useState(initialState);
+    const [mode, setMode] = useState<"variables" | "text" | "structured">(
+      props.editorMode,
+    );
+    const [customPrompt, setCustomPrompt] = useState("");
+    // useRef 保持同一 mock 实例，避免每次渲染重建导致计数清零
+    const onCustomPromptChange = useRef(
+      vi.fn((value: string) => setCustomPrompt(value)),
+    ).current;
+    const finalPromptText = customPrompt || RESOLVED_FINAL;
+    return (
+      <div className="h-[50rem]">
+        <StructuredPromptEditor
+          recipe={recipe}
+          state={state}
+          negativePromptText="watermark"
+          onStateChange={(update) => setState((current) => update(current))}
+          onResolvedPromptChange={vi.fn()}
+          editorMode={mode}
+          onEditorModeChange={setMode}
+          compiledTemplate={COMPILED_TEMPLATE}
+          finalPromptText={finalPromptText}
+          onCustomPromptChange={onCustomPromptChange}
+        />
+        <output data-testid="custom-change-calls">
+          {onCustomPromptChange.mock.calls.length}
+        </output>
+      </div>
+    );
+  }
+
+  it("controlled variables mode consumes the compiled template and resolves variables", () => {
+    render(<ControlledHarness editorMode="variables" />);
+
+    const preview = screen.getByLabelText(
+      "Variable-linked prompt preview",
+    ) as HTMLTextAreaElement;
+    // plan-01 编译文档（含 {{subject}}）按当前变量值解析
+    expect(preview.value).toContain("Content: blue chair");
+    expect(preview.value).toContain("Composition: centered composition");
+    expect(screen.getByLabelText("Subject")).toBeInTheDocument();
+  });
+
+  it("controlled text mode edits the final prompt through fulltext-prompt-editor", () => {
+    render(<ControlledHarness editorMode="text" />);
+
+    const fulltext = screen.getByTestId(
+      "fulltext-prompt-editor",
+    ) as HTMLTextAreaElement;
+    expect(fulltext.tagName).toBe("TEXTAREA");
+    // 初始值为当前最终 Prompt（编译解析结果）
+    expect(fulltext).toHaveValue(RESOLVED_FINAL);
+
+    fireEvent.change(fulltext, { target: { value: "Manual rewrite of the prompt" } });
+    // 手动改写上抛页面（写 customPrompt 并标记 dirty），页面回流新最终 Prompt
+    expect(screen.getByTestId("custom-change-calls")).toHaveTextContent("1");
+    expect(screen.getByTestId("fulltext-prompt-editor")).toHaveValue(
+      "Manual rewrite of the prompt",
+    );
+  });
+
+  it("controlled structured mode is read-only and hides editable prompt inputs", () => {
+    render(<ControlledHarness editorMode="structured" />);
+
+    expect(screen.getByTestId("structured-readonly-view")).toBeVisible();
+    expect(screen.getByTestId("structured-readonly-copy")).toBeVisible();
+    // structured 只读：不提供可编辑的 Prompt 输入（架构 §6.2.7）
+    expect(screen.queryByTestId("fulltext-prompt-editor")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("structured-variable-prompt")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Subject")).not.toBeInTheDocument();
+    const readonlyBlock = screen.getByTestId("structured-readonly-view");
+    expect(
+      readonlyBlock.querySelector("textarea, input:not([type='checkbox'])"),
+    ).toBeNull();
+  });
+
+  it("keeps the final prompt source unchanged across structured round trips", () => {
+    render(<ControlledHarness editorMode="variables" />);
+
+    const before = (
+      screen.getByLabelText("Variable-linked prompt preview") as HTMLTextAreaElement
+    ).value;
+
+    // text → structured → variables：最终 Prompt 来源不变
+    fireEvent.change(screen.getByLabelText("Prompt mode"), { target: { value: "text" } });
+    expect(screen.getByTestId("fulltext-prompt-editor")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Prompt mode"), { target: { value: "json" } });
+    expect(screen.getByTestId("structured-readonly-view")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Prompt mode"), { target: { value: "variables" } });
+
+    const after = (
+      screen.getByLabelText("Variable-linked prompt preview") as HTMLTextAreaElement
+    ).value;
+    expect(after).toBe(before);
   });
 });

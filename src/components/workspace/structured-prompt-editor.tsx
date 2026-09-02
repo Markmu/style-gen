@@ -6,6 +6,7 @@ import { AppIcon } from "@/components/ui/app-icon";
 import { CopyJsonButton } from "@/components/ui/copy-json-button";
 import { PromptHighlightedEditor } from "@/components/workspace/prompt-highlighted-editor";
 import type {
+  PromptEditorMode,
   TemplateVariable,
   V2PromptWorkspaceState,
   VisualRecipeV2Success,
@@ -25,7 +26,7 @@ import {
 } from "@/lib/template-parser";
 import type { LinkedTextVariableState } from "@/lib/template-parser";
 
-type PromptEditorMode = "variables" | "text" | "json";
+type LegacyPromptMode = "variables" | "text" | "json";
 
 interface StructuredPromptEditorProps {
   recipe: VisualRecipeV2Success;
@@ -41,9 +42,22 @@ interface StructuredPromptEditorProps {
   onTemplateVariablesChange?: (variables: TemplateVariable[]) => void;
   onNegativePromptChange?: (value: string) => void;
   onSaveContentChange?: (value: string) => void;
+  /**
+   * plan-04（架构 §6.2.7）：受控编辑方式。提供时由工作台两轴控制区驱动
+   * variables/text/structured 三个视图；structured 为只读查看/复制，
+   * 不改变最终 Prompt。
+   */
+  editorMode?: PromptEditorMode;
+  onEditorModeChange?: (mode: PromptEditorMode) => void;
+  /** plan-01 composePromptDocument 输出（same_style 含 {{变量}} 标记） */
+  compiledTemplate?: string | null;
+  /** 当前最终 Prompt（resolved）：text 模式编辑值与 structured 只读视图的数据源 */
+  finalPromptText?: string | null;
+  /** 手动改写全文：由页面写入 customPrompt 并标记 customPromptDirty */
+  onCustomPromptChange?: (value: string) => void;
 }
 
-function modeFromState(state: V2PromptWorkspaceState): PromptEditorMode {
+function modeFromState(state: V2PromptWorkspaceState): LegacyPromptMode {
   if (state.outputMode === "custom") return "text";
   if (state.outputMode === "structured") return "json";
   return "variables";
@@ -57,9 +71,9 @@ function splitConstraints(value: string) {
 }
 
 interface PromptModeSelectProps {
-  mode: PromptEditorMode;
+  mode: LegacyPromptMode;
   variableCount: number;
-  onChange: (mode: PromptEditorMode) => void;
+  onChange: (mode: LegacyPromptMode) => void;
 }
 
 function PromptModeSelect({
@@ -73,7 +87,7 @@ function PromptModeSelect({
       <select
         aria-label="Prompt mode"
         value={mode}
-        onChange={(event) => onChange(event.target.value as PromptEditorMode)}
+        onChange={(event) => onChange(event.target.value as LegacyPromptMode)}
         className="render-select h-8 min-w-[8.75rem] appearance-none rounded-lg bg-[var(--surface-bright)] px-3 pr-8 text-xs font-semibold text-[var(--text-primary)] ring-1 ring-[var(--border-static)] transition hover:bg-[var(--surface-control)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]"
       >
         <option value="variables">Variables ({variableCount})</option>
@@ -102,8 +116,16 @@ export function StructuredPromptEditor({
   onTemplateVariablesChange,
   onNegativePromptChange,
   onSaveContentChange,
+  editorMode,
+  onEditorModeChange,
+  compiledTemplate = null,
+  finalPromptText = null,
+  onCustomPromptChange,
 }: StructuredPromptEditorProps) {
-  const [mode, setMode] = useState<PromptEditorMode>(() => modeFromState(state));
+  // plan-04：受控模式由两轴控制区驱动视图；legacy 模式保留内部 select。
+  const controlled =
+    editorMode !== undefined && onEditorModeChange !== undefined;
+  const [mode, setMode] = useState<LegacyPromptMode>(() => modeFromState(state));
   const linkedVariableRef = useRef<LinkedTextVariableState | null>(null);
   const outputs = useMemo(
     () =>
@@ -119,7 +141,8 @@ export function StructuredPromptEditor({
       state.modifierValues,
     ],
   );
-  const template = state.customTemplate ?? outputs.standardTemplate;
+  // plan-04：优先消费 plan-01 编译文档；旧调用方退回三档模板输出。
+  const template = state.customTemplate ?? compiledTemplate ?? outputs.standardTemplate;
   const templateVariables = useMemo(
     () => getPromptTemplateVariables(recipe, template),
     [recipe, template],
@@ -135,6 +158,12 @@ export function StructuredPromptEditor({
     () => JSON.stringify(toDescriptionRecipeJson(recipe), null, 2),
     [recipe],
   );
+  // 受控视图映射：structured 对应只读 JSON 视图（不改变最终 Prompt）。
+  const viewMode: "variables" | "text" | "json" = controlled
+    ? editorMode === "structured"
+      ? "json"
+      : editorMode
+    : mode;
 
   useEffect(() => {
     onResolvedPromptChange(renderablePrompt);
@@ -165,7 +194,14 @@ export function StructuredPromptEditor({
     templateVariables,
   ]);
 
-  const switchMode = (nextMode: PromptEditorMode) => {
+  const switchMode = (nextMode: LegacyPromptMode) => {
+    // plan-04 受控模式：视图切换只上抛编辑方式，不改写 Prompt 数据
+    //（structured 只读，不改变最终 Prompt，架构 §6.2.7）。
+    if (controlled) {
+      onEditorModeChange(nextMode === "json" ? "structured" : nextMode);
+      return;
+    }
+
     setMode(nextMode);
     if (nextMode === "json") return;
 
@@ -181,6 +217,18 @@ export function StructuredPromptEditor({
         current.outputMode === "custom" && current.customPrompt
           ? current.customPrompt
           : resolvedTemplate,
+    }));
+  };
+
+  const handleControlledTextChange = (value: string) => {
+    if (onCustomPromptChange) {
+      onCustomPromptChange(value);
+      return;
+    }
+    onStateChange((current) => ({
+      ...current,
+      outputMode: "custom",
+      customPrompt: value,
     }));
   };
 
@@ -239,7 +287,7 @@ export function StructuredPromptEditor({
       className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl bg-[var(--surface-low)]/56 ring-1 ring-[var(--border-static)]"
     >
       <section className="min-h-0 flex-1 overflow-hidden">
-        {mode === "variables" && (
+        {viewMode === "variables" && (
           <div
             data-testid="structured-variable-scroll"
             className="h-full min-h-0 overflow-y-auto"
@@ -250,7 +298,7 @@ export function StructuredPromptEditor({
                 Variable-linked prompt
               </span>
               <PromptModeSelect
-                mode={mode}
+                mode={viewMode}
                 variableCount={templateVariables.length}
                 onChange={switchMode}
               />
@@ -384,7 +432,7 @@ export function StructuredPromptEditor({
           </div>
         )}
 
-        {mode === "text" && (
+        {viewMode === "text" && (
           <div className="flex h-full min-h-0 flex-col p-3">
             <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
               <span className="flex items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
@@ -392,20 +440,25 @@ export function StructuredPromptEditor({
                 Full generation prompt
               </span>
               <PromptModeSelect
-                mode={mode}
+                mode={viewMode}
                 variableCount={templateVariables.length}
                 onChange={switchMode}
               />
             </div>
             <PromptHighlightedEditor
               ariaLabel="Full Generation Prompt"
-              value={state.customPrompt}
-              onChange={(value) =>
-                onStateChange((current) => ({
-                  ...current,
-                  outputMode: "custom",
-                  customPrompt: value,
-                }))
+              value={
+                controlled
+                  ? finalPromptText ?? renderablePrompt
+                  : state.customPrompt
+              }
+              onChange={
+                controlled ? handleControlledTextChange : (value) =>
+                  onStateChange((current) => ({
+                    ...current,
+                    outputMode: "custom",
+                    customPrompt: value,
+                  }))
               }
               placeholder="Edit the full prompt here."
               mode="text"
@@ -416,37 +469,50 @@ export function StructuredPromptEditor({
               provenanceSpans={provenanceSpans}
               selectedProvenanceSpan={selectedProvenanceSpan}
               testId="structured-text-prompt"
+              textareaTestId={controlled ? "fulltext-prompt-editor" : undefined}
             />
           </div>
         )}
 
-        {mode === "json" && (
+        {viewMode === "json" && (
           <div className="flex h-full min-h-0 flex-col p-3">
             <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
               <span className="flex items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
                 <AppIcon icon={Braces} size={14} />
-                Recipe JSON
+                {controlled ? "Structured prompt (read-only)" : "Recipe JSON"}
               </span>
               <span className="flex shrink-0 items-center gap-2">
-                <CopyJsonButton
-                  value={jsonValue}
-                  label="Copy"
-                  showIcon
-                  className="btn-secondary inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[0.68rem] font-semibold"
-                />
+                <span data-testid="structured-readonly-copy">
+                  <CopyJsonButton
+                    value={jsonValue}
+                    label="Copy"
+                    showIcon
+                    className="btn-secondary inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[0.68rem] font-semibold"
+                  />
+                </span>
                 <PromptModeSelect
-                  mode={mode}
+                  mode={viewMode}
                   variableCount={templateVariables.length}
                   onChange={switchMode}
                 />
               </span>
             </div>
-            <pre
-              data-testid="structured-json-output"
-              className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap rounded-lg bg-[var(--surface-bright)]/72 p-3 font-mono text-[0.7rem] leading-5 text-[var(--text-secondary)]"
+            {controlled && (
+              <p className="mb-2 text-xs leading-5 text-[var(--text-secondary)]">
+                只读视图：查看或复制结构化内容，不改变最终 Prompt。
+              </p>
+            )}
+            <div
+              {...(controlled ? { "data-testid": "structured-readonly-view" } : {})}
+              className="min-h-0 flex-1 overflow-hidden"
             >
-              {jsonValue}
-            </pre>
+              <pre
+                data-testid="structured-json-output"
+                className="h-full min-h-0 overflow-auto whitespace-pre-wrap rounded-lg bg-[var(--surface-bright)]/72 p-3 font-mono text-[0.7rem] leading-5 text-[var(--text-secondary)]"
+              >
+                {jsonValue}
+              </pre>
+            </div>
           </div>
         )}
       </section>

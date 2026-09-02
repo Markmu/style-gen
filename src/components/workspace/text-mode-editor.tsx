@@ -12,6 +12,8 @@ interface TextModeEditorProps {
   variableValues?: Record<string, string>;
   provenanceSpans?: PromptProvenanceSpan[];
   selectedProvenanceSpan?: PromptProvenanceSpan | null;
+  /** plan-04：真实 textarea 上的 testid（全文编辑契约 fulltext-prompt-editor） */
+  testId?: string;
 }
 
 export function TextModeEditor({
@@ -22,6 +24,7 @@ export function TextModeEditor({
   variableValues = {},
   provenanceSpans = [],
   selectedProvenanceSpan = null,
+  testId,
 }: TextModeEditorProps) {
   return (
     <PromptHighlightedEditor
@@ -39,6 +42,7 @@ export function TextModeEditor({
       provenanceSpans={provenanceSpans}
       selectedProvenanceSpan={selectedProvenanceSpan}
       testId="text-mode-highlight-editor"
+      textareaTestId={testId}
     />
   );
 }

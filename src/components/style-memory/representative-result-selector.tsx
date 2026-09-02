@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useId, useState } from "react";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ImageIcon } from "lucide-react";
 import { AppIcon } from "@/components/ui/app-icon";
 import { ModalDialog } from "@/components/ui/modal-dialog";
@@ -18,6 +18,12 @@ import type { RepresentativeCandidate } from "@/types/models";
  *   触发详情回读（user_verified + 新代表结果；禁乐观更新，ADR-1）。
  * - 取消零请求（AC-05）：关闭 / Escape / 背景点击不发任何请求。
  * - 空候选：解释相关范围（派生 Iteration ∪ 来源 Iteration，completed 且有结果）。
+ *
+ * plan-06（实现规格 §2/§4）：候选读取迁移到 query-key 化的唯一 owner
+ * （useInfiniteQuery + `representativeCandidatesQueryKey(memoryId)`），宿主
+ * （工作区统一刷新协调器）可显式 invalidate/refetch 该 key，不再另建第二份
+ * 候选缓存；组件本地仅保留 radio 选择与提交态。新增 `preselectedIterationId`
+ * （工作台 preferred 入口预选）与容器 testid。
  */
 
 interface CandidatePage {
@@ -26,19 +32,20 @@ interface CandidatePage {
   nextCursor: string | null;
 }
 
-export interface RepresentativeResultSelectorProps {
-  memoryId: string;
-  memoryName: string;
-  open: boolean;
-  onClose: () => void;
-  /** 确认成功后回读详情（消费方触发 GET 刷新） */
-  onConfirmed: () => void | Promise<void>;
+/** 候选列表 query key（唯一 owner：组件读取与刷新协调器回读共用同一 key） */
+export function representativeCandidatesQueryKey(memoryId: string): unknown[] {
+  return ["style-memory-representative-candidates", memoryId];
 }
 
-async function fetchCandidatePage(
-  memoryId: string,
-  cursor: string | null,
-): Promise<CandidatePage> {
+async function fetchCandidatePage({
+  memoryId,
+  cursor,
+  signal,
+}: {
+  memoryId: string;
+  cursor: string | null;
+  signal: AbortSignal;
+}): Promise<CandidatePage> {
   const search = new URLSearchParams();
   if (cursor) {
     search.set("cursor", cursor);
@@ -46,6 +53,7 @@ async function fetchCandidatePage(
   const query = search.toString();
   const res = await fetch(
     `/api/templates/${memoryId}/representative-candidates${query ? `?${query}` : ""}`,
+    { signal },
   );
   if (!res.ok) {
     let body: { error?: string } = {};
@@ -71,71 +79,81 @@ function formatCandidateDate(iso: string): string {
   return `${time.getFullYear()}-${pad(time.getMonth() + 1)}-${pad(time.getDate())}`;
 }
 
+export interface RepresentativeResultSelectorProps {
+  memoryId: string;
+  memoryName: string;
+  open: boolean;
+  /** 工作台 preferred 入口：打开时预选该结果对应 radio（不在候选中则不预选） */
+  preselectedIterationId?: string | null;
+  onClose: () => void;
+  /** 确认成功后回读详情（消费方触发 GET 刷新；读取失败由消费方自理，不影响写入事实） */
+  onConfirmed: () => void | Promise<void>;
+}
+
 export function RepresentativeResultSelector({
   memoryId,
   memoryName,
   open,
+  preselectedIterationId = null,
   onClose,
   onConfirmed,
 }: RepresentativeResultSelectorProps) {
   const titleId = useId();
   const queryClient = useQueryClient();
-  const [items, setItems] = useState<RepresentativeCandidate[]>([]);
-  const [hasMore, setHasMore] = useState(false);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const loadedRef = useRef<string | null>(null);
+  const [pageError, setPageError] = useState<string | null>(null);
 
-  // 每次打开重新加载第一页（挂载即请求；关闭后重置，取消路径零请求）
+  // 候选读取的唯一 owner（plan-06 §2）：打开时加载第一页，翻页走 fetchNextPage；
+  // 关闭即停用（取消路径零请求），缓存交给 key 管理，宿主可显式 invalidate/refetch。
+  const candidatesQuery = useInfiniteQuery({
+    queryKey: representativeCandidatesQueryKey(memoryId),
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam, signal }) =>
+      fetchCandidatePage({ memoryId, cursor: pageParam, signal }),
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    enabled: open,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
+  // 每次打开重置选择层（预选 preferred 结果或清空）与提交态
   useEffect(() => {
     if (!open) return;
-    if (loadedRef.current === memoryId) return;
-    loadedRef.current = memoryId;
-    setItems([]);
-    setHasMore(false);
-    setNextCursor(null);
-    setSelectedId(null);
-    setLoadError(null);
+    setSelectedId(preselectedIterationId ?? null);
     setSubmitError(null);
+    setPageError(null);
     setSubmitting(false);
-    setIsLoading(true);
-    fetchCandidatePage(memoryId, null)
-      .then((page) => {
-        setItems(page.items);
-        setHasMore(page.hasMore);
-        setNextCursor(page.nextCursor);
-      })
-      .catch((error: unknown) => {
-        setLoadError(error instanceof Error ? error.message : "Failed to load candidate iterations. You can retry.");
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
-    return () => {
-      loadedRef.current = null;
-    };
-  }, [open, memoryId]);
+  }, [open, memoryId, preselectedIterationId]);
+
+  const items = candidatesQuery.data
+    ? candidatesQuery.data.pages.flatMap((page) => page.items)
+    : [];
+  const itemsWithDedup = items.filter(
+    (candidate, index) => items.findIndex((item) => item.id === candidate.id) === index,
+  );
+  const hasMore = candidatesQuery.hasNextPage === true;
+  const isFirstLoad =
+    candidatesQuery.isPending && candidatesQuery.isFetching && itemsWithDedup.length === 0;
+  const loadError =
+    candidatesQuery.isError && itemsWithDedup.length === 0
+      ? candidatesQuery.error instanceof Error
+        ? candidatesQuery.error.message
+        : "Failed to load candidate iterations. You can retry."
+      : null;
 
   const loadEarlier = async () => {
-    if (!nextCursor || isLoading) return;
-    setIsLoading(true);
-    setLoadError(null);
+    if (!candidatesQuery.hasNextPage || candidatesQuery.isFetching) return;
+    setPageError(null);
     try {
-      const page = await fetchCandidatePage(memoryId, nextCursor);
-      setItems((previous) => {
-        const seen = new Set(previous.map((item) => item.id));
-        return [...previous, ...page.items.filter((item) => !seen.has(item.id))];
-      });
-      setHasMore(page.hasMore);
-      setNextCursor(page.nextCursor);
+      await candidatesQuery.fetchNextPage();
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Failed to load earlier candidates. You can retry.");
-    } finally {
-      setIsLoading(false);
+      setPageError(
+        error instanceof Error
+          ? error.message
+          : "Failed to load earlier candidates. You can retry.",
+      );
     }
   };
 
@@ -162,7 +180,9 @@ export function RepresentativeResultSelector({
       onClose();
       // 状态转已验证需反映到列表（60s staleTime 缓存）+ 详情回读刷新
       await invalidateStyleMemoryLists(queryClient);
-      await onConfirmed();
+      // 写入已成功：后续回读失败由宿主呈现（“已保存，刷新失败”只重试读取），
+      // 不得回滚写入事实，也不在此重复提交。
+      await Promise.resolve(onConfirmed()).catch(() => undefined);
     } catch {
       setSubmitError("Network error — failed to set the representative result. You can retry.");
     } finally {
@@ -176,6 +196,7 @@ export function RepresentativeResultSelector({
       onClose={submitting ? () => undefined : onClose}
       label="Select representative result"
       labelledBy={titleId}
+      testId="representative-result-selector"
     >
       <div className="flex max-h-[calc(100dvh-2.5rem)] flex-col overflow-hidden">
         <div className="shrink-0 border-b border-[var(--border-static)] px-5 py-4 pr-16">
@@ -190,7 +211,7 @@ export function RepresentativeResultSelector({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-          {isLoading && items.length === 0 ? (
+          {isFirstLoad ? (
             <div
               data-testid="representative-candidates-skeleton"
               className="space-y-2"
@@ -203,28 +224,18 @@ export function RepresentativeResultSelector({
                 />
               ))}
             </div>
-          ) : loadError && items.length === 0 ? (
+          ) : loadError ? (
             <div role="alert" className="rounded-xl border border-[var(--color-error)]/40 bg-[var(--color-error-soft)] px-3.5 py-3 text-xs leading-5 text-[var(--color-error)]">
               <p>{loadError}</p>
               <button
                 type="button"
-                onClick={() => {
-                  loadedRef.current = null;
-                  setLoadError(null);
-                  void loadFirstPage(memoryId, {
-                    setItems,
-                    setHasMore,
-                    setNextCursor,
-                    setIsLoading,
-                    setLoadError,
-                  });
-                }}
+                onClick={() => void candidatesQuery.refetch()}
                 className="btn-secondary mt-2 inline-flex min-h-9 items-center rounded-lg px-3 text-xs font-medium"
               >
                 Retry
               </button>
             </div>
-          ) : items.length === 0 ? (
+          ) : itemsWithDedup.length === 0 && !candidatesQuery.isFetching ? (
             <div className="rounded-xl border border-dashed border-[var(--border-static)] bg-[var(--surface-low)]/50 px-4 py-6 text-center">
               <p className="text-xs font-semibold text-[var(--text-secondary)]">
                 No related completed iterations yet
@@ -243,7 +254,7 @@ export function RepresentativeResultSelector({
                 aria-label="Representative result candidates"
                 className="space-y-2"
               >
-                {items.map((candidate) => {
+                {itemsWithDedup.map((candidate) => {
                   const checked = selectedId === candidate.id;
                   return (
                     <li key={candidate.id}>
@@ -299,15 +310,15 @@ export function RepresentativeResultSelector({
                 <button
                   type="button"
                   onClick={() => void loadEarlier()}
-                  disabled={isLoading}
+                  disabled={candidatesQuery.isFetching}
                   className="btn-secondary mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-xl px-4 text-xs font-medium"
                 >
-                  {isLoading ? "Loading…" : "Load earlier"}
+                  {candidatesQuery.isFetching ? "Loading…" : "Load earlier"}
                 </button>
               ) : null}
-              {loadError ? (
+              {pageError ? (
                 <p role="alert" className="mt-2 text-[0.6875rem] text-[var(--color-error)]">
-                  {loadError}
+                  {pageError}
                 </p>
               ) : null}
             </>
@@ -341,31 +352,4 @@ export function RepresentativeResultSelector({
       </div>
     </ModalDialog>
   );
-}
-
-/** 首屏加载失败重试（与挂载加载共用状态写入） */
-async function loadFirstPage(
-  memoryId: string,
-  setState: {
-    setItems: (items: RepresentativeCandidate[]) => void;
-    setHasMore: (hasMore: boolean) => void;
-    setNextCursor: (cursor: string | null) => void;
-    setIsLoading: (loading: boolean) => void;
-    setLoadError: (error: string | null) => void;
-  },
-): Promise<void> {
-  setState.setIsLoading(true);
-  setState.setLoadError(null);
-  try {
-    const page = await fetchCandidatePage(memoryId, null);
-    setState.setItems(page.items);
-    setState.setHasMore(page.hasMore);
-    setState.setNextCursor(page.nextCursor);
-  } catch (error) {
-    setState.setLoadError(
-      error instanceof Error ? error.message : "Failed to load candidate iterations. You can retry.",
-    );
-  } finally {
-    setState.setIsLoading(false);
-  }
 }

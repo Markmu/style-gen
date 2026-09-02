@@ -56,8 +56,8 @@ test.describe('Edge Cases', () => {
 
   test('替换Reference清空结果', async ({ page }) => {
     // Complete full flow: upload → analysis → generation result
+    // plan-07：成功内联呈现（helper 以状态带 Result 阶段为完成锚点），无弹层关闭步骤
     await completeFullFlow(page, { generationTaskId: 'mock-generation-task-id' })
-    await page.getByText('Close Dialog', { exact: true }).click()
 
     // Reference 卡头部 Replace → 重置回 idle
     await referenceColumn(page)
@@ -156,11 +156,16 @@ test.describe('Edge Cases', () => {
     // Upload and wait for analysis
     await uploadAndCompleteAnalysis(page, { analysisTaskId })
 
-    // Click generate from the Render Dock; the task dialog takes over and the
-    // button switches to the disabled "Rendering..." state, so repeat clicks
-    // cannot fire another POST.
+    // Click generate from the Render Dock; the button switches to the disabled
+    // "Rendering..." state while the task is in flight（plan-07：进行中内联
+    // 呈现，不再打开生成任务弹窗），so repeat clicks cannot fire another POST.
     await generateButton(page).click()
-    await expect(page.getByRole('dialog', { name: 'Generation Task' })).toBeVisible()
+    await expect(page.getByTestId('ai-status-header')).toHaveAttribute(
+      'data-phase',
+      'generating',
+      { timeout: 15000 },
+    )
+    await expect(page.getByTestId('generation-dialog')).toHaveCount(0)
     await expect(renderDock(page).getByRole('button', { name: 'Rendering...' })).toBeDisabled()
 
     // Only 1 POST request should have been made

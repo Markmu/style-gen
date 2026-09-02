@@ -4,6 +4,13 @@ import Image from "next/image";
 import type { WorkspaceError, WorkspaceState } from "@/hooks/use-workspace-state";
 import { GenerationProgress } from "@/components/workspace/generation-progress";
 
+/**
+ * plan-07（架构 §2.1.6 / §6.4 实现原则）退役边界：Workspace 主流程的成功/
+ * 进行中/失败不再打开本阻断式弹层——终态内联进入方向结果 rail，提交失败走
+ * 内联 `generation-submit-error`。组件保留兼容（组件契约见相邻单测），供
+ * 存量引用或后续独立入口使用；`src/app/workspace/page.tsx` 不再消费它。
+ */
+
 interface GenerationDialogProps {
   open: boolean;
   state: WorkspaceState;

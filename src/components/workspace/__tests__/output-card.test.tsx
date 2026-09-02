@@ -198,6 +198,40 @@ describe("OutputCard", () => {
     expect(screen.queryByTestId("render-status-detail")).not.toBeInTheDocument();
     expect(screen.queryByText("Parameters are locked while the render runs.")).not.toBeInTheDocument();
     expect(screen.queryByTestId("render-readiness-item-workspace-idle")).not.toBeInTheDocument();
+    // plan-07（架构 §8.2 L1）：排队提示只在 >60s 排队时出现，普通进行中不显示
+    expect(screen.queryByTestId("generation-queueing-note")).not.toBeInTheDocument();
+  });
+
+  // ─── plan-07（架构 §8.2 L1 / Task 5）：排队提示内联呈现于 Render Dock ──────
+
+  it("shows the L1 queueing note inline while generating past the threshold", () => {
+    const readiness: RenderReadiness = {
+      ...readyReadiness,
+      workspaceIdle: false,
+      canGenerate: false,
+      disabledReason: "Wait for the current workspace task to finish.",
+      nextAction: "wait_for_task",
+    };
+
+    render(
+      <OutputCard
+        {...defaultProps}
+        state="generating"
+        readiness={readiness}
+        generationQueueing
+      />,
+    );
+
+    const note = screen.getByTestId("generation-queueing-note");
+    expect(note).toBeVisible();
+    expect(note).toHaveAttribute("role", "status");
+    // 三段式：发生了什么 / 保留了什么 / 下一步
+    expect(note).toHaveTextContent(/Generation is queued\. Thanks for waiting/);
+    expect(note).toHaveTextContent(/保持不变/);
+    expect(note).toHaveTextContent(/本次结果区/);
+    // 参数仍可见（保留能力），Generate 维持进行中态
+    expect(screen.getByLabelText("Aspect Ratio")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Rendering..." })).toBeDisabled();
   });
 
   it("keeps service unavailable state visually compact", () => {
@@ -225,5 +259,157 @@ describe("OutputCard", () => {
     expect(
       screen.queryByRole("button", { name: /save as style memory/i }),
     ).not.toBeInTheDocument();
+  });
+
+  // ─── plan-02（ADR-2）：快速复刻 armed 期间生成设置只读 ─────────────────────
+
+  it("locks the confirmed generation settings while quick recreate is armed", async () => {
+    const user = userEvent.setup();
+    const onParamsChange = vi.fn();
+    const onGenerate = vi.fn();
+
+    render(
+      <OutputCard
+        {...defaultProps}
+        onParamsChange={onParamsChange}
+        onGenerate={onGenerate}
+        settingsLocked
+      />,
+    );
+
+    // armed：自动任务将使用已确认设置——三个下拉只读
+    expect(screen.getByLabelText("Aspect Ratio")).toBeDisabled();
+    expect(screen.getByLabelText("Quality")).toBeDisabled();
+    expect(screen.getByLabelText("Model")).toBeDisabled();
+    // 参数保持可见（只读不隐藏）
+    expect(screen.getByLabelText("Aspect Ratio")).toBeVisible();
+    expect(screen.getByLabelText("Model")).toHaveValue("flux-2-dev");
+
+    await user.selectOptions(screen.getByLabelText("Aspect Ratio"), "16:9");
+    expect(onParamsChange).not.toHaveBeenCalled();
+
+    // Generate 按钮仍由 readiness 决定，不被 armed 锁死
+    expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "Generate" }));
+    expect(onGenerate).toHaveBeenCalledWith({
+      aspectRatio: "1:1",
+      quality: "standard",
+      model: "flux-2-dev",
+    });
+  });
+
+  it("restores editable settings after the quick authorization is cleared (recovery)", async () => {
+    const user = userEvent.setup();
+    const onParamsChange = vi.fn();
+
+    const { rerender } = render(
+      <OutputCard
+        {...defaultProps}
+        onParamsChange={onParamsChange}
+        settingsLocked
+      />,
+    );
+    expect(screen.getByLabelText("Aspect Ratio")).toBeDisabled();
+
+    // 退出快速路径 / 分析失败清授权后恢复可编辑
+    rerender(
+      <OutputCard
+        {...defaultProps}
+        onParamsChange={onParamsChange}
+        settingsLocked={false}
+      />,
+    );
+    expect(screen.getByLabelText("Aspect Ratio")).toBeEnabled();
+    expect(screen.getByLabelText("Quality")).toBeEnabled();
+    expect(screen.getByLabelText("Model")).toBeEnabled();
+
+    await user.selectOptions(screen.getByLabelText("Aspect Ratio"), "16:9");
+    expect(onParamsChange).toHaveBeenCalledWith({
+      aspectRatio: "16:9",
+      quality: "standard",
+      model: "flux-2-dev",
+    });
+  });
+
+  it("keeps the readiness disabled reason as the single explanation while locked", () => {
+    const readiness: RenderReadiness = {
+      ...readyReadiness,
+      workspaceIdle: false,
+      canGenerate: false,
+      disabledReason: "Wait for the current workspace task to finish.",
+      nextAction: "wait_for_task",
+    };
+
+    render(
+      <OutputCard
+        {...defaultProps}
+        state="analyzing"
+        readiness={readiness}
+        settingsLocked
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: "Generate" });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute(
+      "title",
+      "Wait for the current workspace task to finish.",
+    );
+    // armed 锁定说明由创作节奏区（quick-authorization-locked-note）承载，
+    // Render Dock 不复制第二套解释
+    expect(screen.queryByTestId("render-disabled-reason")).not.toBeInTheDocument();
+  });
+});
+
+// ─── plan-04（架构 §6.3 / AC-03）：共享画幅白名单与来源徽标 ───────────────────
+
+describe("OutputCard aspect ratio source badge", () => {
+  it("consumes the shared plan-01 allowlist instead of a local copy", () => {
+    render(<OutputCard {...defaultProps} />);
+
+    const ratioSelect = screen.getByLabelText("Aspect Ratio");
+    const options = Array.from(ratioSelect.querySelectorAll("option")).map(
+      (option) => option.getAttribute("value"),
+    );
+    expect(options).toEqual(["1:1", "4:3", "16:9", "3:4", "9:16"]);
+  });
+
+  it.each([
+    { source: "reference", recommended: "true", label: "参考图推荐" },
+    { source: "user", recommended: "false", label: "Your selection" },
+    { source: "restore", recommended: "false", label: "Restored iteration" },
+    { source: "fallback", recommended: "false", label: "1:1 fallback" },
+  ] as const)(
+    "renders the $source badge with recommended=$recommended",
+    ({ source, recommended, label }) => {
+      render(
+        <OutputCard
+          {...defaultProps}
+          aspectRatioSource={source}
+        />,
+      );
+
+      const badge = screen.getByTestId("aspect-ratio-source");
+      expect(badge).toHaveAttribute("data-source", source);
+      expect(badge).toHaveAttribute("data-recommended", recommended);
+      expect(badge).toHaveTextContent(label);
+    },
+  );
+
+  it("hides the badge when no source is provided (preview mode)", () => {
+    render(<OutputCard {...defaultProps} />);
+    expect(screen.queryByTestId("aspect-ratio-source")).not.toBeInTheDocument();
+  });
+
+  it("keeps the badge visible while settings are locked (armed)", () => {
+    render(
+      <OutputCard
+        {...defaultProps}
+        aspectRatioSource="reference"
+        settingsLocked
+      />,
+    );
+    expect(screen.getByTestId("aspect-ratio-source")).toBeVisible();
+    expect(screen.getByLabelText("Aspect Ratio")).toBeDisabled();
   });
 });

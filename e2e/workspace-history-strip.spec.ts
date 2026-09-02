@@ -93,9 +93,12 @@ test.describe('PLAN-04 history strip and restore', () => {
       .getByTestId('output-card')
       .getByRole('button', { name: /^Generate$/i })
       .click()
-    await expect(page.getByTestId('generation-dialog')).toContainText(/Generated Result/i, {
+    // plan-07（实现规格 §4）：成功不再打开生成任务弹层——以状态带进入
+    // Result 阶段为完成锚点，Recent iterations 随完成事实刷新
+    await page.getByTestId('ai-copilot-ribbon').getByText('Result').first().waitFor({
       timeout: 15000,
     })
+    await expect(page.getByTestId('generation-dialog')).toHaveCount(0)
 
     await expect(page.getByTestId('history-strip')).toBeVisible()
     await expect(page.getByTestId('generate-history-bar')).toHaveCount(0)

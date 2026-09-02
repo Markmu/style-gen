@@ -38,6 +38,24 @@ const templateVariables = [
 
 const sampleRecipe = { imageSummary: "A glass flower study" };
 
+// ─── plan-03: Prompt 控制快照 fixture（AC-01 新旧任务详情契约） ────────────
+
+const samplePromptControlSnapshot = {
+  schemaVersion: 1,
+  trigger: "quick_recreate" as const,
+  intent: "reconstruction" as const,
+  detailLevel: "standard" as const,
+  editorMode: "variables" as const,
+  customPromptDirty: false,
+  enabledInvariantIds: ["inv_color_1"],
+  variableValues: { subject: "Crystal peony" },
+  enabledModifierNames: [] as string[],
+  modifierValues: {} as Record<string, string>,
+  adjustments: [
+    { invariantId: "inv_color_1", action: "strengthen" as const },
+  ],
+};
+
 function makeDetail(overrides: Record<string, unknown> = {}) {
   return {
     id: "gen-1",
@@ -269,5 +287,61 @@ describe("GET /api/generation/[id]", () => {
     expect(res.status).toBe(500);
     expect(json.code).toBe("SERVICE_UNAVAILABLE");
     expect(json.retryable).toBe(true);
+  });
+
+  // ─── plan-03: promptControlSnapshot 新旧详情契约（§3 / AC-01） ──────────
+
+  it("新任务详情返回 promptControlSnapshot，可回证 trigger/intent/变量/调整", async () => {
+    mockFindIterationDetail.mockResolvedValueOnce(
+      makeDetail({ promptControlSnapshot: samplePromptControlSnapshot })
+    );
+
+    const res = await GET(createGetRequest(), {
+      params: Promise.resolve({ id: "gen-1" }),
+    });
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.promptControlSnapshot).toEqual(samplePromptControlSnapshot);
+    // 快照字段与既有上下文并存
+    expect(json.promptSnapshot).toBe("a beautiful sunset");
+    expect(json.params).toEqual({ aspectRatio: "16:9", quality: "high" });
+  });
+
+  it("旧任务没有快照时 promptControlSnapshot 为 null，消费端以 promptSnapshot 全文降级", async () => {
+    mockFindIterationDetail.mockResolvedValueOnce(
+      makeDetail({ promptControlSnapshot: null })
+    );
+
+    const res = await GET(createGetRequest(), {
+      params: Promise.resolve({ id: "gen-1" }),
+    });
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.promptControlSnapshot).toBeNull();
+    // 不虚构历史控制值：全文降级依据原样保留
+    expect(json.promptSnapshot).toBe("a beautiful sunset");
+    expect(json.recipeSource).toBe("snapshot");
+  });
+
+  it("processing/failed 任务同样透传 promptControlSnapshot（终态前后上下文一致）", async () => {
+    mockFindIterationDetail.mockResolvedValueOnce(
+      makeDetail({
+        status: "failed",
+        resultFileUrl: null,
+        resultAssetId: null,
+        errorMessage: "model crashed",
+        promptControlSnapshot: samplePromptControlSnapshot,
+      })
+    );
+
+    const res = await GET(createGetRequest(), {
+      params: Promise.resolve({ id: "gen-1" }),
+    });
+    const json = await res.json();
+
+    expect(json.status).toBe("failed");
+    expect(json.promptControlSnapshot).toEqual(samplePromptControlSnapshot);
   });
 });
