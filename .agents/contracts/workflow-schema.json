@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-05",
+  "version": "2026-09-06",
   "artifacts": {
     "review_dir_name": "reviews",
     "standalone_doc_review_pattern": "{doc-parent}/reviews/{skill}-{doc-basename}-{date}.md",
@@ -127,7 +127,24 @@
       "风险与边界"
     ],
     "plan_review_filename_pattern": "dev-plan-check-{date}.md",
-    "feature_review_filename_pattern": "{feat_id}-review-{date}.md"
+    "feature_review_filename_pattern": "{feat_id}-review-{date}.md",
+    "supported_workflow_versions": [
+      1,
+      2
+    ],
+    "default_workflow_version": 2,
+    "compact": {
+      "verification_section": "验证记录",
+      "verification_evidence_fields": [
+        "red_evidence",
+        "green_evidence"
+      ],
+      "review_evidence_field": "review_evidence",
+      "state_view_command": "pnpm workflow:status",
+      "case_catalog_required": false,
+      "uat_required_by_default": false,
+      "acceptance_waiver_format": "- [x] AC-XX description (waived: reason)"
+    }
   },
   "e2e": {
     "case_dir": "docs/e2e",

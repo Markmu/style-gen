@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -112,6 +112,74 @@ function validateNewFeatureSpec(root, path, markdown, contract, errors) {
   return true
 }
 
+function evidenceExists(root, ownerPath, reference) {
+  const [file, anchor] = reference.split('#')
+  const target = file.startsWith('docs/') ? join(root, file) : resolve(dirname(ownerPath), file || '.')
+  if (!existsSync(target) || !statSync(target).isFile()) return false
+  if (!anchor) return true
+  try {
+    return hasSecondLevelHeading(readFileSync(target, 'utf8'), decodeURIComponent(anchor))
+  } catch {
+    return false
+  }
+}
+
+function validateCompactTask(root, path, markdown, contract, errors) {
+  const metadata = parseFrontmatter(markdown)
+  if (metadata.status === 'deprecated') return
+  const label = pathLabel(root, path)
+  const compact = contract.plan.compact
+  for (const section of [...contract.plan.feature_task_required_sections, compact.verification_section]) {
+    if (!hasSecondLevelHeading(markdown, section)) errors.push(`${label} is missing section "${section}"`)
+  }
+  if (!['review', 'done'].includes(metadata.status)) return
+  for (const field of compact.verification_evidence_fields) {
+    if (!metadata[field] || !evidenceExists(root, path, metadata[field])) {
+      errors.push(`${label} has missing or invalid ${field}`)
+    }
+  }
+  const acceptance = sectionBody(markdown, '验收标准')
+  if (!/^- \[[xX]\]/m.test(acceptance) || /^- \[ \]/m.test(acceptance)) {
+    errors.push(`${label} has incomplete acceptance criteria`)
+  }
+  if (/\(waived:\s*\)/i.test(acceptance)) errors.push(`${label} has an acceptance waiver without a reason`)
+  if (metadata.status === 'done') {
+    const reference = metadata[compact.review_evidence_field]
+    const reviewPath = reference?.split('#')[0]
+    const target = reviewPath?.startsWith('docs/') ? join(root, reviewPath) : resolve(dirname(path), reviewPath || '.')
+    if (!reference || target === resolve(path) || !evidenceExists(root, path, reference)) {
+      errors.push(`${label} has missing or invalid independent review evidence`)
+    }
+  }
+}
+
+function validateCompactCoverage(root, planPath, markdown, taskFiles, errors) {
+  const rows = sectionBody(markdown, '验收标准追踪矩阵').split(/\r?\n/).filter((line) => line.trim().startsWith('|'))
+  const ownerColumn = rows.length ? markdownTableCells(rows[0]).indexOf('计划承接') : -1
+  if (ownerColumn < 0) {
+    errors.push(`${pathLabel(root, planPath)} has no acceptance-to-task mapping`)
+    return
+  }
+  const tasks = new Map(taskFiles.map((path) => {
+    const body = readFileSync(path, 'utf8')
+    return [parseFrontmatter(body).feat_id, { body, metadata: parseFrontmatter(body) }]
+  }))
+  for (const row of rows.filter((line) => /^\|\s*AC-\d+[^|]*\|/.test(line))) {
+    const cells = markdownTableCells(row)
+    const ac = cells[0].replaceAll('`', '')
+    const owners = (cells[ownerColumn] ?? '').replaceAll('`', '').split(/[,，、\s]+/).filter(Boolean)
+    if (owners.length === 0) errors.push(`${pathLabel(root, planPath)} has no task for ${ac}`)
+    for (const owner of owners) {
+      const task = tasks.get(owner)
+      if (!task || task.metadata.status === 'deprecated') {
+        errors.push(`${pathLabel(root, planPath)} maps ${ac} to missing or deprecated task ${owner}`)
+      } else if (!new RegExp(`\\b${escapeRegExp(ac)}(?![\\w-])`).test(sectionBody(task.body, '验收标准'))) {
+        errors.push(`${pathLabel(root, planPath)} maps ${ac} to ${owner} without matching task acceptance`)
+      }
+    }
+  }
+}
+
 function validatePlan(root, path, markdown, contract, errors) {
   const metadata = parseFrontmatter(markdown)
   if (metadata.workflow_type !== 'create-dev-plan') return false
@@ -119,6 +187,12 @@ function validatePlan(root, path, markdown, contract, errors) {
   const label = pathLabel(root, path)
   const planDirectory = dirname(path)
   const accepted = metadata.status === 'accepted' || metadata.status === 'released'
+  const version = metadata.workflow_version ?? '1'
+  if (!(contract.plan.supported_workflow_versions ?? [1]).map(String).includes(version)) {
+    errors.push(`${label} has unsupported workflow_version ${version}`)
+    return true
+  }
+  const compact = version === '2'
 
   if (!contract.plan.readme_frontmatter_status.includes(metadata.status)) {
     errors.push(`${label} has invalid plan status ${metadata.status ?? '<missing>'}`)
@@ -129,7 +203,7 @@ function validatePlan(root, path, markdown, contract, errors) {
   }
 
   const expectedStateHeading = `## ${contract.auto_dev.readme_section}`
-  if (!markdown.split(/\r?\n/).includes(expectedStateHeading)) {
+  if (!compact && !markdown.split(/\r?\n/).includes(expectedStateHeading)) {
     errors.push(`${label} must own its state machine at "${expectedStateHeading}"`)
   }
 
@@ -143,7 +217,7 @@ function validatePlan(root, path, markdown, contract, errors) {
     .split(/\r?\n/)
     .filter((line) => /^\|\s*AC-\d+[^|]*\|/.test(line))
 
-  for (const row of acceptanceRows) {
+  for (const row of compact ? [] : acceptanceRows) {
     const cells = markdownTableCells(row)
     const status = cells.at(-1)
     if (!contract.plan.acceptance_status.includes(status)) {
@@ -158,13 +232,27 @@ function validatePlan(root, path, markdown, contract, errors) {
     .map((entry) => join(planDirectory, entry.name))
 
   for (const taskPath of taskFiles) {
-    const taskMetadata = parseFrontmatter(readFileSync(taskPath, 'utf8'))
+    const taskMarkdown = readFileSync(taskPath, 'utf8')
+    const taskMetadata = parseFrontmatter(taskMarkdown)
     if (!taskMetadata.status) continue
     if (!contract.plan.task_file_status.includes(taskMetadata.status)) {
       errors.push(`${pathLabel(root, taskPath)} has invalid task status ${taskMetadata.status}`)
     } else if (accepted && taskMetadata.status !== 'done' && taskMetadata.status !== 'deprecated') {
       errors.push(`${label} is ${metadata.status} while ${pathLabel(root, taskPath)} is ${taskMetadata.status}`)
     }
+    if (compact) validateCompactTask(root, taskPath, taskMarkdown, contract, errors)
+  }
+
+  if (compact) {
+    validateCompactCoverage(root, path, markdown, taskFiles, errors)
+    if (!['true', 'false', undefined].includes(metadata.uat_required)) errors.push(`${label} has invalid uat_required`)
+    if (accepted && metadata.uat_required === 'true' && (!metadata.uat_evidence || !evidenceExists(root, path, metadata.uat_evidence))) {
+      errors.push(`${label} requires UAT evidence before acceptance`)
+    }
+    if (accepted && !taskFiles.some((task) => parseFrontmatter(readFileSync(task, 'utf8')).status)) {
+      errors.push(`${label} has no tasks to accept`)
+    }
+    return true
   }
 
   const stateRows = sectionBody(markdown, '开发状态机')
@@ -192,6 +280,20 @@ function validatePlan(root, path, markdown, contract, errors) {
   }
 
   return true
+}
+
+export function getWorkflowStatus(root = defaultRoot) {
+  const plans = collectFiles(join(root, 'docs'), (path) => path.endsWith(`${sep}README.md`), new Set(['backup', 'reviews', 'evidence']))
+  return plans.flatMap((planPath) => {
+    if (parseFrontmatter(readFileSync(planPath, 'utf8')).workflow_type !== 'create-dev-plan') return []
+    return readdirSync(dirname(planPath), { withFileTypes: true })
+      .filter((entry) => entry.isFile() && entry.name.endsWith('.md') && entry.name !== 'README.md')
+      .flatMap((entry) => {
+        const path = join(dirname(planPath), entry.name)
+        const metadata = parseFrontmatter(readFileSync(path, 'utf8'))
+        return metadata.status ? [{ file: pathLabel(root, path), status: metadata.status, review: metadata.review_evidence ?? '' }] : []
+      })
+  })
 }
 
 export function checkWorkflowConsistency(root = defaultRoot) {
@@ -239,6 +341,9 @@ if (process.argv[1] && resolve(process.argv[1]) === scriptPath) {
     for (const error of result.errors) console.error(`- ${error}`)
     process.exitCode = 1
   } else {
-    console.log(`workflow:check pass (${result.plans} plans, ${result.specs} standalone specs, ${result.skills} Skill documents)`)
+    if (process.argv.includes('--status')) {
+      console.log('| Task | Status | Review evidence |\n| --- | --- | --- |')
+      for (const task of getWorkflowStatus(cliRoot(process.argv.slice(2)))) console.log(`| ${task.file} | ${task.status} | ${task.review} |`)
+    } else console.log(`workflow:check pass (${result.plans} plans, ${result.specs} standalone specs, ${result.skills} Skill documents)`)
   }
 }

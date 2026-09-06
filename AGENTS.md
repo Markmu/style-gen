@@ -53,6 +53,7 @@ pnpm verify:fast      # Workflow contract + type + lint + unit/component tests
 pnpm verify:full      # Fast gate + build + stable critical-path browser smoke suite
 pnpm verify:acceptance # Fast gate + build + complete current targeted acceptance/visual suite
 pnpm workflow:check   # Validate workflow docs, contracts, evidence links, and mirrors
+pnpm workflow:status  # Derive task status from plan task files
 
 pnpm type-check       # TypeScript production-source checking
 pnpm lint             # ESLint
@@ -125,7 +126,7 @@ All API routes live under `src/app/api/`:
 
 ## Change-to-Validation Routing
 
-Run the smallest relevant checks after the last edit, then escalate with risk:
+Run the smallest relevant checks after the last edit, then escalate with risk. Skill-specific checks supplement rather than replace this table. Reuse a command result only when it covers the same final file state and relevant environment; do not rerun identical checks merely because another Skill takes over:
 
 | Change | Required focused evidence | Repository gate |
 | --- | --- | --- |
@@ -139,6 +140,15 @@ Run the smallest relevant checks after the last edit, then escalate with risk:
 
 Do not use an old review document or an earlier green run as evidence for the final edited state.
 
+## Autonomy, Clarification, and Approval
+
+- Existing explicit authorization remains valid for the same action, artifact version, and scope across Skill handoffs. Do not ask again merely because the executing Skill changed.
+- Execute action requests through their requested deliverable. Status queries and review-only requests remain read-only. A Skill finishing its own role does not finish a broader authorized task: load the next applicable Skill and continue.
+- Resolve questions from explicit user input, current task context, and verifiable repository facts first. Ask only when missing information materially changes requirements, acceptance, authorization, or the risk of substantial rework. Use project-consistent defaults for reversible implementation details and state material assumptions. Unanswered optional preferences do not block independent work.
+- Preserve explicit approval gates. Approval must cover the actual action or artifact version; silence, elapsed time, successful tests, and a seemingly obvious choice are not approval. Freeze approved requirements and respect explicit ask-first and prohibited boundaries.
+- Diagnose and repair ordinary failures within the authorized scope. Pause only the affected work for external blockers, required approval, or repeated attempts without new evidence or progress; continue independent authorized work. Report what remains incomplete and the concrete condition needed to resume.
+- File lists identify planned implementation files. New plans should explicitly allow necessary adjacent tests, types, fixtures, and configuration, with changes recorded. Existing explicit restrictions, including an extra-file allowance of “none”, remain binding unless the user changes them; do not infer permission to change public contracts or product scope.
+
 ## Workflow and Delivery Assets
 
 - `.agents/contracts/workflow-schema.json` is the single project workflow-contract SSOT.
@@ -147,8 +157,10 @@ Do not use an old review document or an earlier green run as evidence for the fi
 - `pnpm workflow:check` validates contracts, active plan state, required sections, evidence links, and forbidden cross-provider owner references.
 - `.github/workflows/ci.yml` is the repository CI entrypoint and runs the same project-owned verification commands used locally.
 
-Pull requests block on `verify:fast`, production build, and `e2e:smoke`. A manual CI `workflow_dispatch` additionally runs the complete targeted suite as the strict release-acceptance gate. If `verify:acceptance` is red, the affected implementation plan must remain `in_review` and release-readiness must not claim acceptance.
+Pull requests block on `verify:fast`, production build, and `e2e:smoke`. A manual CI `workflow_dispatch` additionally runs the complete targeted suite as the strict release-acceptance gate. If `verify:acceptance` is red, the affected implementation plan must remain `in_review` and release-check pre must not claim acceptance.
 
-The full document-driven path is PRD → architecture → implementation plan → red E2E → implementation → green E2E → task review → UAT → release readiness → post-release check. Lightweight `workflow_type: new-feature` specs go directly from approval to `implementer` and do not enter the full plan path.
+Ordinary scoped work follows requirements → implementation and necessary tests → repository verification → delivery. Full plans follow PRD → architecture → plan → red → implementation with green evidence → independent task review; `doc-review` checks the corresponding document at each required gate. `workflow-orchestrator` owns execution and recovery; there is no separate auto-dev or green-evidence handoff. Component tests use `test-unit component`; visual regression uses `test-e2e visual`. Research, UAT and `release-check pre/post` are invoked when required by the request or plan, not simply because their artifacts are missing.
+
+New plans use `workflow_version: 2`: task-local AC/test/result mapping, actual red/green records and independent review evidence; `pnpm workflow:status` derives status without a manually maintained step table. Existing unversioned plans retain v1 evidence and approval requirements. Never silently migrate away explicit UAT, review or approval gates. The `new-feature` Skill has been removed; ordinary scoped work does not require generating a standalone spec. Existing `workflow_type: new-feature` specs remain supported for compatibility and go directly from explicit approval to `implementer`, without entering the full plan path. Draft specs may be revised as requested, but must be presented for explicit approval before implementation. Keep the required “需求变更” section even for behavior-preserving changes, stating that no product behavior changes.
 
 Release Skills provide the checklist and evidence contract; they do not by themselves prove deployment, production health, approval, or rollback. Bind release evidence to the actual deployment target and current revision before marking a plan `released`.
