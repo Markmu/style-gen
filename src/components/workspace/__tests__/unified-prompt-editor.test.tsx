@@ -280,7 +280,7 @@ describe("UnifiedPromptEditor", () => {
     expect(screen.getByLabelText("Variable subject")).toHaveValue("crystal heron");
   });
 
-  it("keeps the variable-linked editor at half of the viewport height", async () => {
+  it("keeps the linked prompt compact below editable variables", async () => {
     const user = userEvent.setup();
 
     render(
@@ -310,8 +310,8 @@ describe("UnifiedPromptEditor", () => {
 
     await user.selectOptions(screen.getByLabelText("Prompt mode"), "variables");
     expect(screen.getByTestId("template-mode-highlight-editor")).toHaveClass(
-      "h-[50dvh]",
-      "min-h-[15rem]",
+      "h-40",
+      "min-h-0",
     );
   });
 

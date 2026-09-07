@@ -29,15 +29,15 @@ import {
  */
 
 const DIMENSION_LABELS: Record<StyleDimension, string> = {
-  composition: "构图",
-  camera: "镜头",
-  color: "色彩",
-  lighting: "光线",
-  visualMedium: "媒介",
-  formLanguage: "形式",
-  materialTexture: "材质",
-  atmosphere: "氛围",
-  rendering: "渲染",
+  composition: "Composition",
+  camera: "Camera",
+  color: "Color",
+  lighting: "Lighting",
+  visualMedium: "Medium",
+  formLanguage: "Form",
+  materialTexture: "Material",
+  atmosphere: "Atmosphere",
+  rendering: "Rendering",
 };
 
 const ADJUSTMENT_ACTIONS: Array<{
@@ -45,10 +45,10 @@ const ADJUSTMENT_ACTIONS: Array<{
   testId: string;
   label: string;
 }> = [
-  { action: "strengthen", testId: "adjustment-action-strengthen", label: "加强保留" },
-  { action: "relax", testId: "adjustment-action-relax", label: "放宽" },
-  { action: "replace", testId: "adjustment-action-replace", label: "替换" },
-  { action: "disable", testId: "adjustment-action-disable", label: "不再保留" },
+  { action: "strengthen", testId: "adjustment-action-strengthen", label: "Strengthen" },
+  { action: "relax", testId: "adjustment-action-relax", label: "Relax" },
+  { action: "replace", testId: "adjustment-action-replace", label: "Replace" },
+  { action: "disable", testId: "adjustment-action-disable", label: "Stop retaining" },
 ];
 
 export interface ResultComparisonPanelProps {
@@ -94,7 +94,7 @@ export function ResultComparisonPanel({
     null,
   );
   const [replacementValue, setReplacementValue] = useState("");
-  const [announcement, setAnnouncement] = useState("比较已打开。调整只会写入当前草稿。");
+  const [announcement, setAnnouncement] = useState("Comparison opened. Adjustments apply only to your current draft.");
 
   // 打开（挂载）即聚焦标题：内联 focus-managed region，不 trap（ADR-7）
   useEffect(() => {
@@ -169,10 +169,10 @@ export function ResultComparisonPanel({
     setSelectedInvariantId(invariants.length === 1 ? invariants[0].id : null);
     setAnnouncement(
       invariants.length === 0
-        ? `已选择维度「${DIMENSION_LABELS[dimension]}」，该维度暂无可调整规则。`
+        ? `Selected dimension: ${DIMENSION_LABELS[dimension]}. No adjustable rules in this dimension.`
         : invariants.length === 1
-          ? `已选择维度「${DIMENSION_LABELS[dimension]}」，唯一规则已选中。`
-          : `已选择维度「${DIMENSION_LABELS[dimension]}」，请选择要调整的具体规则。`,
+          ? `Selected dimension: ${DIMENSION_LABELS[dimension]}. The only rule is selected.`
+          : `Selected dimension: ${DIMENSION_LABELS[dimension]}. Choose a rule to adjust.`,
     );
   };
 
@@ -192,7 +192,7 @@ export function ResultComparisonPanel({
   return (
     <section
       data-testid="result-comparison-panel"
-      aria-label="参考比较与局部调整"
+      aria-label="Reference comparison and adjustments"
       onKeyDown={(event) => {
         if (event.key === "Escape") {
           event.stopPropagation();
@@ -208,16 +208,14 @@ export function ResultComparisonPanel({
           tabIndex={-1}
           className="text-sm font-bold text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]"
         >
-          参考比较
-        </h3>
+           Reference comparison </h3>
         <button
           type="button"
           data-testid="comparison-adjustment-cancel"
           onClick={onCancel}
           className="btn-secondary h-7 shrink-0 rounded-lg px-2.5 text-xs font-medium"
         >
-          取消比较
-        </button>
+           Cancel comparison </button>
       </div>
 
       <span
@@ -234,9 +232,7 @@ export function ResultComparisonPanel({
           className="mt-2 rounded-lg bg-[var(--surface-bright)]/72 px-2.5 py-2 ring-1 ring-[var(--border-interactive)]"
         >
           <p className="text-xs leading-5 text-[var(--text-secondary)]">
-            比较详情加载失败{detailErrorMessage ? `：${detailErrorMessage}` : ""}。
-            结果区与当前草稿保持不变。
-          </p>
+             Comparison details could not be loaded {detailErrorMessage ? `：${detailErrorMessage}` : ""} . Your results and draft are preserved. </p>
           <div className="mt-2 flex flex-wrap gap-2">
             <button
               type="button"
@@ -244,22 +240,19 @@ export function ResultComparisonPanel({
               onClick={onRetryDetail}
               className="btn-secondary h-7 rounded-lg px-2.5 text-xs font-medium"
             >
-              重试
-            </button>
+               Retry </button>
             <button
               type="button"
               data-testid="comparison-detail-open-iteration"
               onClick={() => onOpenIteration(iterationId)}
               className="btn-secondary h-7 rounded-lg px-2.5 text-xs font-medium"
             >
-              打开完整 Iteration
-            </button>
+               Open full iteration </button>
           </div>
         </div>
       ) : detailStatus === "loading" || detailStatus === "idle" || !detail ? (
         <p role="status" className="mt-2 px-1 text-xs leading-5 text-[var(--text-muted)]">
-          正在加载所选结果…
-        </p>
+           Loading selected result... </p>
       ) : (
         <div className="mt-2 grid gap-2.5 lg:grid-cols-2">
           <div className="min-w-0 space-y-2">
@@ -270,8 +263,7 @@ export function ResultComparisonPanel({
             />
             <div className="rounded-xl bg-[var(--surface-bright)]/56 p-2.5 ring-1 ring-[var(--border-static)]">
               <p className="label-tech mb-1 text-[var(--text-muted)]">
-                该结果的历史 Prompt
-              </p>
+                 Historical Prompt for this result </p>
               <p
                 data-testid="comparison-historical-prompt"
                 className="whitespace-pre-wrap break-words font-mono text-[0.6875rem] leading-4 text-[var(--text-secondary)]"
@@ -282,17 +274,14 @@ export function ResultComparisonPanel({
                 data-testid="comparison-historical-context"
                 className="mt-2 text-[0.6875rem] leading-4 text-[var(--text-muted)]"
               >
-                正在调整当前草稿：以上是所选结果生成时的表达快照，仅作历史上下文；
-                应用调整只更新当前草稿并重新编译，不会改动这条历史结果。
-              </p>
+                 This is the prompt used for the selected result. Adjustments update your current draft without changing history. </p>
             </div>
           </div>
 
           <div className="min-w-0 space-y-2">
             <div className="rounded-xl bg-[var(--surface-bright)]/56 p-2.5 ring-1 ring-[var(--border-static)]">
               <p className="label-tech mb-1 text-[var(--text-muted)]">
-                选择偏差维度
-              </p>
+                 Choose a dimension to adjust </p>
               <div className="flex flex-wrap gap-1">
                 {availableDimensions.map((dimension) => (
                   <button
@@ -320,21 +309,19 @@ export function ResultComparisonPanel({
                     setSelectedDimension(null);
                     setSelectedInvariantId(null);
                     setPendingAction(null);
-                    setAnnouncement("已选择「其他」，进入全文编辑。");
+                    setAnnouncement("Opening full text editing.");
                     onSelectOtherDimension();
                   }}
                   className="h-6 rounded-lg bg-[var(--surface-low)] px-2 text-[0.6875rem] font-medium text-[var(--text-secondary)] ring-1 ring-[var(--border-static)] transition-colors hover:bg-[var(--surface-bright)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]"
                 >
-                  其他 / 全文编辑
-                </button>
+                   Other / Full text </button>
               </div>
             </div>
 
             {selectedDimension && (
               <div className="rounded-xl bg-[var(--surface-bright)]/56 p-2.5 ring-1 ring-[var(--border-static)]">
                 <p className="label-tech mb-1 text-[var(--text-muted)]">
-                  真实证据（不自动给出偏差结论）
-                </p>
+                   Observed evidence </p>
                 <ul className="flex flex-wrap gap-1">
                   {dimensionObservations.map((observation) => (
                     <li
@@ -342,7 +329,7 @@ export function ResultComparisonPanel({
                       data-testid="comparison-observation-item"
                       data-observation-id={observation.id}
                       className="rounded-lg bg-[var(--surface-low)] px-2 py-0.5 text-[0.6875rem] text-[var(--text-secondary)]"
-                      title={`置信度 ${observation.confidence}`}
+                      title={`Model confidence ${observation.confidence}`}
                     >
                       {observation.value}
                     </li>
@@ -352,8 +339,7 @@ export function ResultComparisonPanel({
                 {dimensionPromptExpressions.length > 0 && (
                   <div className="mt-2">
                     <p className="label-tech mb-1 text-[var(--text-muted)]">
-                      当前草稿中的 Prompt 表达
-                    </p>
+                       Prompt in your current draft </p>
                     <ul
                       data-testid="comparison-prompt-segments"
                       className="flex flex-wrap gap-1"
@@ -374,16 +360,14 @@ export function ResultComparisonPanel({
 
             <div className="rounded-xl bg-[var(--surface-bright)]/56 p-2.5 ring-1 ring-[var(--border-static)]">
               <p className="label-tech mb-1 text-[var(--text-muted)]">
-                调整目标规则
-              </p>
+                 Rule to adjust </p>
               {selectedDimension ? (
                 dimensionInvariants.length === 0 ? (
                   <p
                     data-testid="comparison-invariant-empty"
                     className="text-xs leading-5 text-[var(--text-secondary)]"
                   >
-                    该维度暂无可调整规则。可改选「其他 / 全文编辑」直接改写全文。
-                  </p>
+                     No adjustable rules in this dimension. Use Other / Full text to edit the prompt. </p>
                 ) : (
                   <div className="flex flex-wrap gap-1">
                     {dimensionInvariants.map((invariant) => (
@@ -395,7 +379,7 @@ export function ResultComparisonPanel({
                         aria-pressed={selectedInvariantId === invariant.id}
                         onClick={() => {
                           setSelectedInvariantId(invariant.id);
-                          setAnnouncement(`已选择规则「${invariant.value}」。`);
+                          setAnnouncement(`Selected rule: ${invariant.value}.`);
                         }}
                         className={`max-w-full truncate rounded-lg px-2 py-1 text-left text-[0.6875rem] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)] ${
                           selectedInvariantId === invariant.id
@@ -410,8 +394,7 @@ export function ResultComparisonPanel({
                 )
               ) : (
                 <p className="text-xs leading-5 text-[var(--text-muted)]">
-                  先选择一个维度，或使用「其他 / 全文编辑」。
-                </p>
+                   Choose a dimension or use Other / Full text. </p>
               )}
 
               <div className="mt-2 flex flex-wrap items-center gap-1 border-t border-[var(--border-static)] pt-2">
@@ -423,11 +406,11 @@ export function ResultComparisonPanel({
                     aria-pressed={pendingAction === option.action}
                     disabled={actionsDisabled}
                     title={
-                      actionsDisabled ? "先选择要调整的具体规则" : option.label
+                      actionsDisabled ? "Choose a rule first" : option.label
                     }
                     onClick={() => {
                       setPendingAction(option.action);
-                      setAnnouncement(`已选择动作「${option.label}」，应用后写入当前草稿。`);
+                      setAnnouncement(`Selected action: ${option.label}. Apply to update your draft.`);
                     }}
                     className={`h-6 rounded-lg px-2 text-[0.6875rem] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)] ${
                       pendingAction === option.action
@@ -446,8 +429,7 @@ export function ResultComparisonPanel({
                     htmlFor="adjustment-replacement-input"
                     className="mb-0.5 block text-[0.6875rem] text-[var(--text-secondary)]"
                   >
-                    替换值（trim 后非空，最多 {MAX_REPLACEMENT_LENGTH} 字）
-                  </label>
+                     Replacement value (required, up to  {MAX_REPLACEMENT_LENGTH}   characters) </label>
                   <input
                     id="adjustment-replacement-input"
                     data-testid="adjustment-replacement-input"
@@ -466,14 +448,13 @@ export function ResultComparisonPanel({
                   type="button"
                   data-testid="comparison-adjustment-apply"
                   disabled={applyDisabled}
-                  title={applyDisabled ? "选择规则与动作后可应用" : "应用到当前草稿"}
+                  title={applyDisabled ? "Choose a rule and action first" : "Apply to current draft"}
                   onClick={handleApply}
                   className={`btn-primary h-7 rounded-lg px-2.5 text-xs font-semibold ${
                     applyDisabled ? "cursor-not-allowed opacity-50" : ""
                   }`}
                 >
-                  应用到当前草稿
-                </button>
+                   Apply to current draft </button>
               </div>
             </div>
           </div>

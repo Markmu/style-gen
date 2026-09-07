@@ -143,7 +143,7 @@ describe("OutputCard", () => {
     expect(screen.queryByTestId("render-status-detail")).not.toBeInTheDocument();
     expect(screen.queryByText("Needs attention")).not.toBeInTheDocument();
     expect(screen.queryByTestId("render-readiness-item-variables")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("render-disabled-reason")).not.toBeInTheDocument();
+    expect(screen.getByTestId("render-disabled-reason")).toBeVisible();
     expect(screen.queryByTestId("render-next-action")).not.toBeInTheDocument();
 
     await user.click(button);
@@ -161,11 +161,11 @@ describe("OutputCard", () => {
 
     expect(screen.getByTestId("output-card-actions")).toHaveClass(
       "grid",
-      "sm:grid-cols-[minmax(0,1fr)_auto]",
+      "grid-cols-[minmax(0,1fr)_auto]",
     );
     expect(screen.getByTestId("render-parameter-controls")).toHaveClass(
       "grid",
-      "grid-cols-2",
+      "grid-cols-3",
     );
     expect(screen.queryByTestId("render-status-summary")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Aspect Ratio")).toBeInTheDocument();
@@ -226,9 +226,9 @@ describe("OutputCard", () => {
     expect(note).toBeVisible();
     expect(note).toHaveAttribute("role", "status");
     // 三段式：发生了什么 / 保留了什么 / 下一步
-    expect(note).toHaveTextContent(/Generation is queued\. Thanks for waiting/);
-    expect(note).toHaveTextContent(/保持不变/);
-    expect(note).toHaveTextContent(/本次结果区/);
+    expect(note).toHaveTextContent(/Generation is queued/);
+    expect(note).toHaveTextContent(/are preserved/);
+    expect(note).toHaveTextContent(/this direction/);
     // 参数仍可见（保留能力），Generate 维持进行中态
     expect(screen.getByLabelText("Aspect Ratio")).toBeVisible();
     expect(screen.getByRole("button", { name: "Rendering..." })).toBeDisabled();
@@ -253,7 +253,7 @@ describe("OutputCard", () => {
     );
     expect(screen.queryByTestId("render-status-summary")).not.toBeInTheDocument();
     expect(screen.queryByTestId("render-status-detail")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("render-disabled-reason")).not.toBeInTheDocument();
+    expect(screen.getByTestId("render-disabled-reason")).toBeVisible();
     expect(screen.queryByTestId("render-recovery-actions")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Retry service" })).not.toBeInTheDocument();
     expect(
@@ -277,7 +277,7 @@ describe("OutputCard", () => {
       />,
     );
 
-    // armed：自动任务将使用已确认设置——三个下拉只读
+    // armed：The automatic render uses confirmed settings——三个下拉只读
     expect(screen.getByLabelText("Aspect Ratio")).toBeDisabled();
     expect(screen.getByLabelText("Quality")).toBeDisabled();
     expect(screen.getByLabelText("Model")).toBeDisabled();
@@ -357,7 +357,7 @@ describe("OutputCard", () => {
     );
     // armed 锁定说明由创作节奏区（quick-authorization-locked-note）承载，
     // Render Dock 不复制第二套解释
-    expect(screen.queryByTestId("render-disabled-reason")).not.toBeInTheDocument();
+    expect(screen.getByTestId("render-disabled-reason")).toBeVisible();
   });
 });
 
@@ -375,7 +375,7 @@ describe("OutputCard aspect ratio source badge", () => {
   });
 
   it.each([
-    { source: "reference", recommended: "true", label: "参考图推荐" },
+    { source: "reference", recommended: "true", label: "Reference recommended" },
     { source: "user", recommended: "false", label: "Your selection" },
     { source: "restore", recommended: "false", label: "Restored iteration" },
     { source: "fallback", recommended: "false", label: "1:1 fallback" },

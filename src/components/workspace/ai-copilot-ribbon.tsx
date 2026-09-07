@@ -1,14 +1,12 @@
 "use client";
 
-import { Gauge, Pencil, Sparkles } from "lucide-react";
-import { AppIcon, type AppIconComponent } from "@/components/ui/app-icon";
-import { extractAnalysisSummary } from "@/lib/analysis-summary";
+import { deriveEvidenceFacets } from "@/lib/evidence-facets";
 import type { DegradationState, WorkspaceState } from "@/hooks/use-workspace-state";
-import type { VisualRecipe } from "@/types/models";
+import type { StoredVisualRecipe } from "@/types/models";
 
 interface AiCopilotRibbonProps {
   state: WorkspaceState;
-  recipe: VisualRecipe | null;
+  recipe: StoredVisualRecipe | null;
   hasReference: boolean;
   hasPrompt: boolean;
   canGenerate: boolean;
@@ -73,135 +71,23 @@ function nextAction({
   return disabledReason;
 }
 
-export function AiCopilotRibbon({
-  state,
-  recipe,
-  hasReference,
-  hasPrompt,
-  canGenerate,
-  disabledReason,
-  degradation,
-}: AiCopilotRibbonProps) {
-  const summary = extractAnalysisSummary(recipe);
-  const confidence =
-    summary.length > 0
-      ? Math.round(
-          summary.reduce((total, item) => total + item.percentage, 0) /
-            summary.length,
-        )
-      : 0;
-  const serviceUnavailable =
-    degradation.analysisUnavailable || degradation.generationUnavailable;
-  const serviceLabel = serviceUnavailable ? "Limited" : "Ready";
-  const serviceTone = serviceUnavailable ? "var(--color-warning)" : "var(--color-success)";
-  const signalCount = summary.length || (hasReference ? 5 : 0);
-  const signalDots = summary.length > 0 ? summary : [];
+export function AiCopilotRibbon(props: AiCopilotRibbonProps) {
+  const { state, recipe, degradation } = props;
+  const signalCount = new Set(deriveEvidenceFacets(recipe)
+    .filter((facet) => facet.sourceField !== "subject" && facet.summary.trim())
+    .map((facet) => facet.sourceField)).size;
   const phase = phaseAttribute(state, degradation);
-  const serviceState = serviceUnavailable ? "limited" : "ready";
-
   return (
     <div data-testid={phase === "idle" ? undefined : "ai-status-header"} data-phase={phase}>
-      <section
-        data-testid="ai-copilot-ribbon"
-        data-phase={phase}
-        data-service={serviceState}
-        className="workspace-copilot-ribbon mx-4 mb-3"
-        aria-label="AI Copilot"
-        aria-live={
-          degradation.analysisUnavailable || degradation.generationUnavailable
-            ? "assertive"
-            : "polite"
-        }
-      >
-        <div className="workspace-copilot-ribbon-grid">
-          <div className="workspace-copilot-lede flex min-w-0 items-center gap-3">
-            <span className="workspace-copilot-mark flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[var(--accent-primary)]">
-              <AppIcon icon={Sparkles} size={20} />
-            </span>
-            <div className="min-w-0">
-              <p className="truncate text-base font-bold text-[var(--accent-primary)]">
-                AI Copilot
-              </p>
-              <p className="truncate text-xs text-[var(--text-secondary)]">
-                {signalCount > 0
-                  ? `${signalCount} style signals detected`
-                  : "Waiting for reference evidence"}
-              </p>
-            </div>
-          </div>
-
-          <RibbonMetric label="Phase" value={phaseLabel(state)} icon={Pencil} />
-          <RibbonMetric
-            label="Confidence"
-            value={confidence > 0 ? `${confidence}%` : "--"}
-            icon={Gauge}
-          />
-
-          <div className="workspace-copilot-segment min-w-0">
-            <p className="workspace-copilot-label">Signals detected</p>
-            <div className="flex items-center gap-1.5">
-              <span className="mr-1 text-sm font-semibold text-[var(--text-primary)]">
-                {signalCount}
-              </span>
-              {signalDots.length > 0
-                ? signalDots.map((item) => (
-                    <span
-                      key={item.dimension}
-                      className="h-2.5 w-2.5 rounded-full ring-2 ring-[var(--surface-bright)]"
-                      style={{ background: item.iconColor }}
-                      title={item.label}
-                    />
-                  ))
-                : Array.from({ length: 5 }).map((_, index) => (
-                    <span
-                      key={index}
-                      className="h-2.5 w-2.5 rounded-full bg-[var(--surface-low)] ring-2 ring-[var(--surface-bright)]"
-                    />
-                  ))}
-            </div>
-          </div>
-
-          <div className="workspace-copilot-segment min-w-0">
-            <p className="workspace-copilot-label">Next</p>
-            <p className="truncate text-sm font-medium text-[var(--text-primary)]">
-              {nextAction({ state, hasReference, hasPrompt, canGenerate, disabledReason })}
-            </p>
-          </div>
-
-          <div className="workspace-copilot-segment min-w-0">
-            <p className="workspace-copilot-label">Services</p>
-            <p className="flex items-center gap-2 text-sm font-medium text-[var(--text-primary)]">
-              <span
-                className="h-2 w-2 rounded-full"
-                style={{ background: serviceTone }}
-                aria-hidden="true"
-              />
-              {serviceLabel}
-            </p>
-          </div>
-
-        </div>
+      <section data-testid="ai-copilot-ribbon" data-phase={phase}
+        className="mx-4 mb-2 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 rounded-xl bg-[var(--surface-panel)] px-3 py-2 text-xs"
+        aria-label="Workspace status" aria-live="polite">
+        <span className="font-semibold text-[var(--text-primary)]">{phaseLabel(state)}</span>
+        <span className="text-[var(--text-secondary)]">{nextAction(props)}</span>
+        <span className="text-[var(--text-muted)]" data-testid="evidence-coverage">
+          {signalCount ? `${signalCount} evidence dimensions` : "Waiting for reference evidence"}
+        </span>
       </section>
-    </div>
-  );
-}
-
-function RibbonMetric({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: string;
-  icon: AppIconComponent;
-}) {
-  return (
-    <div className="workspace-copilot-segment min-w-0">
-      <p className="workspace-copilot-label">{label}</p>
-      <p className="flex items-center gap-2 truncate text-sm font-medium text-[var(--text-primary)]">
-        <AppIcon icon={icon} size={16} className="text-[var(--accent-primary)]" />
-        {value}
-      </p>
     </div>
   );
 }

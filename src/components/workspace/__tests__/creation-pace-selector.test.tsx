@@ -214,3 +214,30 @@ describe("CreationPaceSelector", () => {
     expect(handlers.onSelectAnalyzeEdit).toHaveBeenCalledTimes(1);
   });
 });
+
+
+describe("Quick recreate local parameter draft", () => {
+  it("discards cancelled settings, then confirms one complete authorization snapshot", async () => {
+    const user = userEvent.setup();
+    const callbacks = mountSelector();
+    await user.click(screen.getByTestId("pace-option-quick-recreate"));
+    await user.selectOptions(screen.getByLabelText("Quick recreate quality"), "hd");
+    await user.selectOptions(screen.getByLabelText("Quick recreate model"), "nano-banana-2-lite");
+    await user.click(screen.getByTestId("quick-confirm-cancel"));
+    expect(callbacks.onConfirmQuickRecreate).not.toHaveBeenCalled();
+    expect(callbacks.onSelectAnalyzeEdit).not.toHaveBeenCalled();
+    expect(generationSettings).toEqual({ quality: "standard", model: "flux-2-dev" });
+    await user.click(screen.getByTestId("pace-option-quick-recreate"));
+    expect(screen.getByLabelText("Quick recreate quality")).toHaveValue("standard");
+    await user.selectOptions(screen.getByLabelText("Quick recreate quality"), "hd");
+    await user.click(screen.getByTestId("quick-confirm-confirm"));
+    expect(callbacks.onConfirmQuickRecreate).toHaveBeenCalledExactlyOnceWith({
+      ...expectedSnapshot, generationSettings: { ...generationSettings, quality: "hd" },
+    });
+  });
+  it("requires exiting the armed path before settings can be reconfirmed", () => {
+    mountSelector({ creationPace: "quick_recreate", quickAuthorization: "armed" });
+    expect(screen.getByTestId("pace-option-quick-recreate")).toBeDisabled();
+    expect(screen.getByTestId("exit-quick-recreate")).toBeEnabled();
+  });
+});

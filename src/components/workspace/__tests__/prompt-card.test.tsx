@@ -48,7 +48,7 @@ describe("PromptCard", () => {
       name: "Expand Prompt editor",
     });
     expect(expandButton.querySelector("svg")).toHaveClass("lucide-maximize");
-    expect(screen.getByText("Prompt and generation controls")).toBeInTheDocument();
+    expect(screen.getByText("Edit content, then render")).toBeInTheDocument();
     expect(screen.queryByText("Prompt provenance and generation controls")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Prompt help")).toBeNull();
     expect(screen.queryByText("Output")).toBeNull();
@@ -230,8 +230,8 @@ describe("PromptCard", () => {
     );
 
     expect(screen.getByTestId("prompt-editor-frame")).toHaveClass(
-      "min-h-[14rem]",
-      "flex-1",
+      "min-h-0",
+      "shrink-0",
       "overflow-hidden",
     );
     expect(screen.getByTestId("prompt-editor-frame")).not.toHaveClass(
@@ -574,10 +574,10 @@ describe("PromptCard plan-04 structure and degraded states", () => {
       "data-invariant-id",
       "lighting_invariant_1",
     );
-    // 不静默、不声称已删除：说明未找到可删除表达且全文逐字保留
-    expect(missNote).toHaveTextContent(/未找到可删除的表达/);
-    expect(missNote).toHaveTextContent(/逐字保留/);
-    expect(missNote).not.toHaveTextContent(/已删除/);
+    // 不静默、不声称Text removed：说明未找到可删除表达且全文full prompt is unchanged
+    expect(missNote).toHaveTextContent(/No matching text was found/);
+    expect(missNote).toHaveTextContent(/full prompt is unchanged/);
+    expect(missNote).not.toHaveTextContent(/Text removed/);
     // 说明位于「保留 / 改变」摘要邻近（同一内容列，摘要之后）
     const summary = screen.getByTestId("keep-change-summary");
     expect(

@@ -21,6 +21,7 @@ interface TemplateSaveDialogProps {
   open: boolean;
   /** 工作区当前提示内容（含 {{var}} 标记时按既有口径并入变量预填） */
   initialContent: string;
+  initialName?: string;
   initialVariables?: TemplateVariable[];
   /** 工作区当前配方（预填规则四元组依据） */
   recipe?: StoredVisualRecipe | null;
@@ -36,6 +37,7 @@ interface TemplateSaveDialogProps {
 export function TemplateSaveDialog({
   open,
   initialContent,
+  initialName,
   initialVariables = [],
   recipe = null,
   negativePromptText = "",
@@ -55,6 +57,7 @@ export function TemplateSaveDialog({
       open={open}
       flow="workspace-draft"
       initialContent={initialContent}
+      initialName={initialName}
       initialVariables={variables}
       recipe={recipe}
       recipeSource="snapshot"

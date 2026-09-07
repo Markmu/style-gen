@@ -15,7 +15,7 @@ describe("TemplateVariablePanel", () => {
     );
 
     expect(screen.getByText("Subject")).toBeInTheDocument();
-    expect(screen.getByText("subject")).toBeInTheDocument();
+    expect(screen.queryByText("subject")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Variable subject")).toHaveValue("glass fox");
   });
 

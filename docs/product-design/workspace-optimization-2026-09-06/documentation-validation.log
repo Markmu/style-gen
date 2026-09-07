@@ -1,0 +1,110 @@
+$ pnpm workflow:check && pnpm test:workflow && pnpm type-check && pnpm lint && pnpm test
+$ node scripts/check-workflow-consistency.mjs
+workflow:check pass (5 plans, 5 standalone specs, 90 Skill documents)
+$ node --test scripts/__tests__/check-workflow-consistency.test.mjs
+✔ accepts a consistent completed plan and shared contract (5.377083ms)
+✔ rejects accepted plans with planned acceptance rows (3.047583ms)
+✔ rejects compatibility contract references from project Skills (2.420459ms)
+✔ rejects contract mirror drift (2.52725ms)
+✔ accepts compact plans without duplicate case documents or state rows (3.672ms)
+✔ compact completion requires both verification phases and independent review (9.251166ms)
+✔ compact evidence must exist and review cannot cite the implementation record itself (11.366875ms)
+✔ explicit UAT requirements still block compact acceptance without evidence (3.252042ms)
+✔ compact plans reject unfinished task acceptance and unknown workflow versions (2.998041ms)
+✔ generated status reads task files rather than stale README state rows (2.3835ms)
+✔ compact plans retain acceptance coverage when status columns are removed (9.475417ms)
+✔ compact acceptance records resolved waivers and rejects empty waiver reasons (3.129917ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 119.992625
+$ tsc --noEmit
+$ eslint src
+
+/Users/muchao/code/style-gen/src/app/api/analysis/__tests__/route.test.ts
+  215:22  warning  '_' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  224:22  warning  '_' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/muchao/code/style-gen/src/app/api/templates/[id]/duplicate/route.ts
+  10:28  warning  '_request' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/muchao/code/style-gen/src/app/api/templates/[id]/representative-candidates/route.ts
+  9:28  warning  '_request' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/muchao/code/style-gen/src/app/api/templates/[id]/representative-result/route.ts
+  12:28  warning  '_request' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/muchao/code/style-gen/src/app/api/templates/[id]/route.ts
+  17:28  warning  '_request' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/muchao/code/style-gen/src/app/api/templates/route.ts
+  19:28  warning  '_request' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/muchao/code/style-gen/src/app/workspace/page.tsx
+   577:5   warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
+   714:16  warning  'err' is defined but never used                                                                                                                                                                                                                                @typescript-eslint/no-unused-vars
+  1028:5   warning  React Hook useCallback has a missing dependency: 'ws'. Either include it or remove the dependency array                                                                                                                                                        react-hooks/exhaustive-deps
+  1344:9   warning  The 'memoryReadinessContext' conditional could make the dependencies of useMemo Hook (at line 1377) change on every render. Move it inside the useMemo callback. Alternatively, wrap the initialization of 'memoryReadinessContext' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  1708:5   warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
+  1765:5   warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
+  1806:5   warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
+
+/Users/muchao/code/style-gen/src/app/workspace/templates/[id]/page.tsx
+  7:55  warning  'Copy' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/muchao/code/style-gen/src/components/style-memory/__tests__/representative-result-selector.test.tsx
+  113:64  warning  'init' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/muchao/code/style-gen/src/components/workspace/__tests__/result-display.test.tsx
+  7:28  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  7:28  warning  img elements must have an alt prop, either with meaningful text, or an empty string for decorative images                                                                                                                                                                                jsx-a11y/alt-text
+
+/Users/muchao/code/style-gen/src/components/workspace/__tests__/template-card.test.tsx
+  16:9  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/Users/muchao/code/style-gen/src/hooks/use-workspace-state.ts
+   612:36  warning  '_cleared' is assigned a value but never used                                                           @typescript-eslint/no-unused-vars
+  1346:6   warning  React Hook useEffect has a missing dependency: 'ctx'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/muchao/code/style-gen/src/lib/__tests__/rate-limit.test.ts
+  10:3  warning  'RateLimitResult' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/muchao/code/style-gen/src/lib/__tests__/ulid.test.ts
+  4:15  warning  'realUlid' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/muchao/code/style-gen/src/lib/ai/providers/__tests__/replicate-image-gen.test.ts
+  9:17  warning  '_cfg' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/muchao/code/style-gen/src/lib/ai/providers/__tests__/replicate-structurer.test.ts
+  9:17  warning  '_cfg' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/muchao/code/style-gen/src/lib/ai/providers/__tests__/replicate-vision.test.ts
+  10:17  warning  '_cfg' is defined but never used  @typescript-eslint/no-unused-vars
+
+✖ 26 problems (0 errors, 26 warnings)
+  0 errors and 4 warnings potentially fixable with the `--fix` option.
+
+$ vitest --run
+
+ RUN  v4.1.0 /Users/muchao/code/style-gen
+
+(node:81381) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:81404) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:81412) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:81448) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:81452) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ Test Files  118 passed (118)
+      Tests  1217 passed (1217)
+   Start at  21:55:50
+   Duration  5.34s (transform 3.64s, setup 6.57s, import 15.10s, tests 18.03s, environment 31.03s)
+

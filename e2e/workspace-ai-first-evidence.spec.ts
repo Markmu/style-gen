@@ -143,6 +143,7 @@ test.describe('plan-03 Workspace Reference / Evidence / Prompt AI-first contract
     const lightingFacet = styleIntelligence(page).getByTestId('evidence-facet-lighting')
     await expect(lightingFacet).toBeVisible({ timeout: 5000 })
     await lightingFacet.click()
+    await styleIntelligence(page).getByTestId('evidence-observation-lighting').click()
 
     await expect(lightingFacet).toHaveAttribute('data-selected', 'true')
     await expect(referenceCard(page).locator('[data-testid^="reference-anchor-"]')).toHaveCount(0)
@@ -174,6 +175,7 @@ test.describe('plan-03 Workspace Reference / Evidence / Prompt AI-first contract
     const textureFacet = styleIntelligence(page).getByTestId('evidence-facet-texture')
     await expect(textureFacet).toBeVisible({ timeout: 5000 })
     await textureFacet.click()
+    await styleIntelligence(page).getByTestId('evidence-observation-texture').click()
 
     await expect(promptCard(page).getByTestId('text-mode-highlight-editor')).toBeVisible()
     await expect(promptCard(page).getByTestId('prompt-provenance-facet-only-texture')).toHaveCount(0)

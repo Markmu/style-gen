@@ -35,20 +35,6 @@ export function TemplateModeEditor({
     <div
       className={`flex min-h-full flex-col ${compact ? "gap-2" : "gap-4"}`}
     >
-      <PromptHighlightedEditor
-        ariaLabel="Template Source"
-        value={templateSource}
-        onChange={onTemplateChange}
-        placeholder="Enter a template, e.g. Create {{subject}} with {{lighting}}."
-        mode="template"
-        minHeightClass="h-[50dvh] min-h-[15rem] shrink-0"
-        compact={compact}
-        variables={variables}
-        variableValues={variableValues}
-        provenanceSpans={provenanceSpans}
-        selectedProvenanceSpan={selectedProvenanceSpan}
-        testId="template-mode-highlight-editor"
-      />
       <div>
         <TemplateVariablePanel
           variables={variables}
@@ -58,6 +44,21 @@ export function TemplateModeEditor({
           onChange={onVariableChange}
         />
       </div>
+      <PromptHighlightedEditor
+        ariaLabel="Template Source"
+        value={templateSource}
+        onChange={onTemplateChange}
+        placeholder="Enter a template, e.g. Create {{subject}} with {{lighting}}."
+        mode="template"
+        minHeightClass="h-40 min-h-0 shrink-0"
+        compact={compact}
+        variables={variables}
+        variableValues={variableValues}
+        provenanceSpans={provenanceSpans}
+        selectedProvenanceSpan={selectedProvenanceSpan}
+        testId="template-mode-highlight-editor"
+      />
+
     </div>
   );
 }

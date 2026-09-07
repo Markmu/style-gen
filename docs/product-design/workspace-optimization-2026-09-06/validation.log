@@ -1,0 +1,484 @@
+$ pnpm verify:fast && pnpm build && pnpm e2e:targeted
+$ pnpm workflow:check && pnpm test:workflow && pnpm type-check && pnpm lint && pnpm test
+$ node scripts/check-workflow-consistency.mjs
+workflow:check pass (5 plans, 5 standalone specs, 90 Skill documents)
+$ node --test scripts/__tests__/check-workflow-consistency.test.mjs
+✔ accepts a consistent completed plan and shared contract (5.048334ms)
+✔ rejects accepted plans with planned acceptance rows (3.1225ms)
+✔ rejects compatibility contract references from project Skills (2.436584ms)
+✔ rejects contract mirror drift (2.3485ms)
+✔ accepts compact plans without duplicate case documents or state rows (3.451792ms)
+✔ compact completion requires both verification phases and independent review (9.243458ms)
+✔ compact evidence must exist and review cannot cite the implementation record itself (10.976125ms)
+✔ explicit UAT requirements still block compact acceptance without evidence (3.382542ms)
+✔ compact plans reject unfinished task acceptance and unknown workflow versions (2.877542ms)
+✔ generated status reads task files rather than stale README state rows (2.241042ms)
+✔ compact plans retain acceptance coverage when status columns are removed (8.022708ms)
+✔ compact acceptance records resolved waivers and rejects empty waiver reasons (2.9665ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 118.715583
+$ tsc --noEmit
+$ eslint src
+
+/Users/muchao/code/style-gen/src/app/api/analysis/__tests__/route.test.ts
+  215:22  warning  '_' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  224:22  warning  '_' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/muchao/code/style-gen/src/app/api/templates/[id]/duplicate/route.ts
+  10:28  warning  '_request' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/muchao/code/style-gen/src/app/api/templates/[id]/representative-candidates/route.ts
+  9:28  warning  '_request' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/muchao/code/style-gen/src/app/api/templates/[id]/representative-result/route.ts
+  12:28  warning  '_request' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/muchao/code/style-gen/src/app/api/templates/[id]/route.ts
+  17:28  warning  '_request' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/muchao/code/style-gen/src/app/api/templates/route.ts
+  19:28  warning  '_request' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/muchao/code/style-gen/src/app/workspace/page.tsx
+   577:5   warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
+   714:16  warning  'err' is defined but never used                                                                                                                                                                                                                                @typescript-eslint/no-unused-vars
+  1028:5   warning  React Hook useCallback has a missing dependency: 'ws'. Either include it or remove the dependency array                                                                                                                                                        react-hooks/exhaustive-deps
+  1344:9   warning  The 'memoryReadinessContext' conditional could make the dependencies of useMemo Hook (at line 1377) change on every render. Move it inside the useMemo callback. Alternatively, wrap the initialization of 'memoryReadinessContext' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  1708:5   warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
+  1765:5   warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
+  1806:5   warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
+
+/Users/muchao/code/style-gen/src/app/workspace/templates/[id]/page.tsx
+  7:55  warning  'Copy' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/muchao/code/style-gen/src/components/style-memory/__tests__/representative-result-selector.test.tsx
+  113:64  warning  'init' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/muchao/code/style-gen/src/components/workspace/__tests__/result-display.test.tsx
+  7:28  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  7:28  warning  img elements must have an alt prop, either with meaningful text, or an empty string for decorative images                                                                                                                                                                                jsx-a11y/alt-text
+
+/Users/muchao/code/style-gen/src/components/workspace/__tests__/template-card.test.tsx
+  16:9  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/Users/muchao/code/style-gen/src/hooks/use-workspace-state.ts
+   612:36  warning  '_cleared' is assigned a value but never used                                                           @typescript-eslint/no-unused-vars
+  1346:6   warning  React Hook useEffect has a missing dependency: 'ctx'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/muchao/code/style-gen/src/lib/__tests__/rate-limit.test.ts
+  10:3  warning  'RateLimitResult' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/muchao/code/style-gen/src/lib/__tests__/ulid.test.ts
+  4:15  warning  'realUlid' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/muchao/code/style-gen/src/lib/ai/providers/__tests__/replicate-image-gen.test.ts
+  9:17  warning  '_cfg' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/muchao/code/style-gen/src/lib/ai/providers/__tests__/replicate-structurer.test.ts
+  9:17  warning  '_cfg' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/muchao/code/style-gen/src/lib/ai/providers/__tests__/replicate-vision.test.ts
+  10:17  warning  '_cfg' is defined but never used  @typescript-eslint/no-unused-vars
+
+✖ 26 problems (0 errors, 26 warnings)
+  0 errors and 4 warnings potentially fixable with the `--fix` option.
+
+$ vitest --run
+
+ RUN  v4.1.0 /Users/muchao/code/style-gen
+
+(node:75770) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:75784) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:75791) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:75806) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:75822) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ Test Files  118 passed (118)
+      Tests  1217 passed (1217)
+   Start at  21:50:17
+   Duration  5.23s (transform 3.68s, setup 6.23s, import 15.12s, tests 17.78s, environment 30.09s)
+
+$ next build
+   ▲ Next.js 15.5.14
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 1180ms
+   Linting and checking validity of types ...
+
+./src/app/api/analysis/__tests__/route.test.ts
+215:22  Warning: '_' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+224:22  Warning: '_' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/templates/[id]/duplicate/route.ts
+10:28  Warning: '_request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/templates/[id]/representative-candidates/route.ts
+9:28  Warning: '_request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/templates/[id]/representative-result/route.ts
+12:28  Warning: '_request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/templates/[id]/route.ts
+17:28  Warning: '_request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/templates/route.ts
+19:28  Warning: '_request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/workspace/page.tsx
+577:5  Warning: Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps').
+714:16  Warning: 'err' is defined but never used.  @typescript-eslint/no-unused-vars
+1028:5  Warning: React Hook useCallback has a missing dependency: 'ws'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+1344:9  Warning: The 'memoryReadinessContext' conditional could make the dependencies of useMemo Hook (at line 1377) change on every render. Move it inside the useMemo callback. Alternatively, wrap the initialization of 'memoryReadinessContext' in its own useMemo() Hook.  react-hooks/exhaustive-deps
+1708:5  Warning: Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps').
+1765:5  Warning: Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps').
+1806:5  Warning: Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps').
+
+./src/app/workspace/templates/[id]/page.tsx
+7:55  Warning: 'Copy' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/style-memory/__tests__/representative-result-selector.test.tsx
+113:64  Warning: 'init' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/workspace/__tests__/result-display.test.tsx
+7:28  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+7:28  Warning: img elements must have an alt prop, either with meaningful text, or an empty string for decorative images.  jsx-a11y/alt-text
+
+./src/components/workspace/__tests__/template-card.test.tsx
+16:9  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/hooks/use-workspace-state.ts
+612:36  Warning: '_cleared' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+1346:6  Warning: React Hook useEffect has a missing dependency: 'ctx'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/lib/__tests__/rate-limit.test.ts
+10:3  Warning: 'RateLimitResult' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/__tests__/ulid.test.ts
+4:15  Warning: 'realUlid' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/ai/providers/__tests__/replicate-image-gen.test.ts
+9:17  Warning: '_cfg' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/ai/providers/__tests__/replicate-structurer.test.ts
+9:17  Warning: '_cfg' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/ai/providers/__tests__/replicate-vision.test.ts
+10:17  Warning: '_cfg' is defined but never used.  @typescript-eslint/no-unused-vars
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules
+   Collecting page data ...
+   Generating static pages (0/13) ...
+   Generating static pages (3/13) 
+   Generating static pages (6/13) 
+   Generating static pages (9/13) 
+ ✓ Generating static pages (13/13)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                           Size  First Load JS
+┌ ○ /                                              2.73 kB         116 kB
+├ ○ /_not-found                                      993 B         103 kB
+├ ƒ /api/analysis                                    152 B         102 kB
+├ ƒ /api/analysis/[id]                               152 B         102 kB
+├ ƒ /api/auth/[...nextauth]                          152 B         102 kB
+├ ƒ /api/generation                                  152 B         102 kB
+├ ƒ /api/generation/[id]                             152 B         102 kB
+├ ƒ /api/templates                                   152 B         102 kB
+├ ƒ /api/templates/[id]                              152 B         102 kB
+├ ƒ /api/templates/[id]/duplicate                    152 B         102 kB
+├ ƒ /api/templates/[id]/representative-candidates    152 B         102 kB
+├ ƒ /api/templates/[id]/representative-result        152 B         102 kB
+├ ƒ /api/upload/presign                              152 B         102 kB
+├ ƒ /api/webhooks/replicate                          152 B         102 kB
+├ ○ /manifest.webmanifest                            152 B         102 kB
+├ ○ /workspace                                     46.3 kB         187 kB
+├ ○ /workspace/iterations                            15 kB         144 kB
+├ ○ /workspace/templates                            6.1 kB         143 kB
+└ ƒ /workspace/templates/[id]                      10.2 kB         150 kB
++ First Load JS shared by all                       102 kB
+  ├ chunks/935-b41b275dc0ec3d00.js                 45.7 kB
+  ├ chunks/f1c530d8-0beae1fff6aab2d3.js            54.2 kB
+  └ other shared chunks (total)                    1.87 kB
+
+
+ƒ Middleware                                       87.3 kB
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+$ playwright test e2e/ai-first-design-system.spec.ts e2e/ai-first-shell.spec.ts e2e/workspace-ai-first-evidence.spec.ts e2e/workspace-ai-first-render-dock.spec.ts e2e/workspace-ai-first-iteration-memory.spec.ts e2e/ai-first-style-memory.spec.ts e2e/ai-first-landing-states.spec.ts e2e/ai-first-visual-regression.spec.ts e2e/workspace-evidence-guided-render-loop.spec.ts e2e/workspace-iteration-memory-list.spec.ts e2e/workspace-iteration-detail.spec.ts e2e/workspace-iteration-restore.spec.ts e2e/workspace-iteration-save-style-memory.spec.ts e2e/workspace-iteration-memory-integration.spec.ts e2e/workspace-interaction-refinement.spec.ts --project=workspace
+[WebServer] (node:76175) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] $ next dev --port 3000
+
+[WebServer] (node:76207) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:76213) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:76246) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] $ next dev --port 3001
+
+[WebServer] (node:76279) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:76285) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+
+Running 160 tests using 1 worker
+
+(node:76328) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:76328) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/160] [workspace] › e2e/ai-first-design-system.spec.ts:46:7 › plan-01 AI-first design system baseline › TC-1.1 exposes DesignTokenLayer AI semantic tokens on the workspace shell
+[2/160] [workspace] › e2e/ai-first-design-system.spec.ts:69:7 › plan-01 AI-first design system baseline › TC-1.2 renders AI-first status language in the landing status preview
+[3/160] [workspace] › e2e/ai-first-design-system.spec.ts:91:7 › plan-01 AI-first design system baseline › TC-1.3 keeps semantic hierarchy in light and dark system themes
+[4/160] [workspace] › e2e/ai-first-design-system.spec.ts:122:7 › plan-01 AI-first design system baseline › TC-1.4 persists an explicit theme and can return to the system theme
+[5/160] [workspace] › e2e/ai-first-design-system.spec.ts:149:7 › plan-01 AI-first design system baseline › TC-1.5 keeps the Workspace type scale compact without changing Landing
+[6/160] [workspace] › e2e/ai-first-landing-states.spec.ts:71:7 › plan-07 Landing / Auth / global states closure › TC-7.1 Landing first viewport explains Reference -> Evidence -> Render
+[7/160] [workspace] › e2e/ai-first-landing-states.spec.ts:103:7 › plan-07 Landing / Auth / global states closure › TC-7.2 Landing upload handoff is consumed by Workspace before analysis starts
+[8/160] [workspace] › e2e/ai-first-landing-states.spec.ts:163:7 › plan-07 Landing / Auth / global states closure › TC-7.3 auth restricted state keeps workspace context and offers login/back actions
+[9/160] [workspace] › e2e/ai-first-landing-states.spec.ts:214:7 › plan-07 Landing / Auth / global states closure › TC-7.4 Workspace and Style Memory empty/no-results states stay action-oriented
+[10/160] [workspace] › e2e/ai-first-landing-states.spec.ts:261:7 › plan-07 Landing / Auth / global states closure › TC-7.5 legacy Landing and Template Library primary copy is removed from the main path
+[11/160] [workspace] › e2e/ai-first-landing-states.spec.ts:277:7 › plan-07 Landing / Auth / global states closure › TC-7.6 Style Memory service failure is recoverable instead of an empty library
+[12/160] [workspace] › e2e/ai-first-shell.spec.ts:122:9 › plan-02 AppShell and AI status header › TC-2.1 Landing renders the shared AI-first AppShell
+[13/160] [workspace] › e2e/ai-first-shell.spec.ts:122:9 › plan-02 AppShell and AI status header › TC-2.1 Workspace renders the shared AI-first AppShell
+[14/160] [workspace] › e2e/ai-first-shell.spec.ts:122:9 › plan-02 AppShell and AI status header › TC-2.1 Style Memory renders the shared AI-first AppShell
+[15/160] [workspace] › e2e/ai-first-shell.spec.ts:131:7 › plan-02 AppShell and AI status header › TC-2.2 keeps /workspace/templates on the Style Memory active nav item
+[16/160] [workspace] › e2e/ai-first-shell.spec.ts:147:7 › plan-02 AppShell and AI status header › TC-2.3 shows an idle Workspace AI status header with next action and evidence waiting state
+[17/160] [workspace] › e2e/ai-first-shell.spec.ts:159:7 › plan-02 AppShell and AI status header › TC-2.4 updates the AI status header while analysis is processing
+[18/160] [workspace] › e2e/ai-first-shell.spec.ts:185:7 › plan-02 AppShell and AI status header › TC-2.5 updates the AI status header when analysis is ready
+[19/160] [workspace] › e2e/ai-first-shell.spec.ts:203:7 › plan-02 AppShell and AI status header › TC-2.6 shows generating and recoverable failure status without clearing context
+[20/160] [workspace] › e2e/ai-first-shell.spec.ts:298:7 › plan-02 AppShell and AI status header › TC-2.7 keeps an existing workspace snapshot when Style Memory is auth restricted
+[WebServer] (node:76597) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:76611) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[21/160] [workspace] › e2e/ai-first-style-memory.spec.ts:117:7 › plan-06 Style Memory template library migration › TC-6.1 populated list uses Style Memory identity and evidence-rich cards
+[22/160] [workspace] › e2e/ai-first-style-memory.spec.ts:136:7 › plan-06 Style Memory template library migration › TC-6.1 mobile Library uses a compact navigation rail without horizontal overflow
+[23/160] [workspace] › e2e/ai-first-style-memory.spec.ts:161:7 › plan-06 Style Memory template library migration › TC-6.1 card previews, status badges, and rule summaries are visible
+[24/160] [workspace] › e2e/ai-first-style-memory.spec.ts:194:7 › plan-06 Style Memory template library migration › TC-6.2 使用 injects prompt and variables through the existing template detail API
+[25/160] [workspace] › e2e/ai-first-style-memory.spec.ts:227:7 › plan-06 Style Memory template library migration › TC-6.4 empty library offers workspace and Iterations entries
+[26/160] [workspace] › e2e/ai-first-style-memory.spec.ts:248:7 › plan-06 Style Memory template library migration › TC-6.5 search no results can be cleared without losing the Style Memory context
+[27/160] [workspace] › e2e/ai-first-style-memory.spec.ts:273:7 › plan-06 Style Memory template library migration › TC-6.6 API failure shows failedRecoverable instead of an empty memory lesson
+[28/160] [workspace] › e2e/ai-first-style-memory.spec.ts:295:7 › plan-06 Style Memory template library migration › TC-6.7 auth restricted Style Memory keeps the workspace snapshot and offers login
+[29/160] [workspace] › e2e/ai-first-visual-regression.spec.ts:502:7 › plan-08 targeted visual QA and legacy gate › TC-8.1 Iteration Memory keeps list and detail hierarchy across responsive viewports
+[30/160] [workspace] › e2e/ai-first-visual-regression.spec.ts:563:7 › plan-08 targeted visual QA and legacy gate › TC-8.2 critical pages stay non-empty with key QA selectors across viewports
+[31/160] [workspace] › e2e/ai-first-visual-regression.spec.ts:595:7 › plan-08 targeted visual QA and legacy gate › TC-8.2/TC-8.3 analysis_ready layout has no text overlap or button overflow
+[32/160] [workspace] › e2e/ai-first-visual-regression.spec.ts:615:7 › plan-08 targeted visual QA and legacy gate › TC-8.3 generation failed stays inline in the rail and keeps Render Dock compact
+[33/160] [workspace] › e2e/ai-first-visual-regression.spec.ts:684:7 › plan-08 targeted visual QA and legacy gate › TC-8.4 populated Style Memory cards expose final QA selector and avoid legacy file-list copy
+[34/160] [workspace] › e2e/ai-first-visual-regression.spec.ts:705:7 › plan-08 targeted visual QA and legacy gate › TC-8.4/TC-8.5 Style Memory state actions stay visible in empty, noResults, and authRequired states
+[35/160] [workspace] › e2e/ai-first-visual-regression.spec.ts:828:7 › plan-07 workspace loop visual QA (rail / comparison / degradation) › TC-7.9 direction rail, inline comparison, and degradation stay visible across acceptance viewports
+[workspace] › e2e/ai-first-visual-regression.spec.ts:828:7 › plan-07 workspace loop visual QA (rail / comparison / degradation) › TC-7.9 direction rail, inline comparison, and degradation stay visible across acceptance viewports
+OVERFLOW-DEBUG {"ok":true}
+
+OVERFLOW-DEBUG {"ok":true}
+
+OVERFLOW-DEBUG {"ok":true}
+
+OVERFLOW-DEBUG {"ok":true}
+
+OVERFLOW-DEBUG {"ok":true}
+
+OVERFLOW-DEBUG {"ok":true}
+
+OVERFLOW-DEBUG {"ok":true}
+
+OVERFLOW-DEBUG {"ok":true}
+
+OVERFLOW-DEBUG {"ok":true}
+
+OVERFLOW-DEBUG {"ok":true}
+
+OVERFLOW-DEBUG {"ok":true}
+
+OVERFLOW-DEBUG {"ok":true}
+
+OVERFLOW-DEBUG {"ok":true}
+
+[36/160] [workspace] › e2e/workspace-ai-first-evidence.spec.ts:91:7 › plan-03 Workspace Reference / Evidence / Prompt AI-first contract › TC-3.1 empty workspace explains the AI style signals it will read
+[37/160] [workspace] › e2e/workspace-ai-first-evidence.spec.ts:106:7 › plan-03 Workspace Reference / Evidence / Prompt AI-first contract › TC-3.2 completed analysis renders stable ordered evidence facets
+[38/160] [workspace] › e2e/workspace-ai-first-evidence.spec.ts:133:7 › plan-03 Workspace Reference / Evidence / Prompt AI-first contract › TC-3.3 selected facet highlights linked prompt text without inventing image coordinates
+[39/160] [workspace] › e2e/workspace-ai-first-evidence.spec.ts:153:7 › plan-03 Workspace Reference / Evidence / Prompt AI-first contract › TC-3.4 unmatched prompt text does not create an external prompt chip
+[40/160] [workspace] › e2e/workspace-ai-first-evidence.spec.ts:184:7 › plan-03 Workspace Reference / Evidence / Prompt AI-first contract › TC-3.5 retryable analysis failure preserves context and recovery actions
+[41/160] [workspace] › e2e/workspace-ai-first-iteration-memory.spec.ts:173:7 › plan-05 Iteration Memory and Save Style Memory entry › TC-5.1 generation completion refreshes Recent iterations with the latest thumbnail
+[42/160] [workspace] › e2e/workspace-ai-first-iteration-memory.spec.ts:196:7 › plan-05 Iteration Memory and Save Style Memory entry › TC-5.2 empty Iteration Memory offers a compact prompt and View all
+[43/160] [workspace] › e2e/workspace-ai-first-iteration-memory.spec.ts:209:7 › plan-05 Iteration Memory and Save Style Memory entry › TC-5.3 history detail shows prompt, params, restore, and continue actions
+[44/160] [workspace] › e2e/workspace-ai-first-iteration-memory.spec.ts:229:7 › plan-05 Iteration Memory and Save Style Memory entry › TC-5.4 restore loads prompt, style intelligence, render params, and allows a variation render
+[45/160] [workspace] › e2e/workspace-ai-first-iteration-memory.spec.ts:262:7 › plan-05 Iteration Memory and Save Style Memory entry › TC-5.5 restored history does not expose Save as Style Memory actions
+[46/160] [workspace] › e2e/workspace-ai-first-iteration-memory.spec.ts:281:7 › plan-05 Iteration Memory and Save Style Memory entry › TC-5.6 history API failure shows a recoverable state instead of the empty history lesson
+[47/160] [workspace] › e2e/workspace-ai-first-render-dock.spec.ts:140:7 › plan-04 Render Dock readiness and generation recovery › TC-4.1 empty workspace exposes the compact Render Dock controls
+[48/160] [workspace] › e2e/workspace-ai-first-render-dock.spec.ts:156:7 › plan-04 Render Dock readiness and generation recovery › TC-4.2 unresolved variables block generation with a variables-specific reason
+[49/160] [workspace] › e2e/workspace-ai-first-render-dock.spec.ts:177:7 › plan-04 Render Dock readiness and generation recovery › TC-4.3 ready Render Dock posts the existing generation API contract
+[50/160] [workspace] › e2e/workspace-ai-first-render-dock.spec.ts:212:7 › plan-04 Render Dock readiness and generation recovery › TC-4.4 submission failure keeps retry, editing and saving available
+[51/160] [workspace] › e2e/workspace-ai-first-render-dock.spec.ts:260:7 › plan-04 Render Dock readiness and generation recovery › TC-4.5 generating disables duplicate submits while keeping parameters visible
+[52/160] [workspace] › e2e/workspace-ai-first-render-dock.spec.ts:291:7 › plan-04 Render Dock readiness and generation recovery › TC-4.6 generation failure preserves context while Render Dock stays compact
+[53/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:110:7 › plan-02：快速创作节奏与工作区状态（AC-01 / AC-07） › TC-2.1 深入路径默认 analyze_edit，分析完成后停在可编辑态且零 generation POST
+[54/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:132:7 › plan-02：快速创作节奏与工作区状态（AC-01 / AC-07） › TC-2.2 快速确认披露五类信息：intent、detail、画幅策略、生成设置与单张生成
+[55/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:167:7 › plan-02：快速创作节奏与工作区状态（AC-01 / AC-07） › TC-2.3 快速路径分析 success 后恰好一次自动 POST，请求与确认快照一致
+[56/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:226:7 › plan-02：快速创作节奏与工作区状态（AC-01 / AC-07） › TC-2.4 armed 期间生成设置只读并说明退出方式
+[57/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:253:7 › plan-02：快速创作节奏与工作区状态（AC-01 / AC-07） › TC-2.5 自动提交后刷新不重放
+[58/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:295:7 › plan-02：快速创作节奏与工作区状态（AC-01 / AC-07） › TC-2.6 分析失败清除 armed 快照并说明原因，参考上下文保留
+[59/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:321:7 › plan-02：快速创作节奏与工作区状态（AC-01 / AC-07） › TC-2.7 取消确认零写入，焦点回触发器且默认节奏不变
+[60/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:337:7 › plan-02：快速创作节奏与工作区状态（AC-01 / AC-07） › TC-2.8 分析期间退出快速路径：清授权、解锁设置、完成后不自动生成
+[61/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:363:7 › plan-02：快速创作节奏与工作区状态（AC-01 / AC-07） › TC-2.9 快速路径与深入路径证据完整度一致（共享证据断言集合）
+[62/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:389:7 › plan-02：快速创作节奏与工作区状态（AC-01 / AC-07） › TC-2.10 阻塞清除后条件恢复（重试分析成功）不延迟自动提交
+[63/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:504:7 › plan-04：Prompt 控制与保留改变摘要（AC-02 / AC-03 / AC-05） › TC-4.1 分析完成后两轴与编辑方式默认态：same_style / standard / variables
+[64/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:539:7 › plan-04：Prompt 控制与保留改变摘要（AC-02 / AC-03 / AC-05） › TC-4.2 切换 intent 即时重编译：reconstruction 原内容与说明、invariant 恒等
+[65/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:572:7 › plan-04：Prompt 控制与保留改变摘要（AC-02 / AC-03 / AC-05） › TC-4.3 三档 detail 切换：invariant 集合恒等、补充观察按档位变化
+[66/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:606:7 › plan-04：Prompt 控制与保留改变摘要（AC-02 / AC-03 / AC-05） › TC-4.4 变量值在 intent/detail 切换后保持并进入编译结果
+[67/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:627:7 › plan-04：Prompt 控制与保留改变摘要（AC-02 / AC-03 / AC-05） › TC-4.5 三编辑入口可达、structured 只读、返回后最终 Prompt 来源不变
+[68/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:658:7 › plan-04：Prompt 控制与保留改变摘要（AC-02 / AC-03 / AC-05） › TC-4.6 手动全文后切换：取消逐字保留、确认后替换并清 dirty
+[69/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:693:7 › plan-04：Prompt 控制与保留改变摘要（AC-02 / AC-03 / AC-05） › TC-4.7 保留/改变摘要从真实规则与变量派生，点击可定位
+[70/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:727:7 › plan-04：Prompt 控制与保留改变摘要（AC-02 / AC-03 / AC-05） › TC-4.8 Recipe 无 invariants 时摘要显示可恢复空态，不伪造项
+[71/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:748:7 › plan-04：Prompt 控制与保留改变摘要（AC-02 / AC-03 / AC-05） › TC-4.9 画幅 reference 推荐标注，user 选择不被图片重载与 Prompt 编辑覆盖
+[72/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:786:7 › plan-04：Prompt 控制与保留改变摘要（AC-02 / AC-03 / AC-05） › TC-4.10 Iteration 恢复：restore 来源优先于参考推荐，旧快照降级 text 模式
+[73/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:819:7 › plan-04：Prompt 控制与保留改变摘要（AC-02 / AC-03 / AC-05） › TC-4.11 未知画幅请求前拒绝：清洗回 1:1、fallback 不标推荐、POST 仅白名单
+[74/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:868:7 › plan-04：Prompt 控制与保留改变摘要（AC-02 / AC-03 / AC-05） › TC-4.12 armed 期间 intent/detail 只读并说明确认快照
+[75/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:1067:7 › plan-05：本次结果区与内联比较（AC-04 / AC-05 / AC-06 / AC-07） › TC-5.1 方向结果区三组状态同时内联呈现，active/latestFailure 不挤占五张成功缩略图
+[76/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:1114:7 › plan-05：本次结果区与内联比较（AC-04 / AC-05 / AC-06 / AC-07） › TC-5.2 手动生成 queue→processing→success 全程内联：新成功自动成为当前选择且不自动成为本次首选
+[77/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:1178:7 › plan-05：本次结果区与内联比较（AC-04 / AC-05 / AC-06 / AC-07） › TC-5.3 六个成功结果只显示最新五个，更旧结果仍可打开完整 Iteration
+[78/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:1206:7 › plan-05：本次结果区与内联比较（AC-04 / AC-05 / AC-06 / AC-07） › TC-5.4 最近失败内联显示截断原因，主动重试创建新任务且不复活原任务
+[79/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:1260:7 › plan-05：本次结果区与内联比较（AC-04 / AC-05 / AC-06 / AC-07） › TC-5.5 当前选择与本次首选分离：首选只由用户操作写入且状态标识不同
+[80/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:1311:7 › plan-05：本次结果区与内联比较（AC-04 / AC-05 / AC-06 / AC-07） › TC-5.6 打开比较：加载所选 Iteration、真实双图、历史快照与「正在调整当前草稿」，标题获得焦点
+[WebServer] (node:77680) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[81/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:1341:7 › plan-05：本次结果区与内联比较（AC-04 / AC-05 / AC-06 / AC-07） › TC-5.7 多 invariant 维度：未选具体规则前四动作 disabled，选择真实规则后开放
+[82/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:1386:7 › plan-05：本次结果区与内联比较（AC-04 / AC-05 / AC-06 / AC-07） › TC-5.8 单 invariant 维度：唯一规则可见地预选，四动作直接可用
+[83/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:1406:7 › plan-05：本次结果区与内联比较（AC-04 / AC-05 / AC-06 / AC-07） › TC-5.9 零 invariant 维度：提示暂无可调整规则，四动作 disabled，仅保留「其他/全文编辑」
+[84/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:1435:7 › plan-05：本次结果区与内联比较（AC-04 / AC-05 / AC-06 / AC-07） › TC-5.10 应用调整只更新当前草稿：重编译出现加强表达、焦点移至摘要项且零 generation POST
+[85/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:1476:7 › plan-05：本次结果区与内联比较（AC-04 / AC-05 / AC-06 / AC-07） › TC-5.11 取消比较零写入：草稿逐字不变、面板关闭、焦点回比较触发器
+[86/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:1501:7 › plan-05：本次结果区与内联比较（AC-04 / AC-05 / AC-06 / AC-07） › TC-5.12 「其他」维度进入全文编辑：编辑方式切 text 并聚焦全文编辑器
+[87/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:1516:7 › plan-05：本次结果区与内联比较（AC-04 / AC-05 / AC-06 / AC-07） › TC-5.13 方向 feed 失败保留缓存与草稿并提供重试，重试后恢复
+[88/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:1555:7 › plan-05：本次结果区与内联比较（AC-04 / AC-05 / AC-06 / AC-07） › TC-5.14 比较详情失败保留结果区与草稿，提供重试与打开 Iteration，重试后恢复
+[89/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:1595:7 › plan-05：本次结果区与内联比较（AC-04 / AC-05 / AC-06 / AC-07） › TC-5.15 completed 缺结果资产：显示来源异常，不渲染假图且不开放结果动作
+[90/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:1718:7 › plan-06：首选 Memory 与结果新参考（AC-04 / AC-06 / AC-07） › TC-6.1 设置与更换首选：preferred 写入经 Iteration detail 验证，更换后指向新结果
+[91/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:1752:7 › plan-06：首选 Memory 与结果新参考（AC-04 / AC-06 / AC-07） › TC-6.2 首选滚出五条成功窗口仍有效：「首选已在 Iteration Memory」提示并可打开详情
+[92/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:1791:7 › plan-06：首选 Memory 与结果新参考（AC-04 / AC-06 / AC-07） › TC-6.3 无效 preferred 清理：detail 属不同方向时清除 ID 并说明原因
+[93/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:1818:7 › plan-06：首选 Memory 与结果新参考（AC-04 / AC-06 / AC-07） › TC-6.4 无来源 Memory：从首选结果打开保存向导并预选代表结果；取消零写入
+[94/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:1863:7 › plan-06：首选 Memory 与结果新参考（AC-04 / AC-06 / AC-07） › TC-6.5 有来源 Memory：Memory 动作打开代表结果确认并预选 preferred 结果
+[WebServer] (node:77981) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[95/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:1908:7 › plan-06：首选 Memory 与结果新参考（AC-04 / AC-06 / AC-07） › TC-6.6 Memory 更新成功后四类回读即时可见，无需整页刷新
+[96/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:1971:7 › plan-06：首选 Memory 与结果新参考（AC-04 / AC-06 / AC-07） › TC-6.7 写入成功但部分回读失败：「已保存，刷新失败」只重试读取，不重复 POST
+[97/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:2024:7 › plan-06：首选 Memory 与结果新参考（AC-04 / AC-06 / AC-07） › TC-6.8 设置/更换首选不改变验证状态：零 Memory 写请求
+[98/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:2075:7 › plan-06：首选 Memory 与结果新参考（AC-04 / AC-06 / AC-07） › TC-6.9 作为新参考：未完成内容确认守卫，取消零写入且焦点回触发器
+[99/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:2114:7 › plan-06：首选 Memory 与结果新参考（AC-04 / AC-06 / AC-07） › TC-6.10 确认作为新参考：POST /api/analysis 仅携带 sourceAssetId、进入新方向分析且旧方向可回溯
+[100/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:2198:7 › plan-07：Workspace 闭环集成与回归（AC-01～07 全旅程收口） › TC-7.1 全旅程连续性：分析→生成→比较→调整→再生成→首选→Memory→新参考全程不离开 Workspace 且无阻断弹层
+[101/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:2317:7 › plan-07：Workspace 闭环集成与回归（AC-01～07 全旅程收口） › TC-7.2 手动生成成功全程内联：不打开阻断式 GenerationDialog，成功后上下文保持可编辑
+[102/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:2363:7 › plan-07：Workspace 闭环集成与回归（AC-01～07 全旅程收口） › TC-7.3 Provider 失败内联恢复（L3）：失败原因与恢复动作留在本次结果区，重试创建新任务并成功
+[103/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:2442:7 › plan-07：Workspace 闭环集成与回归（AC-01～07 全旅程收口） › TC-7.4 键盘焦点旅程连续：比较开关/取消/应用有确定焦点，完成通知 polite 不夺编辑焦点
+[104/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:2528:7 › plan-07：Workspace 闭环集成与回归（AC-01～07 全旅程收口） › TC-7.5 L1 降级：自定义全文应用「不再保留」未命中表达时明确说明，不声称已删除且草稿不被改写
+[105/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:2577:7 › plan-07：Workspace 闭环集成与回归（AC-01～07 全旅程收口） › TC-7.6 L2 降级：方向 feed 失败提供重试与打开 Iteration 出口，缓存/草稿/生成能力保留且不遮挡编辑上下文
+[106/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:2622:7 › plan-07：Workspace 闭环集成与回归（AC-01～07 全旅程收口） › TC-7.7 L4 降级：armed 分析失败复位授权并保留上下文，重试恢复后不延迟自动提交；手动生成成功不弹层
+[107/160] [workspace] › e2e/workspace-evidence-guided-render-loop.spec.ts:2689:7 › plan-07：Workspace 闭环集成与回归（AC-01～07 全旅程收口） › TC-7.8 L5 降级：生成提交服务错误内联呈现，不声称任务已创建；草稿保留且主动重试后成功
+[108/160] [workspace] › e2e/workspace-interaction-refinement.spec.ts:31:9 › workspace refinement 1440x900 light
+[109/160] [workspace] › e2e/workspace-interaction-refinement.spec.ts:31:9 › workspace refinement 1440x900 dark
+[110/160] [workspace] › e2e/workspace-interaction-refinement.spec.ts:31:9 › workspace refinement 1280x800 light
+[111/160] [workspace] › e2e/workspace-interaction-refinement.spec.ts:31:9 › workspace refinement 1280x800 dark
+[112/160] [workspace] › e2e/workspace-interaction-refinement.spec.ts:31:9 › workspace refinement 1280x720 light
+[113/160] [workspace] › e2e/workspace-interaction-refinement.spec.ts:31:9 › workspace refinement 1280x720 dark
+[114/160] [workspace] › e2e/workspace-interaction-refinement.spec.ts:31:9 › workspace refinement 390x844 light
+[115/160] [workspace] › e2e/workspace-interaction-refinement.spec.ts:31:9 › workspace refinement 390x844 dark
+[116/160] [workspace] › e2e/workspace-interaction-refinement.spec.ts:109:5 › quick settings are cancelled without writes and confirmed atomically
+[WebServer] (node:79044) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:79045) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[117/160] [workspace] › e2e/workspace-interaction-refinement.spec.ts:137:5 › single-page draft save preserves defaults and edits across a failed submission
+[WebServer] (node:79058) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:79059) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:79078) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[118/160] [workspace] › e2e/workspace-interaction-refinement.spec.ts:165:5 › history read failure keeps the draft and offers a focused keyboard recovery path
+[WebServer] (node:79080) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[119/160] [workspace] › e2e/workspace-interaction-refinement.spec.ts:198:5 › evidence location is repeatable and does not steal focus during subsequent editing
+[120/160] [workspace] › e2e/workspace-iteration-detail.spec.ts:218:7 › plan-03 Iteration Memory detail three states and polling › TC-3.1 completed detail shows reference and result side by side with full context blocks
+[121/160] [workspace] › e2e/workspace-iteration-detail.spec.ts:272:7 › plan-03 Iteration Memory detail three states and polling › TC-3.2 processing detail shows stage and preserved context without generate or resubmit entries
+[122/160] [workspace] › e2e/workspace-iteration-detail.spec.ts:312:7 › plan-03 Iteration Memory detail three states and polling › TC-3.3 processing detail polls the sequence and switches in place to completed
+[123/160] [workspace] › e2e/workspace-iteration-detail.spec.ts:348:7 › plan-03 Iteration Memory detail three states and polling › TC-3.4 processing detail polling can switch in place to failed
+[124/160] [workspace] › e2e/workspace-iteration-detail.spec.ts:376:7 › plan-03 Iteration Memory detail three states and polling › TC-3.5 failed detail keeps the preserved context and reserves the actions slot
+[125/160] [workspace] › e2e/workspace-iteration-detail.spec.ts:413:7 › plan-03 Iteration Memory detail three states and polling › TC-3.6 detail 5xx keeps the list untouched and offers retry and close
+[126/160] [workspace] › e2e/workspace-iteration-detail.spec.ts:457:7 › plan-03 Iteration Memory detail three states and polling › TC-3.7 previous and next walk the list order and keep the row highlight in sync
+[127/160] [workspace] › e2e/workspace-iteration-detail.spec.ts:520:7 › plan-03 Iteration Memory detail three states and polling › TC-3.8 opening and closing the detail never resets search, filter, depth, or scroll
+[128/160] [workspace] › e2e/workspace-iteration-detail.spec.ts:558:7 › plan-03 Iteration Memory detail three states and polling › TC-3.9 legacy record missing sources are marked without blocking the rest of the detail
+[129/160] [workspace] › e2e/workspace-iteration-detail.spec.ts:604:7 › plan-03 Iteration Memory detail three states and polling › TC-3.10 compact widths replace the list with an accessible full-width detail
+[130/160] [workspace] › e2e/workspace-iteration-memory-integration.spec.ts:354:7 › plan-06 entry wiring and full Iteration Memory journey › TC-6.1 full journey: view-all entry → three-state list → search/filter → detail → guarded continue → restore → generate → save as Style Memory → open
+[131/160] [workspace] › e2e/workspace-iteration-memory-integration.spec.ts:523:7 › plan-06 entry wiring and full Iteration Memory journey › TC-6.2 recent-strip View all reaches the full list with default all status while the strip keeps its completed-only default query
+[WebServer] (node:79474) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[132/160] [workspace] › e2e/workspace-iteration-memory-integration.spec.ts:554:7 › plan-06 entry wiring and full Iteration Memory journey › TC-6.3 the left sidebar exposes an Iterations nav item that switches and highlights without breaking existing entries
+[133/160] [workspace] › e2e/workspace-iteration-memory-integration.spec.ts:587:7 › plan-06 entry wiring and full Iteration Memory journey › TC-6.4 View all stays usable from an empty recent strip and reaches the full list
+[134/160] [workspace] › e2e/workspace-iteration-memory-list.spec.ts:151:7 › plan-02 Iteration Memory list page › TC-2.1 direct visit defaults to all statuses with real previews only for completed
+[135/160] [workspace] › e2e/workspace-iteration-memory-list.spec.ts:192:7 › plan-02 Iteration Memory list page › TC-2.2 keyword search and status filter combine to narrow the list
+[136/160] [workspace] › e2e/workspace-iteration-memory-list.spec.ts:219:7 › plan-02 Iteration Memory list page › TC-2.3 "load earlier" appends the older cursor page without duplicates
+[137/160] [workspace] › e2e/workspace-iteration-memory-list.spec.ts:246:7 › plan-02 Iteration Memory list page › TC-2.4 returning from the workspace preserves search, filter, loaded depth, and scroll
+[138/160] [workspace] › e2e/workspace-iteration-memory-list.spec.ts:285:7 › plan-02 Iteration Memory list page › TC-2.5 no search match keeps the conditions and offers clear and switch actions
+[139/160] [workspace] › e2e/workspace-iteration-memory-list.spec.ts:320:7 › plan-02 Iteration Memory list page › TC-2.6 signed-out visitors get a login guide without wiping local workspace state
+[140/160] [workspace] › e2e/workspace-iteration-memory-list.spec.ts:355:7 › plan-02 Iteration Memory list page › TC-2.7 list 5xx explains the workspace is unaffected and retry recovers
+[141/160] [workspace] › e2e/workspace-iteration-memory-list.spec.ts:378:7 › plan-02 Iteration Memory list page › TC-2.8 first visit with no records guides the first creation
+[142/160] [workspace] › e2e/workspace-iteration-memory-list.spec.ts:395:7 › plan-02 Iteration Memory list page › TC-2.9 a broken result image degrades to a placeholder without losing item info
+[143/160] [workspace] › e2e/workspace-iteration-memory-list.spec.ts:418:7 › plan-02 Iteration Memory list page › TC-2.10 compact widths keep the toolbar and item hierarchy readable
+[144/160] [workspace] › e2e/workspace-iteration-restore.spec.ts:318:7 › plan-04 continue-this-direction restore and workspace guard › TC-4.1 direct restore from an empty workspace skips the confirm dialog and restores the full snapshot
+[145/160] [workspace] › e2e/workspace-iteration-restore.spec.ts:346:7 › plan-04 continue-this-direction restore and workspace guard › TC-4.2 restoring over different unfinished content opens the replace confirm with both prompt summaries
+[146/160] [workspace] › e2e/workspace-iteration-restore.spec.ts:378:7 › plan-04 continue-this-direction restore and workspace guard › TC-4.3 cancelling the replace confirm keeps the detail open and the workspace untouched
+[147/160] [workspace] › e2e/workspace-iteration-restore.spec.ts:421:7 › plan-04 continue-this-direction restore and workspace guard › TC-4.4 confirming the replace switches the workspace to the target snapshot without generating
+[148/160] [workspace] › e2e/workspace-iteration-restore.spec.ts:451:7 › plan-04 continue-this-direction restore and workspace guard › TC-4.5 the failed detail Fix-and-continue action runs the same restore chain without submitting
+[149/160] [workspace] › e2e/workspace-iteration-restore.spec.ts:486:7 › plan-04 continue-this-direction restore and workspace guard › TC-4.6 modifying the restored prompt and generating issues a single POST with the restored context
+[150/160] [workspace] › e2e/workspace-iteration-restore.spec.ts:526:7 › plan-04 continue-this-direction restore and workspace guard › TC-4.7 generating after restoring a Style Memory sourced iteration carries sourceTemplateId (AC-02)
+[151/160] [workspace] › e2e/workspace-iteration-restore.spec.ts:562:7 › plan-04 continue-this-direction restore and workspace guard › TC-4.8 restoring the iteration that is already current goes direct without the confirm dialog
+[WebServer] (node:79712) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[152/160] [workspace] › e2e/workspace-iteration-save-style-memory.spec.ts:262:7 › plan-05 save iteration as Style Memory and saved state › TC-5.1 completed detail with a real result shows the Save as Style Memory entry
+[153/160] [workspace] › e2e/workspace-iteration-save-style-memory.spec.ts:282:7 › plan-05 save iteration as Style Memory and saved state › TC-5.2 processing, failed, and result-less completed details expose no save entry
+[154/160] [workspace] › e2e/workspace-iteration-save-style-memory.spec.ts:334:7 › plan-05 save iteration as Style Memory and saved state › TC-5.3 a completed detail without a source asset shows the source-missing note instead of the save entry
+[155/160] [workspace] › e2e/workspace-iteration-save-style-memory.spec.ts:359:7 › plan-05 save iteration as Style Memory and saved state › TC-5.4 an already-saved iteration shows the saved state with Open and no save button
+[156/160] [workspace] › e2e/workspace-iteration-save-style-memory.spec.ts:381:7 › plan-05 save iteration as Style Memory and saved state › TC-5.5 the save wizard opens at step 1, prefills rules and variables at step 2, and blocks submission of an empty name at step 3
+[157/160] [workspace] › e2e/workspace-iteration-save-style-memory.spec.ts:428:7 › plan-05 save iteration as Style Memory and saved state › TC-5.6 submitting the wizard posts the extended payload and navigates to the new memory detail
+[158/160] [workspace] › e2e/workspace-iteration-save-style-memory.spec.ts:504:7 › plan-05 save iteration as Style Memory and saved state › TC-5.7 returning to the saved iteration shows the saved state and issues no new save request
+[WebServer] (node:79802) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:79806) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[159/160] [workspace] › e2e/workspace-iteration-save-style-memory.spec.ts:560:7 › plan-05 save iteration as Style Memory and saved state › TC-5.8 Open navigates to Style Memory and focuses the saved card
+[160/160] [workspace] › e2e/workspace-iteration-save-style-memory.spec.ts:646:7 › plan-05 save iteration as Style Memory and saved state › TC-5.9 a 409 name conflict keeps the wizard open on step 3 with the server copy and the entered values
+  160 passed (3.9m)

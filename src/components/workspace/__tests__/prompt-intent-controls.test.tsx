@@ -53,7 +53,8 @@ describe("PromptIntentControls", () => {
     );
     expect(screen.getByTestId("editor-mode-option-variables")).toBeVisible();
     expect(screen.getByTestId("editor-mode-option-text")).toBeVisible();
-    expect(screen.getByTestId("editor-mode-option-structured")).toBeVisible();
+    expect(screen.getByTestId("editor-mode-option-structured")).not.toBeVisible();
+    expect(screen.getByText("Advanced")).toBeVisible();
   });
 
   it("switches intent and detail immediately when the full text is not dirty", async () => {
@@ -124,7 +125,7 @@ describe("PromptIntentControls", () => {
 
     expect(screen.getByTestId("prompt-controls-locked-note")).toBeVisible();
     expect(screen.getByTestId("prompt-controls-locked-note")).toHaveTextContent(
-      /自动任务将使用已确认设置/,
+      /The automatic render uses confirmed settings/,
     );
     expect(screen.getByTestId("intent-option-reconstruction")).toBeDisabled();
     expect(screen.getByTestId("intent-option-same-style")).toBeDisabled();

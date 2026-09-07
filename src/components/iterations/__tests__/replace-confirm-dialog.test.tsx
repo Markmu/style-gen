@@ -132,8 +132,8 @@ describe("ReplaceConfirmDialog — plan-06「结果作为新参考」方向切�
     renderDialog({
       variant: "new-reference",
       unfinishedSummary: [
-        "Prompt：当前草稿与所选结果的提交快照不同",
-        "当前参考来源将替换为该结果的图片资产（复用同一 Asset，不重新上传）",
+        "Prompt: your draft differs from this result",
+        "The result image will replace your reference. No new upload is needed.",
       ],
     });
 
@@ -142,8 +142,8 @@ describe("ReplaceConfirmDialog — plan-06「结果作为新参考」方向切�
     expect(screen.queryByTestId("replace-confirm-dialog")).toBeNull();
 
     const summary = within(dialog).getByTestId("new-reference-unfinished-summary");
-    expect(summary).toHaveTextContent("Prompt：当前草稿与所选结果的提交快照不同");
-    expect(summary).toHaveTextContent("复用同一 Asset");
+    expect(summary).toHaveTextContent("Prompt: your draft differs from this result");
+    expect(summary).toHaveTextContent("No new upload is needed.");
 
     expect(
       within(dialog).getByTestId("new-reference-confirm-cancel"),
@@ -157,11 +157,11 @@ describe("ReplaceConfirmDialog — plan-06「结果作为新参考」方向切�
     const user = userEvent.setup();
     const { onCancel, onConfirm } = renderDialog({
       variant: "new-reference",
-      unfinishedSummary: ["Prompt：当前草稿与所选结果的提交快照不同"],
-      errorText: "无法使用该结果作为新参考，请稍后重试。",
+      unfinishedSummary: ["Prompt: your draft differs from this result"],
+      errorText: "This result cannot be used as a reference right now. Please retry.",
     });
 
-    expect(screen.getByText("无法使用该结果作为新参考，请稍后重试。")).toBeVisible();
+    expect(screen.getByText("This result cannot be used as a reference right now. Please retry.")).toBeVisible();
 
     await user.click(screen.getByTestId("new-reference-confirm-cancel"));
     expect(onCancel).toHaveBeenCalledTimes(1);

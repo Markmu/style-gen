@@ -51,8 +51,10 @@ describe("TemplateSaveDialog — plan-06 草稿保存向导（流程 B）", () =
     expect(dialog).toHaveAttribute("role", "dialog");
 
     const note = screen.getByTestId("save-wizard-no-representative-note");
-    expect(note).toHaveTextContent(/No representative result yet/);
-    expect(note).toHaveTextContent(/Pending verification/);
+    expect(note).toHaveTextContent(/Not tested with a render yet/);
+    expect(screen.getByLabelText(/^Name$/)).toHaveValue("Untitled style");
+    await waitFor(() => expect(screen.getByLabelText(/^Name$/)).toHaveFocus());
+    expect(screen.queryByRole("button", { name: "Next" })).not.toBeInTheDocument();
     // 无步骤 1 与代表结果勾选（流程 B 跳过）
     expect(within(dialog).queryByTestId("save-wizard-step-1")).not.toBeInTheDocument();
     expect(
@@ -60,6 +62,7 @@ describe("TemplateSaveDialog — plan-06 草稿保存向导（流程 B）", () =
     ).not.toBeInTheDocument();
 
     // {{var}} 并入变量预填：默认值同屏可编辑
+    await user.click(screen.getByRole("button", { name: "Adjust saved content" }));
     const step2 = screen.getByTestId("save-wizard-step-2");
     const subject = within(step2).getByLabelText(/subject/i);
     expect(subject).toHaveValue("glass fox");
@@ -88,7 +91,7 @@ describe("TemplateSaveDialog — plan-06 草稿保存向导（流程 B）", () =
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: /^Next$/ }));
+    await user.clear(screen.getByLabelText(/^Name$/));
     await user.type(screen.getByLabelText(/^Name$/), "Saved");
     await user.click(screen.getByRole("button", { name: /^Save/ }));
 

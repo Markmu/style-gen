@@ -326,6 +326,7 @@ async function expectButtonsDoNotOverflow(root: Locator) {
           rect.top < window.innerHeight
 
         if (
+          !button.checkVisibility() ||
           !text ||
           rect.width <= 1 ||
           rect.height <= 1 ||
@@ -426,6 +427,7 @@ async function expectVisibleTextDoesNotOverlap(page: Page) {
           : element.textContent
 
       return (
+        element.checkVisibility() &&
         (text ?? '').replace(/\s+/g, ' ').trim().length > 2 &&
         rect.width > 1 &&
         rect.height > 1 &&

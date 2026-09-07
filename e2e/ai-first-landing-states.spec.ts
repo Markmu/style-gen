@@ -5,6 +5,7 @@ import {
   mockAnalysisPolling,
   mockApiError,
   mockAuthSession,
+  mockLoggedOutSession,
   mockGenerationList,
   mockTemplateCollection,
   mockUploadPresign,
@@ -162,6 +163,7 @@ test.describe('plan-07 Landing / Auth / global states closure', () => {
   test('TC-7.3 auth restricted state keeps workspace context and offers login/back actions', async ({
     page,
   }) => {
+    await mockLoggedOutSession(page)
     const workspaceSnapshot = JSON.stringify({
       version: 4,
       assetId: 'plan-07-persisted-asset',

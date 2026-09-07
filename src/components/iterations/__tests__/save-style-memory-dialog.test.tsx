@@ -657,18 +657,31 @@ describe("StyleMemorySaveWizard — 流程 B（workspace-draft，无代表结果
     return { onSaved, onClose };
   }
 
-  it("first screen is step 2 + no-representative note (Pending verification expectation), no step 1 or checkbox", () => {
+  it("prefills and focuses the workspace name within the existing length limit", async () => {
+    renderDraft({ initialName: "  " + "A".repeat(65) + "  " });
+    const name = screen.getByLabelText(/^Name$/);
+    await waitFor(() => expect(name).toHaveFocus());
+    expect(name).toHaveValue("A".repeat(50));
+  });
+
+  it("uses Untitled style when no custom name or style tags are available", () => {
+    renderDraft({ initialName: "  ", recipe: null });
+    expect(screen.getByLabelText(/^Name$/)).toHaveValue("Untitled style");
+  });
+
+  it("opens a single draft-save page without representative verification or Next", () => {
     renderDraft();
 
     const note = screen.getByTestId("save-wizard-no-representative-note");
     expect(note).toBeVisible();
-    expect(note).toHaveTextContent(/No representative result yet/);
-    expect(note).toHaveTextContent(/Pending verification/);
+    expect(note).toHaveTextContent(/Not tested with a render yet/);
+    expect(screen.getByLabelText(/^Name$/)).not.toHaveValue("");
+    expect(screen.getByRole("list", { name: "Saved style summary" })).toHaveTextContent("warm amber and sand palette");
     expect(screen.queryByTestId("save-wizard-step-1")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("checkbox", { name: /Set as representative result/ }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText(/Step 1 \/ 2/)).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Next" })).not.toBeInTheDocument();
   });
 
   it("body omits representative/sourceGenerationTask, carries source asset and analysis task, status fixed to Pending verification", async () => {
@@ -679,9 +692,9 @@ describe("StyleMemorySaveWizard — 流程 B（workspace-draft，无代表结果
     const user = userEvent.setup();
     renderDraft();
 
-    await user.click(screen.getByRole("button", { name: /^Next$/ }));
+    await user.clear(screen.getByLabelText(/^Name$/));
     const step3 = screen.getByTestId("save-wizard-step-3");
-    expect(step3).toHaveTextContent("After saving: Pending verification");
+    expect(step3).toHaveTextContent("Adjust saved content");
     await user.type(screen.getByLabelText(/^Name$/), "Workspace Draft");
     await user.click(screen.getByRole("button", { name: /^Save/ }));
 
@@ -710,12 +723,13 @@ describe("StyleMemorySaveWizard — 流程 B（workspace-draft，无代表结果
       recipeSource: "fallback" as IterationContextSource,
     });
 
+    await user.click(screen.getByRole("button", { name: "Adjust saved content" }));
     const step2 = screen.getByTestId("save-wizard-step-2");
     const missingMarks = within(step2).getAllByText(/No .* from this iteration/);
     expect(missingMarks.length).toBeGreaterThanOrEqual(4);
     expect(step2.textContent).not.toContain("warm amber and sand palette");
 
-    await user.click(screen.getByRole("button", { name: /^Next$/ }));
+    await user.clear(screen.getByLabelText(/^Name$/));
     expect(screen.getByTestId("save-wizard-step-3")).toBeVisible();
   });
 });

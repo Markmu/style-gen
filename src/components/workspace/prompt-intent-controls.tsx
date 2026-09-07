@@ -46,13 +46,13 @@ const INTENT_OPTIONS: Array<{
   {
     value: "reconstruction",
     testId: "intent-option-reconstruction",
-    label: "贴近复刻",
+    label: "Close reconstruction",
     hint: "Reuse the original content",
   },
   {
     value: "same_style",
     testId: "intent-option-same-style",
-    label: "同风格创作",
+    label: "Same-style creation",
     hint: "New content in the same style",
   },
 ];
@@ -66,19 +66,19 @@ const DETAIL_OPTIONS: Array<{
   {
     value: "concise",
     testId: "detail-option-concise",
-    label: "快速",
+    label: "Concise",
     hint: "Compact clauses only",
   },
   {
     value: "standard",
     testId: "detail-option-standard",
-    label: "平衡",
+    label: "Balanced",
     hint: "Balanced density",
   },
   {
     value: "professional",
     testId: "detail-option-professional",
-    label: "详细",
+    label: "Detailed",
     hint: "Every supported observation",
   },
 ];
@@ -88,9 +88,9 @@ const EDITOR_MODE_OPTIONS: Array<{
   testId: string;
   label: string;
 }> = [
-  { value: "variables", testId: "editor-mode-option-variables", label: "变量" },
-  { value: "text", testId: "editor-mode-option-text", label: "全文" },
-  { value: "structured", testId: "editor-mode-option-structured", label: "结构化" },
+  { value: "variables", testId: "editor-mode-option-variables", label: "Variables" },
+  { value: "text", testId: "editor-mode-option-text", label: "Full text" },
+  { value: "structured", testId: "editor-mode-option-structured", label: "Structured data" },
 ];
 
 export function PromptIntentControls({
@@ -175,10 +175,10 @@ export function PromptIntentControls({
       data-detail={detailLevel}
       data-editor-mode={editorMode}
       aria-label="Prompt controls"
-      className="shrink-0 rounded-xl bg-[var(--surface-low)]/56 p-1.5 ring-1 ring-[var(--border-static)]"
+      className="@container shrink-0 rounded-xl bg-[var(--surface-low)]/56 p-1.5 ring-1 ring-[var(--border-static)]"
     >
-      <div className="grid gap-1.5 sm:grid-cols-2">
-        <ControlGroup label="创作意图">
+      <div className="grid gap-1.5">
+        <ControlGroup label="Intent">
           {INTENT_OPTIONS.map((option) => (
             <ControlToggle
               key={option.value}
@@ -191,7 +191,7 @@ export function PromptIntentControls({
             />
           ))}
         </ControlGroup>
-        <ControlGroup label="表达程度">
+        <ControlGroup label="Detail">
           {DETAIL_OPTIONS.map((option) => (
             <ControlToggle
               key={option.value}
@@ -207,10 +207,10 @@ export function PromptIntentControls({
       </div>
 
       <div className="mt-1 flex flex-wrap items-center gap-1 border-t border-[var(--border-static)] pt-1">
-        <span className="label-tech mr-1 text-[var(--text-muted)]">编辑方式</span>
+        <span className="label-tech mr-1 text-[var(--text-muted)]"> Edit mode </span>
         {EDITOR_MODE_OPTIONS.map((option) => {
           const optionDisabled = option.value === "structured" && !structuredAvailable;
-          return (
+          const button = (
             <button
               key={option.value}
               type="button"
@@ -230,6 +230,12 @@ export function PromptIntentControls({
               {option.label}
             </button>
           );
+          return option.value === "structured" ? (
+            <details key={option.value} className="relative ml-auto" open={editorMode === "structured" || undefined}>
+              <summary className="cursor-pointer px-2 text-[0.6875rem] text-[var(--text-secondary)]">Advanced</summary>
+              <div className="mt-1">{button}</div>
+            </details>
+          ) : button;
         })}
       </div>
 
@@ -238,9 +244,7 @@ export function PromptIntentControls({
           data-testid="prompt-controls-locked-note"
           className="mt-1 rounded-lg bg-[var(--surface-bright)]/72 px-2 py-1 text-[0.6875rem] leading-4 text-[var(--text-secondary)]"
         >
-          自动任务将使用已确认设置。Exit quick recreate to edit the intent and
-          detail level again.
-        </p>
+           The automatic render uses confirmed settings. Exit quick recreate to edit intent and detail. </p>
       )}
 
       {pending && (
@@ -257,8 +261,7 @@ export function PromptIntentControls({
               id="prompt-switch-confirm-title"
               className="text-sm font-bold text-[var(--text-primary)]"
             >
-              替换手动编辑的 Prompt？
-            </h3>
+               Replace your edited Prompt? </h3>
             <p className="mt-2 text-xs leading-5 text-[var(--text-secondary)]">
               You edited the full prompt by hand. Confirming the switch replaces
               it with the newly compiled prompt; cancelling keeps your text
@@ -296,9 +299,9 @@ interface ControlGroupProps {
 
 function ControlGroup({ label, children }: ControlGroupProps) {
   return (
-    <div className="min-w-0">
-      <p className="label-tech mb-0.5 px-1 text-[var(--text-muted)]">{label}</p>
-      <div className="flex gap-1">{children}</div>
+    <div className="flex min-w-0 items-center gap-2 @max-[18rem]:flex-col @max-[18rem]:items-stretch @max-[18rem]:gap-1">
+      <p className="label-tech w-10 shrink-0 px-1 text-[var(--text-muted)]">{label}</p>
+      <div className="flex min-w-0 flex-1 gap-1">{children}</div>
     </div>
   );
 }
@@ -328,7 +331,7 @@ function ControlToggle({
       disabled={disabled}
       title={hint}
       onClick={(event) => onClick(event.currentTarget)}
-      className={`flex-1 rounded-lg px-2 py-1 text-left text-[0.6875rem] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)] ${
+      className={`min-w-0 flex-1 rounded-lg px-2 py-1 text-center text-[0.6875rem] leading-4 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)] ${
         pressed
           ? "bg-[var(--accent-primary-soft)] text-[var(--accent-primary)] ring-1 ring-[var(--border-interactive)]"
           : "bg-[var(--surface-bright)]/70 text-[var(--text-secondary)] hover:bg-[var(--surface-bright)]"

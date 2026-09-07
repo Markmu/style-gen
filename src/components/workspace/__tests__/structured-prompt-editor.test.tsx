@@ -115,7 +115,7 @@ describe("StructuredPromptEditor", () => {
     expect(screen.getByLabelText("Prompt mode")).toHaveValue("variables");
     expect(
       screen.getByTestId("structured-variable-prompt").parentElement,
-    ).toHaveClass("h-[50dvh]", "min-h-[15rem]");
+    ).toHaveClass("h-40", "min-h-0");
     fireEvent.change(screen.getByLabelText("Subject"), { target: { value: "red stool" } });
     expect(
       (screen.getByLabelText(
@@ -258,6 +258,7 @@ describe("StructuredPromptEditor", () => {
     const finalPromptText = customPrompt || RESOLVED_FINAL;
     return (
       <div className="h-[50rem]">
+        <select aria-label="Prompt mode" value={mode === "structured" ? "json" : mode} onChange={(event) => setMode(event.target.value === "json" ? "structured" : event.target.value as "variables" | "text")}><option value="variables">Variables</option><option value="text">Full text</option><option value="json">Structured</option></select>
         <StructuredPromptEditor
           recipe={recipe}
           state={state}

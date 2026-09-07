@@ -82,8 +82,7 @@ export function ReplaceConfirmDialog({
           <div>
             <p className="label-tech text-[var(--text-muted)]">New direction</p>
             <h2 className="mt-1 text-base font-semibold tracking-[-0.015em] text-[var(--text-primary)]">
-              使用该结果作为新参考？
-            </h2>
+               Use this result as a new reference? </h2>
           </div>
         ) : (
           <div>
@@ -98,10 +97,7 @@ export function ReplaceConfirmDialog({
 
         {isNewReference ? (
           <p className="text-xs leading-5 text-[var(--text-secondary)]">
-            确认后工作区将以该结果的图片开启新方向分析（复用同一 Asset，不重复
-            上传）；以下未完成内容将不带入新方向，原方向与全部 Iteration 仍可从
-            Iteration Memory 回溯。
-          </p>
+             This starts a new direction from the result image. The following unsaved edits will not carry over. Your previous direction and iterations remain in Iteration Memory. </p>
         ) : (
           <p className="text-xs leading-5 text-[var(--text-secondary)]">
             Continuing switches the workspace to the selected iteration. Your

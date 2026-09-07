@@ -35,7 +35,7 @@ describe("WorkspaceThreeColumnLayout", () => {
     expect(gridStyle).toContain("clamp(17.5rem, calc(38.4dvh + 2rem), 22rem)");
     expect(grid).toHaveClass("gap-3");
     expect(screen.getByLabelText("Reference Canvas column")).toHaveClass(
-      "min-w-[17.5rem]",
+      "min-w-0",
     );
     expect(screen.getByLabelText("Reference Canvas column")).toHaveTextContent("Reference slot");
     expect(screen.getByLabelText("Style Intelligence column")).toHaveTextContent("Recipe slot");

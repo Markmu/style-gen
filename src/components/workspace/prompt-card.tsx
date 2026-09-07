@@ -81,6 +81,7 @@ interface PromptCardProps {
   v2PromptState?: V2PromptWorkspaceState | null;
   provenanceSpans?: PromptProvenanceSpan[];
   selectedFacetId?: EvidenceFacetId | null;
+  provenanceSelectionVersion?: number;
   onV2PromptStateChange?: (
     update: (current: V2PromptWorkspaceState) => V2PromptWorkspaceState,
   ) => void;
@@ -125,6 +126,7 @@ export function PromptCard({
   v2PromptState = null,
   provenanceSpans = [],
   selectedFacetId = null,
+  provenanceSelectionVersion = 0,
   onV2PromptStateChange,
   promptControlsState = null,
   onIntentChange,
@@ -139,6 +141,7 @@ export function PromptCard({
   onManualTextChange,
 }: PromptCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [promptExpanded, setPromptExpanded] = useState(false);
   const titleId = useId();
   const prompt = promptText.trim();
   const isLoading = state === "analyzing";
@@ -179,6 +182,19 @@ export function PromptCard({
   const structuredRecipe = isVisualRecipeV2Success(recipe) ? recipe : null;
   const selectedProvenanceSpan =
     provenanceSpans.find((span) => span.facetId === selectedFacetId) ?? null;
+  useEffect(() => {
+    if (!selectedFacetId) return;
+    setPromptExpanded(true);
+    if (selectedProvenanceSpan?.matchType === "facet_only" || !selectedProvenanceSpan) return;
+    const frame = requestAnimationFrame(() => {
+      const editor = document.querySelector<HTMLTextAreaElement>('[data-testid="structured-variable-prompt"] textarea, [data-testid="template-mode-highlight-editor"] textarea, [data-testid="fulltext-prompt-editor"], [data-testid="text-mode-highlight-editor"] textarea');
+      editor?.focus();
+      editor?.scrollIntoView({ block: "nearest" });
+    });
+    return () => cancelAnimationFrame(frame);
+    // Locate only on an explicit selection, never on a subsequent prompt edit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedFacetId, provenanceSelectionVersion]);
   const canSaveStyleMemory =
     prompt && onSaveTemplate && state !== "history_restored";
   const showRenderDock = Boolean(renderDock) && !isExpanded;
@@ -201,17 +217,17 @@ export function PromptCard({
     >
       <article
         data-testid="prompt-card"
-        className="surface-panel flex h-full min-h-0 min-w-0 flex-col overflow-y-auto rounded-2xl p-4"
+        className="surface-panel flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl p-4"
       >
       {/* plan-05：控制条常驻后收紧标题下边距，把纵向空间让给编辑区/Render Dock */}
-      <div className="mb-2 flex shrink-0 items-center justify-between gap-3">
+      <div className="mb-2 flex shrink-0 flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <h2 id={titleId} className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
             Prompt + Render
             <AppIcon icon={Info} size={16} className="text-[var(--text-muted)]" />
           </h2>
           <p className="mt-1 text-xs text-[var(--text-secondary)]">
-            Prompt and generation controls
+            Edit content, then render
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -248,6 +264,7 @@ export function PromptCard({
         </div>
       </div>
 
+      {selectedFacetId && (!selectedProvenanceSpan || selectedProvenanceSpan.matchType === "facet_only") && <p role="status" className="mb-2 text-xs text-[var(--text-secondary)]">No matching phrase in the current Prompt. This observation remains available as evidence.</p>}
       <div
         className={
           isExpanded
@@ -256,7 +273,7 @@ export function PromptCard({
               // 下编辑区与 Render Dock 争抢纵向空间。内容区保持可滚动且带高度
               // 下限，保证意图/表达/编辑模式控件始终可达（不结构性折叠），
               // 剩余空间不足时由 article 级滚动承接（TC-7.2/TC-7.5 契约）。
-              "min-h-[22rem] flex-1 overflow-y-auto"
+              "min-h-0 flex-1 overflow-y-auto"
         }
       >
         {isLoading ? (
@@ -284,7 +301,7 @@ export function PromptCard({
           <div
             className={
               showRenderDock
-                ? "flex h-full min-h-0 flex-col gap-2"
+                ? "flex min-h-full flex-col gap-2"
                 : isExpanded
                   ? "flex h-full min-h-0 flex-col gap-2"
                 : "flex min-h-full flex-col gap-3"
@@ -325,25 +342,23 @@ export function PromptCard({
                 role="status"
                 className="shrink-0 rounded-xl bg-[var(--surface-bright)]/60 px-2.5 py-2 text-xs leading-5 text-[var(--text-secondary)] ring-1 ring-[var(--border-interactive)]"
               >
-                已停用规则「{adjustmentMissNote.invariantValue}」，但在当前全文
-                中未找到可删除的表达：全文逐字保留，未做删除或追加。可继续手动
-                编辑全文，或切回变量模式让规则直接参与编译。
-              </p>
+                 Rule disabled:  {adjustmentMissNote.invariantValue} . No matching text was found to remove. Your full prompt is unchanged. Edit it manually or use Variables to compile the rule changes. </p>
             )}
 
             {compiledPromptText !== null &&
               (!promptControlsState ||
                 promptControlsState.editorMode === "variables") && (
-              <div className="shrink-0 rounded-xl bg-[var(--surface-low)]/56 px-2 py-1.5 ring-1 ring-[var(--border-static)]">
+              <div className="order-3 shrink-0 rounded-xl bg-[var(--surface-low)]/56 px-2 py-1.5 ring-1 ring-[var(--border-static)]">
                 <p className="label-tech mb-0.5 text-[var(--text-muted)]">
-                  最终 Prompt
+                  Final Prompt
                 </p>
                 <p
                   data-testid="compiled-prompt-text"
-                  className="line-clamp-2 whitespace-pre-wrap break-words font-mono text-[0.6875rem] leading-4 text-[var(--text-secondary)]"
+                  className={`${promptExpanded ? "max-h-40 overflow-y-auto" : "line-clamp-2"} whitespace-pre-wrap break-words font-mono text-[0.6875rem] leading-4 text-[var(--text-secondary)]`}
                 >
                   {compiledPromptText}
                 </p>
+                <button type="button" aria-expanded={promptExpanded} onClick={() => setPromptExpanded(!promptExpanded)} className="mt-1 text-xs text-[var(--accent-primary)]">{promptExpanded ? "Collapse prompt" : "Expand prompt"}</button>
               </div>
             )}
 
@@ -351,14 +366,7 @@ export function PromptCard({
               data-testid="prompt-editor-frame"
               className={
                 showRenderDock
-                  ? // plan-04/plan-05：控制区占用纵向空间时编辑区必须能在剩余空间内
-                    // 收缩——固定大下限会让编辑框越过内容区下界压进 Render Dock
-                    // （TC-8.2/TC-8.3 视觉契约：无重叠优先，编辑内容在框内滚动）。
-                    // 保留 4rem 可见下限：更小视口（720p 高度）下编辑器仍可交互。
-                    // 无控制区的预览/旧形态保留原下限（该分支从未触发重叠）。
-                    promptControlsState
-                    ? "min-h-[8rem] flex-1 overflow-hidden"
-                    : "min-h-[14rem] flex-1 overflow-hidden"
+                  ? "order-1 h-64 min-h-0 shrink-0 overflow-hidden"
                   : isExpanded
                     ? "h-full min-h-0 flex-1 overflow-hidden"
                   : "min-h-[22.5rem]"
@@ -422,7 +430,7 @@ export function PromptCard({
           </div>
         ) : (
           <div className="flex min-h-full flex-col">
-            <div className="flex min-h-[16.25rem] flex-1 flex-col justify-center rounded-xl bg-[var(--surface-low)] p-6">
+            <div className="flex min-h-0 flex-1 flex-col justify-center rounded-xl bg-[var(--surface-low)] p-6">
               <AppIcon icon={FileText} size={24} className="mb-4 text-[var(--accent-primary)]" />
               <p className="text-sm font-semibold text-[var(--text-primary)]">
                 Prompt will appear here
@@ -430,7 +438,7 @@ export function PromptCard({
               <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
                 {analysisError
                   ? "Prompt context preserved. Back to Edit keeps your workspace ready while you retry analysis or replace the reference."
-                  : "Analyze a reference image to prepare generation text, style locks, variables, and negative constraints."}
+                  : "Upload a reference to start editing."}
               </p>
               {analysisError && (
                 <button

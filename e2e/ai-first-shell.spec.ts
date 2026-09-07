@@ -144,7 +144,7 @@ test.describe('plan-02 AppShell and AI status header', () => {
     await expect(page).toHaveURL(/\/workspace\/templates$/)
   })
 
-  test('TC-2.3 shows an idle Workspace AI status header with next action and service state', async ({ page }) => {
+  test('TC-2.3 shows an idle Workspace AI status header with next action and evidence waiting state', async ({ page }) => {
     await mockCommonApis(page)
 
     await openRoute(page, '/workspace')
@@ -152,8 +152,8 @@ test.describe('plan-02 AppShell and AI status header', () => {
     await expect(aiCopilot(page)).toBeVisible({ timeout: 5000 })
     await expect(aiCopilot(page)).toHaveAttribute('data-phase', 'idle')
     await expect(aiCopilot(page)).toContainText(/upload|reference/i)
-    await expect(aiCopilot(page)).toContainText(/service|ready|available/i)
-    await expect(aiCopilot(page)).toContainText(/next/i)
+    await expect(aiCopilot(page)).not.toContainText(/Services Ready|Confidence/i)
+    await expect(aiCopilot(page)).toContainText(/reference|render/i)
   })
 
   test('TC-2.4 updates the AI status header while analysis is processing', async ({ page }) => {
@@ -179,7 +179,7 @@ test.describe('plan-02 AppShell and AI status header', () => {
       timeout: 15000,
     })
     await expect(aiCopilot(page)).toContainText(/reading|extracting|style signals/i)
-    await expect(aiCopilot(page)).toContainText(/signals detected/i)
+    await expect(aiCopilot(page)).toContainText(/Waiting for reference evidence/i)
   })
 
   test('TC-2.5 updates the AI status header when analysis is ready', async ({ page }) => {
@@ -197,7 +197,7 @@ test.describe('plan-02 AppShell and AI status header', () => {
       timeout: 15000,
     })
     await expect(aiCopilot(page)).toContainText(/ready|evidence|style signals|generate|editing/i)
-    await expect(aiCopilot(page)).toContainText(/next/i)
+    await expect(aiCopilot(page)).toContainText(/reference|render/i)
   })
 
   test('TC-2.6 shows generating and recoverable failure status without clearing context', async ({ page }) => {

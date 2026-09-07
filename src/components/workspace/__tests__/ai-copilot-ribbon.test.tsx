@@ -28,6 +28,15 @@ const recipe: VisualRecipe = {
 };
 
 describe("AiCopilotRibbon", () => {
+  it("does not invent coverage for a reference without observations", () => {
+    render(<AiCopilotRibbon state="analyzing" recipe={null} hasReference hasPrompt={false} canGenerate={false} disabledReason="" degradation={neutralDegradation} />);
+    expect(screen.getByTestId("evidence-coverage")).toHaveTextContent("Waiting for reference evidence");
+    expect(screen.queryByText(/%/)).not.toBeInTheDocument();
+  });
+  it("counts only nonempty dimensions", () => {
+    render(<AiCopilotRibbon state="analysis_ready" recipe={{ ...recipe, color: " ", mood: "" }} hasReference hasPrompt canGenerate disabledReason="" degradation={neutralDegradation} />);
+    expect(screen.getByTestId("evidence-coverage")).toHaveTextContent("3 evidence dimensions");
+  });
   it("renders the redesigned metric groups for a ready workspace", () => {
     render(
       <AiCopilotRibbon
@@ -43,16 +52,12 @@ describe("AiCopilotRibbon", () => {
 
     const ribbon = screen.getByTestId("ai-copilot-ribbon");
     expect(ribbon).toHaveAttribute("data-phase", "analysis_ready");
-    expect(ribbon).toHaveAttribute("data-service", "ready");
-    expect(screen.getByText("AI Copilot")).toBeInTheDocument();
-    expect(screen.getByText("Phase")).toBeInTheDocument();
+    expect(ribbon).not.toHaveAttribute("data-service");
     expect(screen.getByText("Editing")).toBeInTheDocument();
-    expect(screen.getByText("Confidence")).toBeInTheDocument();
-    expect(screen.getByText("Signals detected")).toBeInTheDocument();
-    expect(screen.getByText("Next")).toBeInTheDocument();
+    expect(screen.getByText("5 evidence dimensions")).toBeInTheDocument();
+    expect(screen.queryByText("Confidence")).not.toBeInTheDocument();
+    expect(screen.queryByText("Ready")).not.toBeInTheDocument();
     expect(screen.getByText("Refine intent or render")).toBeInTheDocument();
-    expect(screen.getByText("Services")).toBeInTheDocument();
-    expect(screen.getByText("Ready")).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /copilot insights/i }),
     ).not.toBeInTheDocument();
@@ -76,7 +81,6 @@ describe("AiCopilotRibbon", () => {
 
     const ribbon = screen.getByTestId("ai-copilot-ribbon");
     expect(ribbon).toHaveAttribute("data-phase", "failure");
-    expect(ribbon).toHaveAttribute("data-service", "limited");
-    expect(screen.getByText("Limited")).toBeInTheDocument();
+    expect(screen.getByText("Generation service unavailable")).toBeInTheDocument();
   });
 });

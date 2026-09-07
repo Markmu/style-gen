@@ -198,7 +198,7 @@ describe("ResultComparisonPanel", () => {
     expect(screen.getByTestId("comparison-panel-title").tabIndex).toBe(-1);
   });
 
-  it("展示真实双图、历史 Prompt 快照与「正在调整当前草稿」边界", () => {
+  it("展示真实双图、历史 Prompt 快照与「Adjustments update your current draft」边界", () => {
     mountPanel();
 
     expect(screen.getByTestId("comparison-reference-image")).toHaveAttribute(
@@ -215,7 +215,7 @@ describe("ResultComparisonPanel", () => {
     expect(screen.getByTestId("comparison-historical-context")).toBeVisible();
     expect(
       screen.getByTestId("comparison-historical-context"),
-    ).toHaveTextContent("正在调整当前草稿");
+    ).toHaveTextContent("Adjustments update your current draft");
     // polite live region：状态通知不夺焦点
     expect(screen.getByTestId("comparison-live-region")).toHaveAttribute(
       "aria-live",
@@ -333,7 +333,7 @@ describe("ResultComparisonPanel", () => {
     await user.click(dimensionButton("composition"));
 
     expect(screen.getByTestId("comparison-invariant-empty")).toHaveTextContent(
-      "暂无可调整规则",
+      "No adjustable rules",
     );
     expect(screen.queryByTestId("comparison-invariant-option")).toBeNull();
     // 真实 observation 仍展示

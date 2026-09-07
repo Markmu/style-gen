@@ -73,7 +73,7 @@ Layout rules:
 - Landing uses an asymmetric split hero with one message and a real visual.
 - Workspace preserves the three responsibilities: Reference Canvas, Style Intelligence, and Prompt + Render.
 - Style Memory prioritizes previews, then name, variables, tags, reuse intent, and action.
-- Below 768px, marketing layouts become one column. Workspace remains a horizontally navigable professional canvas until a dedicated mobile editing flow exists; do not silently squeeze all three columns into the viewport.
+- Below 768px, marketing layouts become one column. Workspace uses three columns at xl (1280px) and above, and vertically stacked panels below xl. No persistent region may impose horizontal page overflow. Desktop Prompt + Render keeps its heading and Render Dock visible while editor content scrolls.
 - Full-height application shells use `100dvh`, never `100vh` or `h-screen`.
 
 ## 7. Components And States
@@ -164,3 +164,13 @@ For changes to layout, typography, color, tokens, or motion:
 5. Run `pnpm verify:acceptance` before release-bound handoff.
 
 Use `.surface-panel`, `.ai-panel`, `.btn-primary`, `.btn-secondary`, `.input-precision`, `.evidence-chip`, `.readiness-row`, `.style-memory-card`, and `.status-tone-dot` before adding page-specific classes.
+
+## 11. Workspace interaction refinement (2026-09-06)
+
+### 需求变更
+
+Approved refinement: compact evidence status without inferred confidence or unverified service readiness; content variables before prompt representation; explicit evidence-location actions; visible Render Dock; distinct history details and reference comparison; editable, once-only quick authorization; single-page workspace-draft saving. Workspace UI and directly opened dialogs use English. User/model content is preserved.
+
+Keep existing generation, provenance, restoration and verification contracts. Draft saves never imply user verification. Iteration saves retain representative confirmation. Advanced controls remain available progressively. Temporary undo must never overwrite newer edits.
+
+Use real nonempty evidence dimensions for coverage, not estimated scores. Use `View latest result` for history details and `Compare with reference` for comparison. Prompt detail labels are Concise, Balanced and Detailed. Draft naming is prefilled from a custom workspace title, a style tag, or Untitled style; advanced save fields remain editable.

@@ -104,7 +104,7 @@ function RailActionButton({
       aria-label={label}
       aria-pressed={pressed}
       disabled={disabled}
-      title={disabled ? `${label}（该结果缺少可用图片资产）` : label}
+      title={disabled ? `${label} (result image unavailable)` : label}
       onClick={(event) => {
         event.stopPropagation();
         onClick();
@@ -150,27 +150,24 @@ export function DirectionResultRail({
       data-testid="direction-result-rail"
       data-selected-id={selectedIterationId ?? ""}
       data-preferred-id={preferredIterationId ?? ""}
-      aria-label="本次结果"
+      aria-label="Current results"
       className="mx-4 mb-2 shrink-0 rounded-xl bg-[var(--surface-low)]/56 px-2.5 py-1.5 ring-1 ring-[var(--border-static)] sm:mx-6 lg:mx-8"
     >
       {/* 空态/加载态保持单行紧凑：rail 常驻三栏下方，不能挤压专业画布可用高度 */}
       <div className="flex min-w-0 items-center justify-between gap-2 px-1">
-        <p className="label-tech shrink-0 text-[var(--text-muted)]">本次结果</p>
+        <p className="label-tech shrink-0 text-[var(--text-muted)]"> Current results </p>
         {isLoading && !feed ? (
           <span
             role="status"
             className="truncate text-[0.65rem] leading-4 text-[var(--text-muted)]"
           >
-            正在读取本次方向的结果…
-          </span>
+             Loading results for this direction... </span>
         ) : !hasAnyResult ? (
           <span className="truncate text-[0.65rem] leading-4 text-[var(--text-secondary)]">
-            还没有生成结果；生成开始后，队列、进行中与最近结果会直接出现在这里
-          </span>
+             Your renders and their progress will appear here. </span>
         ) : (
           <span className="truncate text-[0.65rem] leading-4 text-[var(--text-muted)]">
-            最近 {completed.length} 个成功结果 · 完整历史在 Iteration Memory
-          </span>
+             Latest  {completed.length}   completed results. Full history in Iteration Memory </span>
         )}
       </div>
 
@@ -180,10 +177,7 @@ export function DirectionResultRail({
           className="mt-1.5 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[var(--surface-bright)]/72 px-2.5 py-1.5 ring-1 ring-[var(--border-interactive)]"
         >
           <p className="min-w-0 text-xs leading-5 text-[var(--text-secondary)]">
-            本次结果刷新失败{errorMessage ? `：${errorMessage}` : ""}。已展示的
-            结果与当前草稿保持不变；可重试刷新，或打开完整 Iteration 查看全部
-            历史。
-          </p>
+             Results could not be refreshed {errorMessage ? `：${errorMessage}` : ""} . Your results and draft are preserved. Retry or open Iteration Memory. </p>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
             <button
               type="button"
@@ -191,8 +185,7 @@ export function DirectionResultRail({
               onClick={onRetryFeed}
               className="btn-secondary h-7 rounded-lg px-2.5 text-xs font-medium"
             >
-              重试
-            </button>
+               Retry </button>
             {/* plan-07（架构 §8.2 L2「结果位显示重试/打开 Iteration」）：
                 feed 失败时提供打开完整 Iteration 的出口——完整历史由
                 Iteration Memory 管理，不依赖本次 feed 刷新成功 */}
@@ -202,8 +195,7 @@ export function DirectionResultRail({
               onClick={() => onOpenIteration()}
               className="btn-secondary h-7 rounded-lg px-2.5 text-xs font-medium"
             >
-              打开完整 Iteration
-            </button>
+               Open full iteration </button>
           </div>
         </div>
       )}
@@ -223,7 +215,7 @@ export function DirectionResultRail({
                 data-preferred={isPreferred}
                 {...(assetMissing ? { "data-asset-missing": "true" } : {})}
                 role="group"
-                aria-label={`结果 ${item.promptSummary}`}
+                aria-label={`Result ${item.promptSummary}`}
                 onClick={() => onSelect(item.id)}
                 className={`flex w-28 shrink-0 cursor-pointer flex-col gap-1.5 rounded-xl p-1.5 transition-colors focus-within:ring-2 focus-within:ring-[var(--accent-primary)] ${
                   isSelected
@@ -233,7 +225,7 @@ export function DirectionResultRail({
               >
                 <button
                   type="button"
-                  aria-label={`选择结果 ${item.promptSummary}`}
+                  aria-label={`Select result ${item.promptSummary}`}
                   aria-current={isSelected}
                   disabled={assetMissing}
                   onClick={() => onSelect(item.id)}
@@ -242,20 +234,19 @@ export function DirectionResultRail({
                   {assetMissing ? (
                     <span className="flex flex-col items-center gap-0.5 px-1 text-center text-[0.625rem] leading-3 text-[var(--text-muted)]">
                       <AppIcon icon={ImageIcon} size={16} strokeWidth={1.75} />
-                      来源异常：缺少结果图片
-                    </span>
+                       Source unavailable: result image missing </span>
                   ) : (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={item.resultFileUrl ?? ""}
-                      alt={`结果 ${item.promptSummary}`}
+                      alt={`Result ${item.promptSummary}`}
                       className="h-full w-full object-cover"
                     />
                   )}
                 </button>
                 <div className="flex items-center justify-center gap-1">
                   <RailActionButton
-                    label={isPreferred ? "取消本次首选" : "设为本次首选"}
+                    label={isPreferred ? "Clear preferred result" : "Set as preferred result"}
                     testId="direction-item-preferred"
                     icon={Star}
                     pressed={isPreferred}
@@ -263,35 +254,35 @@ export function DirectionResultRail({
                     onClick={() => onSetPreferred(item.id)}
                   />
                   <RailActionButton
-                    label="比较该结果"
+                    label="Compare with reference"
                     testId="direction-item-compare"
                     icon={Columns2}
                     disabled={assetMissing}
                     onClick={() => onCompare(item.id)}
                   />
                   <RailActionButton
-                    label="沿用当前草稿再次生成"
+                    label="Generate from current draft"
                     testId="direction-item-regenerate"
                     icon={RefreshCw}
                     disabled={assetMissing}
                     onClick={onRegenerate}
                   />
                   <RailActionButton
-                    label="作为新参考"
+                    label="Use as new reference"
                     testId="direction-item-new-reference"
                     icon={Copy}
                     disabled={assetMissing}
                     onClick={() => onUseAsNewReference(item.id)}
                   />
                   <RailActionButton
-                    label="保存或更新 Style Memory"
+                    label="Save or update Style Memory"
                     testId="direction-item-save-memory"
                     icon={Bookmark}
                     disabled={assetMissing}
                     onClick={() => onOpenMemoryAction(item.id)}
                   />
                   <RailActionButton
-                    label="打开完整 Iteration"
+                    label="Open full iteration"
                     testId="direction-item-open-iteration"
                     icon={ExternalLink}
                     onClick={() => onOpenIteration(item.id)}
@@ -306,7 +297,7 @@ export function DirectionResultRail({
               data-testid="direction-active-face"
               data-iteration-id={active.id}
               role="status"
-              aria-label="生成进行中"
+              aria-label="Rendering"
               className="flex w-28 shrink-0 flex-col items-center justify-center gap-1 rounded-xl bg-[var(--surface-bright)]/56 p-1.5 ring-1 ring-[var(--border-static)]"
             >
               <span
@@ -314,8 +305,7 @@ export function DirectionResultRail({
                 aria-hidden="true"
               />
               <p className="px-1 text-center text-[0.625rem] leading-3 text-[var(--text-secondary)]">
-                生成进行中
-              </p>
+                 Rendering </p>
               <p className="w-full truncate px-1 text-center text-[0.625rem] leading-3 text-[var(--text-muted)]">
                 {active.promptSummary}
               </p>
@@ -327,18 +317,17 @@ export function DirectionResultRail({
               data-testid="direction-failure-face"
               data-iteration-id={latestFailure.id}
               role="alert"
-              aria-label="最近一次生成失败"
+              aria-label="Latest render failed"
               className="flex w-36 shrink-0 flex-col justify-between gap-1 rounded-xl bg-[var(--surface-bright)]/56 p-1.5 ring-1 ring-[var(--border-interactive)]"
             >
               <div className="min-w-0">
                 <p className="text-[0.625rem] font-semibold leading-3 text-[var(--text-secondary)]">
-                  最近一次生成失败
-                </p>
+                   Latest render failed </p>
                 <p
                   title={latestFailure.errorMessage ?? undefined}
                   className="mt-0.5 line-clamp-2 break-words text-[0.625rem] leading-3 text-[var(--text-muted)]"
                 >
-                  {latestFailure.errorMessage ?? "生成失败"}
+                  {latestFailure.errorMessage ?? "Generation failed"}
                 </p>
               </div>
               <button
@@ -348,8 +337,7 @@ export function DirectionResultRail({
                 className="btn-secondary flex h-6 w-full items-center justify-center gap-1 rounded-lg px-1.5 text-[0.625rem] font-medium"
               >
                 <AppIcon icon={RefreshCw} size={12} strokeWidth={1.75} />
-                重试生成
-              </button>
+                 Retry generation </button>
             </div>
           )}
         </div>
@@ -367,17 +355,14 @@ export function DirectionResultRail({
             className="mt-1.5 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[var(--surface-bright)]/56 px-2.5 py-1.5 ring-1 ring-[var(--border-static)]"
           >
             <p className="min-w-0 text-[0.65rem] leading-4 text-[var(--text-secondary)]">
-              本次首选已保留。它不在最近五个成功结果窗口内，首选已在 Iteration
-              Memory，仍可作为本次方向的沉淀与比较依据。
-            </p>
+               Your preferred result is preserved in Iteration Memory, outside the latest five results. </p>
             <button
               type="button"
               data-testid="direction-preferred-open-detail"
               onClick={() => onOpenPreferredDetail(preferredIterationId)}
               className="btn-secondary h-6 shrink-0 rounded-lg px-2 text-[0.625rem] font-medium"
             >
-              打开详情
-            </button>
+               Open details </button>
           </div>
         )}
 
@@ -388,8 +373,7 @@ export function DirectionResultRail({
           role="status"
           className="mt-1.5 px-1 text-[0.65rem] leading-4 text-[var(--text-secondary)]"
         >
-          本次首选无效，已清除：{preferredInvalidNotice.reason}。可重新从本次结果区选择。
-        </p>
+           Preferred result cleared:  {preferredInvalidNotice.reason} . Select another result from this direction. </p>
       )}
 
       {memoryStatus && (
@@ -401,14 +385,12 @@ export function DirectionResultRail({
           }
           className="mt-1 px-1 font-mono text-[0.625rem] leading-4 tracking-wide text-[var(--text-muted)]"
         >
-          来源 Memory
-          {memoryStatus.memoryName ? `「${memoryStatus.memoryName}」` : ""}
-          验证状态：
-          {memoryStatus.verificationStatus === "user_verified"
-            ? "User verified（已确认代表结果）"
-            : "Pending verification（待确认代表结果）"}
+           Source Memory {memoryStatus.memoryName ? `「${memoryStatus.memoryName}」` : ""}
+           Verification:  {memoryStatus.verificationStatus === "user_verified"
+            ? "User verified"
+            : "Pending verification"}
           {memoryStatus.representativeIterationId
-            ? ` · 代表结果 ${memoryStatus.representativeIterationId}`
+            ? ` - Representative result ${memoryStatus.representativeIterationId}`
             : ""}
         </p>
       )}

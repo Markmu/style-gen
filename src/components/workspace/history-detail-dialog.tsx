@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useFocusTrap } from "@/hooks/use-focus-trap";
 import type { GenerationParams, StoredVisualRecipe, TemplateVariable } from "@/types/models";
 
 export interface HistoryDetail {
@@ -33,11 +34,14 @@ export function HistoryDetailDialog({
   onClose,
   restoreError,
 }: HistoryDetailDialogProps) {
+  const { containerRef } = useFocusTrap({ active: open && !!detail, onEscape: onClose });
   if (!open || !detail) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(25,28,30,0.24)] p-6 backdrop-blur-sm">
       <div
+        ref={containerRef}
+        tabIndex={-1}
         data-testid="history-detail-dialog"
         role="dialog"
         aria-modal="true"
@@ -107,12 +111,7 @@ export function HistoryDetailDialog({
                     {detail.params.quality}
                   </dd>
                 </div>
-                <div className="col-span-2">
-                  <dt className="text-xs text-[var(--text-muted)]">Analysis task</dt>
-                  <dd className="mt-1 break-all font-medium text-[var(--text-primary)]">
-                    {detail.analysisTaskId}
-                  </dd>
-                </div>
+
               </dl>
             </section>
 

@@ -45,7 +45,7 @@ describe("HistoryDetailDialog", () => {
     expect(screen.getByText("A restored prompt snapshot")).toBeInTheDocument();
     expect(screen.getByText("16:9")).toBeInTheDocument();
     expect(screen.getByText("hd")).toBeInTheDocument();
-    expect(screen.getByText("analysis-1")).toBeInTheDocument();
+    expect(screen.queryByText("analysis-1")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save as Style Memory" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate variation" })).toBeInTheDocument();
   });

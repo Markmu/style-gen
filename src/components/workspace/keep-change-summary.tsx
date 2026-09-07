@@ -55,10 +55,10 @@ export function KeepChangeSummary({
       data-testid="keep-change-summary"
       data-intent={intent}
       aria-label="Keep and change summary"
-      className="shrink-0 rounded-xl bg-[var(--surface-low)]/56 p-2.5 ring-1 ring-[var(--border-static)]"
+      className="order-2 max-h-28 shrink-0 overflow-y-auto rounded-xl bg-[var(--surface-low)]/56 p-2.5 ring-1 ring-[var(--border-static)]"
     >
       <div className="flex items-center justify-between gap-2 px-1">
-        <p className="label-tech text-[var(--text-muted)]">保留 / 改变</p>
+        <p className="label-tech text-[var(--text-muted)]"> Keep / Change </p>
         <span className="text-[0.65rem] text-[var(--text-muted)]">
           {keepItems.length} kept / {changeItems.length} changed
         </span>
@@ -69,8 +69,7 @@ export function KeepChangeSummary({
           data-testid="keep-change-intent-note"
           className="mt-1.5 px-1 text-xs leading-5 text-[var(--text-secondary)]"
         >
-          贴近复刻会同时参考原内容与风格：内容来自参考图观察，规则仍逐条保留。
-        </p>
+           Close reconstruction uses the original content and retained style rules. </p>
       )}
 
       {hasItems ? (
@@ -122,8 +121,7 @@ export function KeepChangeSummary({
           data-testid="keep-change-empty"
           className="mt-1.5 rounded-lg bg-[var(--surface-bright)]/60 px-2.5 py-2 text-xs leading-5 text-[var(--text-secondary)]"
         >
-          本次分析没有可追踪的保留规则。在 Style Intelligence 中启用规则后，这里会逐条显示什么被保留、什么被改变。
-        </p>
+           No retained rules yet. Enable rules in Style Intelligence to see what stays and what changes. </p>
       )}
 
       <span role="status" aria-live="polite" className="sr-only">

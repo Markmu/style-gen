@@ -153,9 +153,9 @@ test.describe('plan-01 AI-first design system baseline', () => {
       'font-size',
       '16px',
     )
-    await expect(page.getByText('AI Copilot', { exact: true })).toHaveCSS(
+    await expect(page.getByTestId('ai-copilot-ribbon').getByText('Analyze', { exact: true })).toHaveCSS(
       'font-size',
-      '15px',
+      '12px',
     )
     await expect(page.getByRole('link', { name: 'Generate' })).toHaveCSS(
       'font-size',

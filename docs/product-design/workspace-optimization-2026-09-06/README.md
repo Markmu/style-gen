@@ -1,0 +1,16 @@
+# Workspace optimization screenshots
+
+Final mock-based acceptance screenshots. Each viewport is captured in both themes with reduced motion. Images are deterministic fixtures; these screenshots validate UI behavior and layout, not model output quality.
+
+[Implementation and verification record](../../design/workspace-optimization-2026-09-06.md) · [Full acceptance log](validation.log)
+
+| Viewport / theme | Empty | Quick confirmation | Analyzing | Editing | Draft save | Render error | Result | Comparison |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1440x900 light | [View](1440x900-light-01-empty.png) | [View](1440x900-light-02-quick-confirm.png) | [View](1440x900-light-03-analyzing.png) | [View](1440x900-light-04-editing.png) | [View](1440x900-light-05-draft-save.png) | [View](1440x900-light-06-render-error.png) | [View](1440x900-light-07-result.png) | [View](1440x900-light-08-comparison.png) |
+| 1440x900 dark | [View](1440x900-dark-01-empty.png) | [View](1440x900-dark-02-quick-confirm.png) | [View](1440x900-dark-03-analyzing.png) | [View](1440x900-dark-04-editing.png) | [View](1440x900-dark-05-draft-save.png) | [View](1440x900-dark-06-render-error.png) | [View](1440x900-dark-07-result.png) | [View](1440x900-dark-08-comparison.png) |
+| 1280x800 light | [View](1280x800-light-01-empty.png) | [View](1280x800-light-02-quick-confirm.png) | [View](1280x800-light-03-analyzing.png) | [View](1280x800-light-04-editing.png) | [View](1280x800-light-05-draft-save.png) | [View](1280x800-light-06-render-error.png) | [View](1280x800-light-07-result.png) | [View](1280x800-light-08-comparison.png) |
+| 1280x800 dark | [View](1280x800-dark-01-empty.png) | [View](1280x800-dark-02-quick-confirm.png) | [View](1280x800-dark-03-analyzing.png) | [View](1280x800-dark-04-editing.png) | [View](1280x800-dark-05-draft-save.png) | [View](1280x800-dark-06-render-error.png) | [View](1280x800-dark-07-result.png) | [View](1280x800-dark-08-comparison.png) |
+| 1280x720 light | [View](1280x720-light-01-empty.png) | [View](1280x720-light-02-quick-confirm.png) | [View](1280x720-light-03-analyzing.png) | [View](1280x720-light-04-editing.png) | [View](1280x720-light-05-draft-save.png) | [View](1280x720-light-06-render-error.png) | [View](1280x720-light-07-result.png) | [View](1280x720-light-08-comparison.png) |
+| 1280x720 dark | [View](1280x720-dark-01-empty.png) | [View](1280x720-dark-02-quick-confirm.png) | [View](1280x720-dark-03-analyzing.png) | [View](1280x720-dark-04-editing.png) | [View](1280x720-dark-05-draft-save.png) | [View](1280x720-dark-06-render-error.png) | [View](1280x720-dark-07-result.png) | [View](1280x720-dark-08-comparison.png) |
+| 390x844 light | [View](390x844-light-01-empty.png) | [View](390x844-light-02-quick-confirm.png) | [View](390x844-light-03-analyzing.png) | [View](390x844-light-04-editing.png) | [View](390x844-light-05-draft-save.png) | [View](390x844-light-06-render-error.png) | [View](390x844-light-07-result.png) | [View](390x844-light-08-comparison.png) |
+| 390x844 dark | [View](390x844-dark-01-empty.png) | [View](390x844-dark-02-quick-confirm.png) | [View](390x844-dark-03-analyzing.png) | [View](390x844-dark-04-editing.png) | [View](390x844-dark-05-draft-save.png) | [View](390x844-dark-06-render-error.png) | [View](390x844-dark-07-result.png) | [View](390x844-dark-08-comparison.png) |

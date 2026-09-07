@@ -32,7 +32,7 @@ describe("RecipeCard", () => {
     expect(expandButton.querySelector("svg")).toHaveClass("lucide-maximize");
     expect(screen.queryByLabelText("Visual Recipe help")).not.toBeInTheDocument();
     expect(
-      screen.getByText(/After upload, AI will separate color/),
+      screen.getByText(/Your reference’s style evidence will appear here/),
     ).toBeInTheDocument();
   });
 
@@ -97,6 +97,8 @@ describe("RecipeCard", () => {
     expect(screen.getByTestId("content-analysis")).toHaveClass("ring-inset");
 
     fireEvent.click(screen.getByTestId("evidence-facet-color"));
+    expect(onFacetSelect).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId("evidence-observation-color"));
     expect(onFacetSelect).toHaveBeenCalledWith("color");
   });
 
@@ -136,6 +138,8 @@ describe("RecipeCard", () => {
       screen.getByText("Warm reflected accents frame the focal subject"),
     ).toBeInTheDocument();
     expect(screen.queryByText(/Observed:/i)).not.toBeInTheDocument();
+    expect(onFacetSelect).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId("evidence-observation-color"));
     expect(onFacetSelect).toHaveBeenCalledWith("color");
   });
 
@@ -177,6 +181,8 @@ describe("RecipeCard", () => {
     expect(document.body.style.overflow).toBe("hidden");
 
     fireEvent.click(screen.getByTestId("evidence-facet-color"));
+    expect(onFacetSelect).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId("evidence-observation-color"));
     expect(onFacetSelect).toHaveBeenCalledWith("color");
 
     fireEvent.keyDown(

@@ -193,7 +193,7 @@ test.describe('plan-05 Iteration Memory and Save Style Memory entry', () => {
     )
   })
 
-  test('TC-5.2 empty Iteration Memory explains compare, restore, and reuse value', async ({
+  test('TC-5.2 empty Iteration Memory offers a compact prompt and View all', async ({
     page,
   }) => {
     await mockGenerationList(page)
@@ -201,10 +201,9 @@ test.describe('plan-05 Iteration Memory and Save Style Memory entry', () => {
 
     const strip = historyStrip(page)
     await expect(strip).toBeVisible()
-    await expect(strip).toContainText(/renders will appear here as visual evidence/i)
-    await expect(strip).toContainText(/compare,?\s*restore,?\s*and reuse/i)
-    await expect(strip).toContainText(/Iteration Memory/i)
-    await expect(strip.getByRole('button', { name: /compare/i })).toBeDisabled()
+    await expect(strip).toContainText(/Your renders will appear here/i)
+    await expect(strip.getByRole('button', { name: 'View all' })).toBeVisible()
+    await expect(strip.getByRole('button', { name: /compare/i })).toHaveCount(0)
   })
 
   test('TC-5.3 history detail shows prompt, params, restore, and continue actions', async ({
@@ -293,6 +292,6 @@ test.describe('plan-05 Iteration Memory and Save Style Memory entry', () => {
     const strip = historyStrip(page)
     await expect(strip).toBeVisible()
     await expect(strip).toContainText(/history temporarily unavailable|retry|failed/i)
-    await expect(strip).not.toContainText(/renders will appear here as visual evidence/i)
+    await expect(strip).not.toContainText(/Your renders will appear here/i)
   })
 })

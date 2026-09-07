@@ -88,9 +88,7 @@ export function ComparisonView({
               className="flex min-h-24 items-center justify-center rounded-lg bg-[var(--surface-low)] px-3 py-4 text-center ring-1 ring-[var(--border)]"
             >
               <p className="text-xs leading-5 text-[var(--text-muted)]">
-                参考图不可用。本次比较缺少来源参考，可打开完整 Iteration 查看
-                来源记录。
-              </p>
+                 Reference unavailable. Open the full iteration to inspect its source record. </p>
             </div>
           )}
         </div>
@@ -116,9 +114,7 @@ export function ComparisonView({
               className="flex min-h-24 items-center justify-center rounded-lg bg-[var(--surface-low)] px-3 py-4 text-center ring-1 ring-[var(--border)]"
             >
               <p className="text-xs leading-5 text-[var(--text-muted)]">
-                结果图片不可用。该结果缺少可展示的图片资产，可重试加载或打开
-                完整 Iteration。
-              </p>
+                 Result image unavailable. Retry loading or open the full iteration. </p>
             </div>
           )}
         </div>

@@ -527,6 +527,8 @@ test.describe('plan-04：Prompt 控制与保留改变摘要（AC-02 / AC-03 / AC
     // 编辑方式为次级入口：三入口全部可达
     await expect(controls.getByTestId('editor-mode-option-variables')).toBeVisible()
     await expect(controls.getByTestId('editor-mode-option-text')).toBeVisible()
+    await expect(controls.getByTestId('editor-mode-option-structured')).toBeHidden()
+    await controls.getByText('Advanced', { exact: true }).click()
     await expect(controls.getByTestId('editor-mode-option-structured')).toBeVisible()
 
     // 非 armed：无锁定说明，零自动生成
@@ -639,6 +641,7 @@ test.describe('plan-04：Prompt 控制与保留改变摘要（AC-02 / AC-03 / AC
     await expect(fulltext).toHaveValue(compiledBefore)
 
     // structured 模式：只读查看 + 复制；不提供可编辑的 Prompt 输入（架构 §6.2.7）
+    await controls.getByText('Advanced', { exact: true }).click()
     await controls.getByTestId('editor-mode-option-structured').click()
     await expect(controls).toHaveAttribute('data-editor-mode', 'structured')
     await expect(page.getByTestId('structured-readonly-view')).toBeVisible()
@@ -1411,7 +1414,7 @@ test.describe('plan-05：本次结果区与内联比较（AC-04 / AC-05 / AC-06 
 
     await expect(panel.getByTestId('comparison-invariant-empty')).toBeVisible()
     await expect(panel.getByTestId('comparison-invariant-empty')).toContainText(
-      '暂无可调整规则',
+      'No adjustable rules',
     )
     await expect(panel.getByTestId('comparison-invariant-option')).toHaveCount(0)
 
@@ -1436,6 +1439,7 @@ test.describe('plan-05：本次结果区与内联比较（AC-04 / AC-05 / AC-06 
       iterationId: 'dir-apply-1',
     })
 
+    const before = await page.getByTestId('compiled-prompt-text').textContent()
     // color 维度恰有一条 invariant（可见预选），选择 strengthen 后应用
     await comparisonDimension(page, 'color').click()
     await expect(comparisonInvariant(page, 'color_invariant_1')).toHaveAttribute(
@@ -1458,6 +1462,15 @@ test.describe('plan-05：本次结果区与内联比较（AC-04 / AC-05 / AC-06 
 
     // 应用不自动生成（AC-05：生成仍需主动确认）
     expect(generation.requests).toHaveLength(0)
+    await page.getByRole('button', { name: 'Undo adjustment', exact: true }).click()
+    await expect(page.getByTestId('compiled-prompt-text')).toHaveText(before ?? '')
+    await completedRailItem(page, 'dir-apply-1').getByTestId('direction-item-compare').click()
+    await comparisonDimension(page, 'color').click()
+    await panel.getByTestId('adjustment-action-strengthen').click()
+    await panel.getByTestId('comparison-adjustment-apply').click()
+    await expect(page.getByRole('button', { name: 'Undo adjustment', exact: true })).toBeVisible()
+    await page.getByLabel('Subject', { exact: true }).fill('new subject after adjustment')
+    await expect(page.getByRole('button', { name: 'Undo adjustment', exact: true })).toHaveCount(0)
   })
 
   test('TC-5.11 取消比较零写入：草稿逐字不变、面板关闭、焦点回比较触发器', async ({ page }) => {

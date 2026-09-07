@@ -297,27 +297,11 @@ export function StructuredPromptEditor({
                 <AppIcon icon={SlidersHorizontal} size={14} />
                 Variable-linked prompt
               </span>
-              <PromptModeSelect
+              {!controlled && <PromptModeSelect
                 mode={viewMode}
                 variableCount={templateVariables.length}
                 onChange={switchMode}
-              />
-            </div>
-            <div className="h-[50dvh] min-h-[15rem] shrink-0 px-3 pt-2">
-              <PromptHighlightedEditor
-                ariaLabel="Variable-linked prompt preview"
-                value={resolvedTemplate}
-                onChange={handleLinkedPromptChange}
-                placeholder="Prompt appears after analysis."
-                mode="text"
-                minHeightClass="h-full"
-                compact={compact}
-                variables={templateVariables}
-                variableValues={variableValues}
-                provenanceSpans={provenanceSpans}
-                selectedProvenanceSpan={selectedProvenanceSpan}
-                testId="structured-variable-prompt"
-              />
+              />}
             </div>
             <div className="p-3">
               <div className="grid gap-2 sm:grid-cols-2">
@@ -370,10 +354,8 @@ export function StructuredPromptEditor({
               </div>
 
               {recipe.optionalModifiers.length > 0 && (
-                <div className="mt-3 space-y-2">
-                  <p className="label-tech text-[var(--text-muted)]">
-                    Optional style variables
-                  </p>
+                <details className="mt-3 space-y-2" data-testid="style-overrides">
+                  <summary className="cursor-pointer text-xs font-semibold">Style overrides</summary>
                   {recipe.optionalModifiers.map((modifier) => {
                     const enabled = state.enabledModifierNames.includes(
                       modifier.name,
@@ -426,8 +408,25 @@ export function StructuredPromptEditor({
                       </div>
                     );
                   })}
-                </div>
+                </details>
               )}
+            <div className="h-40 min-h-0 shrink-0 px-3 pt-2">
+              <PromptHighlightedEditor
+                ariaLabel="Variable-linked prompt preview"
+                value={resolvedTemplate}
+                onChange={handleLinkedPromptChange}
+                placeholder="Prompt appears after analysis."
+                mode="text"
+                minHeightClass="h-full"
+                compact={compact}
+                variables={templateVariables}
+                variableValues={variableValues}
+                provenanceSpans={provenanceSpans}
+                selectedProvenanceSpan={selectedProvenanceSpan}
+                testId="structured-variable-prompt"
+              />
+            </div>
+
             </div>
           </div>
         )}
@@ -439,11 +438,11 @@ export function StructuredPromptEditor({
                 <AppIcon icon={FileText} size={14} />
                 Full generation prompt
               </span>
-              <PromptModeSelect
+              {!controlled && <PromptModeSelect
                 mode={viewMode}
                 variableCount={templateVariables.length}
                 onChange={switchMode}
-              />
+              />}
             </div>
             <PromptHighlightedEditor
               ariaLabel="Full Generation Prompt"
@@ -490,17 +489,16 @@ export function StructuredPromptEditor({
                     className="btn-secondary inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[0.68rem] font-semibold"
                   />
                 </span>
-                <PromptModeSelect
+                {!controlled && <PromptModeSelect
                   mode={viewMode}
                   variableCount={templateVariables.length}
                   onChange={switchMode}
-                />
+                />}
               </span>
             </div>
             {controlled && (
               <p className="mb-2 text-xs leading-5 text-[var(--text-secondary)]">
-                只读视图：查看或复制结构化内容，不改变最终 Prompt。
-              </p>
+                 Read-only: inspect or copy structured data without changing the final Prompt. </p>
             )}
             <div
               {...(controlled ? { "data-testid": "structured-readonly-view" } : {})}

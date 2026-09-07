@@ -1176,6 +1176,7 @@ export function useWorkspaceState(): WorkspaceContext & WorkspaceActions {
         creationPace: "quick_recreate",
         quickAuthorization: "armed",
         quickGenerationAuthorizationSnapshot: snapshot,
+        generationParams: sanitizeWorkspaceGenerationParams({ ...prev.generationParams, ...snapshot.generationSettings }),
         quickAuthorizationClearedReason: null,
       }));
     },

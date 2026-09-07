@@ -145,7 +145,7 @@ test.describe('plan-04 Render Dock readiness and generation recovery', () => {
     await expect(dock).toHaveAttribute('data-readiness-can-generate', 'false')
     await expect(dock.getByTestId('render-readiness-list')).toHaveCount(0)
     await expect(dock.locator('[data-testid^="render-readiness-item-"]')).toHaveCount(0)
-    await expect(dock.getByTestId('render-disabled-reason')).toHaveCount(0)
+    await expect(dock.getByTestId('render-disabled-reason')).toBeVisible()
     await expect(dock.getByTestId('render-next-action')).toHaveCount(0)
     await expect(dock.getByLabel(/Aspect Ratio/i)).toBeVisible()
     await expect(dock.getByLabel(/Quality/i)).toBeVisible()
@@ -209,7 +209,7 @@ test.describe('plan-04 Render Dock readiness and generation recovery', () => {
     })
   })
 
-  test('TC-4.4 service unavailable disables Generate but keeps editing and saving available', async ({ page }) => {
+  test('TC-4.4 submission failure keeps retry, editing and saving available', async ({ page }) => {
     await page.route('**/api/generation', async (route) => {
       if (route.request().method() !== 'POST') {
         await route.continue()
@@ -240,6 +240,7 @@ test.describe('plan-04 Render Dock readiness and generation recovery', () => {
 
     const dock = renderDock(page)
     await expect(dock.getByTestId('render-disabled-reason')).toHaveCount(0)
+    await expect(dock.getByRole('button', { name: /^Generate$/i })).toBeEnabled()
     await expect(dock.locator('[data-testid^="render-readiness-item-"]')).toHaveCount(0)
     await expect(promptCard(page).getByLabel('Full Generation Prompt')).toBeEditable()
     await expect(dock.getByRole('button', { name: /save as style memory/i })).toHaveCount(0)
@@ -248,10 +249,10 @@ test.describe('plan-04 Render Dock readiness and generation recovery', () => {
     ).toBeEnabled()
 
     await promptCard(page).getByRole('button', { name: /save as style memory/i }).click()
-    // plan-06：保存入口打开三步向导；完整提示预填在步骤 3 高级信息内
+    // Workspace draft saves on one page; optional content editing retains the complete prompt.
     const saveDialog = page.getByTestId('save-style-memory-dialog')
     await expect(saveDialog).toBeVisible()
-    await saveDialog.getByRole('button', { name: /^Next$/ }).click()
+    await saveDialog.getByRole('button', { name: 'Adjust saved content', exact: true }).click()
     await saveDialog.getByRole('button', { name: /Advanced/ }).click()
     await expect(saveDialog.getByLabel(/Full prompt \(editable/)).toHaveValue(/sunset/i)
   })

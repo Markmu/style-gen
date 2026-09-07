@@ -16,20 +16,15 @@ describe("HistoryStrip", () => {
 
     expect(screen.getByTestId("history-strip")).toHaveClass("h-full");
     expect(screen.getByRole("heading", { name: "Recent iterations" })).toBeInTheDocument();
-    expect(screen.getAllByText(/Iteration Memory/i).length).toBeGreaterThan(0);
-    expect(screen.getByText("Renders will appear here as visual evidence.")).toBeInTheDocument();
-    expect(screen.getByText(/Compare, restore, and reuse unlock/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Compare" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Compare" })).toHaveAccessibleDescription(
-      /first render/i,
-    );
-    expect(screen.queryByRole("button", { name: "Open history item" })).not.toBeInTheDocument();
+    expect(screen.getByText("Your renders will appear here.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "View latest result" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "View all" })).toBeEnabled();
   });
 
   it("limits visible thumbnails to the latest twenty items", () => {
     render(<HistoryStrip historyItems={items} onSelect={vi.fn()} onViewAll={vi.fn()} />);
 
-    expect(screen.getAllByRole("button", { name: "Open history item" })).toHaveLength(20);
+    expect(screen.getAllByRole("button", { name: /Open history item/ })).toHaveLength(20);
   });
 
   it("opens a thumbnail, exposes compare, and calls view all", async () => {
@@ -45,14 +40,14 @@ describe("HistoryStrip", () => {
       />,
     );
 
-    await user.click(screen.getAllByRole("button", { name: "Open history item" })[0]);
-    await user.click(screen.getByRole("button", { name: "Compare" }));
+    await user.click(screen.getAllByRole("button", { name: /Open history item/ })[0]);
+    await user.click(screen.getByRole("button", { name: "View latest result" }));
     await user.click(screen.getByRole("button", { name: "View all" }));
 
     expect(onSelect).toHaveBeenCalledWith("history-1");
     expect(onSelect).toHaveBeenCalledTimes(2);
     expect(onViewAll).toHaveBeenCalledTimes(1);
-    expect(screen.getAllByRole("button", { name: "Open history item" })[1]).not.toHaveAttribute(
+    expect(screen.getAllByRole("button", { name: /Open history item/ })[1]).not.toHaveAttribute(
       "aria-pressed",
     );
   });
@@ -71,7 +66,7 @@ describe("HistoryStrip", () => {
     expect(screen.getByRole("status")).toHaveTextContent("History temporarily unavailable");
     expect(screen.getByRole("status")).toHaveTextContent(/retry history later/i);
     expect(screen.queryByText("Renders will appear here as visual evidence.")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Compare" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "View latest result" })).not.toBeInTheDocument();
   });
 
   it("distinguishes auth-required history from an empty list", () => {

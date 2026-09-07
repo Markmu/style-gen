@@ -10,7 +10,7 @@ interface WorkspaceTopBarProps {
 
 export function WorkspaceTopBar({ title, subtitle }: WorkspaceTopBarProps) {
   return (
-    <header className="workspace-top-bar flex min-h-[4.625rem] items-center justify-between gap-4 px-5 py-4">
+    <header className="workspace-top-bar flex min-h-14 items-center justify-between gap-4 px-5 py-2">
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-2">
           <h1 className="truncate text-lg font-bold text-[var(--text-primary)]">

@@ -91,10 +91,10 @@ import type {
   StyleMemoryDetail,
   TemplateVariable,
   VisualRecipeV2Success,
+  V2PromptWorkspaceState,
 } from "@/types/models";
 import {
   isVisualRecipeV2Success,
-  toLegacyVisualRecipe,
 } from "@/lib/visual-recipe";
 
 /** L1 degradation threshold: show queueing hint after 60s */
@@ -287,14 +287,14 @@ function validatePreferredDetail(
   currentAnalysisTaskId: string,
 ): PreferredValidation {
   if (detail.analysisTaskId !== currentAnalysisTaskId) {
-    return { outcome: "invalid", reason: "该结果属于其他方向" };
+    return { outcome: "invalid", reason: "This result belongs to another direction" };
   }
   if (detail.status !== "completed") {
-    return { outcome: "invalid", reason: "该结果任务未完成" };
+    return { outcome: "invalid", reason: "This result is not completed" };
   }
   const resultAssetId = (detail as { resultAssetId?: string | null }).resultAssetId;
   if (!resultAssetId && !detail.resultFileUrl) {
-    return { outcome: "invalid", reason: "该结果缺少图片资产" };
+    return { outcome: "invalid", reason: "This result has no image asset" };
   }
   return { outcome: "valid", detail };
 }
@@ -338,22 +338,22 @@ function buildNewReferenceUnfinishedSummary(input: {
     detail === null ||
     detail.promptSnapshot.trim() !== input.currentPromptText.trim();
   if (promptDiffers) {
-    items.push("Prompt：当前草稿与所选结果的提交快照不同");
+    items.push("Prompt: your draft differs from this result");
   }
   const negativeDiffers =
     detail === null ||
     detail.negativePromptSnapshot.trim() !== input.currentNegativePromptText.trim();
   if (negativeDiffers) {
-    items.push("Negative constraints：当前排除约束与所选结果不同");
+    items.push("Negative constraints: your draft differs from this result");
   }
   const paramsDiffer =
     detail === null ||
     detail.params.aspectRatio !== input.currentParams.aspectRatio ||
     detail.params.quality !== input.currentParams.quality;
   if (paramsDiffer) {
-    items.push("生成参数：画幅或质量与所选结果不同");
+    items.push("Generation settings: ratio or quality differs from this result");
   }
-  items.push("当前参考来源将替换为该结果的图片资产（复用同一 Asset，不重新上传）");
+  items.push("The result image will replace your reference. No new upload is needed.");
   return items;
 }
 
@@ -419,9 +419,13 @@ function WorkspacePageInner() {
   const [resolvedPromptText, setResolvedPromptText] = useState("");
   const [templateSaveContent, setTemplateSaveContent] = useState("");
   const [currentTemplateVariables, setCurrentTemplateVariables] = useState<TemplateVariable[]>([]);
+  const [provenanceSelectionVersion, setProvenanceSelectionVersion] = useState(0);
   const [selectedFacetId, setSelectedFacetId] = useState<EvidenceFacetId | null>(null);
   const [referenceAspectRatio, setReferenceAspectRatio] = useState(4 / 5);
   const [historyDetailOpen, setHistoryDetailOpen] = useState(false);
+  const historyTriggerRef = useRef<HTMLElement | null>(null);
+  const [historyLoad, setHistoryLoad] = useState<{ id: string; loading: boolean; error: boolean } | null>(null);
+  const historyRequestRef = useRef(0);
   const [historyDetail, setHistoryDetail] = useState<HistoryDetail | null>(null);
   const [restoredSourceContext, setRestoredSourceContext] =
     useState<RestoredSourceContext | null>(null);
@@ -480,6 +484,12 @@ function WorkspacePageInner() {
   // 用户 invariant 调整（ADR-3）：独立于模型事实，只引用真实 invariantId；
   // 随当前草稿编译与「保留 / 改变」摘要派生，不写回 Recipe。
   const [adjustments, setAdjustments] = useState<InvariantAdjustment[]>([]);
+  const [adjustmentUndo, setAdjustmentUndo] = useState<{
+    adjustments: InvariantAdjustment[];
+    state: V2PromptWorkspaceState;
+    dirty: boolean;
+    after: string;
+  } | null>(null);
   // 瞬时当前选择（selected）：新完成结果自动成为当前选择，绝不持久化；
   // 本次首选（preferred）走 ws.preferredIterationId，只由用户操作写入。
   const [selectedIterationId, setSelectedIterationId] = useState<string | null>(
@@ -1103,14 +1113,21 @@ function WorkspacePageInner() {
 
   const handleHistorySelect = useCallback(
     async (id: string) => {
+      if (!historyLoad?.error || historyLoad.id !== id) {
+        historyTriggerRef.current = document.activeElement as HTMLElement | null;
+      }
+      const request = ++historyRequestRef.current;
+      setHistoryLoad({ id, loading: true, error: false });
       try {
         const restoredData = await restoreHistory(id);
+        if (request !== historyRequestRef.current) return;
+        setHistoryLoad(null);
         openHistoryDetail({ id, ...restoredData });
-      } catch (err) {
-        console.error("Failed to load history detail:", err instanceof Error ? err.message : err);
+      } catch {
+        if (request === historyRequestRef.current) setHistoryLoad({ id, loading: false, error: true });
       }
     },
-    [restoreHistory, openHistoryDetail],
+    [restoreHistory, openHistoryDetail, historyLoad],
   );
 
   const handleHistoryRestore = useCallback(
@@ -1163,7 +1180,7 @@ function WorkspacePageInner() {
 
   // Recipe + evidence
   const effectiveRecipe = isEvidencePreview ? previewRecipe : ws.recipe;
-  const effectiveLegacyRecipe = toLegacyVisualRecipe(effectiveRecipe);
+
   const hasStructuredRecipe = isVisualRecipeV2Success(effectiveRecipe);
 
   // ─── plan-04（架构 §6.2）：controls → compiled prompt → 最终 Prompt 单一派生 ────
@@ -1171,6 +1188,22 @@ function WorkspacePageInner() {
   const liveV2Recipe: VisualRecipeV2Success | null =
     !isEvidencePreview && isVisualRecipeV2Success(ws.recipe) ? ws.recipe : null;
   const liveV2State = !isEvidencePreview ? ws.v2PromptState : null;
+  const adjustmentScope = JSON.stringify([ws.analysisTaskId, ws.recipe, promptIntent, promptDetail,
+    ws.negativePromptText, ws.generationParams]);
+  const adjustmentRevision = JSON.stringify([adjustmentScope, liveV2State, adjustments, customPromptDirty]);
+  useEffect(() => {
+    if (adjustmentUndo && adjustmentUndo.after !== adjustmentRevision) setAdjustmentUndo(null);
+  }, [adjustmentUndo, adjustmentRevision]);
+  const undoAdjustment = () => {
+    if (!adjustmentUndo || adjustmentUndo.after !== adjustmentRevision) return;
+    setAdjustments(adjustmentUndo.adjustments);
+    ws.setV2PromptState(() => adjustmentUndo.state);
+    setCustomPromptDirty(adjustmentUndo.dirty);
+    setPromptAdjustmentMiss(null);
+    setAdjustmentUndo(null);
+    setKeepChangeAnnouncement("Adjustment undone.");
+  };
+
   const promptControlSnapshot = useMemo<PromptControlSnapshot | null>(() => {
     if (!liveV2Recipe || !liveV2State) return null;
     return {
@@ -1430,14 +1463,14 @@ function WorkspacePageInner() {
         setSelectedIterationId(latest.id);
         // polite 结果通知：成功内联进入本次结果区，不夺正在编辑的焦点
         setWorkspaceAnnouncement(
-          "生成完成：新结果已加入本次结果区，可直接比较或继续编辑。",
+          "Generation complete. Compare the new result or continue editing.",
         );
       }
     }
     const failureId = feed?.latestFailure?.id ?? null;
     if (failureId && failureId !== lastAnnouncedFailureIdRef.current) {
       setWorkspaceAnnouncement(
-        "最近一次生成失败：原因与重试入口在本次结果区，参考与草稿保持不变。",
+        "The latest render failed. Your reference and draft are preserved. Retry from Current results.",
       );
     }
     lastAnnouncedFailureIdRef.current = failureId;
@@ -1535,7 +1568,9 @@ function WorkspacePageInner() {
   /** 应用调整：按 invariantId 覆盖当前草稿 adjustment，重编译但不 submit（§6.5.5） */
   const handleComparisonApplyAdjustment = useCallback(
     (adjustment: InvariantAdjustment) => {
-      if (!liveV2Recipe) return;
+      if (!liveV2Recipe || !liveV2State) return;
+      let nextState = liveV2State;
+      let nextDirty = customPromptDirty;
       let next: InvariantAdjustment[];
       try {
         next = applyInvariantAdjustment(liveV2Recipe, adjustments, adjustment);
@@ -1586,25 +1621,25 @@ function WorkspacePageInner() {
         } else {
           setPromptAdjustmentMiss(null);
           if (outcome.text !== customText) {
+            nextDirty = true;
+            nextState = { ...liveV2State, outputMode: "custom", customPrompt: outcome.text };
             setCustomPromptDirty(true);
-            ws.setV2PromptState((current) => ({
-              ...current,
-              outputMode: "custom",
-              customPrompt: outcome.text,
-            }));
+            ws.setV2PromptState(() => nextState);
           }
         }
       } else {
         setPromptAdjustmentMiss(null);
       }
 
-      setKeepChangeAnnouncement("已按所选规则更新当前草稿的调整。");
+      setAdjustmentUndo({ adjustments, state: liveV2State, dirty: customPromptDirty,
+        after: JSON.stringify([adjustmentScope, nextState, next, nextDirty]) });
+      setKeepChangeAnnouncement("Adjustment applied to the current draft.");
       focusBySelector(
         `[data-testid="keep-change-item"][data-target-id="${adjustment.invariantId}"]`,
       );
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [liveV2Recipe, adjustments, liveV2State, customPromptDirty],
+    [liveV2Recipe, adjustments, liveV2State, customPromptDirty, adjustmentScope],
   );
 
   /** 「其他」维度：切换全文编辑并聚焦（不创建 adjustment，§6.5.2） */
@@ -1722,7 +1757,7 @@ function WorkspacePageInner() {
           setSaveMemorySource({ iterationId, detail });
         } catch {
           setMemoryEntryError(
-            "读取该结果详情失败，暂时无法打开保存向导；请稍后重试。",
+            "Result details could not be loaded. Retry before saving.",
           );
         }
       })();
@@ -1804,7 +1839,7 @@ function WorkspacePageInner() {
       if (!res.ok) {
         const errData = await parseApiError(res);
         setNewReferenceError(
-          errData.error ?? "无法使用该结果作为新参考，请稍后重试。",
+          errData.error ?? "This result cannot be used as a reference right now. Please retry.",
         );
         return;
       }
@@ -1821,7 +1856,7 @@ function WorkspacePageInner() {
       ws.completeUpload(guard.resultAssetId, guard.resultFileUrl);
       ws.startAnalysis(analysisTask.id);
     } catch {
-      setNewReferenceError("网络错误——暂时无法使用该结果作为新参考，请重试。");
+      setNewReferenceError("Network error. Please retry using this result as a reference.");
     } finally {
       newReferenceSubmittingRef.current = false;
     }
@@ -2226,7 +2261,7 @@ function WorkspacePageInner() {
 
         <AiCopilotRibbon
           state={effectiveState}
-          recipe={effectiveLegacyRecipe}
+          recipe={effectiveRecipe}
           hasReference={!!effectiveReferenceImageUrl}
           hasPrompt={!!activePromptText}
           canGenerate={canGenerate}
@@ -2287,7 +2322,11 @@ function WorkspacePageInner() {
                 facets={evidenceFacets}
                 provenanceSpans={promptProvenanceSpans}
                 selectedFacetId={selectedFacetId}
-                onFacetSelect={setSelectedFacetId}
+                onFacetSelect={(facetId) => {
+                  setSelectedFacetId(facetId);
+                  setProvenanceSelectionVersion((version) => version + 1);
+                  if (editorMode === "structured") setEditorMode("text");
+                }}
                 enabledInvariantIds={ws.v2PromptState?.enabledInvariantIds}
                 locatedInvariantId={hasMounted ? locatedInvariantId : null}
                 onInvariantToggle={(invariantId) => {
@@ -2315,6 +2354,7 @@ function WorkspacePageInner() {
                 v2PromptState={ws.v2PromptState}
                 provenanceSpans={promptProvenanceSpans}
                 selectedFacetId={selectedFacetId}
+                provenanceSelectionVersion={provenanceSelectionVersion}
                 onV2PromptStateChange={ws.setV2PromptState}
                 onResolvedPromptChange={handleResolvedPromptChange}
                 onTemplateVariablesChange={setCurrentTemplateVariables}
@@ -2398,6 +2438,10 @@ function WorkspacePageInner() {
           />
         )}
 
+        {adjustmentUndo && adjustmentUndo.after === adjustmentRevision && <div className="mx-4 mb-2 flex items-center gap-2 text-xs" role="status">
+          Adjustment applied to your draft.
+          <button type="button" onClick={undoAdjustment} className="btn-secondary rounded-lg px-3 py-1">Undo adjustment</button>
+        </div>}
         {/* plan-07（架构 §3.3）：工作区级结果通知——生成完成/失败时以 polite
             live region 播报，不移动正在编辑的焦点、不打开弹层（TC-7.4 契约） */}
         <p
@@ -2418,17 +2462,14 @@ function WorkspacePageInner() {
             className="mx-4 mb-2 flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-xl bg-[var(--surface-bright)]/72 px-3 py-2 ring-1 ring-[var(--color-error-soft,var(--border-interactive))] sm:mx-6 lg:mx-8"
           >
             <p className="min-w-0 text-xs leading-5 text-[var(--color-error)]">
-              生成提交失败：{generationSubmitError}。任务未创建，当前参考、
-              Prompt 草稿与生成参数保持不变，可稍后重试创建新任务。
-            </p>
+               Generation submission failed:  {generationSubmitError} . No task was created. Your reference, prompt and settings are preserved. Retry to create a new task. </p>
             <button
               type="button"
               data-testid="generation-submit-retry"
               onClick={submitGenerationFromCurrentDraft}
               className="btn-secondary h-7 shrink-0 rounded-lg px-2.5 text-xs font-medium"
             >
-              重试提交
-            </button>
+               Retry submission </button>
           </div>
         )}
 
@@ -2441,17 +2482,14 @@ function WorkspacePageInner() {
             className="mx-4 mb-2 flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-xl bg-[var(--surface-bright)]/72 px-3 py-2 ring-1 ring-[var(--border-interactive)] sm:mx-6 lg:mx-8"
           >
             <p className="min-w-0 text-xs leading-5 text-[var(--text-secondary)]">
-              已保存，刷新失败。Style Memory 写入已在服务端完成，读取最新验证
-              状态暂时失败；重试只刷新读取，不会重复提交。
-            </p>
+               Saved, but refresh failed. Retry only reloads the saved Memory; it does not submit again. </p>
             <button
               type="button"
               data-testid="memory-refresh-retry"
               onClick={handleMemoryRefreshRetry}
               className="btn-secondary h-7 shrink-0 rounded-lg px-2.5 text-xs font-medium"
             >
-              重试读取
-            </button>
+               Retry refresh </button>
           </div>
         )}
 
@@ -2506,6 +2544,10 @@ function WorkspacePageInner() {
           </div>
         )}
 
+        {historyLoad && <div role="status" aria-busy={historyLoad.loading} className="mx-4 mb-2 text-xs text-[var(--text-secondary)]">
+          {historyLoad.loading ? "Loading result details..." : "Result details could not be loaded. Your workspace is preserved."}
+          {historyLoad.error && <button type="button" onClick={() => void handleHistorySelect(historyLoad.id)} className="btn-secondary ml-2 rounded-lg px-3 py-1">Retry loading result</button>}
+        </div>}
         <WorkspaceBottomBar
           history={
             <HistoryStrip
@@ -2532,13 +2574,19 @@ function WorkspacePageInner() {
           detail={historyDetail}
           onRestore={handleHistoryRestore}
           onContinueEditing={handleHistoryContinueEditing}
-          onClose={() => setHistoryDetailOpen(false)}
+          onClose={() => {
+            setHistoryDetailOpen(false);
+            requestAnimationFrame(() => {
+              if (historyTriggerRef.current?.isConnected) historyTriggerRef.current.focus();
+            });
+          }}
           restoreError={historyRestoreError?.message}
         />
 
         {/* plan-06 流程 B: 工作区草稿保存向导（无代表结果，保存为 pending verification） */}
         <TemplateSaveDialog
           open={showTemplateSaveDialog}
+          initialName={workspaceTitle === "Workspace" ? undefined : workspaceTitle}
           initialContent={templateSaveContent || effectivePromptText}
           initialVariables={
             isCustomV2OutputMode ? [] : templateSaveInitialVariables

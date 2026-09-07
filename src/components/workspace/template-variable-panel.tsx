@@ -52,11 +52,7 @@ export function TemplateVariablePanel({
                 <span className="label-tech text-[var(--text-muted)]">
                   {variable.label || variable.name}
                 </span>
-                {variable.sourceField && (
-                  <span className="rounded-full bg-[var(--accent-primary-soft)] px-2 py-0.5 text-[0.625rem] text-[var(--accent-primary)]">
-                    {variable.sourceField}
-                  </span>
-                )}
+
               </span>
               {MULTILINE_VARIABLE_NAMES.has(variable.name) ? (
                 <textarea

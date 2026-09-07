@@ -69,7 +69,7 @@ describe("KeepChangeSummary", () => {
     );
     expect(screen.getByTestId("keep-change-intent-note")).toBeVisible();
     expect(screen.getByTestId("keep-change-intent-note")).toHaveTextContent(
-      /同时参考原内容与风格/,
+      /original content and retained style rules/,
     );
 
     rerender(

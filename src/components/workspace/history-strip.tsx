@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { ArrowLeftRight, History, LoaderCircle, Sparkles } from "lucide-react";
+import { History, LoaderCircle } from "lucide-react";
 import { AppIcon } from "@/components/ui/app-icon";
 
 export interface HistoryStripItem {
@@ -61,25 +61,23 @@ export function HistoryStrip({
   return (
     <section
       data-testid="history-strip"
-      className="glass-panel h-full min-w-0 rounded-xl px-4 py-3"
+      className="surface-panel @container h-full min-w-0 rounded-xl px-3 py-2"
       aria-label="Recent iterations"
     >
-      <div className="flex h-full min-w-0 items-center gap-4">
-        <div className="flex w-[11.875rem] shrink-0 items-center gap-3">
+      <div className="flex h-full min-w-0 flex-wrap items-center gap-2">
+        <div className="hidden shrink-0 items-center gap-3 @min-[30rem]:flex">
           <AppIcon icon={History} className="text-[var(--accent-primary)]" />
           <div className="min-w-0">
             <h2 className="truncate text-xs font-semibold uppercase tracking-[0.05em] text-[var(--text-secondary)]">
               Recent iterations
             </h2>
-            <p className="mt-0.5 truncate text-xs text-[var(--text-muted)]">
-              Iteration Memory: compare, restore, and reuse
-            </p>
+
           </div>
         </div>
 
         <div
           data-testid="history-strip-items"
-          className="flex min-h-14 min-w-0 flex-1 items-center gap-2 overflow-x-auto py-1"
+          className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto py-1"
         >
           {hasError ? (
             <div
@@ -107,7 +105,7 @@ export function HistoryStrip({
                 type="button"
                 onClick={() => onSelect(item.id)}
                 className="interactive-lift group relative flex h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-[var(--surface-control)] p-1 ring-1 ring-[var(--border-static)]"
-                aria-label="Open history item"
+                aria-label={`Open history item ${index + 1}, ${formatHistoryDate(item.createdAt)}`}
               >
                 <span className="media-lens relative block h-full w-full rounded-lg">
                   <Image
@@ -128,34 +126,22 @@ export function HistoryStrip({
               </button>
             ))
           ) : (
-            <div className="min-w-0 rounded-xl bg-[var(--surface-low)]/72 px-4 py-3 text-xs text-[var(--text-secondary)]">
-              <div className="flex items-center gap-2">
-                <AppIcon icon={Sparkles} size={16} className="text-[var(--accent-primary)]" />
-                <span>Renders will appear here as visual evidence.</span>
-              </div>
-              <p className="mt-1 leading-5">
-                Compare, restore, and reuse unlock after the first generated result.
-              </p>
-              <p id={compareDisabledReasonId} className="sr-only">
-                {compareDisabledReason}
-              </p>
-            </div>
+            <p className="truncate text-xs text-[var(--text-muted)]">Your renders will appear here.</p>
           )}
         </div>
 
-        <button
+        {hasItems && <button
           type="button"
           disabled={!hasItems}
           onClick={() => {
             if (hasItems) onSelect(visibleItems[0].id);
           }}
           aria-describedby={!hasItems ? compareDisabledReasonId : undefined}
-          title={hasItems ? "Compare latest iteration" : compareDisabledReason}
-          className="btn-secondary hidden shrink-0 items-center gap-2 rounded-lg px-3 py-1.5 text-xs disabled:opacity-50 md:inline-flex"
+          title={hasItems ? "View latest result" : compareDisabledReason}
+          className="btn-secondary hidden shrink-0 items-center gap-2 rounded-lg px-3 py-1.5 text-xs disabled:opacity-50 @min-[30rem]:inline-flex"
         >
-          <AppIcon icon={ArrowLeftRight} size={16} />
-          Compare
-        </button>
+          View latest result
+        </button>}
         <button
           type="button"
           onClick={onViewAll}

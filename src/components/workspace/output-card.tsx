@@ -25,7 +25,7 @@ const QUALITY_OPTIONS: Array<{ value: Quality; label: string }> = [
 
 /** 画幅来源徽标文案；fallback 不冒充「参考图推荐」（架构 §6.3.5） */
 const ASPECT_RATIO_SOURCE_LABELS: Record<AspectRatioSource, string> = {
-  reference: "参考图推荐",
+  reference: "Reference recommended",
   user: "Your selection",
   restore: "Restored iteration",
   fallback: "1:1 fallback",
@@ -111,7 +111,7 @@ export function OutputCard({
     <section
       data-testid="output-card"
       data-readiness-can-generate={String(readiness.canGenerate)}
-      className="min-w-0 rounded-xl bg-[var(--surface-low)]/72 p-2 ring-1 ring-[var(--border-static)]"
+      className="shrink-0 min-w-0 rounded-xl bg-[var(--surface-low)]/72 p-2 ring-1 ring-[var(--border-static)]"
       aria-label="Render Dock"
     >
       {/* plan-07（架构 §8.2 L1）：生成排队（>60s）内联提示——旧弹窗载体退场后
@@ -127,18 +127,17 @@ export function OutputCard({
             className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-[var(--color-warning)] motion-reduce:animate-none"
           />
           <p className="min-w-0 text-xs leading-5 text-[var(--text-secondary)]">
-            Generation is queued. Thanks for waiting。当前 Prompt、参考与生成参数
-            保持不变；任务完成后，结果会直接进入本次结果区。
+            Generation is queued. Your prompt, reference and settings are preserved. The result will appear in this direction when ready.
           </p>
         </div>
       )}
       <div
         data-testid="output-card-actions"
-        className="grid min-h-14 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+        className="grid min-h-0 gap-1.5 grid-cols-[minmax(0,1fr)_auto]"
       >
         <div
           data-testid="render-parameter-controls"
-          className="grid min-w-0 grid-cols-2 gap-2 rounded-lg bg-[var(--surface-control)]/58 p-1.5 sm:grid-cols-3"
+          className="col-span-2 grid min-w-0 grid-cols-3 gap-2 rounded-lg bg-[var(--surface-control)]/58 p-1.5 sm:grid-cols-3"
         >
           <label className="group grid min-w-0 gap-1.5">
             <span className="px-1 text-[0.625rem] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
@@ -239,7 +238,7 @@ export function OutputCard({
           onClick={handleGenerate}
           disabled={!enabled}
           title={helperText}
-          className={`flex h-12 min-w-[10rem] shrink-0 items-center justify-center gap-2 rounded-lg px-5 text-sm font-semibold transition-colors ${
+          className={`col-start-2 flex h-9 min-w-[8rem] shrink-0 items-center justify-center gap-2 rounded-lg px-3 text-xs font-semibold transition-colors ${
             enabled
               ? "btn-primary"
               : "cursor-not-allowed bg-[var(--surface-control)] text-[var(--text-muted)] ring-1 ring-[var(--border-static)]"
@@ -254,6 +253,7 @@ export function OutputCard({
         </button>
       </div>
 
+      {!enabled && <p role="status" data-testid="render-disabled-reason" className="mt-1 px-1 text-xs leading-4 text-[var(--text-secondary)]">{helperText}</p>}
       {/* plan-07（ADR-7）：就绪结论单一来源——Memory 复用中的缺失必填清单与身份条消费同一对象 */}
       {readiness.memoryActive && readiness.missingVariableNames.length > 0 && (
         <p

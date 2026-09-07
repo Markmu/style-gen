@@ -208,7 +208,7 @@ function ContentAnalysis({ viewModel }: { viewModel: AnalysisResultViewModel }) 
               Content
             </span>
             <span className="rounded-full bg-[var(--surface-bright)] px-2 py-0.5 text-[0.62rem] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-              {viewModel.status}
+              {viewModel.status === "legacy" ? "Analysis" : viewModel.status}
             </span>
           </span>
           <span className="mt-1 block truncate text-xs text-[var(--text-secondary)]">
@@ -279,7 +279,6 @@ interface EvidenceFacetGroupProps {
 function EvidenceFacetGroup({
   group,
   selectedFacetId,
-  promptStatusByFacet,
   onFacetSelect,
 }: EvidenceFacetGroupProps) {
   const [expanded, setExpanded] = useState(false);
@@ -292,7 +291,7 @@ function EvidenceFacetGroup({
 
   const handleToggle = () => {
     setExpanded((current) => !current);
-    onFacetSelect?.(group.facets[0].id);
+
   };
 
   return (
@@ -349,13 +348,13 @@ function EvidenceFacetGroup({
         <div id={detailsId} className="space-y-2 px-3 pb-3 pl-14">
           {group.facets.map((facet) => {
             const observationSelected = selectedFacetId === facet.id;
-            const promptStatus = promptStatusByFacet.get(facet.id);
+
             return (
               <button
                 key={facet.id}
                 type="button"
                 data-testid={`evidence-observation-${facet.id}`}
-                aria-pressed={observationSelected}
+                aria-label={`Show in prompt: ${facet.summary}`}
                 onClick={() => onFacetSelect?.(facet.id)}
                 className={`block w-full rounded-lg p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)] ${
                   observationSelected
@@ -380,14 +379,10 @@ function EvidenceFacetGroup({
                 )}
                 <span className="mt-2 flex flex-wrap gap-1.5 text-[0.65rem] text-[var(--text-muted)]">
                   <span className="rounded-full bg-[var(--surface-low)] px-2 py-0.5">
-                    {facet.sourceField}
+                    {facet.label}
                   </span>
                   <span className="rounded-full bg-[var(--surface-low)] px-2 py-0.5">
-                    {promptStatus === "facet_only"
-                      ? "related signal"
-                      : promptStatus
-                        ? "prompt linked"
-                        : "prompt pending"}
+                    Show in prompt
                   </span>
                 </span>
               </button>
@@ -636,8 +631,7 @@ export function RecipeCard({
                 Waiting for style signals
               </p>
               <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-                After upload, AI will separate color, composition, lighting,
-                texture, and mood into editable evidence.
+                Your reference’s style evidence will appear here.
               </p>
             </div>
           )}

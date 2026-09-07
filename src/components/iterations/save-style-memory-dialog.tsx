@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ImageIcon, Pencil, Plus, Trash2 } from "lucide-react";
 import { AppIcon } from "@/components/ui/app-icon";
@@ -46,6 +46,7 @@ export interface StyleMemorySaveWizardProps {
   flow: "iteration" | "workspace-draft";
   /** 完整提示预填（流程 A promptSnapshot / 流程 B 当前提示内容），步骤 3 可编辑 */
   initialContent: string;
+  initialName?: string;
   /** 可替换变量预填（默认值步骤 2 可编辑，随提交体携带） */
   initialVariables: TemplateVariable[];
   /** 来源配方与来源标记（预填四元组依据） */
@@ -300,6 +301,7 @@ export function StyleMemorySaveWizard({
   open,
   flow,
   initialContent,
+  initialName,
   initialVariables,
   recipe,
   recipeSource,
@@ -317,8 +319,8 @@ export function StyleMemorySaveWizard({
   const router = useRouter();
   const titleId = "save-style-memory-dialog-title";
   const isIterationFlow = flow === "iteration";
-  const firstStep: WizardStep = isIterationFlow ? 1 : 2;
-  const totalSteps = isIterationFlow ? 3 : 2;
+  const firstStep: WizardStep = isIterationFlow ? 1 : 3;
+  const totalSteps = isIterationFlow ? 3 : 1;
 
   const prefill = useMemo(
     () =>
@@ -340,6 +342,8 @@ export function StyleMemorySaveWizard({
   const [variables, setVariables] = useState<TemplateVariable[]>([]);
   // 步骤 3：命名 / 说明 / 高级信息（完整提示）
   const [name, setName] = useState("");
+  const nameRef = useRef<HTMLInputElement>(null);
+  const [adjustOpen, setAdjustOpen] = useState(false);
   const [nameTouched, setNameTouched] = useState(false);
   const [description, setDescription] = useState("");
   const [content, setContent] = useState(initialContent);
@@ -363,7 +367,8 @@ export function StyleMemorySaveWizard({
     setConstraints(prefill.negativeConstraints);
     setConstraintsKept(prefill.negativeConstraints.map(() => true));
     setVariables(initialVariables);
-    setName("");
+    setName(isIterationFlow ? "" : (initialName?.trim() || prefill.styleTokens.find((tag) => tag.trim()) || "Untitled style").slice(0, MAX_NAME_LENGTH));
+    setAdjustOpen(false);
     setNameTouched(false);
     setDescription("");
     setContent(initialContent);
@@ -458,7 +463,7 @@ export function StyleMemorySaveWizard({
         setError(data.error ?? "Saving is temporarily unavailable. Please try again later.");
       }
     } catch {
-      setError("Network error — saving is temporarily unavailable. Check your connection and try again.");
+      setError("Network error. Saving is temporarily unavailable. Check your connection and try again.");
     } finally {
       setIsSaving(false);
     }
@@ -471,6 +476,7 @@ export function StyleMemorySaveWizard({
       label="Save as Style Memory"
       labelledBy={titleId}
       testId="save-style-memory-dialog"
+      initialFocusRef={isIterationFlow ? undefined : nameRef}
     >
       <div className="flex max-h-[calc(100dvh-2.5rem)] flex-col overflow-hidden pr-2">
         <div className="shrink-0 border-b border-[var(--border-static)] bg-[var(--surface-panel)] px-5 py-4 pr-14">
@@ -481,21 +487,19 @@ export function StyleMemorySaveWizard({
           >
             Save as Style Memory
           </h2>
-          <p className="mt-1 font-mono text-[0.6875rem] tracking-wide text-[var(--text-muted)]">
+          {isIterationFlow && <p className="mt-1 font-mono text-[0.6875rem] tracking-wide text-[var(--text-muted)]">
             Step {displayedStepNumber} / {totalSteps}
-          </p>
+          </p>}
         </div>
 
-        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4">
+        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-4">
           {/* 流程 B 首屏说明区：无代表结果，将保存为 pending verification（固定预期，ADR-1） */}
           {!isIterationFlow && (
             <div
               data-testid="save-wizard-no-representative-note"
               className="rounded-xl border border-[var(--border-static)] bg-[var(--surface-low)]/60 px-3.5 py-2.5 text-xs leading-5 text-[var(--text-secondary)]"
             >
-              No representative result yet — this will be saved as Pending
-              verification. You can add a representative result later from a
-              related completed iteration.
+              Not tested with a render yet. You can still reuse this style.
             </div>
           )}
 
@@ -548,7 +552,7 @@ export function StyleMemorySaveWizard({
           )}
 
           {/* 步骤 2：规则四元组确认 + 变量默认值（两流程共用） */}
-          {step === 2 && (
+          {(step === 2 || (!isIterationFlow && adjustOpen)) && (
             <section data-testid="save-wizard-step-2" className="space-y-5">
               <div className="space-y-2">
                 <p className="label-tech text-[0.6875rem] text-[var(--text-secondary)]">
@@ -652,7 +656,20 @@ export function StyleMemorySaveWizard({
 
           {/* 步骤 3：命名 / 说明 / 高级信息（完整提示）+ 保存后状态 */}
           {step === 3 && (
-            <section data-testid="save-wizard-step-3" className="space-y-5">
+            <section data-testid="save-wizard-step-3" className={!isIterationFlow ? "order-first space-y-4" : "space-y-5"}>
+              {!isIterationFlow && <div className="flex items-center gap-3">
+                <div className="w-20 shrink-0"><WizardReferenceImage referenceImageUrl={sourceImageUrl ?? null} promptHint="Source image" /></div>
+                <div className="min-w-0 text-xs text-[var(--text-secondary)]">
+                  <p>{retainedRulesToSubmit.length} retained rules, {constraintsToSubmit.length} constraints, {variables.length} variables</p>
+                  {retainedRulesToSubmit.length > 0 && (
+                    <ul aria-label="Saved style summary" className="mt-2 space-y-1">
+                      {retainedRulesToSubmit.slice(0, 2).map((rule, index) => (
+                        <li key={index} className="line-clamp-2">{rule}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>}
               <div className="space-y-1.5">
                 <label
                   htmlFor="save-wizard-name"
@@ -661,6 +678,7 @@ export function StyleMemorySaveWizard({
                   Name
                 </label>
                 <input
+                  ref={nameRef}
                   id="save-wizard-name"
                   type="text"
                   value={name}
@@ -719,7 +737,7 @@ export function StyleMemorySaveWizard({
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className={!isIterationFlow && !adjustOpen ? "hidden" : "space-y-2"}>
                 <button
                   type="button"
                   disabled={isSaving}
@@ -753,19 +771,20 @@ export function StyleMemorySaveWizard({
                 )}
               </div>
 
+              {!isIterationFlow && <button type="button" disabled={isSaving} aria-expanded={adjustOpen} onClick={() => setAdjustOpen(!adjustOpen)} className="btn-secondary rounded-lg px-3 py-2 text-xs">Adjust saved content</button>}
               {/* 保存后状态：唯一文本节点，随步骤 1 勾选即时联动（ADR-1 前端只展示预期） */}
-              <p
+              {isIterationFlow && <p
                 data-testid="save-wizard-status-line"
                 className="rounded-xl border border-[var(--border-static)] bg-[var(--surface-low)]/60 px-3.5 py-2.5 text-xs leading-5 text-[var(--text-primary)]"
               >
                 After saving: {expectedVerified ? "User verified" : "Pending verification"}
-              </p>
+              </p>}
             </section>
           )}
         </div>
 
         <div className="flex shrink-0 items-center justify-end gap-2.5 border-t border-[var(--border-static)] bg-[var(--surface-panel)] px-5 py-3.5">
-          {step > firstStep && (
+          {isIterationFlow && step > firstStep && (
             <button
               type="button"
               disabled={isSaving}

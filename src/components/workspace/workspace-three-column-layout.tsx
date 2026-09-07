@@ -37,28 +37,28 @@ export function WorkspaceThreeColumnLayout({
           单列纵向堆叠（可滚动），不再用固定 67.5rem 最小宽度制造横向滚动——
           1440×900 / 1280×800 / 390×844 验收视口下均不得出现结构性横向溢出 */}
       <div
-        className="grid h-full min-h-0 grid-cols-1 content-start gap-3 xl:content-stretch xl:grid-cols-[var(--workspace-reference-column)_minmax(17rem,0.86fr)_minmax(21.5rem,1.15fr)]"
+        className="grid xl:h-full min-h-0 grid-cols-1 content-start gap-3 xl:content-stretch xl:grid-cols-[var(--workspace-reference-column)_minmax(17rem,0.86fr)_minmax(21.5rem,1.15fr)]"
         style={
           { "--workspace-reference-column": referenceColumnWidth } as CSSProperties
         }
       >
         <section
           data-testid="workspace-reference-column"
-          className="min-h-0 min-w-[17.5rem] overflow-hidden"
+          className="min-h-0 min-w-0 overflow-hidden max-xl:h-[24rem]"
           aria-label="Reference Canvas column"
         >
           {reference}
         </section>
         <section
           data-testid="workspace-style-intelligence-column"
-          className="min-h-0 overflow-hidden"
+          className="min-h-0 overflow-hidden max-xl:h-[32rem]"
           aria-label="Style Intelligence column"
         >
           {recipe}
         </section>
         <section
           data-testid="workspace-prompt-render-column"
-          className="min-h-0 overflow-hidden"
+          className="min-h-0 overflow-hidden max-xl:h-[32rem]"
           aria-label="Prompt and Render column"
         >
           {prompt}

@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { IMAGE_GEN_MODEL_OPTIONS } from "@/lib/ai/model-config";
 import { Gauge, PencilLine, Zap } from "lucide-react";
 import { AppIcon } from "@/components/ui/app-icon";
 import type {
@@ -32,8 +33,8 @@ interface CreationPaceSelectorProps {
 
 const AUTHORIZATION_LABELS: Record<QuickAuthorization, string> = {
   none: "Quick recreate off",
-  armed: "Quick recreate armed — analysis will submit once automatically",
-  consumed: "Quick recreate submitted — no further automatic renders",
+  armed: "Quick recreate armed. analysis will submit once automatically",
+  consumed: "Quick recreate submitted. no further automatic renders",
 };
 
 /**
@@ -51,21 +52,32 @@ export function CreationPaceSelector({
   onSelectAnalyzeEdit,
 }: CreationPaceSelectorProps) {
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [draftSettings, setDraftSettings] = useState(generationSettings);
+  const [dismissedReason, setDismissedReason] = useState<string | null>(null);
+  useEffect(() => {
+    if (!clearedReason) {
+      setDismissedReason(null);
+      return;
+    }
+    if (!clearedReason.startsWith("You exited quick recreate.")) return;
+    const timer = setTimeout(() => setDismissedReason(clearedReason), 5000);
+    return () => clearTimeout(timer);
+  }, [clearedReason]);
   const quickRecreateButtonRef = useRef<HTMLButtonElement | null>(null);
   const titleRef = useRef<HTMLHeadingElement | null>(null);
   const confirmDialogRef = useRef<HTMLDivElement | null>(null);
 
   // 确认区渲染的拟保存快照：字面量 + 当前共享默认生成设置（同源，禁止复制默认常量）
-  const proposedSnapshot: QuickGenerationAuthorizationSnapshot = {
+  const proposedSnapshot = useMemo<QuickGenerationAuthorizationSnapshot>(() => ({
     schemaVersion: 1,
     intent: "reconstruction",
     detailLevel: "standard",
     aspectRatioPolicy: "reference_or_fallback",
     generationSettings: {
-      quality: generationSettings.quality,
-      model: generationSettings.model,
+      quality: draftSettings.quality,
+      model: draftSettings.model,
     },
-  };
+  }), [draftSettings]);
 
   // 打开确认区时焦点进入标题（架构 §3.3：确认有确定焦点）
   useEffect(() => {
@@ -80,8 +92,9 @@ export function CreationPaceSelector({
   }, []);
 
   const handleOpenConfirm = useCallback(() => {
+    setDraftSettings(generationSettings);
     setConfirmOpen(true);
-  }, []);
+  }, [generationSettings]);
 
   const handleConfirm = useCallback(() => {
     onConfirmQuickRecreate(proposedSnapshot);
@@ -138,6 +151,7 @@ export function CreationPaceSelector({
             type="button"
             data-testid="pace-option-quick-recreate"
             aria-pressed={creationPace === "quick_recreate"}
+            disabled={isArmed}
             onClick={handleOpenConfirm}
             className={`flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-colors ${
               creationPace === "quick_recreate"
@@ -178,12 +192,12 @@ export function CreationPaceSelector({
           className="mt-1.5 px-1 text-[0.6875rem] leading-5 text-[var(--text-secondary)]"
         >
           The automatic render will use the confirmed settings. Intent, detail,
-          and generation settings are locked — exit quick recreate to edit them
+          and generation settings are locked. exit quick recreate to edit them
           again.
         </p>
       )}
 
-      {quickAuthorization === "none" && clearedReason && (
+      {quickAuthorization === "none" && clearedReason && clearedReason !== dismissedReason && (
         <p
           data-testid="quick-authorization-cleared-reason"
           role="status"
@@ -211,10 +225,9 @@ export function CreationPaceSelector({
             Confirm quick recreate
           </h2>
           <p className="mt-1 text-[0.6875rem] leading-5 text-[var(--text-secondary)]">
-            After your reference is analyzed, one render is submitted
-            automatically with exactly these settings.
+            Automatically generate one image after analysis using these settings.
           </p>
-          <dl className="mt-2 grid gap-1.5 text-[0.6875rem] leading-5 sm:grid-cols-2">
+          <dl className="mt-2 grid gap-1.5 text-[0.6875rem] leading-5 sm:grid-cols-3">
             <div className="flex gap-2">
               <dt className="shrink-0 font-bold uppercase tracking-[0.08em] text-[var(--text-muted)]">
                 Intent
@@ -262,8 +275,12 @@ export function CreationPaceSelector({
                 data-model={proposedSnapshot.generationSettings.model}
                 className="min-w-0 truncate text-[var(--text-primary)]"
               >
-                Quality {proposedSnapshot.generationSettings.quality} · Model{" "}
-                {proposedSnapshot.generationSettings.model}
+                <label>Quality <select aria-label="Quick recreate quality" value={draftSettings.quality} onChange={(event) => setDraftSettings({ ...draftSettings, quality: event.target.value })} className="input-precision rounded-lg p-1">
+                  <option value="standard">Standard</option><option value="hd">HD</option>
+                </select></label>{" "}
+                <label>Model <select aria-label="Quick recreate model" value={draftSettings.model} onChange={(event) => setDraftSettings({ ...draftSettings, model: event.target.value })} className="input-precision max-w-40 rounded-lg p-1">
+                  {IMAGE_GEN_MODEL_OPTIONS.map((model) => <option key={model.id} value={model.id}>{model.label}</option>)}
+                </select></label>
               </dd>
             </div>
             <div className="flex gap-2">

@@ -201,7 +201,7 @@ describe("DirectionResultRail", () => {
     });
 
     expect(railRoot()).toHaveAttribute("data-preferred-id", "c-out-of-window");
-    expect(screen.getByText(/本次首选已保留/)).toBeVisible();
+    expect(screen.getByText(/Your preferred result is preserved/)).toBeVisible();
 
     // plan-06（AC-06 窗口外仍有效）：提示块挂 data-iteration-id + 打开详情动作
     const external = screen.getByTestId("direction-preferred-external");
@@ -220,13 +220,13 @@ describe("DirectionResultRail", () => {
       preferredIterationId: null,
       preferredInvalidNotice: {
         iterationId: "c-invalid",
-        reason: "该结果属于其他方向",
+        reason: "This result belongs to another direction",
       },
     });
 
     const invalid = screen.getByTestId("direction-preferred-invalid");
     expect(invalid).toHaveAttribute("data-iteration-id", "c-invalid");
-    expect(invalid).toHaveTextContent("该结果属于其他方向");
+    expect(invalid).toHaveTextContent("This result belongs to another direction");
     expect(screen.queryByTestId("direction-preferred-external")).toBeNull();
   });
 
@@ -377,11 +377,11 @@ describe("DirectionResultRail", () => {
 
   it("空方向 feed 显示可恢复空态提示", () => {
     mountRail({ feed: { completed: [], active: null, latestFailure: null } });
-    expect(screen.getByText(/还没有生成结果/)).toBeVisible();
+    expect(screen.getByText(/Your renders and their progress/)).toBeVisible();
   });
 
   it("初始加载中显示加载提示", () => {
     mountRail({ feed: null, isLoading: true });
-    expect(screen.getByText(/正在读取本次方向的结果/)).toBeVisible();
+    expect(screen.getByText(/Loading results for this direction/)).toBeVisible();
   });
 });
