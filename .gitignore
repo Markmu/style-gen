@@ -46,3 +46,4 @@ test-results/
 !.claude/contracts/workflow-schema.json
 
 .zcode/
+.codex/
