@@ -63,3 +63,9 @@ export class ImageGenError extends Error {
     this.name = 'ImageGenError';
   }
 }
+
+/** Independent single-turn interpreter; never delegates to structure(). */
+export interface AgentProvider {
+ readonly name: 'replicate' | 'gemini';
+ interpret(input:{system:string;prompt:string;images:{url:string;mimeType:string}[];signal:AbortSignal;maxOutputTokens:number}):Promise<string>;
+}

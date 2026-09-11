@@ -1,10 +1,10 @@
+import { generateCurrentDraft } from './helpers/workspace-actions';
 import { expect, test, type Page } from '@playwright/test'
 import {
   loadFixture,
   mockAuthSession,
   mockGenerationCreateCapture,
   mockGenerationPolling,
-  mockIterationDetailSequence,
   mockIterationList,
   mockStyleMemoryDetailCollection,
   mockTemplateCollection,
@@ -268,11 +268,11 @@ function detailActions(page: Page) {
 }
 
 function continueDirectionButton(page: Page) {
-  return detailActions(page).getByRole('button', { name: /continue (this |the )?direction/i })
+  return detailActions(page).getByRole('button', { name: /continue from this result/i })
 }
 
 function replaceConfirmDialog(page: Page) {
-  return page.getByTestId('replace-confirm-dialog')
+  return page.getByRole('dialog',{name:'Preview direction change'})
 }
 
 function saveStyleMemoryButton(page: Page) {
@@ -303,8 +303,7 @@ function promptCard(page: Page) {
 
 function renderDock(page: Page) {
   return appShell(page)
-    .getByRole('region', { name: 'Prompt and Render column' })
-    .getByTestId('output-card')
+    .getByTestId('generation-bar')
 }
 
 function referenceColumn(page: Page) {
@@ -316,7 +315,7 @@ function generationPromptEditor(page: Page) {
 }
 
 function generateButton(page: Page) {
-  return renderDock(page).getByRole('button', { name: /^Generate$/i })
+  return renderDock(page).getByRole('button', { name: /^Generate 1 image$/i })
 }
 
 async function seedUnfinishedWorkspace(page: Page) {
@@ -361,11 +360,6 @@ test.describe('plan-06 entry wiring and full Iteration Memory journey', () => {
     await mockIterationList(page, threeStateItems, {
       onRequest: (query) => requests.push(query),
     })
-    await mockIterationDetailSequence(page, TARGET_ID, [
-      integrationDetail(),
-      integrationDetail(),
-      integrationDetail({ savedTemplate: { id: 'mock-template-1', name: TEMPLATE_NAME } }),
-    ])
     const generationCapture = await mockGenerationCreateCapture(page, newIterationTaskId)
     await mockGenerationPolling(page, newIterationTaskId, {
       id: newIterationTaskId,
@@ -374,6 +368,15 @@ test.describe('plan-06 entry wiring and full Iteration Memory journey', () => {
       errorMessage: null,
     })
     const templates = await mockTemplateCollection(page, [])
+    // Detail reads may occur during canonical direction hydration. Saved state follows
+    // the actual Memory creation, never the number of read-only requests.
+    await page.route(`**/api/generation/${TARGET_ID}**`, async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(
+        integrationDetail(templates.createRequests.length > 0
+          ? { savedTemplate: { id: 'mock-template-1', name: TEMPLATE_NAME } }
+          : {}),
+      ) })
+    })
     // plan-04：列表页消费 GET /api/templates 新 DTO；集合 mock 继续提供 POST/详情。
     // 此处按集合中的实时记录（含保存后 unshift 的新条目）返回新 DTO 列表。
     await page.route('**/api/templates?**', async (route) => {
@@ -449,16 +452,16 @@ test.describe('plan-06 entry wiring and full Iteration Memory journey', () => {
     await expect(dialog).toContainText(CURRENT_PROMPT)
     await expect(dialog).toContainText(TARGET_PROMPT)
     await dialog
-      .getByRole('button', { name: /continue|switch|replace/i })
+      .getByRole('button', { name: 'Confirm',exact:true })
       .click()
 
     // ---- 工作台恢复快照 ----
     await expect(replaceConfirmDialog(page)).toHaveCount(0)
-    await expect(page).toHaveURL(/\/workspace$/, { timeout: 15000 })
+    await expect(page).toHaveURL(/\/workspace\?directionId=/, { timeout: 15000 })
     await expect(appShell(page)).toBeVisible({ timeout: 15000 })
     await expect(promptCard(page)).toContainText(TARGET_PROMPT, { timeout: 15000 })
     await expect(page.getByLabel('Variable negative_prompt')).toHaveValue(TARGET_NEGATIVE)
-    await expect(renderDock(page).getByLabel('Aspect Ratio')).toHaveValue('16:9')
+    await expect(renderDock(page).getByLabel('Aspect ratio')).toHaveValue('16:9')
     await expect(renderDock(page).getByLabel('Quality')).toHaveValue('hd')
     await expect(referenceColumn(page).getByRole('img', { name: 'Reference' })).toHaveAttribute(
       'src',
@@ -475,16 +478,21 @@ test.describe('plan-06 entry wiring and full Iteration Memory journey', () => {
     // ---- 修改提示并生成新迭代（US-04）----
     await expect(generationPromptEditor(page)).toBeVisible({ timeout: 15000 })
     await generationPromptEditor(page).fill(MODIFIED_PROMPT)
-    await expect(generateButton(page)).toBeEnabled()
-    await generateButton(page).click()
+    await expect(generateButton(page)).toBeDisabled()
+    await renderDock(page).getByLabel('Model',{exact:true}).selectOption('flux-2-dev')
+    await renderDock(page).getByLabel('Quality').selectOption('standard')
+    await generateCurrentDraft(page)
 
     await expect.poll(() => generationCapture.requests.length, { timeout: 15000 }).toBe(1)
-    const generationBody = generationCapture.requests[0].body
+    const envelope=generationCapture.requests[0].body
+    expect(envelope).toMatchObject({directionId:expect.any(String),requestKey:expect.any(String),baseRevision:expect.any(Number),mode:'current'})
+    const current=await page.evaluate(async id=>await(await fetch(`/api/workspace/directions/${id}`)).json(),String(envelope.directionId))
+    const generationBody={promptText:current.direction.draft.customPrompt,negativePromptText:current.direction.draft.negativePromptText,analysisTaskId:current.direction.analysisTaskId,params:current.direction.draft.params}
     expect(generationBody.promptText).toBe(MODIFIED_PROMPT)
     expect(generationBody.negativePromptText).toBe(TARGET_NEGATIVE)
     expect(generationBody.analysisTaskId).toBe(`analysis-${TARGET_ID}`)
     // 恢复的存量迭代无 model 字段，重新生成回退 models.json 默认模型
-    expect(generationBody.params).toEqual({ aspectRatio: '16:9', quality: 'hd', model: 'flux-2-dev' })
+    expect(generationBody.params).toEqual({ aspectRatio: '16:9', quality: 'standard', model: 'flux-2-dev' })
 
     // ---- 回到详情，保存为 Style Memory（US-07 → plan-06 三步向导）----
     await openIterations(page)
@@ -573,8 +581,11 @@ test.describe('plan-06 entry wiring and full Iteration Memory journey', () => {
     await expect(page).toHaveURL(/\/workspace\/iterations/, { timeout: 15000 })
     await expect(page.getByRole('heading', { name: /iteration memory/i })).toBeVisible()
     await expect(statusFilter(page).getByRole('radio', { name: /^all/i })).toBeChecked()
-    await expect(requests.length, 'iteration list endpoint was queried').toBeGreaterThan(0)
-    expect(requests[0].status, 'nav entry without params must default to all').toBe('all')
+    // Workspace's recent strip can issue its completed-only read before navigation.
+    // The full list must independently request the all-status contract.
+    await expect.poll(() => requests.some(request => request.status === 'all'), {
+      message: 'nav entry without params must query all statuses',
+    }).toBe(true)
 
     // 高亮规则与现有项一致：命中 /workspace/iterations 时 Iterations 项 aria-current=page，Generate 不高亮
     await expect(iterationsNavLink(page)).toHaveAttribute('aria-current', 'page')

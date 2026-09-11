@@ -8,6 +8,7 @@ import { useHistoryList, type GenerationHistoryItem } from "@/hooks/use-history-
 
 export interface HistoryPanelProps {
   currentGenerationTaskId?: string;
+  directionId?: string | null;
   onRestore?: (id: string) => void;
 }
 
@@ -21,6 +22,7 @@ function ThumbnailSkeleton() {
 
 export function HistoryPanel({
   currentGenerationTaskId,
+  directionId,
   onRestore,
 }: HistoryPanelProps) {
   const {
@@ -31,7 +33,7 @@ export function HistoryPanel({
     hasNextPage,
     isFetchingNextPage,
     refetch,
-  } = useHistoryList(true);
+  } = useHistoryList(true,directionId);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -130,7 +132,7 @@ export function HistoryPanel({
                 type="button"
                 onClick={() => onRestore?.(item.id)}
                 className="interactive-lift group h-[4.5rem] w-[4.5rem] shrink-0 rounded-lg p-1.5"
-                aria-label="Restore generation"
+                aria-label="View generation"
               >
                 <span className="media-lens relative block aspect-square w-full rounded-md">
                   <Image
@@ -145,6 +147,7 @@ export function HistoryPanel({
               </button>
             ))}
 
+            {hasNextPage&&<button type="button" disabled={isFetchingNextPage} className="btn-secondary shrink-0 rounded-lg px-3 py-2 text-xs" onClick={()=>void fetchNextPage()}>Load earlier results</button>}
             <div ref={sentinelRef} className="h-1 w-1 shrink-0" />
 
             {isFetchingNextPage && <ThumbnailSkeleton />}

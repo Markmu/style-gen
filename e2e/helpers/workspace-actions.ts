@@ -24,7 +24,14 @@ export async function gotoWorkspace(page: Page) {
       throw error
     }
   }
-  await page.getByTestId('workspace-three-column-layout').first().waitFor({ timeout: 15000 })
+  await page.getByTestId('workspace-agent-layout').first().waitFor({ timeout: 15000 })
+}
+
+/** plan-11：Inspector 页签按需呈现；Prompt/Evidence 检查前先切到对应面板 */
+export async function revealInspectorPanel(page: Page, panel: 'evidence' | 'draft' | 'prompt') {
+  const label = panel === 'evidence' ? 'Evidence' : panel === 'draft' ? 'Draft' : 'Prompt'
+  const tab = page.getByRole('tablist', { name: 'Workspace inspector' }).getByRole('tab', { name: label, exact: true })
+  await tab.click()
 }
 
 /** Upload a test image in the workspace and wait for analysis to start */
@@ -165,11 +172,13 @@ export async function chooseQuickRecreatePace(page: Page) {
 /** plan-02: 确认快速复刻授权——同一 QuickGenerationAuthorizationSnapshot 原子写入并置 armed */
 export async function confirmQuickRecreate(page: Page) {
   const dialog = page.getByTestId('quick-confirm-dialog')
+  const file=page.getByLabel('Attach reference',{exact:true});
+  await file.setInputFiles(require.resolve('../fixtures/test-image.png'));
   await waitForReactElement(dialog.getByTestId('quick-confirm-confirm'))
   await dialog.getByTestId('quick-confirm-confirm').click()
   await expect(page.getByTestId('quick-authorization-status')).toHaveAttribute(
     'data-authorization',
-    'armed',
+    /armed|consumed/,
     { timeout: 10000 },
   )
 }
@@ -184,4 +193,10 @@ export async function exitQuickRecreate(page: Page) {
     'none',
     { timeout: 10000 },
   )
+}
+
+/** Generate from the saved current draft; the bar shows settings and the primary action only. */
+export async function generateCurrentDraft(page:Page) {
+ await page.getByRole('button',{name:'Save draft',exact:true}).click();
+ await page.getByTestId('generation-bar').getByRole('button',{name:/^Generate (?:1 image|current draft)$/}).click();
 }

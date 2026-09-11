@@ -235,3 +235,9 @@ describe("RecipeCard", () => {
     expect(screen.queryByText("Legacy analysis")).not.toBeInTheDocument();
   });
 });
+
+it('AC-12 exposes the real evidence source and typed ask without claiming image coordinates',()=>{
+ const ask=vi.fn();const facets=deriveEvidenceFacets(mockRecipe).map(f=>({...f,legacy:false}));
+ render(<RecipeCard state="analysis_ready" recipe={mockRecipe} facets={facets} analysisTaskId="real-analysis" selectedFacetId="lighting" onAskEvidence={ask}/>);
+ expect(screen.getByRole('region',{name:'Selected evidence source'})).toHaveTextContent('Analysis real-analysis');expect(screen.getByText(/No image coordinates/)).toBeVisible();fireEvent.click(screen.getByRole('button',{name:'Ask about this'}));expect(ask).toHaveBeenCalledWith('lighting');
+});

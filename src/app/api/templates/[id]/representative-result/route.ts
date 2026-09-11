@@ -3,7 +3,16 @@ import { auth } from "@/auth";
 import {
   findById,
   setRepresentativeResult,
+  setRepresentativeResultWithReceipt,
+  lookupMemoryReceipt,
+  type TemplateMemoryReceipt,
 } from "@/lib/repositories/template-repository";
+import {
+  findDirection,
+  hashWorkspaceRequest,
+  WorkspaceConflict,
+  WorkspaceNotFound,
+} from "@/lib/repositories/workspace-repository";
 import { findGenerationTaskById } from "@/lib/repositories/generation-task-repository";
 import { checkRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit";
 import type { StyleMemoryRecord } from "@/types/models";
@@ -52,6 +61,47 @@ function validateGenerationTaskId(value: unknown): string | null {
   return trimmed;
 }
 
+/** plan-10：可选 requestKey（与 workspace 命令键同规格） */
+function validateRequestKeyValue(value: unknown): string | undefined | null {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.length > 180 || !/^[A-Za-z0-9:_-]+$/.test(trimmed)) return null;
+  return trimmed;
+}
+
+/** plan-10：方向 ID（26 位 ULID） */
+function validateDirectionIdValue(value: unknown): string | undefined | null {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (!/^[0-9A-HJKMNP-TV-Z]{26}$/.test(trimmed)) return null;
+  return trimmed;
+}
+
+/** plan-10：回执冲突/目标缺失的统一错误响应 */
+function receiptErrorResponse(error: unknown): Response | null {
+  if (error instanceof WorkspaceConflict && error.code === "request_key_conflict") {
+    return NextResponse.json(
+      {
+        error: "This request key was already used with different content",
+        code: "REQUEST_KEY_CONFLICT",
+        retryable: false,
+      },
+      { status: 409 }
+    );
+  }
+  if (error instanceof WorkspaceNotFound) {
+    return NextResponse.json(
+      { error: "Template not found", code: "TEMPLATE_NOT_FOUND", retryable: false },
+      { status: 404 }
+    );
+  }
+  return null;
+}
+
 // ─── POST /api/templates/:id/representative-result — 设置/替换代表结果（架构 §6.4） ───
 
 export async function POST(
@@ -73,9 +123,9 @@ export async function POST(
     // 3. 获取模板 ID 与请求体
     const { id } = await params;
 
-    let body: { generationTaskId?: unknown };
+    let body: { generationTaskId?: unknown; requestKey?: unknown; directionId?: unknown };
     try {
-      body = (await request.json()) as { generationTaskId?: unknown };
+      body = (await request.json()) as typeof body;
     } catch {
       return NextResponse.json(
         { error: "Invalid request body", code: "INVALID_REQUEST", retryable: false },
@@ -89,6 +139,67 @@ export async function POST(
         { error: "generationTaskId must be a ULID string", code: "INVALID_REQUEST", retryable: false },
         { status: 400 }
       );
+    }
+
+    // plan-10（架构 §6.5）：带键调用先查回执（用户确认代表结果的事实在回执中）
+    const requestKey = validateRequestKeyValue(body.requestKey);
+    if (requestKey === null) {
+      return NextResponse.json(
+        { error: "Invalid requestKey", code: "INVALID_REQUEST", retryable: false },
+        { status: 400 }
+      );
+    }
+    const receiptDirectionId = validateDirectionIdValue(body.directionId);
+    if (receiptDirectionId === null) {
+      return NextResponse.json(
+        { error: "Invalid directionId", code: "INVALID_REQUEST", retryable: false },
+        { status: 400 }
+      );
+    }
+    if ((requestKey === undefined) !== (receiptDirectionId === undefined)) {
+      return NextResponse.json(
+        { error: "requestKey and directionId must be provided together", code: "INVALID_REQUEST", retryable: false },
+        { status: 400 }
+      );
+    }
+    let receipt: TemplateMemoryReceipt | null = null;
+    if (requestKey && receiptDirectionId) {
+      receipt = {
+        directionId: receiptDirectionId,
+        requestKey,
+        requestHash: hashWorkspaceRequest(
+          { requestKey, directionId: receiptDirectionId, id, generationTaskId },
+          ["requestKey", "directionId", "id", "generationTaskId"]
+        ),
+      };
+      const direction = await findDirection(userId, receiptDirectionId);
+      if (!direction) {
+        return NextResponse.json(
+          { error: "Direction not found", code: "DIRECTION_NOT_FOUND", retryable: false },
+          { status: 404 }
+        );
+      }
+      try {
+        const lookup = await lookupMemoryReceipt(userId, receipt);
+        if (lookup.status === "reused") {
+          log("duplicate_request_reused", {
+            directionId: receiptDirectionId,
+            templateId: lookup.record.id,
+            requestKeyHash: receipt.requestHash.slice(0, 12),
+          });
+          return NextResponse.json({ ...lookup.record, reused: true });
+        }
+        if (lookup.status === "gone") {
+          return NextResponse.json(
+            { error: "Template not found", code: "TEMPLATE_NOT_FOUND", retryable: false },
+            { status: 404 }
+          );
+        }
+      } catch (error) {
+        const mapped = receiptErrorResponse(error);
+        if (mapped) return mapped;
+        throw error;
+      }
     }
 
     // 4. Memory 归属校验
@@ -126,8 +237,24 @@ export async function POST(
     // 7. 原子更新（plan-01 repository：单条 UPDATE 同时写引用与 user_verified）
     let updated: StyleMemoryRecord;
     try {
-      updated = await setRepresentativeResult(id, userId, generationTaskId);
+      if (receipt) {
+        // plan-10：代表结果确认与 memory 回执同一事务
+        const result = await setRepresentativeResultWithReceipt(id, userId, generationTaskId, receipt);
+        if (result.reused) {
+          log("duplicate_request_reused", {
+            directionId: receipt.directionId,
+            templateId: result.record.id,
+            requestKeyHash: receipt.requestHash.slice(0, 12),
+          });
+          return NextResponse.json({ ...result.record, reused: true });
+        }
+        updated = result.record;
+      } else {
+        updated = await setRepresentativeResult(id, userId, generationTaskId);
+      }
     } catch (error) {
+      const receiptMapped = receiptErrorResponse(error);
+      if (receiptMapped) return receiptMapped;
       // Memory 已被并发删除：无部分写入，404 口径与详情一致
       const message = error instanceof Error ? error.message : "Template not found";
       log("template_operation_failed", { operation: "set_representative_result", error: message });

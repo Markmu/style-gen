@@ -77,7 +77,7 @@ describe("useHistoryRestore", () => {
     expect(result.current.error).toBeNull();
   });
 
-  it("derives contextual variables from recipe when detail has no variable payload", async () => {
+  it("preserves missing variable payload instead of inventing historical variable values", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       new Response(
         JSON.stringify({
@@ -105,11 +105,7 @@ describe("useHistoryRestore", () => {
       restored = await result.current.restore("history-2");
     });
 
-    expect(restored?.variables).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ name: "subject", defaultValue: "Glass flower" }),
-      ]),
-    );
+    expect(restored?.variables).toEqual([]);
   });
 
   it("surfaces restore failure without mutating the caller workspace snapshot", async () => {

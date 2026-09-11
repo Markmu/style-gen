@@ -53,6 +53,14 @@ const ADJUSTMENT_ACTIONS: Array<{
 
 export interface ResultComparisonPanelProps {
   iterationId: string;
+  secondDetail?: IterationDetail | null;
+  secondId?: string | null;
+  secondError?: boolean;
+  onRetrySecond?: ()=>void;
+  comparisonOptions?: {id:string;promptSummary:string}[];
+  onSecondChange?: (id:string|null)=>void;
+  onReferenceDeviation?: (dimension:string,evidenceIds:string[])=>void;
+  onContinue?: ()=>void;
   detail: IterationDetail | null;
   detailStatus: "idle" | "loading" | "ready" | "error";
   detailErrorMessage?: string | null;
@@ -72,6 +80,7 @@ export interface ResultComparisonPanelProps {
 
 export function ResultComparisonPanel({
   iterationId,
+  secondDetail, secondId, secondError, onRetrySecond, comparisonOptions, onSecondChange, onReferenceDeviation, onContinue,
   detail,
   detailStatus,
   detailErrorMessage,
@@ -193,6 +202,8 @@ export function ResultComparisonPanel({
     <section
       data-testid="result-comparison-panel"
       aria-label="Reference comparison and adjustments"
+      data-first-id={secondId??detail?.sourceAssetId??""}
+      data-second-id={iterationId}
       onKeyDown={(event) => {
         if (event.key === "Escape") {
           event.stopPropagation();
@@ -256,11 +267,15 @@ export function ResultComparisonPanel({
       ) : (
         <div className="mt-2 grid gap-2.5 lg:grid-cols-2">
           <div className="min-w-0 space-y-2">
+            {onSecondChange && <label className="block text-xs">Compare against<select aria-label="Compare against" className="input-precision ml-2 max-w-full rounded-lg p-1" value={secondId??""} onChange={e=>onSecondChange(e.target.value||null)}><option value="">Reference</option>{comparisonOptions?.filter(item=>item.id!==iterationId).map(item=><option key={item.id} value={item.id}>{item.promptSummary} ({item.id})</option>)}</select></label>}
+            <p className="break-all text-xs">{secondId?`Result ${secondId}`:`Reference ${detail.sourceAssetId??"unavailable"}`} compared with result {iterationId}</p>
+            {secondError&&<p role="status">The second result could not be read. <button type="button" onClick={onRetrySecond} className="underline">Retry second result</button></p>}
             <ComparisonView
-              referenceImageUrl={detail.sourceImageUrl}
+              referenceImageUrl={secondId?(secondDetail?.resultFileUrl??null):detail.sourceImageUrl}
               resultImageUrl={detail.resultFileUrl}
               aspectRatio={detail.params?.aspectRatio}
             />
+            {onContinue&&<button type="button" className="btn-secondary rounded-lg px-3 py-1 text-xs" onClick={onContinue}>Continue from this result</button>}
             <div className="rounded-xl bg-[var(--surface-bright)]/56 p-2.5 ring-1 ring-[var(--border-static)]">
               <p className="label-tech mb-1 text-[var(--text-muted)]">
                  Historical Prompt for this result </p>
@@ -318,6 +333,7 @@ export function ResultComparisonPanel({
               </div>
             </div>
 
+            {onReferenceDeviation&&<button type="button" disabled={!selectedDimension} className="btn-secondary rounded-lg px-3 py-1 text-xs" onClick={()=>{if(selectedDimension)onReferenceDeviation(selectedDimension,dimensionObservations.map(o=>o.id));}}>Discuss this difference</button>}
             {selectedDimension && (
               <div className="rounded-xl bg-[var(--surface-bright)]/56 p-2.5 ring-1 ring-[var(--border-static)]">
                 <p className="label-tech mb-1 text-[var(--text-muted)]">

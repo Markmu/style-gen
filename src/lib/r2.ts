@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 function getRequiredEnv(name: string): string {
@@ -59,16 +59,18 @@ export async function generatePresignedUploadUrl(
 export async function uploadBuffer(
   key: string,
   body: Buffer | Uint8Array,
-  contentType: string
+  contentType: string,
+  options?: { metadata?: Record<string,string>; signal?: AbortSignal }
 ): Promise<void> {
   const command = new PutObjectCommand({
     Bucket: getBucketName(),
     Key: key,
     Body: body,
     ContentType: contentType,
+    Metadata: options?.metadata,
   });
 
-  await getR2Client().send(command);
+  await getR2Client().send(command, { abortSignal: options?.signal });
 }
 
 /** 拼接公共访问 URL */
@@ -77,4 +79,8 @@ export function getPublicUrl(key: string): string {
     ? getPublicUrlBase().slice(0, -1)
     : getPublicUrlBase();
   return `${base}/${key}`;
+}
+
+export async function headObject(key:string,signal?:AbortSignal) {
+ try { const result=await getR2Client().send(new HeadObjectCommand({Bucket:getBucketName(),Key:key}),{abortSignal:signal});return {metadata:result.Metadata??{},contentType:result.ContentType,size:result.ContentLength}; } catch(error) { if(error instanceof Error && (error.name==='NotFound'||error.name==='NoSuchKey'))return null;throw error; }
 }

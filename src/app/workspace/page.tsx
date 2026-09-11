@@ -1,27 +1,34 @@
 "use client";
+import { generationBlocker } from '@/lib/render-readiness';
+import { isSupportedAspectRatio } from '@/lib/generation/aspect-ratio';
+import { GenerationBar, type GenerationSummary } from '@/components/workspace/generation-bar';
 
+import { useFocusTrap } from "@/hooks/use-focus-trap";
+import { AgentConversation } from '@/components/workspace/agent-conversation';
 import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from "react";
+import { useSession } from "next-auth/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useFileStore } from "@/components/landing/use-file-store";
 import {
-  consumePendingIterationRestore,
-  useWorkspaceState,
+  useWorkspaceAgent,
   type WorkspaceState,
 } from "@/hooks/use-workspace-state";
 import { MemoryIdentityBar } from "@/components/workspace/memory-identity-bar";
-import { CreationPaceSelector } from "@/components/workspace/creation-pace-selector";
 import { useUpload } from "@/hooks/use-upload";
 import { useAnalysis } from "@/hooks/use-analysis";
 import { useGeneration } from "@/hooks/use-generation";
-import { useHistoryList } from "@/hooks/use-history-list";
 import { useHistoryRestore, type RestoredData } from "@/hooks/use-history-restore";
 import {
   directionIterationsQueryKey,
   useDirectionIterations,
 } from "@/hooks/use-direction-iterations";
 import { useIterationDetail } from "@/hooks/use-iteration-detail";
-import { WorkspaceThreeColumnLayout } from "@/components/workspace/workspace-three-column-layout";
+import {
+  DraftInspectorPanel,
+  WorkspaceAgentLayout,
+  type WorkspaceInspectorPanel,
+} from "@/components/workspace/workspace-agent-layout";
 import { ReferenceCard } from "@/components/workspace/reference-card";
 import { RecipeCard } from "@/components/workspace/recipe-card";
 import { PromptCard } from "@/components/workspace/prompt-card";
@@ -32,20 +39,21 @@ import type {
   DirectionMemoryStatus,
   PreferredInvalidNotice,
 } from "@/components/workspace/direction-result-rail";
+import { ResultViewer } from "@/components/workspace/result-viewer";
+import { SourcePreviewDialog } from "@/components/workspace/source-preview-dialog";
 import { ResultComparisonPanel } from "@/components/workspace/result-comparison-panel";
 import { ReplaceConfirmDialog } from "@/components/iterations/replace-confirm-dialog";
-import { SaveStyleMemoryDialog } from "@/components/iterations/save-style-memory-dialog";
+import {
+  SaveStyleMemoryDialog,
+  type StyleMemorySaveCoordinator,
+} from "@/components/iterations/save-style-memory-dialog";
 import {
   RepresentativeResultSelector,
   representativeCandidatesQueryKey,
 } from "@/components/style-memory/representative-result-selector";
-import { HistoryStrip } from "@/components/workspace/history-strip";
 import { OutputCard } from "@/components/workspace/output-card";
-import { WorkspaceBottomBar } from "@/components/workspace/workspace-bottom-bar";
 import { AiCopilotRibbon } from "@/components/workspace/ai-copilot-ribbon";
-import { WorkspaceTopBar } from "@/components/workspace/workspace-top-bar";
 import {
-  previewHistoryItems,
   previewNegativePrompt,
   previewPrompt,
   previewRecipe,
@@ -66,9 +74,8 @@ import {
 } from "@/lib/evidence-facets";
 import { derivePromptProvenanceSpans } from "@/lib/prompt-provenance";
 import { deriveRenderReadiness } from "@/lib/render-readiness";
-import { composePromptDocument } from "@/lib/prompt-composer";
+import { compileWorkspacePrompt, composePromptDocument } from "@/lib/prompt-composer";
 import {
-  applyAdjustmentToCustomText,
   applyInvariantAdjustment,
   deriveKeepChangeSummary,
 } from "@/lib/prompt-adjustments";
@@ -79,7 +86,6 @@ import {
   isKnownImageGenModel,
 } from "@/lib/ai/model-config";
 import type {
-  CompiledPromptSegment,
   GenerationParams,
   InvariantAdjustment,
   IterationDetail,
@@ -87,7 +93,6 @@ import type {
   PromptDetailLevel,
   PromptEditorMode,
   PromptIntent,
-  QuickGenerationAuthorizationSnapshot,
   StyleMemoryDetail,
   TemplateVariable,
   VisualRecipeV2Success,
@@ -214,55 +219,6 @@ async function parseApiError(
   }
 }
 
-function deriveHistoryStripStatus(options: {
-  isPreview: boolean;
-  isError: boolean;
-  isLoading: boolean;
-}): "idle" | "loading" | "error" {
-  if (options.isPreview) return "idle";
-  if (options.isError) return "error";
-  if (options.isLoading) return "loading";
-  return "idle";
-}
-
-/**
- * plan-02（架构 §6.1.5、ADR-2）：从授权快照 + Recipe 默认 invariants/variables/
- * modifiers 派生快速复刻的不可变请求材料。不读取 live 草稿——自动提交只消费
- * 确认快照与模型事实，避免 analysis effect 与界面编辑竞态。
- */
-function deriveQuickRecreateSubmission(input: {
-  recipe: VisualRecipeV2Success;
-  authorization: QuickGenerationAuthorizationSnapshot;
-}): {
-  promptControlSnapshot: PromptControlSnapshot;
-  promptText: string;
-  negativePromptText: string;
-} {
-  const promptControlSnapshot: PromptControlSnapshot = {
-    schemaVersion: 1,
-    trigger: "quick_recreate",
-    intent: input.authorization.intent,
-    detailLevel: input.authorization.detailLevel,
-    editorMode: "variables",
-    customPromptDirty: false,
-    enabledInvariantIds: input.recipe.styleInvariants.map((item) => item.id),
-    variableValues: Object.fromEntries(
-      input.recipe.contentVariables.map((variable) => [
-        variable.name,
-        variable.defaultValue,
-      ]),
-    ),
-    enabledModifierNames: [],
-    modifierValues: {},
-    adjustments: [],
-  };
-  return {
-    promptControlSnapshot,
-    promptText: composePromptDocument(input.recipe, promptControlSnapshot).text,
-    negativePromptText: input.recipe.negativeConstraints.join(", "),
-  };
-}
-
 // ─── plan-06（架构 §6.6 / §6.7 / ADR-6）：首选验证、Memory 写点与新参考 ─────────
 
 /** 读取一条 Iteration 详情（preferred 验证 / Memory 入口 / 守卫比较共用） */
@@ -270,33 +226,6 @@ async function fetchIterationDetailFor(iterationId: string): Promise<IterationDe
   const res = await fetch(`/api/generation/${iterationId}`);
   if (!res.ok) throw new Error("Failed to load the iteration detail");
   return (await res.json()) as IterationDetail;
-}
-
-type PreferredValidation =
-  | { outcome: "valid"; detail: IterationDetail }
-  | { outcome: "invalid"; reason: string }
-  | { outcome: "unavailable" };
-
-/**
- * plan-06（架构 §6.7.1）：经 Iteration detail 验证 preferred——当前用户可
- * 访问、相同 analysisTaskId、completed 且有结果资产。结构性无效事实才判
- * invalid；详情暂时读不到（网络/5xx）按 unavailable 处理，不清除会话偏好。
- */
-function validatePreferredDetail(
-  detail: IterationDetail,
-  currentAnalysisTaskId: string,
-): PreferredValidation {
-  if (detail.analysisTaskId !== currentAnalysisTaskId) {
-    return { outcome: "invalid", reason: "This result belongs to another direction" };
-  }
-  if (detail.status !== "completed") {
-    return { outcome: "invalid", reason: "This result is not completed" };
-  }
-  const resultAssetId = (detail as { resultAssetId?: string | null }).resultAssetId;
-  if (!resultAssetId && !detail.resultFileUrl) {
-    return { outcome: "invalid", reason: "This result has no image asset" };
-  }
-  return { outcome: "valid", detail };
 }
 
 /** plan-06：来源 Memory 详情读取（与详情页共用 `style-memory-detail/{id}` key） */
@@ -359,7 +288,11 @@ function buildNewReferenceUnfinishedSummary(input: {
 
 function WorkspacePageInner() {
   const fileStore = useFileStore();
-  const ws = useWorkspaceState();
+  const { data: session } = useSession();
+  const entryParams = useSearchParams();
+  const directionParam = entryParams.get("directionId");
+  const sourceEntry=useRef((['iteration','template','analysis'] as const).map(kind=>({kind,id:entryParams.get(`${kind}Id`)??(kind==='analysis'?entryParams.get('analysisTaskId'):null)})).find(source=>source.id) as {kind:'iteration'|'template'|'analysis';id:string}|undefined);
+  const ws = useWorkspaceAgent({ userId: session?.user?.id ?? null, directionId: directionParam,source:sourceEntry.current });
   const { upload, progress, isUploading } = useUpload();
   // plan-07：Memory 复用会话中，"进入时"既有的分析任务 id 仅作为生成上下文
   // 门控令牌（ADR-7），不再对其发起轮询——陈旧 id 的 401 会话过期分支会把
@@ -391,7 +324,8 @@ function WorkspacePageInner() {
   // 轮询只会用过期分析结果覆盖恢复内容（或触发会话过期跳转）。
   // 上传新参考图/新分析开始后状态离开恢复态，轮询自然恢复。
   const { data: analysisData } = useAnalysis(
-    ws.state === "history_restored" ||
+    (ws.canonicalAnalysis?.id===ws.analysisTaskId && ["completed","failed"].includes(ws.canonicalAnalysis?.status??"")) ||
+      ws.state === "history_restored" ||
       memoryHoldsEntryAnalysisTask ||
       holdsRestoredEntryAnalysisTask
       ? null
@@ -406,14 +340,10 @@ function WorkspacePageInner() {
   const isEvidencePreview =
     searchParams.get("preview") === EVIDENCE_COPILOT_PREVIEW ||
     browserPreviewParam === EVIDENCE_COPILOT_PREVIEW;
-  const {
-    data: historyData,
-    isLoading: isHistoryLoading,
-    isError: isHistoryError,
-    error: historyError,
-  } = useHistoryList(!isEvidencePreview);
   const { restore: restoreHistory, error: historyRestoreError } = useHistoryRestore();
   const queryClient = useQueryClient();
+  useEffect(()=>{if(ws.generationTaskId)void queryClient.invalidateQueries({queryKey:directionIterationsQueryKey()});},[ws.generationTaskId,queryClient]);
+
   const router = useRouter();
   const hasConsumedFile = useRef(false);
   const [resolvedPromptText, setResolvedPromptText] = useState("");
@@ -422,6 +352,9 @@ function WorkspacePageInner() {
   const [provenanceSelectionVersion, setProvenanceSelectionVersion] = useState(0);
   const [selectedFacetId, setSelectedFacetId] = useState<EvidenceFacetId | null>(null);
   const [referenceAspectRatio, setReferenceAspectRatio] = useState(4 / 5);
+  const returnScope=JSON.stringify([ws.directionId,ws.promptText,ws.negativePromptText,ws.generationParams,ws.v2PromptState,ws.localDraft.text,ws.localDraft.attachmentName]);
+  const returnIdentity=useRef({scope:returnScope,id:ws.directionId,revision:ws.direction?.draftRevision??null,attachment:ws.localDraft.attachment});returnIdentity.current={scope:returnScope,id:ws.directionId,revision:ws.direction?.draftRevision??null,attachment:ws.localDraft.attachment};
+  const [returnGuard,setReturnGuard]=useState<{id:string;value:unknown;from:string|null;scope:string;revision:number|null;attachment:Blob|null}|null>(null);
   const [historyDetailOpen, setHistoryDetailOpen] = useState(false);
   const historyTriggerRef = useRef<HTMLElement | null>(null);
   const [historyLoad, setHistoryLoad] = useState<{ id: string; loading: boolean; error: boolean } | null>(null);
@@ -448,42 +381,19 @@ function WorkspacePageInner() {
   const referenceDimensionsRef = useRef<{ width: number; height: number } | null>(
     null,
   );
-  // plan-02：快速自动提交的内存防重放锁——同一分析任务只允许一次自动 POST
-  //（StrictMode/effect 重放/轮询重复 success 均由该锁与 consumed 持久化共同拦截）
-  const quickSubmittedAnalysisTaskIdsRef = useRef<Set<string>>(new Set());
-
   // ─── plan-04（架构 §6.2）：Prompt 两轴控制/编辑方式/手动全文 dirty 页面状态 ────
   // 恢复快照优先（ws.promptControls 来自 v5 持久化/迁移）；新分析完成回默认
   // detail=standard（架构 §6.1.1）。editorMode 对旧任务无快照时降级 text（§3.2）。
-  const [promptIntent, setPromptIntent] = useState<PromptIntent>(
-    () => ws.promptControls.intent,
-  );
-  const [promptDetail, setPromptDetail] = useState<PromptDetailLevel>(
-    () => ws.promptControls.detailLevel,
-  );
-  const [editorMode, setEditorMode] = useState<PromptEditorMode>(() => {
-    if (ws.v2PromptState) {
-      return ws.v2PromptState.outputMode === "custom" ? "text" : "variables";
-    }
-    // 旧编辑路径的自然默认：有可用分析模板进 variables，否则全文 text
-    const hasTemplate =
-      !!ws.analysisTemplateContent &&
-      (ws.analysisTemplateStatus === "ready" ||
-        ws.analysisTemplateStatus === "partial" ||
-        ws.analysisTemplateStatus === null);
-    return hasTemplate ? "variables" : "text";
-  });
-  // 持久化 outputMode=custom 意味着存在手动全文——恢复后仍受切换确认保护
-  const [customPromptDirty, setCustomPromptDirty] = useState(
-    () => ws.v2PromptState?.outputMode === "custom",
-  );
+  const promptIntent=ws.promptControls.intent;
+  const promptDetail=ws.promptControls.detailLevel;
+  const {setPromptIntent,setPromptDetail,setEditorMode,setCustomPromptDirty,setAdjustments}=ws;
+  const {editorMode,customPromptDirty,adjustments}=ws.expert;
   const [locatedInvariantId, setLocatedInvariantId] = useState<string | null>(
     null,
   );
   // ─── plan-05（架构 §6.4/§6.5）：方向结果/内联比较的页面状态 ─────────────────
   // 用户 invariant 调整（ADR-3）：独立于模型事实，只引用真实 invariantId；
   // 随当前草稿编译与「保留 / 改变」摘要派生，不写回 Recipe。
-  const [adjustments, setAdjustments] = useState<InvariantAdjustment[]>([]);
   const [adjustmentUndo, setAdjustmentUndo] = useState<{
     adjustments: InvariantAdjustment[];
     state: V2PromptWorkspaceState;
@@ -495,6 +405,14 @@ function WorkspacePageInner() {
   const [selectedIterationId, setSelectedIterationId] = useState<string | null>(
     null,
   );
+  const viewingLocked = useRef(false);
+  const [secondComparisonId,setSecondComparisonId]=useState<string|null>(null);
+  const [viewDirection,setViewDirection]=useState<string|null>(null);
+  const [canvasMode,setCanvasMode]=useState<"reference"|"result"|"compare">("reference");
+  // plan-11（PRD §3.3.33-34）：<768px Conversation/Canvas 页签与 Inspector 页签；
+  // 状态提升到页面，保证切页签/主题/视窗不卸载公共输入与选中对象
+  const [inspectorPanel,setInspectorPanel]=useState<WorkspaceInspectorPanel>("evidence");
+  const [unreadResultId,setUnreadResultId] = useState<string|null>(null);
   const [comparisonIterationId, setComparisonIterationId] = useState<
     string | null
   >(null);
@@ -507,11 +425,6 @@ function WorkspacePageInner() {
   // 工作区级 polite 结果通知：生成完成/失败时更新，绝不移动正在编辑的焦点、
   // 不打开弹层（TC-7.4 契约；由方向 feed 的新终态驱动，覆盖轮询与刷新恢复）。
   const [workspaceAnnouncement, setWorkspaceAnnouncement] = useState<
-    string | null
-  >(null);
-  // L5：POST /api/generation 提交失败（服务/DB 不可用）的内联错误——不声称
-  // 任务已创建（无 active face），草稿与参数保留，重试创建新任务（TC-7.8）。
-  const [generationSubmitError, setGenerationSubmitError] = useState<
     string | null
   >(null);
   // L1：自定义全文应用 disable 调整未命中 range 时的明确说明（不静默、不
@@ -528,7 +441,7 @@ function WorkspacePageInner() {
   const preferredIterationIdRef = useRef<string | null>(ws.preferredIterationId);
   preferredIterationIdRef.current = ws.preferredIterationId;
   // 窗口外 preferred 已经验证过的（analysisTaskId:iterationId）集合
-  const externalPreferredVerifiedRef = useRef<Set<string>>(new Set());
+
   // 有来源 Memory 时：代表结果确认入口（复用 RepresentativeResultSelector）
   const [memorySelector, setMemorySelector] = useState<{
     preselectedIterationId: string | null;
@@ -549,6 +462,7 @@ function WorkspacePageInner() {
     resultFileUrl: string;
     summary: string[];
   } | null>(null);
+  const newReferenceTarget=useRef<string|null>(null);
   const [newReferenceError, setNewReferenceError] = useState<string | null>(null);
   const knownDirectionCompletedIdsRef = useRef<Set<string> | null>(null);
   const lastAnalysisTaskIdRef = useRef<string | null>(ws.analysisTaskId);
@@ -559,23 +473,30 @@ function WorkspacePageInner() {
     // 清除恢复上下文（上传新参考图）后才按新方向回默认
     if (ws.currentIterationId) return;
     // 新分析 = 新方向：两轴控制回默认，不携带上一方向的草稿
-    setPromptIntent("same_style");
-    setPromptDetail("standard");
-    setCustomPromptDirty(false);
     setLocatedInvariantId(null);
     // plan-05：新方向重置瞬时结果选择/比较面板与用户调整（preferred 持久化
     // 在 ws 快照中，由工作区 v5 语义管理，不在此清除）
-    setSelectedIterationId(null);
-    setComparisonIterationId(null);
-    setAdjustments([]);
     setKeepChangeHighlightTargetId(null);
     setKeepChangeAnnouncement(null);
     setPromptAdjustmentMiss(null);
-    knownDirectionCompletedIdsRef.current = null;
     // editorMode 在分析完成时按结果形态回默认（V2→variables；旧分析按
     // 是否有可用模板回 variables/text，与旧编辑器自然默认一致）
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ws.analysisTaskId, ws.currentIterationId]);
+
+  useEffect(()=>{
+    if(!ws.directionId||ws.localDraft.directionId!==ws.directionId){setViewDirection(null);return;}
+    if(viewDirection===ws.directionId)return;
+    const saved=ws.localDraft.viewState;
+    viewingLocked.current=!!saved;setUnreadResultId(null);
+    setSelectedIterationId(saved?.selectedId??null);setComparisonIterationId(saved?.compareId??null);
+    setSecondComparisonId(saved?.secondId??null);setCanvasMode(saved?.mode??"reference");
+    knownDirectionCompletedIdsRef.current=null;setViewDirection(ws.directionId);
+  },[ws.directionId,ws.localDraft.directionId,ws.localDraft.viewState,viewDirection]);
+  useEffect(()=>{
+    if(viewDirection!==ws.directionId||!viewDirection)return;
+    ws.rememberView({selectedId:selectedIterationId,compareId:comparisonIterationId,secondId:secondComparisonId,mode:canvasMode});
+  },[viewDirection,ws.directionId,ws.rememberView,selectedIterationId,comparisonIterationId,secondComparisonId,canvasMode]);
 
   // Template UI state
   const [showTemplateSaveDialog, setShowTemplateSaveDialog] = useState(false);
@@ -609,7 +530,7 @@ function WorkspacePageInner() {
   // FEAT-04: templateId query 参数加载逻辑；plan-07 扩展为复用握手消费点
   useEffect(() => {
     const templateId = searchParams.get("templateId");
-    if (!templateId) return;
+    if (!templateId || !ws.directionId) return;
     // 非空别名：跨闭包保留 string 收窄（loadTemplate 内多处使用）
     const memoryIdParam: string = templateId;
 
@@ -721,11 +642,11 @@ function WorkspacePageInner() {
         if (snapshotAlreadyApplied) {
             window.setTimeout(() => {
               if (!aborted) {
-                router.replace("/workspace");
+                router.replace(ws.directionId ? `/workspace?directionId=${ws.directionId}` : "/workspace");
               }
             }, REUSE_HANDSHAKE_URL_DWELL_MS);
           } else {
-            router.replace("/workspace");
+            router.replace(ws.directionId ? `/workspace?directionId=${ws.directionId}` : "/workspace");
           }
         }
       }
@@ -735,18 +656,18 @@ function WorkspacePageInner() {
 
     return () => { aborted = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams.get("templateId")]);
+  }, [searchParams.get("templateId"),ws.directionId]);
 
   // Handle file from landing page (T06 global state)
   useEffect(() => {
-    if (hasConsumedFile.current) return;
+    if (hasConsumedFile.current || ws.saveState === "loading") return;
     const pendingFile = fileStore.consumeFile();
     if (pendingFile) {
       hasConsumedFile.current = true;
       void handleFileSelected(pendingFile);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [ws.saveState]);
 
   // L1 degradation: analysis polling > 60s
   useQueueingDegradationTimer(
@@ -798,7 +719,7 @@ function WorkspacePageInner() {
       );
       setRestoredSourceContext(null);
       const nextPromptText = analysisData.promptText ?? "";
-      setResolvedPromptText(nextPromptText);
+      setResolvedPromptText(ws.promptText);
       ws.completeAnalysis(
         analysisData.recipe,
         nextPromptText,
@@ -868,34 +789,49 @@ function WorkspacePageInner() {
       height: number;
       mimeType: string;
     }) => {
+      const identity=ws.captureIdentity();
+      const submittedAttachment=ws.captureAnalysisAttachment();
+      const prepared=await ws.prepareAnalysis();
       const analysisRes = await fetch("/api/analysis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(request),
+        body: JSON.stringify({ ...request, ...prepared }),
       });
 
+      if(!ws.isCurrentIdentity(identity))return;
       if (!analysisRes.ok) {
         const errData = await parseApiError(analysisRes);
+        await ws.invalidateQuick();
         ws.failAnalysis(errData.error, undefined, errData.code, errData.retryable);
         return;
       }
 
       const analysisTask = (await analysisRes.json()) as { id: string };
+      if(!ws.isCurrentIdentity(identity))return;
+      ws.acceptAnalysisAttachment(submittedAttachment);
+      ws.acceptQuickAnalysisReceipt(analysisTask.id,{requestKey:prepared.requestKey,assetId:request.assetId});
       ws.startAnalysis(analysisTask.id);
+      await ws.refreshDirection();
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
 
   const handleFileSelected = useCallback(
-    async (file: File) => {
+    async (file: File, retained = false, quick = false) => {
+      const identity=ws.captureIdentity();
+      if (!retained && !await ws.attach([file])) return;
+      if (ws.writesPaused) { ws.setAgentNotice("Sign in and reconnect before uploading. Your attachment and message are preserved."); return; }
+      try{await ws.ensureDirection();}catch(error){ws.setAgentNotice(error instanceof Error?error.message:"Could not create direction");return;}
       setRestoredSourceContext(null);
       ws.startUpload(file.type);
       try {
-      const [{ assetId, fileUrl }, dimensions] = await Promise.all([
+      const retainedUpload=retained?ws.getUploaded():null;
+      const [{ assetId, fileUrl }, dimensions] = retainedUpload?[retainedUpload,{width:retainedUpload.width,height:retainedUpload.height}]:await Promise.all([
         upload(file),
         getImageDimensions(file),
       ]);
+      if(!ws.isCurrentIdentity(identity))return;
       // plan-02：记录参考图原始尺寸，供快速复刻画幅策略解析（架构 §6.3）
       referenceDimensionsRef.current = dimensions;
       // plan-04（架构 §6.3.3 / AC-03）：新方向按参考图写推荐画幅与 reference 来源
@@ -906,13 +842,16 @@ function WorkspacePageInner() {
       });
       ws.setGenerationParams(
         {
-          ...ws.generationParams,
+          ...ws.getGenerationParams(),
           aspectRatio: resolvedReferenceRatio.aspectRatio,
         },
         resolvedReferenceRatio.source,
       );
+      ws.rememberUpload({assetId,fileUrl,width:dimensions.width,height:dimensions.height,mimeType:file.type});
+      await ws.flush();
       ws.completeUpload(assetId, fileUrl);
 
+        if(quick)await ws.armQuick();
         // Auto-trigger analysis
         await startAnalysisTask({
           assetId,
@@ -922,9 +861,12 @@ function WorkspacePageInner() {
           mimeType: file.type,
         });
       } catch (err) {
+        if(!ws.isCurrentIdentity(identity))return;
+        await ws.invalidateQuick();
         ws.failAnalysis(
           err instanceof Error ? err.message : "Upload failed",
         );
+        ws.setAgentNotice(`${err instanceof Error ? err.message : "Upload failed"}. Your attachment and message are preserved. Send to retry this reference step.`);
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -934,6 +876,7 @@ function WorkspacePageInner() {
   const handleAnalysisRetry = useCallback(async () => {
     if (!ws.assetId || !ws.referenceImageUrl) return;
 
+    ws.retryAnalysis();
     ws.clearError();
     ws.setAnalysisUnavailable(false);
 
@@ -947,7 +890,7 @@ function WorkspacePageInner() {
           referenceHeight: dimensions.height,
         });
         ws.setGenerationParams(
-          { ...ws.generationParams, aspectRatio: resolved.aspectRatio },
+          { ...ws.getGenerationParams(), aspectRatio: resolved.aspectRatio },
           resolved.source,
         );
       }
@@ -967,145 +910,17 @@ function WorkspacePageInner() {
   }, [ws.assetId, ws.referenceImageUrl, ws.mimeType]);
 
   const handleReplace = useCallback(() => {
-    setResolvedPromptText("");
-    setCurrentTemplateVariables([]);
-    setRestoredSourceContext(null);
-    setReferenceAspectRatio(4 / 5);
-    referenceDimensionsRef.current = null;
-    ws.reset();
+    void ws.previewSource("empty");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /** Apply a restored snapshot's page-level state: prompt, variables, params, source context */
-  const applyRestoredSnapshot = useCallback(
-    (restored: {
-      promptSnapshot: string;
-      params: GenerationParams;
-      analysisTaskId: string | null;
-      sourceAssetId: string | null;
-      sourceImageUrl: string | null;
-      variables: TemplateVariable[];
-    }) => {
-      setResolvedPromptText(restored.promptSnapshot);
-      setCurrentTemplateVariables(restored.variables);
-      setRestoredSourceContext({
-        sourceAnalysisTaskId: restored.analysisTaskId,
-        sourceAssetId: restored.sourceAssetId,
-        sourceImageUrl: restored.sourceImageUrl,
-        variables: restored.variables,
-      });
-      // plan-04（架构 §3.2 旧任务行）：恢复无控制快照——两轴回默认、全文 text 模式
-      setPromptIntent("same_style");
-      setPromptDetail("standard");
-      setEditorMode("text");
-      setCustomPromptDirty(false);
-      setLocatedInvariantId(null);
-      // plan-05：恢复进入的是另一方向上下文，调整与瞬时比较态不跨方向携带
-      setAdjustments([]);
-      setComparisonIterationId(null);
-      setKeepChangeHighlightTargetId(null);
-      setKeepChangeAnnouncement(null);
-      setPromptAdjustmentMiss(null);
-      // plan-02（AC-03）+ plan-04（§6.3 / 用例 TC-4.11）：Iteration 恢复的画幅走
-      // 来源优先级解析——合法值写 restore；未知值清洗回 1:1 且来源 fallback，
-      // 不冒充恢复选择或参考推荐。
-      const resolvedRestoredRatio = resolveAspectRatio({
-        restoreValue: restored.params.aspectRatio,
-      });
-      ws.setGenerationParams(
-        {
-          aspectRatio: resolvedRestoredRatio.aspectRatio,
-          quality: restored.params.quality as Quality,
-          // 存量迭代无 model（或 id 已下线）；未知值回退配置默认模型
-          model:
-            restored.params.model && isKnownImageGenModel(restored.params.model)
-              ? restored.params.model
-              : DEFAULT_IMAGE_GEN_MODEL_ID,
-        },
-        resolvedRestoredRatio.source,
-      );
-    },
-    [],
-  );
+  const applyHistoryRestore = useCallback(async (detail: RestoredData | HistoryDetail, iterationId?: string) => {
+    const id=iterationId??("id" in detail?detail.id:null);
+    if(id) await ws.previewSource("iteration",id);
+  },[ws]);
 
-  const applyHistoryRestore = useCallback(
-    (restoredData: RestoredData | HistoryDetail) => {
-      const sourceAssetId = restoredData.sourceAssetId ?? ws.assetId;
-      const sourceImageUrl = restoredData.sourceImageUrl ?? ws.referenceImageUrl;
-      applyRestoredSnapshot({
-        promptSnapshot: restoredData.promptSnapshot,
-        params: restoredData.params,
-        analysisTaskId: restoredData.analysisTaskId,
-        sourceAssetId,
-        sourceImageUrl,
-        variables: restoredData.variables ?? [],
-      });
-      ws.enterHistoryRestored(
-        restoredData.resultFileUrl,
-        restoredData.recipe,
-        restoredData.promptSnapshot,
-        restoredData.negativePromptSnapshot,
-        restoredData.analysisTaskId,
-        {
-          sourceAssetId,
-          sourceImageUrl,
-        },
-      );
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ws.assetId, ws.referenceImageUrl],
-  );
-
-  // plan-04: 消费 Iteration Memory 恢复载荷（模式与既有 useHistoryRestore 一致）。
-  // ws 初始状态已按恢复快照以 history_restored 挂载（提示/排除项/配方/来源/
-  // currentIterationId / currentTemplateId / 上一轮结果），这里应用页面级状态：
-  // 输出参数、变量与来源上下文。恢复动作本身不触发任何生成请求（ADR-4）。
-  // 最小 seed（仅 pendingIterationRestore 通道）下挂载 ctx 可能缺顶层字段，
-  // 因此消费时用载荷补全 ws（enterHistoryRestored + restore context），
-  // 并由下方 flush 固化——payload 通道清空后仍可完整恢复。
-  const didConsumeIterationRestoreRef = useRef(false);
-  const iterationRestoreAppliedRef = useRef(false);
-  useEffect(() => {
-    if (didConsumeIterationRestoreRef.current) return;
-    didConsumeIterationRestoreRef.current = true;
-
-    const payload = consumePendingIterationRestore();
-    if (!payload) return;
-    iterationRestoreAppliedRef.current = true;
-
-    applyRestoredSnapshot(payload);
-    ws.setRestoreContext({
-      currentIterationId: payload.iterationId,
-      currentTemplateId: payload.sourceTemplateId,
-      previousResultUrl: payload.resultFileUrl,
-      restoredParams: payload.params,
-    });
-    ws.enterHistoryRestored(
-      payload.resultFileUrl ?? "",
-      payload.recipe,
-      payload.promptSnapshot,
-      payload.negativePromptSnapshot,
-      payload.analysisTaskId,
-      {
-        sourceAssetId: payload.sourceAssetId,
-        sourceImageUrl: payload.sourceImageUrl,
-      },
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // plan-04（架构 §6.3）: 恢复载荷应用后同步 flush——固化应用后的快照，
-  // 确保通道中不再残留待应用标记（防重复应用）。
-  const didFlushIterationRestoreRef = useRef(false);
-  useEffect(() => {
-    if (!iterationRestoreAppliedRef.current) return;
-    if (ws.currentIterationId === null) return;
-    if (didFlushIterationRestoreRef.current) return;
-    didFlushIterationRestoreRef.current = true;
-    ws.flush();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ws.currentIterationId]);
-
+  // Canonical direction hydration owns legacy restore payloads. Replaying the
+  // session bridge here after a refresh would overwrite newer analysis/edits.
   const openHistoryDetail = useCallback((detail: HistoryDetail) => {
     setHistoryDetail(detail);
     setHistoryDetailOpen(true);
@@ -1117,55 +932,37 @@ function WorkspacePageInner() {
         historyTriggerRef.current = document.activeElement as HTMLElement | null;
       }
       const request = ++historyRequestRef.current;
+      const identity=ws.captureIdentity();
       setHistoryLoad({ id, loading: true, error: false });
       try {
         const restoredData = await restoreHistory(id);
-        if (request !== historyRequestRef.current) return;
+        if (request !== historyRequestRef.current||!ws.isCurrentIdentity(identity)) return;
         setHistoryLoad(null);
         openHistoryDetail({ id, ...restoredData });
       } catch {
-        if (request === historyRequestRef.current) setHistoryLoad({ id, loading: false, error: true });
+        if (request === historyRequestRef.current&&ws.isCurrentIdentity(identity)) setHistoryLoad({ id, loading: false, error: true });
       }
     },
-    [restoreHistory, openHistoryDetail, historyLoad],
+    [restoreHistory, openHistoryDetail, historyLoad,ws],
   );
 
   const handleHistoryRestore = useCallback(
     (id: string) => {
       if (historyDetail?.id === id) {
-        applyHistoryRestore(historyDetail);
-        setHistoryDetailOpen(false);
+        void applyHistoryRestore(historyDetail).then(()=>setHistoryDetailOpen(false)).catch(error=>ws.setAgentNotice(error.message));
         return;
       }
 
       void restoreHistory(id)
-        .then((restoredData) => {
-          applyHistoryRestore(restoredData);
+        .then(async(restoredData) => {
+          await applyHistoryRestore(restoredData,id);
           setHistoryDetailOpen(false);
         })
         .catch((err) => {
-          console.error("Failed to restore history:", err instanceof Error ? err.message : err);
+          ws.setAgentNotice(err instanceof Error?err.message:"Could not preview source. Retry reading the history.");
         });
     },
-    [applyHistoryRestore, historyDetail, restoreHistory],
-  );
-
-  const handlePreviewHistorySelect = useCallback(
-    (id: string) => {
-      openHistoryDetail({
-        id,
-        resultFileUrl: previewReferenceImageUrl,
-        recipe: previewRecipe,
-        promptSnapshot: previewPrompt,
-        negativePromptSnapshot: previewNegativePrompt,
-        params: generationParams,
-        analysisTaskId: EVIDENCE_COPILOT_PREVIEW,
-        sourceAssetId: "preview-reference-asset",
-        sourceImageUrl: previewReferenceImageUrl,
-        variables: previewTemplateVariables,
-      });
-    },
-    [generationParams, openHistoryDetail],
+    [applyHistoryRestore, historyDetail, restoreHistory,ws],
   );
 
   // Effective (preview-or-live) values: Evidence Copilot preview substitutes
@@ -1188,9 +985,10 @@ function WorkspacePageInner() {
   const liveV2Recipe: VisualRecipeV2Success | null =
     !isEvidencePreview && isVisualRecipeV2Success(ws.recipe) ? ws.recipe : null;
   const liveV2State = !isEvidencePreview ? ws.v2PromptState : null;
-  const adjustmentScope = JSON.stringify([ws.analysisTaskId, ws.recipe, promptIntent, promptDetail,
+  const adjustmentScope = JSON.stringify([ws.directionId,ws.direction?.draftRevision,ws.direction?.draft.constraints,ws.analysisTaskId, ws.recipe, promptIntent, promptDetail,
     ws.negativePromptText, ws.generationParams]);
   const adjustmentRevision = JSON.stringify([adjustmentScope, liveV2State, adjustments, customPromptDirty]);
+  const previewRevision=JSON.stringify([adjustmentRevision,editorMode,ws.promptText]);
   useEffect(() => {
     if (adjustmentUndo && adjustmentUndo.after !== adjustmentRevision) setAdjustmentUndo(null);
   }, [adjustmentUndo, adjustmentRevision]);
@@ -1239,6 +1037,7 @@ function WorkspacePageInner() {
    */
   const finalPromptText = useMemo<string | null>(() => {
     if (!liveV2Recipe || !liveV2State) return null;
+    if(ws.direction&&promptControlSnapshot)return compileWorkspacePrompt({...ws.direction.draft,control:promptControlSnapshot,customPrompt:customPromptDirty||liveV2State.outputMode==='custom'?liveV2State.customPrompt:null},liveV2Recipe,ws.analysisTemplateVariables).text;
     // 手动全文（dirty 标记或持久化 outputMode=custom）优先于编译结果
     if (customPromptDirty || liveV2State.outputMode === "custom") {
       return liveV2State.customPrompt;
@@ -1253,7 +1052,7 @@ function WorkspacePageInner() {
     liveV2Recipe,
     liveV2State,
     customPromptDirty,
-    compiledPromptDocument,
+    compiledPromptDocument,ws.direction,promptControlSnapshot,ws.analysisTemplateVariables,
   ]);
 
   // plan-04（架构 §6.2.5 / AC-05）：摘要只从真实规则与变量派生，不伪造来源
@@ -1300,7 +1099,7 @@ function WorkspacePageInner() {
     // 旧任务/降级路径回落编辑器回写的 resolvedPromptText。
     !isEvidencePreview && finalPromptText !== null
       ? finalPromptText
-      : resolvedPromptText || (isEvidencePreview ? previewPrompt : ws.promptText)
+      : isEvidencePreview ? previewPrompt : ws.promptText
   ).trim();
 
   // Analysis template
@@ -1359,6 +1158,7 @@ function WorkspacePageInner() {
   const renderReadiness = useMemo(
     () =>
       deriveRenderReadiness({
+        pendingProposal:ws.events.some(event=>event.proposalState==='pending'&&event.baseRevision===ws.direction?.draftRevision),
         promptText: activePromptText,
         variables:
           currentTemplateVariables.length > 0
@@ -1386,10 +1186,11 @@ function WorkspacePageInner() {
       memoryReadinessContext,
       recoveredGenerationContext,
       ws.analysisTaskId,
+      ws.events,ws.direction?.draftRevision,
       ws.error,
     ],
   );
-  const canGenerate = renderReadiness.canGenerate;
+  const canGenerate = renderReadiness.canGenerate && !ws.writesPaused;
   const generateDisabledReason = renderReadiness.disabledReason;
 
   // plan-04：两轴控制/摘要/最终 Prompt/来源徽标依赖 sessionStorage 派生状态——
@@ -1403,10 +1204,14 @@ function WorkspacePageInner() {
   // ─── plan-05（ADR-5 / 架构 §6.4）：方向结果 feed 与本次结果区状态 ────────────
   // 方向 key = analysisTaskId（ADR-1）；hook 内部按 key 隔离缓存、active 存在时
   // 定时刷新、错误保留 previous data。当前主动任务仍由 useGeneration 详情轮询。
-  const directionAnalysisTaskId =
-    !isEvidencePreview && hasMounted ? ws.analysisTaskId : null;
-  const directionFeed = useDirectionIterations(directionAnalysisTaskId);
+  const directionFeed = useDirectionIterations(!isEvidencePreview && hasMounted ? ws.directionId : null, "directionId");
+  const failedGenerationId=generationData?.status==='failed'?generationData.id:directionFeed.feed?.latestFailure?.id;
+  const [retrySummary,setRetrySummary]=useState<GenerationSummary|null>(null);
+  useEffect(()=>{let canceled=false;setRetrySummary(null);if(!failedGenerationId)return;void fetch(`/api/generation/${failedGenerationId}`).then(r=>r.ok?r.json():null).then(task=>{if(canceled||!task?.retrySummary)return;const value=task.retrySummary;setRetrySummary({directionId:task.directionId??ws.directionId??'',token:value.summaryToken,revision:value.baseRevision,prompt:value.promptSnapshot,negative:value.negativePromptSnapshot,params:value.params,binding:`${value.binding.provider}: ${value.binding.providerModelId}`});}).catch(()=>{if(!canceled)setRetrySummary(null);});return()=>{canceled=true;};},[failedGenerationId,ws.direction?.draftRevision,ws.directionId]);
+  const selectedResultDetail=useIterationDetail(selectedIterationId);
   const comparisonDetail = useIterationDetail(comparisonIterationId);
+
+  const secondComparisonDetail=useIterationDetail(secondComparisonId);
 
   // plan-06（架构 §6.7.2 / AC-06）：来源 Memory 验证状态位数据源——服务端详情
   // 派生（pending_verification / user_verified + 代表结果），禁止客户端乐观
@@ -1444,12 +1249,12 @@ function WorkspacePageInner() {
   useEffect(() => {
     const feed = directionFeed.feed;
     const completed = feed?.completed ?? [];
-    if (completed.length === 0 && !feed?.latestFailure) return;
+    if (!feed) return;
     const ids = new Set(completed.map((item) => item.id));
     const known = knownDirectionCompletedIdsRef.current;
     knownDirectionCompletedIdsRef.current = ids;
     if (known === null) {
-      if (completed.length > 0) {
+      if (completed.length > 0 && !viewingLocked.current) {
         setSelectedIterationId((current) => current ?? completed[0]!.id);
       }
       lastAnnouncedFailureIdRef.current = feed?.latestFailure?.id ?? null;
@@ -1460,7 +1265,11 @@ function WorkspacePageInner() {
     if (completed.length > 0) {
       const latest = completed[0]!;
       if (!known.has(latest.id)) {
-        setSelectedIterationId(latest.id);
+        setUnreadResultId(latest.id);
+        if (!viewingLocked.current) {
+          setSelectedIterationId(current => current ?? latest.id);
+          setCanvasMode(current => current === "reference" ? "result" : current);
+        }
         // polite 结果通知：成功内联进入本次结果区，不夺正在编辑的焦点
         setWorkspaceAnnouncement(
           "Generation complete. Compare the new result or continue editing.",
@@ -1470,7 +1279,7 @@ function WorkspacePageInner() {
     const failureId = feed?.latestFailure?.id ?? null;
     if (failureId && failureId !== lastAnnouncedFailureIdRef.current) {
       setWorkspaceAnnouncement(
-        "The latest render failed. Your reference and draft are preserved. Retry from Current results.",
+        "The latest render failed. Your reference and draft are preserved. Review the generation bar for original submission or current draft options.",
       );
     }
     lastAnnouncedFailureIdRef.current = failureId;
@@ -1478,6 +1287,7 @@ function WorkspacePageInner() {
 
   const handleDirectionSelect = useCallback((iterationId: string) => {
     // selected 瞬时切换：只影响本次结果区视图，不持久化、不动 preferred
+    viewingLocked.current=true;setCanvasMode("result");setUnreadResultId(null);
     setSelectedIterationId(iterationId);
   }, []);
 
@@ -1487,77 +1297,19 @@ function WorkspacePageInner() {
    * GET detail 校验归属/方向/completed/资产：结构性无效才清除并说明原因；
    * 详情暂时不可读（网络/5xx）保留会话偏好（不据此清除）。再次点击同项取消。
    */
-  const handleDirectionSetPreferred = useCallback(
-    (iterationId: string) => {
-      if (ws.preferredIterationId === iterationId) {
-        ws.setPreferredIterationId(null);
-        setPreferredInvalidNotice(null);
-        return;
-      }
-      ws.setPreferredIterationId(iterationId);
-      setPreferredInvalidNotice(null);
-      const analysisTaskId = ws.analysisTaskId;
-      void (async () => {
-        let validation: PreferredValidation;
-        try {
-          const detail = await fetchIterationDetailFor(iterationId);
-          validation = validatePreferredDetail(detail, analysisTaskId ?? "");
-        } catch {
-          // 详情暂不可读：保留会话偏好（清除只针对明确的结构性无效事实）
-          return;
-        }
-        if (
-          validation.outcome === "invalid" &&
-          preferredIterationIdRef.current === iterationId
-        ) {
-          ws.setPreferredIterationId(null);
-          setPreferredInvalidNotice({ iterationId, reason: validation.reason });
-        }
-      })();
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ws.preferredIterationId, ws.analysisTaskId],
-  );
-
-  // plan-06（§3.2 首选滚出五条窗口）：滚出窗口的 preferred 经 detail 复验——
-  // 有效则保留（窗口外提示），无效才清除并说明原因。窗口内的条目由点击时验证
-  // 覆盖，不重复请求；每个（方向, iterationId）只复验一次。
-  useEffect(() => {
-    const preferredId = ws.preferredIterationId;
-    const analysisTaskId = ws.analysisTaskId;
-    if (!preferredId || !analysisTaskId) return;
-    const completed = directionFeed.feed?.completed ?? [];
-    if (completed.some((item) => item.id === preferredId)) return;
-    const verifiedKey = `${analysisTaskId}:${preferredId}`;
-    if (externalPreferredVerifiedRef.current.has(verifiedKey)) return;
-    externalPreferredVerifiedRef.current.add(verifiedKey);
-    void (async () => {
-      let validation: PreferredValidation;
-      try {
-        const detail = await fetchIterationDetailFor(preferredId);
-        validation = validatePreferredDetail(detail, analysisTaskId);
-      } catch {
-        return;
-      }
-      if (
-        validation.outcome === "invalid" &&
-        preferredIterationIdRef.current === preferredId
-      ) {
-        ws.setPreferredIterationId(null);
-        setPreferredInvalidNotice({ iterationId: preferredId, reason: validation.reason });
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ws.preferredIterationId, ws.analysisTaskId, directionFeed.feed]);
+  const handleDirectionSetPreferred = useCallback((iterationId:string)=>{
+    void ws.savePreferred(ws.preferredIterationId===iterationId?null:iterationId).catch(error=>ws.setAgentNotice(error.message));
+  },[ws]);
 
   const handleDirectionCompare = useCallback((iterationId: string) => {
+    viewingLocked.current=true;setCanvasMode("compare");
     setComparisonIterationId(iterationId);
   }, []);
 
   /** 取消/关闭比较：零写入，焦点回该结果的比较触发器（ADR-7） */
   const handleComparisonCancel = useCallback(() => {
     const iterationId = comparisonIterationId;
-    setComparisonIterationId(null);
+    setCanvasMode("result");
     if (iterationId) {
       focusBySelector(
         `[data-testid="direction-completed-item"][data-iteration-id="${iterationId}"] [data-testid="direction-item-compare"]`,
@@ -1565,82 +1317,31 @@ function WorkspacePageInner() {
     }
   }, [comparisonIterationId]);
 
-  /** 应用调整：按 invariantId 覆盖当前草稿 adjustment，重编译但不 submit（§6.5.5） */
-  const handleComparisonApplyAdjustment = useCallback(
-    (adjustment: InvariantAdjustment) => {
-      if (!liveV2Recipe || !liveV2State) return;
-      let nextState = liveV2State;
-      let nextDirty = customPromptDirty;
-      let next: InvariantAdjustment[];
-      try {
-        next = applyInvariantAdjustment(liveV2Recipe, adjustments, adjustment);
-      } catch {
-        // 未知 invariantId：不写草稿（面板只提供真实规则；防御兜底）
-        return;
-      }
-      setAdjustments(next);
-      setComparisonIterationId(null);
-      setKeepChangeHighlightTargetId(adjustment.invariantId);
-
-      // plan-07（架构 §6.2 实现原则 / §8.2 L1）：自定义全文是当前最终 Prompt 时，
-      // 调整按 range 回退算法落到全文——在全文中定位该规则表达（命中 range）
-      // 后交由 plan-01 纯函数局部替换/删除或追加 Adjustments 段；disable 未
-      // 命中时只停用规则并明确说明「未找到可删除表达」，不静默、不声称已
-      // 删除，全文逐字保留。
-      const invariant = liveV2Recipe.styleInvariants.find(
-        (item) => item.id === adjustment.invariantId,
-      );
-      const customState = liveV2State;
-      const customTextActive =
-        !!customState && (customPromptDirty || customState.outputMode === "custom");
-      if (invariant && customTextActive && customState) {
-        const customText = customState.customPrompt;
-        const hitIndex = customText.indexOf(invariant.value);
-        const segments: CompiledPromptSegment[] =
-          hitIndex >= 0
-            ? [
-                {
-                  sourceKind: "invariant",
-                  sourceId: invariant.id,
-                  dimension: invariant.dimension,
-                  startIndex: hitIndex,
-                  endIndex: hitIndex + invariant.value.length,
-                },
-              ]
-            : [];
-        const outcome = applyAdjustmentToCustomText(
-          customText,
-          segments,
-          adjustment,
-        );
-        if (outcome.status === "not_found") {
-          setPromptAdjustmentMiss({
-            invariantId: invariant.id,
-            invariantValue: invariant.value,
-          });
-        } else {
-          setPromptAdjustmentMiss(null);
-          if (outcome.text !== customText) {
-            nextDirty = true;
-            nextState = { ...liveV2State, outputMode: "custom", customPrompt: outcome.text };
-            setCustomPromptDirty(true);
-            ws.setV2PromptState(() => nextState);
-          }
-        }
-      } else {
-        setPromptAdjustmentMiss(null);
-      }
-
-      setAdjustmentUndo({ adjustments, state: liveV2State, dirty: customPromptDirty,
-        after: JSON.stringify([adjustmentScope, nextState, next, nextDirty]) });
-      setKeepChangeAnnouncement("Adjustment applied to the current draft.");
-      focusBySelector(
-        `[data-testid="keep-change-item"][data-target-id="${adjustment.invariantId}"]`,
-      );
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [liveV2Recipe, adjustments, liveV2State, customPromptDirty, adjustmentScope],
-  );
+  const [fullPromptPreview,setFullPromptPreview]=useState<{before:string;after:string;apply:()=>void;trigger:HTMLElement|null;scope:string}|null>(null);
+  const {containerRef:fullPromptDialogRef}=useFocusTrap({active:!!fullPromptPreview,onEscape:()=>setFullPromptPreview(null)});
+  /** Structured operations remain by ID. Manual text is replaced only after exact whole-document review. */
+  const handleComparisonApplyAdjustment = useCallback((adjustment:InvariantAdjustment)=>{
+    if(!liveV2Recipe||!liveV2State)return;
+    let next:InvariantAdjustment[];
+    try{next=applyInvariantAdjustment(liveV2Recipe,adjustments,adjustment);}catch{return;}
+    const customActive=customPromptDirty||liveV2State.outputMode==='custom';
+    const rule=liveV2Recipe.styleInvariants.find(r=>r.id===adjustment.invariantId)!;
+    const missing=customActive&&adjustment.action==='disable'&&!liveV2State.customPrompt.includes(rule.value);
+    const apply=(after?:string)=>{
+      const nextState=after===undefined?liveV2State:{...liveV2State,outputMode:'custom' as const,customPrompt:after};
+      setAdjustments(next);setComparisonIterationId(null);setKeepChangeHighlightTargetId(adjustment.invariantId);setPromptAdjustmentMiss(missing?{invariantId:rule.id,invariantValue:rule.value}:null);
+      if(after!==undefined){setCustomPromptDirty(true);ws.setV2PromptState(()=>nextState);}
+      setAdjustmentUndo({adjustments,state:liveV2State,dirty:customPromptDirty,after:JSON.stringify([adjustmentScope,nextState,next,after===undefined?customPromptDirty:true])});
+      setKeepChangeAnnouncement('Adjustment applied to the current draft.');
+      focusBySelector(`[data-testid="keep-change-item"][data-target-id="${adjustment.invariantId}"]`);
+    };
+    if(customActive){
+      const control:PromptControlSnapshot={schemaVersion:1,trigger:'manual',intent:promptIntent,detailLevel:promptDetail,editorMode:'variables',customPromptDirty:false,enabledInvariantIds:liveV2State.enabledInvariantIds,variableValues:liveV2State.variableValues,enabledModifierNames:liveV2State.enabledModifierNames,modifierValues:{},adjustments:next};
+      const after=missing?liveV2State.customPrompt:renderPromptTemplate(composePromptDocument(liveV2Recipe,control).text,liveV2Recipe,control.variableValues);
+      setFullPromptPreview({before:liveV2State.customPrompt,after,apply:()=>apply(after),trigger:document.activeElement as HTMLElement,scope:previewRevision});
+    }else apply();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[liveV2Recipe,liveV2State,adjustments,customPromptDirty,adjustmentScope,previewRevision,promptIntent,promptDetail]);
 
   /** 「其他」维度：切换全文编辑并聚焦（不创建 adjustment，§6.5.2） */
   const handleComparisonOtherDimension = useCallback(() => {
@@ -1650,7 +1351,7 @@ function WorkspacePageInner() {
 
   /** 完整历史由 Iteration Memory 管理（更旧结果滚出五条窗口后仍可达） */
   const navigateToIterationMemory = useCallback(() => {
-    router.push("/workspace/iterations?status=all");
+    void ws.flushLocal().then(()=>router.push("/workspace/iterations?status=all")).catch(error=>ws.setAgentNotice(error.message));
   }, [router]);
 
   const handleDirectionOpenIteration = useCallback(() => {
@@ -1664,7 +1365,7 @@ function WorkspacePageInner() {
   // 只重试读取：不重复 POST、不回滚服务端事实、不乐观伪造验证状态。
   const runMemoryRefreshReadBacks = useCallback(
     async (memoryId: string) => {
-      const analysisTaskId = ws.analysisTaskId;
+      const analysisTaskId = ws.directionId;
       // 先统一失效（含列表前缀），再逐一回读
       await queryClient.invalidateQueries({ queryKey: ["templates"] });
       await queryClient.invalidateQueries({
@@ -1706,7 +1407,7 @@ function WorkspacePageInner() {
       return settled.every((result) => result.status === "fulfilled");
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [queryClient, ws.analysisTaskId],
+    [queryClient, ws.directionId],
   );
 
   const refreshCommittedMemoryWrite = useCallback(
@@ -1731,6 +1432,38 @@ function WorkspacePageInner() {
       setMemoryRefreshError(!ok);
     })();
   }, [runMemoryRefreshReadBacks, ws.currentTemplateId]);
+
+  // ─── plan-10（AC-18/AC-21）：方向级幂等保存协作与恢复只读回执 ────────────────
+  // 同指纹未确认意图复用原 requestKey；表单快照在 unknown/failed 时本机持久；
+  // committed 先记 committedMemoryId，再由宿主统一刷新回读。
+  const memorySaveCoordinator = useMemo<StyleMemorySaveCoordinator>(
+    () => ({
+      directionId: ws.directionId,
+      restoreForm:
+        ws.memorySave.intent && ws.memorySave.intent.state !== "committed"
+          ? ws.memorySave.intent.form ?? null
+          : null,
+      keyFor: ws.memorySave.keyFor,
+      onOutcome: (state, form) => ws.memorySave.update({ state, form }),
+      onCommitted: (memoryId) =>
+        ws.memorySave.update({
+          state: "committed",
+          committedMemoryId: memoryId,
+          recovered: false,
+          form: null,
+        }),
+    }),
+    [ws.directionId, ws.memorySave],
+  );
+
+  // 恢复期只读回执命中（recovered）时补一次回读；不重放任何保存请求
+  useEffect(() => {
+    const intent = ws.memorySave.intent;
+    if (!intent?.recovered || intent.state !== "committed" || !intent.committedMemoryId) return;
+    if (lastCommittedMemoryIdRef.current === intent.committedMemoryId) return;
+    lastCommittedMemoryIdRef.current = intent.committedMemoryId;
+    void refreshCommittedMemoryWrite(intent.committedMemoryId);
+  }, [ws.memorySave.intent, refreshCommittedMemoryWrite]);
 
   /**
    * plan-06（实现规格 §2）：rail Memory 动作——无 currentTemplateId 时从结果
@@ -1780,6 +1513,7 @@ function WorkspacePageInner() {
         (candidate) => candidate.id === iterationId,
       );
       if (!item?.resultAssetId || !item.resultFileUrl) return;
+      newReferenceTarget.current=iterationId;
       const resultAssetId = item.resultAssetId;
       const resultFileUrl = item.resultFileUrl;
       setNewReferenceError(null);
@@ -1788,8 +1522,10 @@ function WorkspacePageInner() {
         try {
           detail = await fetchIterationDetailFor(iterationId);
         } catch {
-          // 快照不可读时守卫摘要降级为来源切换说明（方向切换仍可确认）
+          setNewReferenceError("Could not load the result snapshot. Retry opening this result; your direction is unchanged.");
+          return;
         }
+        if(detail.status!=="completed"||detail.resultAssetId!==resultAssetId||!detail.resultFileUrl){setNewReferenceError("Result asset unavailable. Your current direction is preserved.");return;}
         setNewReferenceGuard({
           iterationId,
           resultAssetId,
@@ -1824,26 +1560,14 @@ function WorkspacePageInner() {
     }
   }, [newReferenceGuard]);
 
-  /** 确认守卫：POST /api/analysis 仅携带 sourceAssetId；失败保留原方向（L5） */
+  /** 确认守卫：持久化分析意图后创建新方向；失败保留原方向（L5） */
   const handleNewReferenceConfirm = useCallback(async () => {
     const guard = newReferenceGuard;
     if (!guard || newReferenceSubmittingRef.current) return;
     newReferenceSubmittingRef.current = true;
     setNewReferenceError(null);
     try {
-      const res = await fetch("/api/analysis", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sourceAssetId: guard.resultAssetId }),
-      });
-      if (!res.ok) {
-        const errData = await parseApiError(res);
-        setNewReferenceError(
-          errData.error ?? "This result cannot be used as a reference right now. Please retry.",
-        );
-        return;
-      }
-      const analysisTask = (await res.json()) as { id: string };
+      const analysisTask = await ws.analyzeNewReference(guard.resultAssetId);
       // 确认切换：清当前方向瞬时选择与 preferred，节奏回 analyze_edit
       setNewReferenceGuard(null);
       setNewReferenceError(null);
@@ -1881,12 +1605,7 @@ function WorkspacePageInner() {
 
   /** 确认替换手动全文（架构 §3.2）：dirty 清除，V2 全文回到新编译结果 */
   const clearCustomPromptAfterSwitch = useCallback(() => {
-    setCustomPromptDirty(false);
-    ws.setV2PromptState((current) => ({
-      ...current,
-      outputMode: "standard",
-      customPrompt: "",
-    }));
+    ws.restoreDerivedPrompt();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1907,8 +1626,9 @@ function WorkspacePageInner() {
   );
 
   const handleEditorModeChange = useCallback((mode: PromptEditorMode) => {
+    if(mode==='variables'&&customPromptDirty)clearCustomPromptAfterSwitch();
     setEditorMode(mode);
-  }, []);
+  }, [customPromptDirty,clearCustomPromptAfterSwitch]);
 
   /** 手动改写全文（V2 受控 text 视图）：写 customPrompt 并标记 dirty */
   const handleCustomPromptChange = useCallback((value: string) => {
@@ -1965,67 +1685,12 @@ function WorkspacePageInner() {
    * 使保存的任务可回证确认披露值。
    *
    * plan-07（架构 §2.1.6 / §8.2 L5）：提交不再打开阻断式 GenerationDialog。
-   * POST 失败（服务/DB 不可用）以内联 `generation-submit-error` 呈现：不写
-   * ws 任务态（不声称任务已创建、无 active face）、草稿与参数保留，用户经
-   * `generation-submit-retry` 主动重试（创建新任务）。
+   * The lower bar owns submission, same-key recovery, and explicit fixed/current retries.
    */
-  const submitGeneration = useCallback(
-    async (payload: {
-      analysisTaskId: string;
-      promptText: string;
-      negativePromptText: string;
-      params: { aspectRatio: string; quality: string; model?: string };
-      promptControlSnapshot?: PromptControlSnapshot;
-      sourceTemplateId?: string | null;
-    }) => {
-      setGenerationSubmitError(null);
-      try {
-        const res = await fetch("/api/generation", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            analysisTaskId: payload.analysisTaskId,
-            promptText: payload.promptText,
-            negativePromptText: payload.negativePromptText,
-            params: {
-              aspectRatio: payload.params.aspectRatio,
-              quality: payload.params.quality,
-              model: payload.params.model ?? DEFAULT_IMAGE_GEN_MODEL_ID,
-            },
-            ...(payload.promptControlSnapshot
-              ? { promptControlSnapshot: payload.promptControlSnapshot }
-              : {}),
-            // plan-04（AC-02 / PRD 业务规则 4）：从 Style Memory 进入（?templateId=）
-            // 或恢复携带来源模板的迭代时，记录本次生成的来源模板，
-            // 保障记录可按来源 Style Memory 名称搜索
-            ...(payload.sourceTemplateId
-              ? { sourceTemplateId: payload.sourceTemplateId }
-              : {}),
-          }),
-        });
-
-        if (!res.ok) {
-          const errData = await parseApiError(res);
-          setGenerationSubmitError(errData.error);
-          return;
-        }
-
-        const task = (await res.json()) as { id: string; status: string };
-        ws.startGeneration(task.id);
-        // plan-05（架构 §6.4.5）：POST 成功后立即刷新方向 feed，
-        // 让 active face 尽快进入本次结果区（active 存在时转入定时刷新）
-        void queryClient.invalidateQueries({
-          queryKey: directionIterationsQueryKey(),
-        });
-      } catch (err) {
-        setGenerationSubmitError(
-          err instanceof Error ? err.message : "Generation request failed",
-        );
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
+  const submitGeneration = async (_payload:unknown,retryOf?:string,original=false)=>{
+    const result=await ws.sendGeneration(retryOf?'retryOriginal':'current',retryOf,original);
+    if(result)void queryClient.invalidateQueries({queryKey:directionIterationsQueryKey()});
+  };
 
   const handleGenerate = useCallback(
     async (params: {
@@ -2036,8 +1701,8 @@ function WorkspacePageInner() {
       // plan-07：生成上下文 = 既有分析轮询 id，或 Memory 桥接恢复的来源分析 id
       const generationAnalysisTaskId =
         ws.analysisTaskId ?? recoveredGenerationContext?.analysisTaskId ?? null;
-      if (!renderReadiness.canGenerate || !generationAnalysisTaskId) return;
-
+      if (ws.writesPaused || !renderReadiness.canGenerate || !generationAnalysisTaskId) return;
+      if(ws.localDraft.text.trim()||ws.localDraft.attachment||ws.localDraft.pendingSave)return;
       await submitGeneration({
         analysisTaskId: generationAnalysisTaskId,
         promptText: activePromptText,
@@ -2080,101 +1745,6 @@ function WorkspacePageInner() {
    * - 自动请求不读取 live 草稿——Prompt/负向提示由确认快照 + Recipe 默认值
    *   确定性编译；失败保持 consumed，用户仅可主动重试（不复活 armed）。
    */
-  useEffect(() => {
-    if (isEvidencePreview) return;
-    if (ws.state !== "analysis_ready") return;
-    if (ws.quickAuthorization !== "armed") return;
-
-    const authorization = ws.quickGenerationAuthorizationSnapshot;
-    const analysisTaskId = ws.analysisTaskId;
-
-    if (!analysisTaskId) {
-      ws.clearQuickAuthorization(
-        "Quick recreate is waiting for an analysis context. Generate manually or confirm the quick path again.",
-      );
-      return;
-    }
-    // 防重放：该分析任务已自动提交过（effect 重放/重复 success）
-    if (quickSubmittedAnalysisTaskIdsRef.current.has(analysisTaskId)) return;
-
-    if (!authorization || !isVisualRecipeV2Success(ws.recipe)) {
-      ws.clearQuickAuthorization(
-        "Quick recreate needs a complete style analysis. Your reference and edits are preserved; generate manually or confirm the quick path again.",
-      );
-      return;
-    }
-
-    const derivation = deriveQuickRecreateSubmission({
-      recipe: ws.recipe,
-      authorization,
-    });
-    const serviceBlocked =
-      ws.degradation.generationUnavailable ||
-      ws.error?.code === "SERVICE_UNAVAILABLE";
-    if (
-      serviceBlocked ||
-      !derivation.promptText.trim() ||
-      !authorization.generationSettings.quality ||
-      !authorization.generationSettings.model
-    ) {
-      ws.clearQuickAuthorization(
-        serviceBlocked
-          ? "Generation service is temporarily unavailable, so quick recreate was cleared. Retry when the service recovers."
-          : "Quick recreate could not compile a prompt from the confirmed settings. Edit the prompt manually or confirm the quick path again.",
-      );
-      return;
-    }
-
-    // 防重放锁先于 consumed 写入（StrictMode 下 effect 重放时 state 尚未提交）
-    quickSubmittedAnalysisTaskIdsRef.current.add(analysisTaskId);
-    // 先持久化 consumed（同步 flush），再发起请求（ADR-2）
-    ws.consumeQuickAuthorization();
-
-    void (async () => {
-      // 画幅按 reference_or_fallback 解析：优先上传时记录的参考尺寸，
-      // 恢复/缺失场景从参考图现读；均不可读才回退 1:1（架构 §6.3）。
-      let referenceSize = referenceDimensionsRef.current;
-      if (!referenceSize && ws.referenceImageUrl) {
-        try {
-          referenceSize = await getImageDimensions(ws.referenceImageUrl);
-          referenceDimensionsRef.current = referenceSize;
-        } catch {
-          referenceSize = null;
-        }
-      }
-      const resolved = resolveAspectRatio(
-        referenceSize
-          ? {
-              referenceWidth: referenceSize.width,
-              referenceHeight: referenceSize.height,
-            }
-          : {},
-      );
-
-      await submitGeneration({
-        analysisTaskId,
-        promptText: derivation.promptText,
-        negativePromptText: derivation.negativePromptText,
-        params: {
-          aspectRatio: resolved.aspectRatio,
-          quality: authorization.generationSettings.quality,
-          model: authorization.generationSettings.model,
-        },
-        promptControlSnapshot: derivation.promptControlSnapshot,
-        sourceTemplateId: ws.currentTemplateId,
-      });
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    isEvidencePreview,
-    ws.state,
-    ws.quickAuthorization,
-    ws.quickGenerationAuthorizationSnapshot,
-    ws.analysisTaskId,
-    ws.recipe,
-    ws.degradation.generationUnavailable,
-    ws.error?.code,
-  ]);
 
   useEffect(() => {
     if (
@@ -2187,7 +1757,7 @@ function WorkspacePageInner() {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Enter" || event.metaKey || event.ctrlKey || event.altKey) {
+      if (event.key !== "Enter" || event.isComposing || event.keyCode === 229 || event.metaKey || event.ctrlKey || event.altKey) {
         return;
       }
 
@@ -2218,23 +1788,13 @@ function WorkspacePageInner() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [canGenerate, generationParams, handleGenerate, isEvidencePreview]);
 
-  const historyItems = (historyData ?? []).slice(0, 20).map((item) => ({
-    id: item.id,
-    resultFileUrl: item.resultFileUrl,
-    createdAt: item.createdAt,
-  }));
-  const effectiveHistoryItems = isEvidencePreview
-    ? previewHistoryItems
-    : historyItems;
-  const historyErrorStatus =
-    historyError && "status" in historyError
-      ? (historyError as { status?: number }).status
-      : undefined;
-  const historyStripStatus = deriveHistoryStripStatus({
-    isPreview: isEvidencePreview,
-    isError: isHistoryError,
-    isLoading: isHistoryLoading,
-  });
+  // plan-11（架构 §4.2 M1）：跨页签聚焦恢复——切到目标页签后再聚焦来源元素，
+  // 焦点请求重试覆盖 React 提交时序；新结果只标记未读，不抢焦点/不自动切页签
+  const focusComposer=useCallback(()=>{focusBySelector('[aria-label="Message your creative goal"]');},[]);
+  const focusGenerationBar=useCallback(()=>{focusBySelector("#generation-bar");},[]);
+  const revealInspectorPanel=useCallback((panel:WorkspaceInspectorPanel)=>{setInspectorPanel(panel);},[]);
+  const revealPromptInspector=useCallback(()=>{revealInspectorPanel("prompt");focusBySelector('[data-testid="prompt-card"]');},[revealInspectorPanel]);
+
   const workspaceTitle = isEvidencePreview ? "Editorial Soft Light" : "Workspace";
 
   // plan-07：移除身份条——清 currentTemplateId 与 Memory 身份，工作区内容保留
@@ -2245,19 +1805,39 @@ function WorkspacePageInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleHistoryContinueEditing = useCallback(
-    (detail: HistoryDetail) => {
-      applyHistoryRestore(detail);
-      setHistoryDetailOpen(false);
-    },
-    [applyHistoryRestore],
-  );
-
+  const previewEntrySeen=useRef<string|null>(null);
+  const [previewEntryError,setPreviewEntryError]=useState<string|null>(null);
+  useEffect(()=>{
+    const iterationId=entryParams.get('previewIterationId'),targetDirection=entryParams.get('previewDirectionId');
+    const key=iterationId?`iteration:${iterationId}`:targetDirection?`direction:${targetDirection}`:null;
+    if(!key||previewEntrySeen.current===key||ws.saveState==='loading'||!session?.user?.id)return;
+    previewEntrySeen.current=key;
+    if(iterationId){void ws.previewSource('iteration',iterationId).catch(error=>{setPreviewEntryError(error.message);ws.setAgentNotice(error.message);});return;}
+    const captured=returnIdentity.current;
+    void fetch(`/api/workspace/directions/${encodeURIComponent(targetDirection!)}`).then(async r=>{if(!r.ok)throw new Error('Direction could not be read. Current draft preserved.');return r.json();}).then(value=>{if(returnIdentity.current.scope!==captured.scope||returnIdentity.current.attachment!==captured.attachment||returnIdentity.current.revision!==captured.revision)throw new Error('Your draft changed. Review the direction again.');setReturnGuard({id:targetDirection!,from:captured.id,scope:captured.scope,revision:captured.revision,attachment:captured.attachment,value:{...value.source,id:targetDirection,promptSnapshot:compileWorkspacePrompt(value.direction.draft,value.source.recipe,value.source.variables??[]).text,negativePromptSnapshot:value.direction.draft.negativePromptText,params:value.direction.draft.params,promptControlSnapshot:value.direction.draft.control,binding:value.capabilities?.binding}});}).catch(error=>{setPreviewEntryError(error.message);ws.setAgentNotice(error.message);});
+  },[entryParams,ws,session?.user?.id]);
+  // 参数类阻塞（质量/画幅/模型目录）以当前草稿参数为准：用户本地修复后不再被上一次
+  // 服务端读取的旧 readiness 卡死；其余阻塞仍信服务端，提交时服务端会再次复核。
+  const localParamBlocker=generationParams.quality!=='standard'?'QUALITY_UNSUPPORTED':!isSupportedAspectRatio(generationParams.aspectRatio)?'ASPECT_RATIO_UNSUPPORTED':!isKnownImageGenModel(generationParams.model)?'MODEL_UNAVAILABLE':null;
+  const serverBlocker=ws.generationReadiness?.disabledReason??(!renderReadiness.canGenerate?renderReadiness.disabledReason:null);
+  const staleParamBlocker=localParamBlocker===null&&['MODEL_UNAVAILABLE','QUALITY_UNSUPPORTED','ASPECT_RATIO_UNSUPPORTED'].includes(serverBlocker??'');
+  const generationRepair=generationBlocker(localParamBlocker??(staleParamBlocker?null:serverBlocker));
   return (
     <div className="h-full overflow-hidden">
+      {fullPromptPreview&&<div className="fixed inset-0 z-[60] flex items-center justify-center bg-[var(--surface-page)]/80 p-4"><div ref={fullPromptDialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Review full prompt replacement" className="max-h-[80dvh] w-full max-w-xl overflow-y-auto rounded-2xl bg-[var(--surface-floating)] p-4 text-sm text-[var(--text-primary)]"><h3>Review full prompt replacement</h3><p>This replaces the whole handwritten prompt with the adjusted derived prompt.</p><p className="mt-3">Before</p><pre className="whitespace-pre-wrap break-words">{fullPromptPreview.before}</pre><p className="mt-3">After</p><pre className="whitespace-pre-wrap break-words">{fullPromptPreview.after}</pre><div className="mt-3 flex gap-2"><button className="btn-secondary px-3 py-1" onClick={()=>{const trigger=fullPromptPreview.trigger;setFullPromptPreview(null);trigger?.focus();}}>Cancel replacement</button><button className="btn-primary px-3 py-1" onClick={()=>{if(fullPromptPreview.scope!==previewRevision||liveV2State?.customPrompt!==fullPromptPreview.before){ws.setAgentNotice('Your draft changed. Review a new replacement.');setFullPromptPreview(null);return;}fullPromptPreview.apply();setFullPromptPreview(null);}}>Confirm replacement</button></div></div></div>}
+
+      {returnGuard&&<SourcePreviewDialog returning value={returnGuard.value} current={{control:promptControlSnapshot,customPrompt:activePromptText,negativePromptText:ws.negativePromptText,params:generationParams,constraints:ws.direction?.draft.constraints??[],aspectRatioSource:ws.aspectRatioSource}} currentRecipe={effectiveRecipe} currentVariables={effectiveTemplateVariables} currentBinding={ws.generationSummary?.binding} onCancel={()=>setReturnGuard(null)} onConfirm={()=>{if(returnGuard.scope!==returnIdentity.current.scope||returnGuard.attachment!==returnIdentity.current.attachment||returnGuard.revision!==returnIdentity.current.revision){ws.setAgentNotice("Your draft changed. Review the direction again.");setReturnGuard(null);return;}void ws.saveDraft().then(()=>ws.flushLocal()).then(()=>{if(returnGuard.scope!==returnIdentity.current.scope||returnGuard.attachment!==returnIdentity.current.attachment)throw new Error("Your draft changed. Review the direction again.");router.push(`/workspace?directionId=${encodeURIComponent(returnGuard.id)}`);setReturnGuard(null);}).catch(error=>ws.setAgentNotice(error.message));}}/>}
+      {previewEntryError&&<p role="alert" className="p-3 text-xs">{previewEntryError}<button className="ml-2 underline" onClick={()=>{previewEntrySeen.current=null;setPreviewEntryError(null);}}>Retry source preview</button></p>}
       {/* 中央Workspace */}
       <div className="flex h-full min-w-0 flex-col overflow-hidden">
-        <WorkspaceTopBar title={workspaceTitle} subtitle="Reference to render workbench" />
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border-static)] px-5 py-4">
+          <div className="flex min-w-0 items-baseline gap-2 text-sm">
+            <span className="shrink-0 text-[var(--text-secondary)]">Workspace</span>
+            <span aria-hidden="true" className="text-[var(--text-muted)]">/</span>
+            <span className="truncate font-semibold text-[var(--text-primary)]">{workspaceTitle === 'Workspace' ? (ws.direction?.title || 'Untitled direction') : workspaceTitle}</span>
+          </div>
+          {!isEvidencePreview && <button type="button" onClick={()=>void ws.previewSource('empty')} className="shrink-0 rounded-md px-2 py-1 text-xs text-[var(--text-secondary)] transition hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--accent-primary)]">New direction</button>}
+        </div>
 
         <AiCopilotRibbon
           state={effectiveState}
@@ -2269,7 +1849,7 @@ function WorkspacePageInner() {
           degradation={effectiveDegradation}
         />
 
-        {/* plan-07（PRD 规则 21 / AC-08）：复用身份条——顶栏下方条状区，确认导航后首屏焦点落点；缺失清单消费同一就绪结论对象 */}
+        {/* plan-07（PRD 规则 21 / AC-08）：复用身份条——确认导航后首屏焦点落点；缺失清单消费同一就绪结论对象 */}
         {ws.memoryIdentity && (
           <MemoryIdentityBar
             identity={ws.memoryIdentity}
@@ -2280,28 +1860,225 @@ function WorkspacePageInner() {
           />
         )}
 
-        {/* plan-02（架构 §3.1 / ADR-2）：创作节奏双入口与快速复刻确认区——
-            确认披露、armed 状态与退出入口常驻三栏上方，不遮挡参考/证据/编辑 */}
-        {!isEvidencePreview && (
-          <CreationPaceSelector
-            creationPace={ws.creationPace}
-            quickAuthorization={ws.quickAuthorization}
-            generationSettings={{
-              quality: generationParams.quality,
-              model: generationParams.model,
-            }}
-            clearedReason={ws.quickAuthorizationClearedReason}
-            onConfirmQuickRecreate={ws.confirmQuickRecreate}
-            onExitQuickRecreate={ws.exitQuickRecreate}
-            onSelectAnalyzeEdit={() => ws.setCreationPace("analyze_edit")}
-          />
-        )}
+        {/* plan-11（架构 §4.2 M1）：Conversation/Canvas 双栏与 <768px 页签。
+            Composer 与 GenerationBar 在切换区外共用一个实例；Inspector 以
+            Evidence/Draft/Prompt 页签按需呈现；页签内容 hidden 保留，
+            切页签/主题/视窗不丢未发送内容与选中对象。 */}
+        <WorkspaceAgentLayout
+          previewMode={isEvidencePreview}
+          inspectorPanel={inspectorPanel}
+          onInspectorPanelChange={setInspectorPanel}
+          conversation={
+            <>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-base font-semibold text-[var(--text-primary)]">Your creative direction</h2>
+              {ws.direction && <span className="text-xs text-[var(--text-muted)]">Draft {ws.direction.draftRevision}</span>}
+            </div>
+            <AgentConversation revision={ws.direction?.draftRevision} commandBusy={ws.commandBusy} onProposal={ws.proposalCommand} onRepropose={event=>{ws.referenceMessage({kind:'event',id:event.id,analysisTaskId:null},event.kind==='draft_change'?'Propose restoring these changes against the latest draft.':'Compare this proposal with the latest draft and propose the changes again.');focusComposer();}} events={ws.events} hasEarlier={ws.hasEarlier} onEarlier={()=>void ws.loadEarlier()} onRetry={event=>void ws.sendTurn([],event)} onCheck={()=>void ws.checkTurn().catch(error=>ws.setAgentNotice(error.message))} onResend={()=>void ws.sendTurn()} pendingText={ws.localDraft.turnIntent?.text} busy={ws.turnSending||ws.events.some(event=>event.kind==='turn'&&event.state==='processing')} paused={ws.writesPaused} />
+            {ws.localDraft.references?.map(reference=><span key={`${reference.kind}:${reference.id}`} className="mr-2 text-xs text-[var(--text-secondary)]">{reference.kind}: {reference.id}<button type="button" aria-label={`Remove ${reference.kind} reference`} className="ml-1 underline" onClick={()=>ws.removeReference(reference)}>Remove</button></span>)}
+            </>
+          }
+          composer={
+            <>
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs">
+              <span className="min-w-0 text-[var(--text-secondary)]">{canGenerate?'Ready for 1 image':(generateDisabledReason??'Add a reference to begin')}</span>
+              <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-x-2 gap-y-1 text-[var(--text-secondary)]">
+               <span role="status" className="shrink-0">{ws.saveState==='saved'?'Saved':ws.saveState==='unavailable'?'Not saved':ws.saveState==='saving'?'Saving…':ws.saveState==='loading'?'Restoring…':'Local draft'}</span>
+               <button type="button" onClick={()=>void ws.saveDraft().catch(error=>ws.setAgentNotice(error.message))} className="rounded-md px-2 py-1 transition hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--accent-primary)]">Save draft</button>
+               <button type="button" onClick={()=>void navigator.clipboard.writeText(ws.localDraft.text)} className="rounded-md px-2 py-1 transition hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--accent-primary)]">Copy message</button>
+               <button type="button" onClick={()=>{const url=URL.createObjectURL(new Blob([ws.exportDraft()],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download='workspace-draft.json';link.click();URL.revokeObjectURL(url);}} className="rounded-md px-2 py-1 transition hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--accent-primary)]">Export draft</button>
+               {ws.writesPaused && <button type="button" onClick={()=>void ws.reconnect().catch(error=>ws.setAgentNotice(error.message))} className="rounded-md px-2 py-1 transition hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--accent-primary)]">Reconnect</button>}
+              </div>
+            </div>
+            <div data-testid="agent-composer" className="rounded-[13px] border border-[var(--border-static)] bg-[var(--surface-panel)] p-3 focus-within:ring-1 focus-within:ring-[var(--accent-primary)]" onPaste={(event) => { const files=Array.from(event.clipboardData.files); if(files.length){event.preventDefault();void ws.attach(files);} }} onDragOver={event=>event.preventDefault()} onDrop={event=>{event.preventDefault();void ws.attach(Array.from(event.dataTransfer.files));}}>
+              <p className="text-xs text-[var(--text-secondary)]">{ws.localDraft.attachmentName?<span title={ws.localDraft.attachmentName} className="inline-block max-w-64 truncate rounded-md bg-[var(--surface-bright)] px-1.5 py-0.5">{ws.localDraft.attachmentName}</span>:'Using reference + current draft'}</p>
+              <textarea disabled={ws.saveState === "loading"} aria-label="Message your creative goal" value={ws.localDraft.text} onChange={event=>ws.setMessage(event.target.value)} placeholder="Describe what to keep or change…" rows={2} onKeyDown={event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.nativeEvent.isComposing&&event.keyCode!==229){event.preventDefault();event.currentTarget.parentElement?.querySelector<HTMLButtonElement>('button')?.click();}}} className="mt-1 min-w-0 w-full resize-none bg-transparent text-sm text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--accent-primary)]" />
+              <div className="mt-1 flex items-center justify-between">
+               <label className="cursor-pointer rounded-lg px-1 py-1 text-xs text-[var(--text-secondary)] transition hover:text-[var(--text-primary)] focus-within:outline-2 focus-within:outline-[var(--accent-primary)]">+ Reference<input type="file" accept="image/png,image/jpeg,image/webp" aria-label="Attach reference" className="sr-only" onChange={event=>{if(event.target.files)void ws.attach(Array.from(event.target.files));event.target.value='';}}/></label>
+               <button type="button" className="btn-secondary rounded-[10px] px-4 py-1.5 text-sm" disabled={ws.writesPaused || isUploading || ws.turnSending || !!ws.localDraft.turnIntent || ws.events.some(event=>event.kind==='turn'&&event.state==='processing') || (!ws.localDraft.text.trim()&&!ws.localDraft.attachment)} onClick={()=>{if(ws.localDraft.attachment){void handleFileSelected(new File([ws.localDraft.attachment],ws.localDraft.attachmentName??'reference.png',{type:ws.localDraft.attachment.type}),true);}else void ws.sendTurn();}}>Send</button>
+              </div>
+            </div>
+            {ws.localDraft.commandIntent&&<div className="flex flex-wrap gap-2 text-xs"><button disabled={ws.commandBusy||ws.writesPaused} className="underline" onClick={()=>void ws.recoverCommand(true).catch(()=>{})}>{ws.localDraft.commandReceipt?'Refresh command result':'Check command status'}</button>{!ws.localDraft.commandReceipt&&<button disabled={ws.commandBusy||ws.writesPaused} className="underline" onClick={()=>void ws.recoverCommand(false).catch(()=>{})}>Confirm original command</button>}</div>}
+            {ws.agentNotice && <p role="alert" className="mt-1 text-xs text-[var(--text-secondary)]">{ws.agentNotice}</p>}
+            {ws.sourcePreview && <SourcePreviewDialog value={ws.sourcePreview.value} current={{control:promptControlSnapshot,customPrompt:activePromptText,negativePromptText:ws.negativePromptText,params:generationParams,constraints:ws.direction?.draft.constraints??[],aspectRatioSource:ws.aspectRatioSource}} currentRecipe={effectiveRecipe} currentVariables={effectiveTemplateVariables} currentBinding={ws.generationSummary?.binding} onCancel={()=>ws.cancelSource()} onConfirm={()=>void ws.confirmSource().catch(error=>ws.setAgentNotice(error.message))} />}
+            <GenerationBar params={generationParams} onParamsChange={params=>handleGenerationParamsChange(params as typeof generationParams)} summary={ws.generationSummary}              reason={ws.localDraft.text.trim()||ws.localDraft.attachment?(ws.analysisTaskId&&ws.state==='analysis_ready'&&!ws.localDraft.attachment?'Reference analyzed. Send your message to review changes before generating.':'Send or remove your unsent message and attachment.'):ws.writesPaused?'Sign in and reconnect before generating.':!renderReadiness.variablesResolved?'Resolve missing variables before generating.':ws.localDraft.pendingSave?'Save your edits, then review the updated summary.':ws.turnSending||ws.localDraft.turnIntent?'Wait for the current message or check its status.':generationRepair?.message??null}
+              repairLabel={!renderReadiness.variablesResolved?'Resolve variables':ws.localDraft.pendingSave?'Save and review':ws.localDraft.text.trim()||ws.localDraft.attachment?'Review unsent message':generationRepair?.label??'Review draft'} onRepair={()=>{if(!renderReadiness.variablesResolved)revealPromptInspector();else if(ws.localDraft.pendingSave)void ws.saveDraft().then(()=>ws.refreshDirection()).catch(error=>ws.setAgentNotice(error.message));else if(ws.localDraft.text.trim()||ws.localDraft.attachment)focusComposer();else if(generationRepair?.target==='[data-testid="prompt-card"]')revealPromptInspector();else if(generationRepair?.target)focusBySelector(generationRepair.target);else revealPromptInspector();}}
+              busy={ws.state==='generating'||ws.generationNetworkBusy} unknown={!!ws.generationError||ws.generationSubmissionUnknown} onCheck={()=>void ws.checkGeneration()} onGenerate={()=>void handleGenerate(generationParams)} error={ws.generationError} onConfirmOriginal={ws.canConfirmGeneration?()=>void submitGeneration(null,undefined,true):undefined}              submittedSummary={generationData?.params&&typeof generationData.promptSnapshot==='string'?{directionId:generationData.directionId??ws.directionId??'',revision:generationData.draftRevision??0,prompt:generationData.promptSnapshot,negative:generationData.negativePromptSnapshot,params:generationData.params,binding:`${generationData.provider}: ${generationData.modelName}`}:null}
+              failed={!!failedGenerationId} retryBlocked={!!ws.localDraft.text.trim()||!!ws.localDraft.attachment||!!ws.localDraft.pendingSave||ws.writesPaused||ws.turnSending||ws.events.some(event=>event.proposalState==='pending'||event.kind==='turn'&&event.state==='processing')} retrySummary={retrySummary} onRetryDisplayed={ws.markRetryDisplayed} onRetryOriginal={()=>{if(failedGenerationId)void submitGeneration({analysisTaskId:ws.analysisTaskId??'',promptText:'',negativePromptText:'',params:generationParams},failedGenerationId);}}
+            />
 
-        <div className="min-h-0 flex-1 overflow-hidden">
-          <WorkspaceThreeColumnLayout
-            referenceAspectRatio={referenceAspectRatio}
-            reference={
+            {adjustmentUndo && adjustmentUndo.after === adjustmentRevision && <div className="flex items-center gap-2 px-4 pb-1 text-xs" role="status">
+              Adjustment applied to your draft.
+              <button type="button" onClick={undoAdjustment} className="btn-secondary rounded-lg px-3 py-1">Undo adjustment</button>
+            </div>}
+
+            {/* plan-06（实现规格 §2 / AC-06）：Memory 写入已成功但部分回读失败——
+                保留服务端成功事实，明确「已保存，刷新失败」，只提供读取重试 */}
+            {!isEvidencePreview && hasMounted && memoryRefreshError && (
+              <div
+                data-testid="memory-refresh-partial-error"
+                aria-live="polite"
+                className="mb-2 flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-xl bg-[var(--surface-bright)]/72 px-3 py-2 ring-1 ring-[var(--border-interactive)]"
+              >
+                <p className="min-w-0 text-xs leading-5 text-[var(--text-secondary)]">
+                   Saved, but refresh failed. Retry only reloads the saved Memory; it does not submit again. </p>
+                <button
+                  type="button"
+                  data-testid="memory-refresh-retry"
+                  onClick={handleMemoryRefreshRetry}
+                  className="btn-secondary h-7 shrink-0 rounded-lg px-2.5 text-xs font-medium"
+                >
+                   Retry refresh </button>
+              </div>
+            )}
+
+            {/* plan-10（AC-18/AC-21）：未确认保存的本机事实——不称已同步；
+                恢复只读，不自动重放；已保存 ID 不被抹去 */}
+            {!isEvidencePreview && hasMounted && ws.memorySave.intent &&
+              (ws.memorySave.intent.state === "unknown" ||
+                (ws.memorySave.intent.state === "committed" && ws.memorySave.intent.recovered)) && (
+              <div
+                data-testid="memory-save-recovery"
+                aria-live="polite"
+                className="mb-2 flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-xl bg-[var(--surface-bright)]/72 px-3 py-2 ring-1 ring-[var(--border-interactive)]"
+              >
+                {ws.memorySave.intent.state === "unknown" ? (
+                  <>
+                    <p className="min-w-0 text-xs leading-5 text-[var(--text-secondary)]">
+                      Your last Style Memory save did not complete. It is kept on
+                      this device only and is not synced. No save was replayed.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleOpenTemplateSave(templateSaveContent || effectivePromptText)
+                      }
+                      className="btn-secondary h-7 shrink-0 rounded-lg px-2.5 text-xs font-medium"
+                    >
+                      Review and retry
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="min-w-0 text-xs leading-5 text-[var(--text-secondary)]">
+                      Your last Style Memory save already completed on the server
+                      and stays saved. Nothing was submitted again.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => ws.memorySave.update({ recovered: false })}
+                      className="btn-secondary h-7 shrink-0 rounded-lg px-2.5 text-xs font-medium"
+                    >
+                      OK
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+
+            {memoryEntryError && (
+              <p
+                role="alert"
+                className="mb-2 shrink-0 text-xs leading-5 text-[var(--color-error)]"
+              >
+                {memoryEntryError}
+              </p>
+            )}
+            </>
+          }
+          canvas={
+            <>
+
+            {!isEvidencePreview&&<div className="mb-[14px] flex shrink-0 items-center justify-between gap-2 text-xs"><div role="tablist" aria-label="Canvas view" className="flex shrink-0 items-center gap-1">{(["reference","result","compare"] as const).map(mode=><button key={mode} type="button" role="tab" aria-selected={canvasMode===mode} className={`rounded-[10px] border border-[var(--border-static)] px-[11px] py-[7px] transition focus-visible:outline-2 focus-visible:outline-[var(--accent-primary)] ${canvasMode===mode?'bg-[var(--accent-primary-soft)] font-medium text-[var(--accent-primary)] ring-1 ring-[var(--border-interactive)]':'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`} onClick={()=>{viewingLocked.current=true;setCanvasMode(mode);if(mode==="compare"&&!comparisonIterationId&&selectedIterationId)setComparisonIterationId(selectedIterationId);}}>{mode[0].toUpperCase()+mode.slice(1)}</button>)}</div><span className="shrink-0 text-[var(--text-muted)]">{canvasMode==='reference'?'Original reference':canvasMode==='result'?'Selected result':'Comparison'}</span></div>}
+            {!isEvidencePreview&&canvasMode!=="reference"&&!selectedIterationId&&<p role="status" className="mx-4 text-xs">Choose a completed result to {canvasMode==="compare"?"compare":"view"}.</p>}
+            {newReferenceError&&!newReferenceGuard&&<p role="alert" className="mx-4 text-xs">{newReferenceError}<button type="button" className="ml-2 underline" onClick={()=>{if(newReferenceTarget.current)handleDirectionUseAsNewReference(newReferenceTarget.current);}}>Retry source details</button></p>}
+            {!isEvidencePreview&&canvasMode==="result"&&selectedIterationId&&selectedResultDetail.status==="error"&&<p role="status" className="mx-4 text-xs">Selected result {selectedIterationId} is unavailable. Your selection and draft are preserved. <button className="btn-secondary" onClick={selectedResultDetail.retry}>Retry selected result</button></p>}
+            {!isEvidencePreview&&canvasMode==="result"&&selectedIterationId&&<ResultViewer id={selectedIterationId} url={selectedResultDetail.status==="error"?null:selectedResultDetail.detail?.resultFileUrl??directionFeed.feed?.completed.find(item=>item.id===selectedIterationId)?.resultFileUrl??null} revision={selectedResultDetail.detail?.draftRevision} draftRevision={ws.direction?.draftRevision} onContinue={()=>void handleHistorySelect(selectedIterationId)} onCompare={()=>handleDirectionCompare(selectedIterationId)} />}
+
+            {/* plan-05（ADR-5 / ADR-7）：内联比较区——focus-managed region（非模态），
+                打开聚焦标题、取消回触发器、应用聚焦更新的摘要项 */}
+            {!isEvidencePreview && hasMounted && canvasMode==="compare" && comparisonIterationId && (
+              <ResultComparisonPanel
+                iterationId={comparisonIterationId}
+                secondId={secondComparisonId}
+                secondDetail={secondComparisonDetail.detail}
+                secondError={secondComparisonDetail.status==='error'}
+                onRetrySecond={secondComparisonDetail.retry}
+                comparisonOptions={directionFeed.feed?.completed}
+                onSecondChange={setSecondComparisonId}
+                onContinue={()=>void handleHistorySelect(comparisonIterationId)}
+                onReferenceDeviation={(dimension,evidenceIds)=>{ws.referenceMessage({kind:"iteration",id:comparisonIterationId,analysisTaskId:comparisonDetail.detail?.analysisTaskId??null},[ws.localDraft.text,`Review the ${dimension} difference and propose a change.`].filter(Boolean).join("\n"));if(secondComparisonId)ws.referenceMessage({kind:"iteration",id:secondComparisonId,analysisTaskId:secondComparisonDetail.detail?.analysisTaskId??null});for(const id of evidenceIds)ws.referenceMessage({kind:"evidence",id,analysisTaskId:ws.analysisTaskId});focusComposer();}}
+                detail={comparisonDetail.detail}
+                detailStatus={comparisonDetail.status}
+                detailErrorMessage={comparisonDetail.error?.message ?? null}
+                recipe={liveV2Recipe}
+                compiledPrompt={compiledPromptDocument}
+                onRetryDetail={comparisonDetail.retry}
+                onOpenIteration={handleDirectionOpenIteration}
+                onApplyAdjustment={handleComparisonApplyAdjustment}
+                onCancel={handleComparisonCancel}
+                onSelectOtherDimension={handleComparisonOtherDimension}
+              />
+            )}
+
+            {/* plan-05（ADR-5 / ADR-7）：本次结果区——五成功缩略图 + active/failure
+                独立呈现；更旧结果仍在 Iteration Memory */}
+            {!isEvidencePreview && hasMounted && ws.analysisTaskId && (
+              <DirectionResultRail
+                feed={directionFeed.feed}
+                isLoading={directionFeed.isLoading}
+                isError={directionFeed.isError}
+                errorMessage={directionFeed.error?.message ?? null}
+                selectedIterationId={selectedIterationId}
+                unreadResultId={unreadResultId}
+                onViewLatest={()=>{if(unreadResultId)setSelectedIterationId(unreadResultId);setCanvasMode("result");setUnreadResultId(null);}}
+                preferredIterationId={ws.preferredIterationId}
+                preferredInvalidNotice={preferredInvalidNotice}
+                memoryStatus={memoryStatus}
+                onSelect={handleDirectionSelect}
+                onSetPreferred={handleDirectionSetPreferred}
+                onCompare={handleDirectionCompare}
+                onRegenerate={focusGenerationBar}
+                onUseAsNewReference={handleDirectionUseAsNewReference}
+                onOpenMemoryAction={handleDirectionOpenMemory}
+                onOpenIteration={handleDirectionOpenIteration}
+                onOpenPreferredDetail={navigateToIterationMemory}
+                onRetryFailure={focusGenerationBar}
+                onRetryFeed={directionFeed.refetch}
+              />
+            )}
+
+            {/* plan-04: 上一轮结果展示位——恢复携带 resultFileUrl 的迭代时保留可见 */}
+            {ws.previousResultUrl && (
+              <div
+                data-testid="previous-result-preview"
+                className="mx-4 mb-2 flex shrink-0 items-center gap-3 rounded-lg bg-[var(--surface-low)]/72 p-2 ring-1 ring-[var(--border-static)]"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={ws.previousResultUrl}
+                  alt="Previous iteration result"
+                  className="h-12 w-12 shrink-0 rounded-md object-cover"
+                />
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-[var(--text-primary)]">
+                    Previous result
+                  </p>
+                  <p className="truncate text-[0.6875rem] leading-5 text-[var(--text-secondary)]">
+                    Kept from the restored iteration for reference. Your next render
+                    creates a new iteration.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {historyLoad && <div role="status" aria-busy={historyLoad.loading} className="mx-4 mb-2 text-xs text-[var(--text-secondary)]">
+              {historyLoad.loading ? "Loading result details..." : "Result details could not be loaded. Your workspace is preserved."}
+              {historyLoad.error && <button type="button" onClick={() => void handleHistorySelect(historyLoad.id)} className="btn-secondary ml-2 rounded-lg px-3 py-1">Retry loading result</button>}
+            </div>}
+            {(canvasMode==="reference"||isEvidencePreview)&&(
               <ReferenceCard
+                selectedEvidence={evidenceFacets.find(f=>f.id===selectedFacetId)??null}
                 state={effectiveState}
                 referenceImageUrl={effectiveReferenceImageUrl}
                 isUploading={
@@ -2314,9 +2091,16 @@ function WorkspacePageInner() {
                 onRetry={handleAnalysisRetry}
                 onAspectRatioChange={setReferenceAspectRatio}
               />
-            }
-            recipe={
+            )}
+
+            </>
+          }
+          inspectorPanels={{
+            evidence: (
               <RecipeCard
+                analysisTaskId={ws.analysisTaskId}
+                adjustedInvariantIds={adjustments.map(a=>a.invariantId)}
+                onAskEvidence={id=>{if(ws.analysisTaskId){ws.referenceMessage({kind:'evidence',id,analysisTaskId:ws.analysisTaskId});focusComposer();}}}
                 state={effectiveState}
                 recipe={effectiveRecipe}
                 facets={evidenceFacets}
@@ -2325,6 +2109,7 @@ function WorkspacePageInner() {
                 onFacetSelect={(facetId) => {
                   setSelectedFacetId(facetId);
                   setProvenanceSelectionVersion((version) => version + 1);
+                  setInspectorPanel("prompt");
                   if (editorMode === "structured") setEditorMode("text");
                 }}
                 enabledInvariantIds={ws.v2PromptState?.enabledInvariantIds}
@@ -2338,9 +2123,31 @@ function WorkspacePageInner() {
                   }));
                 }}
               />
-            }
-            prompt={
+            ),
+            draft: (
+              <DraftInspectorPanel
+                revision={isEvidencePreview?null:ws.direction?.draftRevision ?? null}
+                saveState={ws.saveState}
+                intent={promptControlsState?promptControlsState.intent==="reconstruction"?"Close reconstruction":"Same-style creation":null}
+                detailLevel={promptControlsState?promptControlsState.detailLevel==="concise"?"Concise":promptControlsState.detailLevel==="professional"?"Detailed":"Balanced":null}
+                variables={effectiveTemplateVariables.map(variable=>({name:variable.name,value:ws.v2PromptState?.variableValues?.[variable.name] ?? variable.defaultValue ?? ""}))}
+                enabledRules={(liveV2Recipe?.styleInvariants??[]).filter(rule=>(ws.v2PromptState?.enabledInvariantIds??[]).includes(rule.id)).map(rule=>rule.value)}
+                constraints={ws.direction?.draft.constraints ?? []}
+                negativePrompt={effectiveNegativePromptText}
+                prompt={effectivePromptText}
+                params={generationParams}
+                aspectRatioSource={isEvidencePreview?null:ws.aspectRatioSource}
+                proposalPending={ws.events.some(event=>event.proposalState==="pending")}
+              />
+            ),
+            prompt: (
               <PromptCard
+                previewPromptChange={next=>{
+                  const draft=structuredClone(ws.direction?.draft);
+                  if(draft?.control){draft.customPrompt=null;draft.control={...(promptControlSnapshot??draft.control),...next,customPromptDirty:false};return {scope:previewRevision,before:ws.v2PromptState?.customPrompt??ws.promptText,after:compileWorkspacePrompt(draft,effectiveRecipe,effectiveTemplateVariables).text};}
+                  const control=liveV2Recipe&&liveV2State?{schemaVersion:1 as const,trigger:'manual' as const,intent:promptIntent,detailLevel:promptDetail,editorMode,customPromptDirty:false,enabledInvariantIds:liveV2State.enabledInvariantIds,variableValues:liveV2State.variableValues,enabledModifierNames:liveV2State.enabledModifierNames,modifierValues:{},adjustments,...next}:null;
+                  return {scope:previewRevision,before:liveV2State?.customPrompt??ws.promptText,after:liveV2Recipe&&control?renderPromptTemplate(composePromptDocument(liveV2Recipe,control).text,liveV2Recipe,control.variableValues):ws.promptText};
+                }}
                 state={effectiveState}
                 promptText={effectivePromptText}
                 negativePromptText={effectiveNegativePromptText}
@@ -2387,7 +2194,7 @@ function WorkspacePageInner() {
                 }
                 onCustomPromptChange={handleCustomPromptChange}
                 onManualTextChange={handleManualTextChange}
-                renderDock={
+                renderDock={isEvidencePreview ? (
                   <OutputCard
                     state={effectiveState}
                     params={generationParams}
@@ -2407,41 +2214,12 @@ function WorkspacePageInner() {
                       void handleGenerate(params);
                     }}
                   />
-                }
+                ) : null}
               />
-            }
-          />
-        </div>
+            ),
+          }}
+        />
 
-        {/* plan-05（ADR-5 / ADR-7）：本次结果区——五成功缩略图 + active/failure
-            独立呈现，紧凑 rail 不遮挡三栏；更旧结果仍在 Iteration Memory */}
-        {!isEvidencePreview && hasMounted && ws.analysisTaskId && (
-          <DirectionResultRail
-            feed={directionFeed.feed}
-            isLoading={directionFeed.isLoading}
-            isError={directionFeed.isError}
-            errorMessage={directionFeed.error?.message ?? null}
-            selectedIterationId={selectedIterationId}
-            preferredIterationId={ws.preferredIterationId}
-            preferredInvalidNotice={preferredInvalidNotice}
-            memoryStatus={memoryStatus}
-            onSelect={handleDirectionSelect}
-            onSetPreferred={handleDirectionSetPreferred}
-            onCompare={handleDirectionCompare}
-            onRegenerate={submitGenerationFromCurrentDraft}
-            onUseAsNewReference={handleDirectionUseAsNewReference}
-            onOpenMemoryAction={handleDirectionOpenMemory}
-            onOpenIteration={handleDirectionOpenIteration}
-            onOpenPreferredDetail={navigateToIterationMemory}
-            onRetryFailure={submitGenerationFromCurrentDraft}
-            onRetryFeed={directionFeed.refetch}
-          />
-        )}
-
-        {adjustmentUndo && adjustmentUndo.after === adjustmentRevision && <div className="mx-4 mb-2 flex items-center gap-2 text-xs" role="status">
-          Adjustment applied to your draft.
-          <button type="button" onClick={undoAdjustment} className="btn-secondary rounded-lg px-3 py-1">Undo adjustment</button>
-        </div>}
         {/* plan-07（架构 §3.3）：工作区级结果通知——生成完成/失败时以 polite
             live region 播报，不移动正在编辑的焦点、不打开弹层（TC-7.4 契约） */}
         <p
@@ -2453,115 +2231,7 @@ function WorkspacePageInner() {
           {workspaceAnnouncement ?? ""}
         </p>
 
-        {/* plan-07（架构 §8.2 L5）：生成提交失败内联位——不声称任务已创建、
-            草稿与参数保留；重试创建新任务（与 rail/Render Dock 同上下文） */}
-        {!isEvidencePreview && hasMounted && generationSubmitError && (
-          <div
-            data-testid="generation-submit-error"
-            role="alert"
-            className="mx-4 mb-2 flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-xl bg-[var(--surface-bright)]/72 px-3 py-2 ring-1 ring-[var(--color-error-soft,var(--border-interactive))] sm:mx-6 lg:mx-8"
-          >
-            <p className="min-w-0 text-xs leading-5 text-[var(--color-error)]">
-               Generation submission failed:  {generationSubmitError} . No task was created. Your reference, prompt and settings are preserved. Retry to create a new task. </p>
-            <button
-              type="button"
-              data-testid="generation-submit-retry"
-              onClick={submitGenerationFromCurrentDraft}
-              className="btn-secondary h-7 shrink-0 rounded-lg px-2.5 text-xs font-medium"
-            >
-               Retry submission </button>
-          </div>
-        )}
 
-        {/* plan-06（实现规格 §2 / AC-06）：Memory 写入已成功但部分回读失败——
-            保留服务端成功事实，明确「已保存，刷新失败」，只提供读取重试 */}
-        {!isEvidencePreview && hasMounted && memoryRefreshError && (
-          <div
-            data-testid="memory-refresh-partial-error"
-            aria-live="polite"
-            className="mx-4 mb-2 flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-xl bg-[var(--surface-bright)]/72 px-3 py-2 ring-1 ring-[var(--border-interactive)] sm:mx-6 lg:mx-8"
-          >
-            <p className="min-w-0 text-xs leading-5 text-[var(--text-secondary)]">
-               Saved, but refresh failed. Retry only reloads the saved Memory; it does not submit again. </p>
-            <button
-              type="button"
-              data-testid="memory-refresh-retry"
-              onClick={handleMemoryRefreshRetry}
-              className="btn-secondary h-7 shrink-0 rounded-lg px-2.5 text-xs font-medium"
-            >
-               Retry refresh </button>
-          </div>
-        )}
-
-        {memoryEntryError && (
-          <p
-            role="alert"
-            className="mx-4 mb-2 shrink-0 text-xs leading-5 text-[var(--color-error)] sm:mx-6 lg:mx-8"
-          >
-            {memoryEntryError}
-          </p>
-        )}
-
-        {/* plan-05（ADR-7）：内联比较区——focus-managed region（非模态），
-            打开聚焦标题、取消回触发器、应用聚焦更新的摘要项 */}
-        {!isEvidencePreview && hasMounted && comparisonIterationId && (
-          <ResultComparisonPanel
-            iterationId={comparisonIterationId}
-            detail={comparisonDetail.detail}
-            detailStatus={comparisonDetail.status}
-            detailErrorMessage={comparisonDetail.error?.message ?? null}
-            recipe={liveV2Recipe}
-            compiledPrompt={compiledPromptDocument}
-            onRetryDetail={comparisonDetail.retry}
-            onOpenIteration={handleDirectionOpenIteration}
-            onApplyAdjustment={handleComparisonApplyAdjustment}
-            onCancel={handleComparisonCancel}
-            onSelectOtherDimension={handleComparisonOtherDimension}
-          />
-        )}
-
-        {/* plan-04: 上一轮结果展示位——恢复携带 resultFileUrl 的迭代时保留可见 */}
-        {ws.previousResultUrl && (
-          <div
-            data-testid="previous-result-preview"
-            className="mx-4 mb-2 flex shrink-0 items-center gap-3 rounded-lg bg-[var(--surface-low)]/72 p-2 ring-1 ring-[var(--border-static)] sm:mx-6 lg:mx-8"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={ws.previousResultUrl}
-              alt="Previous iteration result"
-              className="h-12 w-12 shrink-0 rounded-md object-cover"
-            />
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-[var(--text-primary)]">
-                Previous result
-              </p>
-              <p className="truncate text-[0.6875rem] leading-5 text-[var(--text-secondary)]">
-                Kept from the restored iteration for reference. Your next render
-                creates a new iteration.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {historyLoad && <div role="status" aria-busy={historyLoad.loading} className="mx-4 mb-2 text-xs text-[var(--text-secondary)]">
-          {historyLoad.loading ? "Loading result details..." : "Result details could not be loaded. Your workspace is preserved."}
-          {historyLoad.error && <button type="button" onClick={() => void handleHistorySelect(historyLoad.id)} className="btn-secondary ml-2 rounded-lg px-3 py-1">Retry loading result</button>}
-        </div>}
-        <WorkspaceBottomBar
-          history={
-            <HistoryStrip
-              historyItems={effectiveHistoryItems}
-              status={historyStripStatus}
-              errorMessage={historyError?.message}
-              errorStatus={historyErrorStatus}
-              onSelect={
-                isEvidencePreview ? handlePreviewHistorySelect : handleHistorySelect
-              }
-              onViewAll={() => router.push("/workspace/iterations?status=all")}
-            />
-          }
-        />
 
         {/* plan-07（架构 §2.1.6 / §6.4 实现原则）：成功/进行中/失败不再经由
             阻断式 GenerationDialog 呈现——终态内联进入方向 rail，工作区级
@@ -2573,7 +2243,7 @@ function WorkspacePageInner() {
           open={historyDetailOpen}
           detail={historyDetail}
           onRestore={handleHistoryRestore}
-          onContinueEditing={handleHistoryContinueEditing}
+          onReturnDirection={id=>{const from=ws.directionId,scope=returnScope,revision=ws.direction?.draftRevision??null,attachment=ws.localDraft.attachment;void fetch(`/api/workspace/directions/${encodeURIComponent(id)}`).then(async r=>{if(!r.ok)throw new Error("Direction could not be read. Current draft preserved.");return r.json();}).then(value=>{if(returnIdentity.current.scope!==scope||returnIdentity.current.attachment!==attachment||returnIdentity.current.revision!==revision)throw new Error("Your draft changed. Review the direction again.");setHistoryDetailOpen(false);setReturnGuard({id,from,scope,revision,attachment,value:{...value.source,id,promptSnapshot:compileWorkspacePrompt(value.direction.draft,value.source.recipe,value.source.variables??[]).text,negativePromptSnapshot:value.direction.draft.negativePromptText,params:value.direction.draft.params,promptControlSnapshot:value.direction.draft.control,binding:value.capabilities?.binding}});}).catch(error=>ws.setAgentNotice(error.message));}}
           onClose={() => {
             setHistoryDetailOpen(false);
             requestAnimationFrame(() => {
@@ -2600,8 +2270,11 @@ function WorkspacePageInner() {
           sourceImageUrl={
             restoredSourceContext?.sourceImageUrl ?? effectiveReferenceImageUrl
           }
-          onSave={() => {
+          saveCoordinator={memorySaveCoordinator}
+          onSave={(template) => {
+            // plan-10（AC-18）：committed 先落地，再刷新回读；失败只重试读取
             setShowTemplateSaveDialog(false);
+            void refreshCommittedMemoryWrite(template.id);
           }}
           onClose={() => setShowTemplateSaveDialog(false)}
         />
@@ -2622,6 +2295,7 @@ function WorkspacePageInner() {
             sourceAssetId={saveMemorySource.detail.sourceAssetId}
             sourceGenerationTaskId={saveMemorySource.iterationId}
             defaultRepresentative
+            saveCoordinator={memorySaveCoordinator}
             onSaved={(template) => {
               void refreshCommittedMemoryWrite(template.id);
             }}
@@ -2665,9 +2339,11 @@ function WorkspacePageInner() {
 
 /** Suspense boundary for useSearchParams() (Next.js 15 requirement) */
 export default function WorkspacePage() {
+  const {data:session,status}=useSession();
+  if(status==="loading")return <div className="p-4 text-sm text-[var(--text-secondary)]">Loading...</div>;
   return (
     <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-[var(--text-secondary)]">Loading...</div>}>
-      <WorkspacePageInner />
+      <WorkspacePageInner key={session?.user?.id??"signed-out"} />
     </Suspense>
   );
 }

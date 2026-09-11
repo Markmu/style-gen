@@ -61,6 +61,7 @@ export interface PromptAdjustmentMissNote {
 }
 
 interface PromptCardProps {
+  previewPromptChange?:import("./prompt-intent-controls").PromptIntentControlsProps["previewChange"];
   state: WorkspaceState;
   promptText: string;
   negativePromptText?: string;
@@ -106,6 +107,7 @@ interface PromptCardProps {
 }
 
 export function PromptCard({
+  previewPromptChange,
   state,
   promptText,
   negativePromptText = "",
@@ -281,6 +283,7 @@ export function PromptCard({
             {/* plan-04：分析中控制区保持渲染（禁用态），armed 锁定说明照常可见 */}
             {promptControlsState && onIntentChange && onDetailChange && onEditorModeChange && (
               <PromptIntentControls
+                previewChange={previewPromptChange}
                 intent={promptControlsState.intent}
                 detailLevel={promptControlsState.detailLevel}
                 editorMode={promptControlsState.editorMode}
@@ -309,6 +312,7 @@ export function PromptCard({
           >
             {promptControlsState && onIntentChange && onDetailChange && onEditorModeChange && (
               <PromptIntentControls
+                previewChange={previewPromptChange}
                 intent={promptControlsState.intent}
                 detailLevel={promptControlsState.detailLevel}
                 editorMode={promptControlsState.editorMode}
@@ -366,7 +370,7 @@ export function PromptCard({
               data-testid="prompt-editor-frame"
               className={
                 showRenderDock
-                  ? "order-1 h-64 min-h-0 shrink-0 overflow-hidden"
+                  ? "order-1 h-48 min-h-0 shrink-0 overflow-hidden"
                   : isExpanded
                     ? "h-full min-h-0 flex-1 overflow-hidden"
                   : "min-h-[22.5rem]"

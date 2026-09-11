@@ -1,3 +1,4 @@
+import { isSupportedAspectRatio } from '@/lib/generation/aspect-ratio';
 export type RenderNextAction =
   | "upload_reference"
   | "wait_for_analysis"
@@ -30,6 +31,7 @@ export interface RenderReadiness {
 }
 
 export interface RenderReadinessInput {
+  pendingProposal?:boolean;
   promptText: string | null | undefined;
   variables?: readonly unknown[] | null;
   hasUnresolvedVariables: boolean;
@@ -109,7 +111,9 @@ export function deriveRenderReadiness(
     variablesResolved &&
     serviceAvailable &&
     workspaceIdle &&
-    hasGenerationContext;
+    hasGenerationContext && !input.pendingProposal;
+
+  if(input.pendingProposal)return {...baseResult,canGenerate:false,disabledReason:"Apply or discard the pending proposal before generating.",nextAction:"resolve_variables"};
 
   if (canGenerate) {
     return {
@@ -189,4 +193,24 @@ export function getRenderNextActionLabel(action: RenderNextAction): string {
     case "generate":
       return "Generate image";
   }
+}
+
+/** Pure server readiness; local unsent text/attachments are an additional UI gate. */
+export function workspaceGenerationReadiness(input:{analysisComplete:boolean;prompt:string;params:{aspectRatio:string;quality:string};busy:boolean;pendingProposal:boolean;modelAvailable:boolean}) {
+ const disabledReason=input.busy?'WAIT_FOR_TASK':input.pendingProposal?'RESOLVE_PROPOSAL':!input.analysisComplete?'ANALYSIS_REQUIRED':!input.prompt.trim()?'PROMPT_REQUIRED':/\{\{[^{}]+\}\}/.test(input.prompt)?'RESOLVE_VARIABLES':input.params.quality!=='standard'?'QUALITY_UNSUPPORTED':!isSupportedAspectRatio(input.params.aspectRatio)?'ASPECT_RATIO_UNSUPPORTED':!input.modelAvailable?'MODEL_UNAVAILABLE':null;
+ return {canGenerate:disabledReason===null,disabledReason};
+}
+
+export function generationBlocker(code:string|null|undefined) {
+ const cases:Record<string,{message:string;target:string;label:string}>={
+  WAIT_FOR_TASK:{message:'Wait for the current task. You can edit the next round.',target:'[aria-label="Message your creative goal"]',label:'Edit next message'},
+  RESOLVE_PROPOSAL:{message:'Apply or discard the pending proposal before generating.',target:'[role="log"]',label:'Review proposal'},
+  ANALYSIS_REQUIRED:{message:'Send a reference and finish analysis before generating.',target:'[aria-label="Attach reference"]',label:'Attach reference'},
+  PROMPT_REQUIRED:{message:'Add content to the current draft before generating.',target:'[data-testid="prompt-card"]',label:'Edit prompt'},
+  RESOLVE_VARIABLES:{message:'Resolve the required variables before generating.',target:'[data-testid="prompt-card"]',label:'Resolve variables'},
+  QUALITY_UNSUPPORTED:{message:'The restored HD setting is unsupported. Select Standard.',target:'[aria-label="Quality"]',label:'Select Standard'},
+  MODEL_UNAVAILABLE:{message:'The selected model binding is unavailable. Select a supported model or reconnect the service.',target:'[aria-label="Model"]',label:'Review model'},
+  ASPECT_RATIO_UNSUPPORTED:{message:'Select a supported aspect ratio.',target:'[aria-label="Aspect ratio"]',label:'Select aspect ratio'},
+ };
+ return code?cases[code]??{message:code,target:'[data-testid="prompt-card"]',label:'Review draft'}:null;
 }

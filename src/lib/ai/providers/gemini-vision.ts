@@ -32,7 +32,7 @@ export class GeminiVisionProvider implements VisionProvider {
       throw new VisionError("GEMINI_API_KEY is not configured");
     }
 
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey, httpOptions: { retryOptions: { attempts: 1 } } });
 
     try {
       const response = await Promise.race([

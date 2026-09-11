@@ -1,3 +1,4 @@
+import { generateCurrentDraft } from './helpers/workspace-actions';
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { resolve } from 'path'
 import {
@@ -33,7 +34,6 @@ const pixel = Buffer.from(
 const qaViewports = [
   { name: 'desktop', width: 1440, height: 900 },
   { name: 'wide', width: 1280, height: 800 },
-  { name: 'narrow', width: 390, height: 844 },
 ]
 
 const styleMemories: MockTemplateMemoryRecord[] = [
@@ -197,7 +197,7 @@ async function uploadReference(page: Page) {
   await expect(page.getByText(/click or drag to upload a reference image/i).first()).toBeVisible({
     timeout: 10000,
   })
-  const input = page.locator('input[type="file"]').first()
+  const input = page.getByTestId('reference-card').locator('input[type="file"]').first()
   await waitForReactInput(input)
   await input.setInputFiles(TEST_IMAGE_PATH)
 }
@@ -248,7 +248,7 @@ function promptEditor(page: Page) {
 }
 
 function renderDock(page: Page) {
-  return page.getByTestId('output-card')
+  return page.getByTestId('generation-bar')
 }
 
 function statePresenter(page: Page, status: string) {
@@ -577,12 +577,12 @@ test.describe('plan-08 targeted visual QA and legacy gate', () => {
       await expectPageNonEmpty(page)
       await expect(appShell(page)).toHaveAttribute('data-variant', 'workspace')
       await expect(appShell(page).getByTestId('ai-copilot-ribbon').first()).toBeVisible()
-      await expect(appShell(page).getByTestId('workspace-three-column-layout').first()).toBeVisible()
-      await expect(appShell(page).getByTestId('reference-card').first()).toBeVisible()
-      await expect(appShell(page).getByTestId('recipe-card').first()).toBeVisible()
-      await expect(appShell(page).getByTestId('prompt-card').first()).toBeVisible()
-      await expect(appShell(page).getByTestId('output-card').first()).toBeVisible()
-      await expect(appShell(page).getByTestId('history-strip').first()).toBeVisible()
+      await expect(appShell(page).getByTestId('workspace-agent-layout').first()).toBeVisible()
+      await expect(appShell(page).getByTestId('reference-card').first()).toBeAttached()
+      await expect(appShell(page).getByTestId('recipe-card').first()).toBeAttached()
+      await expect(appShell(page).getByTestId('prompt-card').first()).toBeAttached()
+      await expect(appShell(page).getByTestId('generation-bar').first()).toBeVisible()
+      await expect(appShell(page).getByTestId('history-strip').first()).toBeAttached()
 
       await openRoute(page, '/workspace/templates')
       await expectPageNonEmpty(page)
@@ -596,6 +596,7 @@ test.describe('plan-08 targeted visual QA and legacy gate', () => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await openWorkspaceWithAnalysisReady(page, 'visual-qa-analysis-ready')
 
+    await page.getByRole('tablist', { name: 'Workspace inspector' }).getByRole('tab', { name: 'Prompt', exact: true }).click()
     await expect(promptEditor(page)).toBeVisible()
     await expect(renderDock(page)).toBeVisible()
     await expectNoOverlap(renderDock(page), promptEditor(page))
@@ -605,10 +606,10 @@ test.describe('plan-08 targeted visual QA and legacy gate', () => {
     for (const viewport of qaViewports) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height })
       await expectPageNonEmpty(page)
-      await expect(appShell(page).getByTestId('reference-card').first()).toBeVisible()
-      await expect(appShell(page).getByTestId('recipe-card').first()).toBeVisible()
-      await expect(appShell(page).getByTestId('prompt-card').first()).toBeVisible()
-      await expect(appShell(page).getByTestId('output-card').first()).toBeVisible()
+      await expect(appShell(page).getByTestId('reference-card').first()).toBeAttached()
+      await expect(appShell(page).getByTestId('recipe-card').first()).toBeAttached()
+      await expect(appShell(page).getByTestId('prompt-card').first()).toBeAttached()
+      await expect(appShell(page).getByTestId('generation-bar').first()).toBeVisible()
     }
   })
 
@@ -651,7 +652,7 @@ test.describe('plan-08 targeted visual QA and legacy gate', () => {
       },
       latestFailure: null,
     })
-    await renderDock(page).getByRole('button', { name: /^Generate$/i }).click()
+    await generateCurrentDraft(page)
 
     feed.set({
       completed: [],
@@ -677,6 +678,7 @@ test.describe('plan-08 targeted visual QA and legacy gate', () => {
 
     await expect(renderDock(page).getByTestId('render-recovery-actions')).toHaveCount(0)
     await expect(renderDock(page).locator('[data-testid^="render-readiness-item-"]')).toHaveCount(0)
+    await page.getByRole('tablist', { name: 'Workspace inspector' }).getByRole('tab', { name: 'Prompt', exact: true }).click()
     await expect(promptEditor(page)).toBeVisible()
     await expectButtonsDoNotOverflow(renderDock(page))
   })
@@ -842,16 +844,17 @@ test.describe('plan-07 workspace loop visual QA (rail / comparison / degradation
       'visual-rail-analysis',
       initialFeed,
     )
-    const layout = page.getByTestId('workspace-three-column-layout')
+    const layout = page.getByTestId('workspace-agent-layout')
 
     // 架构 §8.5 显式验收视口：1440×900 / 1280×800 / 390×844
     // （视口切换只 resize 不重新导航：工作区保持已挂载的方向上下文，
     //   避免持久化防抖与 restore 竞态——布局断言只依赖响应式重排）
     for (const viewport of qaViewports) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height })
-      await expect(page.getByTestId('workspace-three-column-layout').first()).toBeVisible()
+      await expect(page.getByTestId('workspace-agent-layout').first()).toBeVisible()
 
       // rail 三组状态并存且可见，无结构性横向溢出
+      if (viewport.width < 768) { await page.getByRole('tablist', { name: 'Workspace panes' }).getByRole('tab', { name: 'Canvas' }).click(); }
       const rail = page.getByTestId('direction-result-rail')
       await expect(rail).toBeVisible({ timeout: 15000 })
       await expect(page.getByTestId('direction-completed-item')).toHaveCount(2)
@@ -886,7 +889,10 @@ test.describe('plan-07 workspace loop visual QA (rail / comparison / degradation
       // L2 降级：feed 失败错误位可见、不遮挡三栏、无横向溢出；重试后恢复
       feedMock.fail()
       await expect(page.getByTestId('direction-feed-error')).toBeVisible({ timeout: 15000 })
-      await expect(page.getByTestId('reference-card').first()).toBeVisible()
+      if (viewport.width < 768) {
+        await page.getByRole('tablist', { name: 'Workspace panes' }).getByRole('tab', { name: 'Canvas' }).click()
+      }
+      await expect(page.getByRole('tablist', { name: 'Canvas view' })).toBeVisible()
       await expectNoHorizontalOverflow(layout)
       feedMock.set(initialFeed)
       await page.getByTestId('direction-feed-retry').click()

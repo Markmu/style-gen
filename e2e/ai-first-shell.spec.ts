@@ -1,3 +1,4 @@
+import { generateCurrentDraft } from './helpers/workspace-actions';
 import { expect, test, type Page } from '@playwright/test'
 import { resolve } from 'path'
 import {
@@ -71,7 +72,7 @@ async function mockCdnImages(page: Page) {
 }
 
 async function uploadReference(page: Page) {
-  const input = appShell(page).locator('input[type="file"]').first()
+  const input = appShell(page).getByTestId('reference-card').locator('input[type="file"]').first()
   await waitForReactInput(input)
   await input.setInputFiles(TEST_IMAGE_PATH)
 }
@@ -257,7 +258,7 @@ test.describe('plan-02 AppShell and AI status header', () => {
       latestFailure: null,
     })
 
-    await page.getByTestId('output-card').getByRole('button', { name: /^Generate$/i }).click()
+    await generateCurrentDraft(page)
 
     // 进行中内联：阶段进入 generating（消费后端 processing 详情）
     await expect(aiCopilot(page)).toHaveAttribute('data-phase', 'generating', {
@@ -289,7 +290,7 @@ test.describe('plan-02 AppShell and AI status header', () => {
     await expect
       .poll(
         async () =>
-          (await page.evaluate((key) => window.sessionStorage.getItem(key), STORAGE_KEY)) ?? '',
+          await page.evaluate(async()=>new Promise<string>(resolve=>{const open=indexedDB.open('style-gen-workspace-drafts',1);open.onsuccess=()=>{const query=open.result.transaction('drafts').objectStore('drafts').getAll();query.onsuccess=()=>resolve(JSON.stringify(query.result));};})),
         { timeout: 5000 },
       )
       .toContain(analysisTaskId)

@@ -421,3 +421,23 @@ export function assertKnownStyleDimensions(): void {
     }
   }
 }
+
+/** Workspace server/client compiler: persisted full text wins; constraints remain explicit user segments. */
+export function compileWorkspacePrompt(draft: import('@/lib/workspace/contracts').WorkspaceDraft, recipe: import('@/types/models').StoredVisualRecipe | null, variables:TemplateVariable[]):CompiledPrompt {
+  const control=draft.control;
+  const base=draft.customPrompt!==null?{text:draft.customPrompt,segments:[]}:control?.customTemplate!==undefined?{text:control.customTemplate,segments:[]}:recipe&&"schemaVersion" in recipe&&recipe.schemaVersion===2&&recipe.extractionStatus!=='fallback'&&control?composePromptDocument(recipe,control):{text:'',segments:[]};
+  // Replacement changes character offsets: retain the document's provenance through segment-wise offset remapping.
+  const values={...Object.fromEntries(variables.map(v=>[v.name,v.defaultValue])),...control?.variableValues,...control?.modifierValues};
+  const substitute=(text:string)=>text.replace(/\{\{\s*([^{}]+?)\s*\}\}/g,(marker,name:string)=>values[name]?.trim()||marker);
+  let text=substitute(base.text);
+  const segments=base.segments.map(segment=>({...segment,startIndex:substitute(base.text.slice(0,segment.startIndex)).length,endIndex:substitute(base.text.slice(0,segment.endIndex)).length}));
+  for(const constraint of [...new Set(draft.constraints.map(v=>v.trim()).filter(Boolean))]) {
+    // A full-text edit can retain a previously displayed constraint clause. Keep its
+    // exact occurrence and provenance instead of appending the same clause again.
+    const clauseIndex=text.split('; ').findIndex(clause=>clause===constraint);
+    if(clauseIndex>=0){const startIndex=text.split('; ').slice(0,clauseIndex).reduce((n,clause)=>n+clause.length+2,0);segments.push({sourceKind:'user',sourceId:constraint,startIndex,endIndex:startIndex+constraint.length});continue;}
+    if(text)text+='; ';const startIndex=text.length;text+=constraint;
+    segments.push({sourceKind:'user',sourceId:constraint,startIndex,endIndex:text.length});
+  }
+  return {text,segments};
+}

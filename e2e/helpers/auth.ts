@@ -12,6 +12,7 @@ import { readFileSync, existsSync } from 'fs'
 const AUTHJS_SESSION_COOKIE = 'authjs.session-token'
 
 function getAuthSecret(): string {
+  if (process.env.AUTH_SECRET) return process.env.AUTH_SECRET;
   // 相对于项目根目录（CWD 为项目根）
   const candidates = [
     `${process.cwd()}/.env.local`,
@@ -101,4 +102,10 @@ export async function authenticateTestUser(
       }),
     })
   })
+}
+
+/** Explicit seeded identity for real API tests; no session route mock. */
+export async function workspaceAuthCookie(user: { id: string; name?: string; email?: string }) {
+  const value = await createNextAuthToken({ sub: user.id, userId: user.id, name: user.name ?? 'Workspace test', email: user.email ?? 'test@example.test' }, 3600);
+  return { expires: Math.floor(Date.now() / 1000) + 3600, name: AUTHJS_SESSION_COOKIE, value, domain: 'localhost', path: '/', httpOnly: true, secure: false, sameSite: 'Lax' as const };
 }

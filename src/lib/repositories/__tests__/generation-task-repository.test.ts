@@ -271,6 +271,7 @@ describe("generation-task-repository", () => {
       const task = await createGenerationTask("USER_001", createInput);
 
       expect(task).toEqual({
+        directionId:null,dispatchState:null,draftRevision:null,
         id: "GEN_001",
         analysisTaskId: "TASK_001",
         status: "pending",

@@ -97,3 +97,14 @@ export async function upsertAsset(
     .returning();
   return rowToAsset(row);
 }
+
+/** Join the task/result-event transaction; a retry cannot allocate or take over another asset. */
+export async function upsertReservedGenerationAsset(
+  tx: import('./workspace-repository').WorkspaceTransaction,
+  input: { id: string; sourceGenerationTaskId: string; userId: string; fileUrl: string; width: number; height: number; mimeType: string },
+) {
+  await tx.insert(assets).values({ ...input, type: 'generated' }).onConflictDoNothing({ target: assets.sourceGenerationTaskId });
+  const [asset] = await tx.select().from(assets).where(eq(assets.sourceGenerationTaskId, input.sourceGenerationTaskId));
+  if (!asset || asset.id !== input.id || asset.userId !== input.userId) throw new Error('Output asset identity mismatch');
+  return asset;
+}

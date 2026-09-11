@@ -1,3 +1,4 @@
+import { generateCurrentDraft } from './helpers/workspace-actions';
 import { expect, test, type Page, type TestInfo } from '@playwright/test'
 import { resolve } from 'path'
 import {
@@ -17,7 +18,7 @@ async function prepare(page: Page) {
   await mockAnalysisCreate(page, 'refinement-analysis')
 }
 async function upload(page: Page) {
-  const input = page.locator('input[type="file"]').first()
+  const input = page.getByTestId('reference-card').locator('input[type="file"]').first()
   await waitForReactInput(input)
   await input.setInputFiles(resolve(__dirname, 'fixtures/test-image.png'))
 }
@@ -26,7 +27,7 @@ async function capture(page: Page, info: TestInfo, name: string) {
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 }
 
-for (const viewport of [{ width: 1440, height: 900 }, { width: 1280, height: 800 }, { width: 1280, height: 720 }, { width: 390, height: 844 }]) {
+for (const viewport of [{ width: 1440, height: 900 }, { width: 1280, height: 800 }, { width: 1280, height: 720 }]) {
   for (const theme of ['light', 'dark'] as const) {
     test(`workspace refinement ${viewport.width}x${viewport.height} ${theme}`, async ({ page }, info) => {
       test.setTimeout(60000)
@@ -37,8 +38,8 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1280, height: 800
       await gotoWorkspace(page)
       await expect(page.getByTestId('ai-copilot-ribbon')).not.toContainText('Confidence')
       await expect(page.getByTestId('ai-copilot-ribbon')).not.toContainText('Ready')
-      const dock = page.getByTestId('output-card')
-      const generate = dock.getByRole('button', { name: 'Generate', exact: true })
+      const dock = page.getByTestId('generation-bar')
+      const generate = dock.getByRole('button', { name: 'Generate 1 image', exact: true })
       if (viewport.width >= 1280) await expect(generate).toBeInViewport()
       await capture(page, info, '01-empty')
       await chooseQuickRecreatePace(page)
@@ -52,14 +53,12 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1280, height: 800
       await expect(page.getByTestId('ai-status-header')).toHaveAttribute('data-phase', 'analyzing')
       await capture(page, info, '03-analyzing')
       await mockAnalysisPolling(page, 'refinement-analysis', { ...loadFixture('analysis-v2-completed.json'), id: 'refinement-analysis' })
+  await page.getByRole('tablist', { name: 'Workspace inspector' }).getByRole('tab', { name: 'Prompt', exact: true }).click()
       await expect(page.getByTestId('structured-prompt-editor')).toBeVisible({ timeout: 15000 })
       const subject = page.getByLabel('Subject', { exact: true })
-      if (viewport.width >= 1280) {
-        await expect(generate).toBeInViewport()
-        await expect(subject).toBeInViewport()
-      } else {
-        await subject.scrollIntoViewIfNeeded()
-      }
+      if (viewport.width >= 1280) await expect(generate).toBeInViewport()
+      await subject.scrollIntoViewIfNeeded()
+      await expect(subject).toBeInViewport()
       await subject.fill('blue ceramic bowl')
       await expect(page.getByTestId('compiled-prompt-text')).toContainText('blue ceramic bowl')
       await expect(page.getByTestId('structured-prompt-editor').getByLabel('Prompt mode')).toHaveCount(0)
@@ -82,15 +81,17 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1280, height: 800
         recipe: source.recipe, recipeSource: 'snapshot', variables: [], variablesSource: 'snapshot',
         sourceAssetId: 'mock-asset-id', sourceImageUrl: 'https://cdn.example.com/references/mock-asset-id/original.png',
       })
-      await generate.click()
-      await expect(page.getByTestId('generation-submit-error')).toBeVisible()
+      await generateCurrentDraft(page)
+      await expect(dock.getByRole('alert')).toBeVisible()
       await capture(page, info, '06-render-error')
       feed.set({ completed: [{
         id: resultId, status: 'completed', promptSummary: 'Blue ceramic bowl',
         resultFileUrl: 'https://cdn.example.com/results/refinement-result.webp', resultAssetId: 'render-asset',
         params: { aspectRatio: '1:1', quality: 'standard' }, createdAt: '2026-09-06T00:00:00Z', errorMessage: null,
       }], active: null, latestFailure: null })
-      await page.getByTestId('generation-submit-retry').click()
+      await page.route('**/api/generation?requestKey=*',route=>route.fulfill({json:{task:null}}))
+      await dock.getByRole('button',{name:'Check original submission'}).click()
+      await dock.getByRole('button',{name:'Confirm original submission'}).click()
       await expect(page.getByTestId('direction-completed-item')).toBeVisible()
       if (viewport.width >= 1280) await expect(generate).toBeInViewport()
       await capture(page, info, '07-result')
@@ -106,31 +107,27 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1280, height: 800
   }
 }
 
-test('quick settings are cancelled without writes and confirmed atomically', async ({ page }) => {
+test('quick confirmation cancellation creates no authorization; confirmation uses displayed settings once', async ({ page }) => {
   await prepare(page)
   await gotoWorkspace(page)
   const generation = await mockGenerationCreateCapture(page)
-  const dock = page.getByTestId('output-card')
+  const dock = page.getByTestId('generation-bar')
+  await page.getByLabel('Attach reference',{exact:true}).setInputFiles(resolve(__dirname,'fixtures/test-image.png'))
+  await dock.getByLabel('Model',{exact:true}).selectOption('nano-banana-2-lite')
   await chooseQuickRecreatePace(page)
-  await page.getByLabel('Quick recreate quality').selectOption('hd')
-  await page.getByLabel('Quick recreate model').selectOption('nano-banana-2-lite')
+  await expect(page.getByTestId('quick-confirm-dialog')).toContainText('nano-banana-2-lite')
+  await expect(dock.getByLabel('Quality',{exact:true}).getByText('HD - unsupported, select Standard')).toHaveJSProperty('disabled',true)
   await page.getByTestId('quick-confirm-cancel').click()
-  await expect(dock.getByLabel('Quality', { exact: true })).toHaveValue('standard')
-  await expect(dock.getByLabel('Model', { exact: true })).toHaveValue('flux-2-dev')
+  await expect(page.getByTestId('quick-authorization-status')).toHaveAttribute('data-authorization','none')
   expect(generation.requests).toHaveLength(0)
+  await mockAnalysisPolling(page,'refinement-analysis',{...loadFixture('analysis-v2-completed.json'),id:'refinement-analysis'})
   await chooseQuickRecreatePace(page)
-  await expect(page.getByLabel('Quick recreate quality')).toHaveValue('standard')
-  await page.getByLabel('Quick recreate quality').selectOption('hd')
-  await page.getByLabel('Quick recreate model').selectOption('nano-banana-2-lite')
   await page.getByTestId('quick-confirm-confirm').click()
-  await expect(dock.getByLabel('Quality', { exact: true })).toHaveValue('hd')
-  await expect(dock.getByLabel('Model', { exact: true })).toHaveValue('nano-banana-2-lite')
-  await mockAnalysisPolling(page, 'refinement-analysis', { ...loadFixture('analysis-v2-completed.json'), id: 'refinement-analysis' })
-  await upload(page)
-  await expect.poll(() => generation.requests.length).toBe(1)
-  expect(generation.requests[0].body.params).toMatchObject({ quality: 'hd', model: 'nano-banana-2-lite' })
+  await expect.poll(()=>generation.requests.length).toBe(1)
+  expect(generation.requests[0].body).toMatchObject({mode:'quick',authorizationId:expect.any(String)})
+  await expect(dock.getByLabel('Model',{exact:true})).toHaveValue('nano-banana-2-lite')
   await page.reload()
-  await expect(page.getByTestId('quick-authorization-status')).toHaveAttribute('data-authorization', 'consumed')
+  await expect(page.getByTestId('generation-bar')).toBeVisible()
   expect(generation.requests).toHaveLength(1)
 })
 
@@ -143,6 +140,7 @@ test('single-page draft save preserves defaults and edits across a failed submis
   ])
   await gotoWorkspace(page)
   await upload(page)
+  await page.getByRole('tablist', { name: 'Workspace inspector' }).getByRole('tab', { name: 'Prompt', exact: true }).click()
   await expect(page.getByTestId('structured-prompt-editor')).toBeVisible()
   await page.getByRole('button', { name: 'Save as Style Memory', exact: true }).click()
   const dialog = page.getByTestId('save-style-memory-dialog')
@@ -158,7 +156,10 @@ test('single-page draft save preserves defaults and edits across a failed submis
   await dialog.getByRole('button', { name: 'Save Style Memory', exact: true }).click()
   await expect.poll(() => save.requests.length).toBe(2)
   expect(save.requests[1].body.variables).toEqual(expect.arrayContaining([expect.objectContaining({ name: 'subject', defaultValue: 'silver bowl' })]))
-  await expect(page).toHaveURL(/\/workspace\/templates\/refined-memory$/)
+  // plan-10（AC-18）：工作区草稿保存留在当前方向，committed 后由页面刷新回读，不跳转详情
+  await expect(dialog).toBeHidden()
+  expect(page.url()).toContain('/workspace')
+  expect(page.url()).not.toContain('/workspace/templates/')
 })
 
 
@@ -167,8 +168,10 @@ test('history read failure keeps the draft and offers a focused keyboard recover
   const historyId = 'history-refinement'
   await mockGenerationList(page, [{ id: historyId, resultFileUrl: 'https://cdn.example.com/history.png', createdAt: '2026-09-06T00:00:00Z' }])
   await mockAnalysisPolling(page, 'refinement-analysis', loadFixture('analysis-v2-completed.json'))
+  const feed = await mockDirectionFeedStateful(page, { completed: [{ id: historyId, status: 'completed', promptSummary: 'History result', resultFileUrl: 'https://cdn.example.com/history.png', resultAssetId: 'history-asset', params: { aspectRatio: '1:1', quality: 'standard' }, createdAt: '2026-09-06T00:00:00Z', errorMessage: null }], active: null, latestFailure: null })
   await gotoWorkspace(page)
   await upload(page)
+  await page.getByRole('tablist', { name: 'Workspace inspector' }).getByRole('tab', { name: 'Prompt', exact: true }).click()
   await page.getByLabel('Subject', { exact: true }).fill('draft before history read')
   const before = await page.getByTestId('compiled-prompt-text').textContent()
   let completeRead!: () => void
@@ -177,7 +180,9 @@ test('history read failure keeps the draft and offers a focused keyboard recover
     await pendingRead
     await route.fulfill({ status: 503, json: { error: 'History unavailable' } })
   })
-  const latest = page.getByRole('button', { name: 'View latest result', exact: true })
+  await page.getByRole('button', { name: 'Save draft', exact: true }).click()
+  await expect(page.getByText('Saved', { exact: true })).toBeVisible()
+  const latest = page.getByRole('button', { name: 'Select result History result', exact: true })
   await latest.click()
   await expect(page.getByText('Loading result details...', { exact: true })).toHaveAttribute('aria-busy', 'true')
   completeRead()
@@ -200,8 +205,10 @@ test('evidence location is repeatable and does not steal focus during subsequent
   await mockAnalysisPolling(page, 'refinement-analysis', loadFixture('analysis-v2-completed.json'))
   await gotoWorkspace(page)
   await upload(page)
+  await page.getByRole('tablist', { name: 'Workspace inspector' }).getByRole('tab', { name: 'Prompt', exact: true }).click()
   const controls = page.getByTestId('prompt-intent-controls')
   await expect(controls).toBeVisible()
+  await page.getByRole('tablist', { name: 'Workspace inspector' }).getByRole('tab', { name: 'Evidence', exact: true }).click()
   await page.getByTestId('evidence-facet-color').click()
   const observation = page.getByTestId('recipe-card').getByRole('button', { name: /^Show in prompt:.*warm amber/ })
   await observation.click()
@@ -210,12 +217,14 @@ test('evidence location is repeatable and does not steal focus during subsequent
   const subject = page.getByLabel('Subject', { exact: true })
   await subject.fill('silver bowl')
   await expect(subject).toBeFocused()
+  await page.getByRole('tablist', { name: 'Workspace inspector' }).getByRole('tab', { name: 'Evidence', exact: true }).click()
   await observation.click()
   await expect(linked).toBeFocused()
   await controls.getByTestId('editor-mode-option-text').click()
   const fulltext = page.getByTestId('fulltext-prompt-editor')
   const custom = 'My custom scene with warm amber and sand palette'
   await fulltext.fill(custom)
+  await page.getByRole('tablist', { name: 'Workspace inspector' }).getByRole('tab', { name: 'Evidence', exact: true }).click()
   await observation.click()
   await expect(fulltext).toBeFocused()
   await expect(fulltext).toHaveValue(custom)

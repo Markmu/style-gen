@@ -1,3 +1,4 @@
+import { singleAttemptPostFetch } from './single-attempt-fetch';
 import Replicate from 'replicate';
 import type { VisionProvider } from './types';
 import { VISION_SYSTEM_PROMPT } from '../prompts';
@@ -27,7 +28,8 @@ export class ReplicateVisionProvider implements VisionProvider {
       throw new Error('webhookUrl is required for Replicate provider');
     }
 
-    const prediction = await this.client.predictions.create({
+    const client = new Replicate({auth: process.env.REPLICATE_API_TOKEN, fetch: singleAttemptPostFetch()});
+    const prediction = await client.predictions.create({
       model: this.model,
       input: {
         top_p: 0.95,

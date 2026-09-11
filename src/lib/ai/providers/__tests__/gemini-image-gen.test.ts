@@ -1,3 +1,4 @@
+import sharp from 'sharp';
 import { GeminiImageGenProvider } from "../gemini-image-gen";
 import { ImageGenError } from "../types";
 
@@ -19,30 +20,8 @@ vi.mock("@google/genai", () => {
 import { GoogleGenAI } from "@google/genai";
 const MockedGoogleGenAI = vi.mocked(GoogleGenAI);
 
-/** 构造带 IHDR 宽高的 PNG 头部 base64（Provider 只解析前 24 字节） */
-function pngHeaderBase64(width: number, height: number): string {
-  const header = Buffer.alloc(24);
-  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(header, 0);
-  header.writeUInt32BE(13, 8);
-  header.write("IHDR", 12, "ascii");
-  header.writeUInt32BE(width, 16);
-  header.writeUInt32BE(height, 20);
-  return header.toString("base64");
-}
-
-/** 构造带 SOF0 宽高的 JPEG 头部 base64（Provider 只解析头部标记） */
-function jpegHeaderBase64(width: number, height: number): string {
-  const header = Buffer.from([
-    0xff, 0xd8, // SOI
-    0xff, 0xc0, // SOF0
-    0x00, 0x08, // 段长度
-    0x08, // 精度
-    (height >> 8) & 0xff, height & 0xff,
-    (width >> 8) & 0xff, width & 0xff,
-    0x01, // 分量数
-  ]);
-  return header.toString("base64");
-}
+async function pngHeaderBase64(width:number,height:number){return (await sharp({create:{width,height,channels:3,background:'#ff0000'}}).png().toBuffer()).toString('base64');}
+async function jpegHeaderBase64(width:number,height:number){return (await sharp({create:{width,height,channels:3,background:'#ff0000'}}).jpeg().toBuffer()).toString('base64');}
 
 function mockImageResponse(
   data: string,
@@ -96,13 +75,13 @@ describe("GeminiImageGenProvider", () => {
 
   describe("generate", () => {
     it("返回同步 base64 变体并解析 PNG 宽高", async () => {
-      mockImageResponse(pngHeaderBase64(1024, 768));
+      mockImageResponse(await pngHeaderBase64(1024, 768));
 
       const result = await generate();
 
       expect(result).toEqual({
         mode: "sync",
-        imageBase64: pngHeaderBase64(1024, 768),
+        imageBase64: await pngHeaderBase64(1024, 768),
         mimeType: "image/png",
         width: 1024,
         height: 768,
@@ -110,7 +89,7 @@ describe("GeminiImageGenProvider", () => {
     });
 
     it("使用 Nano Banana 2 Lite 模型 gemini-3.1-flash-lite-image", async () => {
-      mockImageResponse(pngHeaderBase64(512, 512));
+      mockImageResponse(await pngHeaderBase64(512, 512));
 
       await generate();
 
@@ -122,7 +101,7 @@ describe("GeminiImageGenProvider", () => {
     });
 
     it("携带 responseModalities 与 prompt", async () => {
-      mockImageResponse(pngHeaderBase64(512, 512));
+      mockImageResponse(await pngHeaderBase64(512, 512));
 
       await generate({ prompt: "A warm sunset over the mountains" });
 
@@ -144,7 +123,7 @@ describe("GeminiImageGenProvider", () => {
     it.each(["1:1", "16:9", "4:3"])(
       "aspectRatio %s 透传到 imageConfig",
       async (aspectRatio) => {
-        mockImageResponse(pngHeaderBase64(512, 512));
+        mockImageResponse(await pngHeaderBase64(512, 512));
 
         await generate({ aspectRatio });
 
@@ -159,7 +138,7 @@ describe("GeminiImageGenProvider", () => {
     );
 
     it("JPEG 图片（模型实际返回格式）从 SOF 解析宽高", async () => {
-      mockImageResponse(jpegHeaderBase64(1344, 768), { mimeType: "image/jpeg" });
+      mockImageResponse(await jpegHeaderBase64(1344, 768), { mimeType: "image/jpeg" });
 
       const result = await generate({ aspectRatio: "16:9" });
 
@@ -173,25 +152,13 @@ describe("GeminiImageGenProvider", () => {
       );
     });
 
-    it("无法解析的图片字节回退 1024x1024 宽高", async () => {
-      mockImageResponse(Buffer.from("not-an-image").toString("base64"), {
-        mimeType: "image/jpeg",
-      });
-
-      const result = await generate();
-
-      expect(result).toEqual(
-        expect.objectContaining({
-          mode: "sync",
-          mimeType: "image/jpeg",
-          width: 1024,
-          height: 1024,
-        })
-      );
+    it("无法解析的图片字节拒绝虚构尺寸", async () => {
+      mockImageResponse(Buffer.from("not-an-image").toString("base64"), {mimeType:"image/jpeg"});
+      await expect(generate()).rejects.toThrow("Invalid image metadata");
     });
 
     it("mimeType 缺省时回退 image/png", async () => {
-      mockImageResponse(pngHeaderBase64(256, 256), { mimeType: undefined });
+      mockImageResponse(await pngHeaderBase64(256, 256), { mimeType: undefined });
 
       const result = await generate();
 
@@ -201,7 +168,7 @@ describe("GeminiImageGenProvider", () => {
     });
 
     it("忽略 negativePrompt/quality/webhookUrl（与现有 Provider 行为一致）", async () => {
-      mockImageResponse(pngHeaderBase64(256, 256));
+      mockImageResponse(await pngHeaderBase64(256, 256));
 
       await generate({ webhookUrl: "https://example.com/webhook" });
 

@@ -609,3 +609,16 @@ describe("PromptCard plan-04 structure and degraded states", () => {
     ).not.toBeInTheDocument();
   });
 });
+
+it('AC-12 full prompt replacement previews exact before/after and Cancel makes no edit',()=>{
+ const detail=vi.fn(),intent=vi.fn(),mode=vi.fn();
+ render(<PromptCard state="analysis_ready" promptText="repeat repeat" promptControlsState={{intent:'same_style',detailLevel:'standard',editorMode:'text',customPromptDirty:true,disabled:false,locked:false,structuredAvailable:true}} onIntentChange={intent} onDetailChange={detail} onEditorModeChange={mode} previewPromptChange={()=>({before:'repeat repeat',after:'new full prompt'})}/>);
+ fireEvent.click(screen.getByTestId('detail-option-concise'));expect(screen.getByTestId('prompt-switch-confirm-dialog')).toHaveTextContent('repeat repeat');expect(screen.getByTestId('prompt-switch-confirm-dialog')).toHaveTextContent('new full prompt');expect(detail).not.toHaveBeenCalled();fireEvent.click(screen.getByTestId('prompt-switch-confirm-cancel'));expect(detail).not.toHaveBeenCalled();expect(screen.getByTestId('detail-option-concise')).toHaveFocus();
+ fireEvent.click(screen.getByTestId('editor-mode-option-variables'));expect(mode).not.toHaveBeenCalled();fireEvent.click(screen.getByTestId('prompt-switch-confirm-accept'));expect(mode).toHaveBeenCalledWith('variables');
+});
+
+it('AC-06 a full prompt preview cannot replace a newer draft',()=>{
+ const change=vi.fn();const props={state:'analysis_ready' as const,promptText:'original',promptControlsState:{intent:'same_style' as const,detailLevel:'standard' as const,editorMode:'text' as const,customPromptDirty:true,disabled:false,locked:false,structuredAvailable:true},onIntentChange:vi.fn(),onDetailChange:change,onEditorModeChange:vi.fn()};
+ const {rerender}=render(<PromptCard {...props} previewPromptChange={()=>({before:'original',after:'derived',scope:'direction-A:0'})}/>);fireEvent.click(screen.getByTestId('detail-option-concise'));
+ rerender(<PromptCard {...props} promptText="original" previewPromptChange={()=>({before:'original',after:'derived',scope:'direction-B:0'})}/>);expect(screen.getByTestId('prompt-switch-confirm-accept')).toBeDisabled();expect(change).not.toHaveBeenCalled();expect(screen.getByRole('alert')).toHaveTextContent('draft changed');
+});

@@ -145,11 +145,11 @@ describe("POST /api/upload/presign", () => {
     await POST(makeRequest({ fileName: "photo.jpg", mimeType: "image/jpeg" }));
 
     expect(generatePresignedUploadUrl).toHaveBeenCalledWith(
-      "references/01TESTULID0000000000000000/original.jpg",
+      "references/user-1/01TESTULID0000000000000000/original.jpg",
       "image/jpeg",
     );
     expect(getPublicUrl).toHaveBeenCalledWith(
-      "references/01TESTULID0000000000000000/original.jpg",
+      "references/user-1/01TESTULID0000000000000000/original.jpg",
     );
   });
 
@@ -177,9 +177,9 @@ describe("POST /api/upload/presign", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    // "noextension".split(".").pop() => "noextension" which is alphanumeric, used as ext
+    // MIME determines the object extension independently of the supplied file name
     expect(generatePresignedUploadUrl).toHaveBeenCalledWith(
-      expect.stringMatching(/^references\/.*\/original\.noextension$/),
+      expect.stringMatching(/^references\/.*\/original\.png$/),
       "image/png",
     );
     expect(json.assetId).toBeDefined();

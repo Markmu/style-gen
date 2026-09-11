@@ -1,6 +1,13 @@
+import { findClosestAspectRatio } from '../../src/lib/generation/aspect-ratio';
+import type { StoredVisualRecipe } from '../../src/types/models'
 import type { Page } from '@playwright/test'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
+import { applyDraftPatches } from '../../src/lib/workspace/validation'
+import { resolveAspectRatio } from '../../src/lib/generation/aspect-ratio'
+import { isVisualRecipeV2Success } from '../../src/lib/visual-recipe'
+
+const analysisDirectionMocks=new WeakMap<Page,(body:Record<string,unknown>,taskId:string)=>string|undefined>();
 
 function loadFixture(name: string): object {
   const filePath = resolve(__dirname, '../fixtures/api-responses', name)
@@ -44,6 +51,7 @@ export async function mockAuthSession(
   page: Page,
   user?: { name?: string; email?: string; id?: string; image?: string }
 ) {
+  await mockWorkspaceAgentDirections(page)
   const mockUser = {
     name: user?.name ?? 'Test User',
     email: user?.email ?? 'test@example.com',
@@ -202,6 +210,7 @@ export async function mockAnalysisCreateCapture(
       contentType: 'application/json',
       body: JSON.stringify({
         id: taskId,
+        directionId:analysisDirectionMocks.get(page)?.(route.request().postDataJSON(),taskId),
         status: 'pending',
         sourceAssetId: 'mock-asset-id',
         recipe: null,
@@ -397,6 +406,7 @@ export async function mockGenerationList(
   nextCursor: string | null = null,
 ) {
   await page.route('**/api/generation?**', async (route) => {
+    if(new URL(route.request().url()).searchParams.has('requestKey')){await route.fallback();return;}
     if (route.request().method() === 'GET') {
       await route.fulfill({
         status: 200,
@@ -416,6 +426,7 @@ export async function mockGenerationListSequence(
 ) {
   let callIndex = 0
   await page.route('**/api/generation?**', async (route) => {
+    if(new URL(route.request().url()).searchParams.has('requestKey')){await route.fallback();return;}
     if (route.request().method() === 'GET') {
       const response = responses[Math.min(callIndex, responses.length - 1)] ?? {}
       callIndex++
@@ -470,6 +481,7 @@ export async function mockIterationList(
   options: MockIterationListOptions = {},
 ) {
   await page.route('**/api/generation?**', async (route) => {
+    if(new URL(route.request().url()).searchParams.has('requestKey')){await route.fallback();return;}
     if (route.request().method() !== 'GET') {
       await route.continue()
       return
@@ -534,6 +546,8 @@ export interface MockIterationDetailVariable {
  */
 export interface MockIterationDetail {
   id: string;
+  directionId?:string|null;
+  resultAssetId?:string|null;
   analysisTaskId: string;
   status: 'processing' | 'completed' | 'failed';
   promptSnapshot: string;
@@ -1581,6 +1595,7 @@ export interface MockDirectionFeed {
 export interface DirectionFeedRequestQuery {
   view: string | null;
   analysisTaskId: string | null;
+  directionId?:string|null;
   pageSize: number | null;
 }
 
@@ -1624,6 +1639,7 @@ export async function mockDirectionFeedStateful(
     | { kind: 'error'; error: MockDirectionFeedError } = { kind: 'ok', feed: initial };
 
   await page.route('**/api/generation?**', async (route) => {
+    if(new URL(route.request().url()).searchParams.has('requestKey')){await route.fallback();return;}
     if (route.request().method() !== 'GET') {
       await route.fallback();
       return;
@@ -1638,6 +1654,7 @@ export async function mockDirectionFeedStateful(
     const query: DirectionFeedRequestQuery = {
       view: url.searchParams.get('view'),
       analysisTaskId: url.searchParams.get('analysisTaskId'),
+      directionId:url.searchParams.get('directionId'),
       pageSize: rawPageSize === null ? null : Number(rawPageSize),
     };
     options.onRequest?.(query);
@@ -1716,3 +1733,143 @@ export async function mockIterationDetailStateful(
 
 /** Load fixture data */
 export { loadFixture }
+
+/** Stateful in-memory public direction API for browser-only tests. Provider/DB semantics have independent integration coverage. */
+export async function mockWorkspaceAgentDirections(page: Page) {
+  type AnyRecord = Record<string, any> // eslint-disable-line @typescript-eslint/no-explicit-any
+  const directions = new Map<string, AnyRecord>()
+  const keys = new Map<string, string>()
+  const patches = new Map<string, {body: string; response: AnyRecord}>()
+  const generationReceipts=new Map<string,string>()
+  await page.route('**/api/generation?requestKey=*',async route=>{const id=generationReceipts.get(new URL(route.request().url()).searchParams.get('requestKey')??'');await route.fulfill({json:{task:id?{id,status:sources.get('/api/generation/'+id)?.status??'pending'}:null}})})
+  let count = 0
+  const sources=new Map<string,AnyRecord>()
+  analysisDirectionMocks.set(page,(body,taskId)=>{
+    if(body.directionId)return String(body.directionId);
+    if(!body.sourceAssetId)return undefined;
+    const key=String(body.requestKey),known=keys.get('analysis:'+key);if(known)return known;
+    const id=`01K1AGENT${String(++count).padStart(17,'0')}`;
+    const detail=[...sources.values()].find(value=>value.resultAssetId===body.sourceAssetId);
+    directions.set(id,{id,userId:'mock-user-id',title:'Result reference',draftRevision:0,analysisTaskId:taskId,sourceAssetId:body.sourceAssetId,sourceTemplateId:null,sourceIterationId:null,preferredIterationId:null,draft:{control:null,customPrompt:null,negativePromptText:'',params:{model:'flux-2-dev',quality:'standard',aspectRatio:'1:1'},constraints:[],aspectRatioSource:'fallback'},_source:{reference:{id:body.sourceAssetId,fileUrl:detail?.resultFileUrl??'https://cdn.example.com/results/reference.webp',width:100,height:100,mimeType:'image/webp'},recipe:null,variables:[],analysisStatus:'pending'}});keys.set('analysis:'+key,id);return id;
+  });
+
+  const initialControl=(recipe:StoredVisualRecipe|null)=>isVisualRecipeV2Success(recipe)?{schemaVersion:1,trigger:'manual',intent:'same_style',detailLevel:'standard',editorMode:'variables',customPromptDirty:false,enabledInvariantIds:recipe.styleInvariants.map(rule=>rule.id),variableValues:Object.fromEntries(recipe.contentVariables.map(variable=>[variable.name,variable.defaultValue])),enabledModifierNames:[],modifierValues:{},adjustments:[]}:null
+  const projection = (direction: AnyRecord) => ({ direction, source: direction._source, summaryToken: 'mock-summary-token', readiness: {canGenerate:!!direction.analysisTaskId}, activeTask: direction._active ?? null })
+  page.on('response', async response => {
+    const request=response.request()
+    if(!response.ok())return
+    if(request.method()==='GET'&&/\/api\/(?:templates|generation)\/[^/]+$/.test(new URL(response.url()).pathname)){try{sources.set(new URL(response.url()).pathname,await response.json())}catch{};return}
+    if(request.method()==='POST'&&new URL(response.url()).pathname==='/api/generation'){const body=request.postDataJSON();const receipt=await response.json();generationReceipts.set(body.requestKey,receipt.id);const direction=directions.get(body.directionId);if(direction&&body.mode==='quick')direction.quickState='consumed';return;}
+    if(!/\/api\/analysis(?:\/[^/?]+)?$/.test(new URL(response.url()).pathname))return
+    try{
+      const task=await response.json()
+      sources.set(new URL(response.url()).pathname,task)
+      const body=request.method()==='POST'?request.postDataJSON():null
+      const direction=body?.directionId?directions.get(body.directionId):[...directions.values()].find(value=>value.analysisTaskId===task.id)
+      if(!direction)return
+      direction.analysisTaskId=task.id
+      if(body)direction.sourceIterationId=null
+      direction.sourceAssetId=body?.assetId??task.sourceAssetId??direction.sourceAssetId
+      direction._source={...direction._source,reference:direction._source.reference??{id:direction.sourceAssetId,fileUrl:body?.fileUrl??'https://cdn.example.com/references/mock-asset-id/original.png',width:100,height:100,mimeType:'image/png'},analysisStatus:task.status}
+      if(task.status==='completed'){
+        direction._source.recipe=task.recipe;direction._source.variables=task.analysisTemplateVariables??[];direction._source.analysisTemplateContent=task.analysisTemplateContent;direction._source.analysisTemplateStatus=task.analysisTemplateStatus;direction._source.analysisTemplateReason=task.analysisTemplateReason
+        if(!direction._analysisComplete){direction._analysisComplete=true;if(direction.draft.aspectRatioSource==='fallback')direction.draft.aspectRatioSource='reference';direction.draft.control=initialControl(task.recipe);direction.draft.customPrompt=direction.draft.control?null:task.promptText;direction.draft.negativePromptText=task.negativePromptText??'';direction.draftRevision++;if(direction.quickState==='armed'&&direction.draft.control){const reference=direction._source.reference;direction.draft.params.aspectRatio=findClosestAspectRatio(reference?.width/reference?.height);direction.draft.aspectRatioSource=reference?.width>0&&reference?.height>0?'reference':'fallback';direction.draft.control.intent='reconstruction';direction.draft.control.trigger='quick_recreate';}}
+      }
+      if(task.status==='failed'){direction.quickState='none';direction.quickAuthorizationId=null;direction.authorizationEpoch++;}
+    }catch{}
+  })
+  await page.route('**/api/workspace/directions**', async route=>{
+    const request=route.request(),url=new URL(request.url()),parts=url.pathname.split('/'),id=parts[4]
+    if(request.method()==='POST'&&!id){
+      const body=request.postDataJSON()
+      const existing=keys.get(body.requestKey)
+      if(existing){await route.fulfill({status:200,json:{direction:directions.get(existing),reused:true}});return}
+      const legacy=await page.evaluate(()=>{try{return JSON.parse(sessionStorage.getItem('style-gen-workspace-state')??'null')}catch{return null}})
+      const received=sources.get(`/api/${body.sourceKind==='iteration'?'generation':body.sourceKind==='template'?'templates':'analysis'}/${body.sourceId}`)
+      const source=body.sourceKind==='empty'?null:received?{...received,assetId:received.sourceAssetId,referenceImageUrl:received.sourceImageUrl??legacy?.referenceImageUrl,promptText:received.promptSnapshot??received.content??received.promptText,negativePromptText:received.negativePromptSnapshot??received.negativePromptText,analysisTaskId:received.analysisTaskId??(body.sourceKind==='analysis'?body.sourceId:null),analysisTemplateVariables:received.variables??received.analysisTemplateVariables,analysisTemplateContent:received.content??received.analysisTemplateContent,generationParams:received.params??legacy?.generationParams}:legacy
+      const createdId=`01K1AGENT${String(++count).padStart(17,'0')}`
+      const direction:AnyRecord={id:createdId,userId:'mock-user-id',title:body.title,creationRequestKey:body.requestKey,draftRevision:0,analysisTaskId:source?.analysisTaskId??(body.sourceKind==='analysis'?body.sourceId:null),sourceAssetId:source?.assetId??null,sourceTemplateId:body.sourceKind==='template'?body.sourceId:source?.sourceTemplateId??null,sourceIterationId:body.sourceKind==='iteration'?body.sourceId:null,preferredIterationId:null,quickState:'none',authorizationEpoch:0,draft:{control:null,customPrompt:source?.promptText??null,negativePromptText:source?.negativePromptText??'',params:source?.generationParams??{model:'flux-2-dev',quality:'standard',aspectRatio:'1:1'},constraints:[],aspectRatioSource:'fallback'},_source:{previousResult:source?.resultFileUrl?{id:source.resultAssetId??'original-result',fileUrl:source.resultFileUrl}:null,reference:source?.assetId?{id:source.assetId,fileUrl:source.referenceImageUrl,width:100,height:100,mimeType:'image/png'}:null,recipe:source?.recipe??null,variables:source?.analysisTemplateVariables??[],analysisTemplateContent:source?.analysisTemplateContent??null,analysisTemplateStatus:source?.analysisTemplateStatus??null,analysisStatus:source?.analysisTaskId?'completed':null}}
+      if(source?.recipe&&body.sourceKind==='analysis'){direction.draft.control=initialControl(source.recipe);if(direction.draft.control)direction.draft.customPrompt=null}
+      if(body.sourceKind==='iteration'){const params=source?.generationParams??direction.draft.params;direction.draft.aspectRatioSource='restore';direction.draft.params={...params,model:params.model??''};}
+      if(received?.promptControlSnapshot&&body.sourceKind==='iteration'){direction.draft.control=received.promptControlSnapshot;direction.draft.customPrompt=received.promptSnapshot}
+      directions.set(createdId,direction);keys.set(body.requestKey,createdId);await route.fulfill({status:201,json:{direction,reused:false}});return
+    }
+    const direction=directions.get(id)
+    if(!direction){await route.fulfill({status:404,json:{code:'NOT_FOUND'}});return}
+    if(parts[5]==='commands'){
+      const body=request.postDataJSON();
+      if(body.action==='armQuick'){if(direction.analysisTaskId){await route.fulfill({status:409,json:{code:'QUICK_SOURCE_NOT_EMPTY'}});return;}direction.quickState='armed';direction.quickAuthorizationId='auth-'+body.activationId;direction.quickActivationId=body.activationId;direction.authorizationEpoch++;}
+      else if(body.action==='clearQuick'){direction.quickState='none';direction.quickAuthorizationId=null;direction.quickActivationId=null;direction.authorizationEpoch++;}
+      await route.fulfill({json:{direction,event:{id:'command-'+body.requestKey},reused:false}});return;
+    }
+    if(parts[5]==='events'){await route.fulfill({json:{items:[],total:0,hasMore:false,throughSequence:0}});return}
+    if(request.method()==='PATCH'){
+      const body=request.postDataJSON(),prior=patches.get(body.requestKey)
+      if(prior){await route.fulfill({status:prior.body===request.postData()?200:409,json:prior.response});return}
+      if(body.baseRevision!==direction.draftRevision){await route.fulfill({status:409,json:{code:'revision_conflict'}});return}
+      try{direction.draft=applyDraftPatches(direction.draft,body.changes??[],direction._source.recipe,direction._source.variables)}catch(error){await route.fulfill({status:400,json:{error:String(error)}});return}
+      if(body.preferredIterationId!==undefined)direction.preferredIterationId=body.preferredIterationId;
+      direction.quickState='none';direction.quickAuthorizationId=null;direction.authorizationEpoch++;
+      direction.draftRevision++;const result={direction:structuredClone(direction)};patches.set(body.requestKey,{body:request.postData()!,response:result});await route.fulfill({json:result});return
+    }
+    await route.fulfill({json:projection(direction)})
+  })
+  return {directions,keys,patches}
+}
+
+/** Turn fixture records accepted POSTs and receipts; reads never advance business state. */
+export async function mockAgentConversation(page:Page,options:{replies?:Record<string,unknown>[];dropFirstResponse?:boolean;dropFirstCommandResponse?:boolean;failCommandReadbackOnce?:boolean;source?:Record<string,unknown>;draft?:import('../../src/lib/workspace/contracts').WorkspaceDraft}={}) {
+  const direction:{id:string;userId:string;draftRevision:number;analysisTaskId:null;sourceAssetId:null;sourceTemplateId:null;sourceIterationId:null;preferredIterationId:null;draft:import('../../src/lib/workspace/contracts').WorkspaceDraft}={id:'conversation-direction',userId:'mock-user-id',draftRevision:0,analysisTaskId:null,sourceAssetId:null,sourceTemplateId:null,sourceIterationId:null,preferredIterationId:null,draft:{control:null,customPrompt:null,negativePromptText:'',params:{model:'flux-2-dev',quality:'standard',aspectRatio:'1:1'},constraints:[],aspectRatioSource:'fallback'}};
+  const turns:Record<string,any>[]=[]; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const events:Record<string,any>[]=[]; // eslint-disable-line @typescript-eslint/no-explicit-any
+  if(options.draft)direction.draft=structuredClone(options.draft);
+  const commands:Record<string,unknown>[]=[];
+  let failedReadback=false,readbackFailure=false;
+  const snapshots=new Map<string,typeof direction.draft>();
+  let reads=0;
+  await page.route('**/api/workspace/directions/conversation-direction**',async route=>{
+    const url=new URL(route.request().url());
+    if(url.pathname.endsWith('/commands')){
+      const body=route.request().postDataJSON();commands.push(body);const replay=events.find(e=>e.requestKey===body.requestKey);if(replay){await route.fulfill({json:{direction,event:replay,reused:true}});return;}
+      const proposal=events.find(e=>e.id===body.eventId);
+      if(!proposal||body.baseRevision!==direction.draftRevision){await route.fulfill({status:409,json:{code:'PROPOSAL_STALE',currentRevision:direction.draftRevision}});return;}
+      const before=structuredClone(direction.draft);
+      if(body.action==='apply'){direction.draft=applyDraftPatches(direction.draft,body.changes??[],(options.source?.recipe??null) as Parameters<typeof applyDraftPatches>[2]);direction.draftRevision++;proposal.proposalState='applied';proposal.resultingRevision=direction.draftRevision;}
+      if(body.action==='discard')proposal.proposalState='discarded';
+      if(body.action==='undo'){direction.draft=snapshots.get(proposal.id)!;direction.draftRevision++;}
+      const event={id:`command-${events.length}`,requestKey:body.requestKey,kind:'draft_change',state:'completed',sequence:events.length+1,changes:body.changes??[],relatedEventId:proposal.id,resultingRevision:direction.draftRevision,inputText:body.action==='apply'?'proposalUndo':null,replyText:body.action==='apply'?`Applied at revision ${direction.draftRevision}`:body.action==='undo'?'Changes undone. No image was generated.':'Proposal discarded. Your draft is unchanged.'};snapshots.set(event.id,before);events.push(event);
+      if(options.dropFirstCommandResponse&&commands.length===1){await route.abort('failed');return;}
+      if(options.failCommandReadbackOnce&&!failedReadback)readbackFailure=true;
+      await route.fulfill({json:{direction,event}});return;
+    }
+    if(url.pathname.endsWith('/turns')){
+      const body=route.request().postDataJSON();turns.push(body);
+      let event=events.find(event=>event.requestKey===body.requestKey);
+      if(!event){event={id:`turn-${events.length+1}`,directionId:direction.id,requestKey:body.requestKey,kind:'turn',state:'completed',sequence:events.length+1,baseRevision:body.baseRevision,inputText:body.text,replyText:'The evidence describes soft lighting.',responseKind:'answer',choices:[],changes:[],references:body.references,proposalState:'none',relatedEventId:body.retryOf??null,...options.replies?.[events.length]};events.push(event);}
+      if(options.dropFirstResponse&&turns.length===1){await route.abort('failed');return;}
+      await route.fulfill({status:event.state==='failed'?502:event.state==='processing'?202:200,json:{event,...(event.state==='failed'?{code:event.errorCode,eventId:event.id,retryable:true,preservedContext:true}:{})}});return;
+    }
+    if(url.pathname.endsWith('/events')){reads++;await route.fulfill({json:url.searchParams.has('requestKey')?{event:events.find(event=>event.requestKey===url.searchParams.get('requestKey'))??null}:{items:[...events].reverse(),hasMore:false,throughSequence:events.length}});return;}
+    if(route.request().method()==='PATCH'){const body=route.request().postDataJSON();if(body.preferredIterationId!==undefined)Object.assign(direction,{preferredIterationId:body.preferredIterationId});direction.draft=applyDraftPatches(direction.draft,body.changes??[],(options.source?.recipe??null) as Parameters<typeof applyDraftPatches>[2]);direction.draftRevision++;for(const event of events)if(event.proposalState==='pending')event.proposalState='stale';}
+    if(readbackFailure){readbackFailure=false;failedReadback=true;await route.fulfill({status:503,json:{code:'READ_UNAVAILABLE'}});return;}
+    await route.fulfill({json:{direction,source:{reference:null,recipe:null,variables:[],analysisStatus:null,...options.source},activeTask:null,summaryToken:'fetched-but-not-displayed'}});
+  });
+  return {turns,commands,events,direction,getReads:()=>reads};
+}
+
+/** Agent history owns true direction IDs; captures all mutations separately from reads. */
+export async function mockAgentHistory(page:Page) {
+ await mockAuthSession(page);await mockCdnImages(page);await mockGenerationList(page);
+ const fixture=loadFixture('analysis-v2-completed.json') as {recipe:Record<string,unknown>};
+ const state=await mockAgentConversation(page,{source:{analysisStatus:'completed',recipe:fixture.recipe},draft:{control:null,customPrompt:'Current unsaved working prompt',negativePromptText:'current negative',params:{model:'flux-2-dev',quality:'standard',aspectRatio:'1:1'},constraints:[],aspectRatioSource:'user'}});
+ Object.assign(state.direction,{analysisTaskId:'history-analysis'});
+ const mutations:{method:string;url:string;body:unknown}[]=[];page.on('request',request=>{if(['POST','PATCH','DELETE'].includes(request.method()))mutations.push({method:request.method(),url:request.url(),body:request.postDataJSON()});});
+ const details=['old-result','other-result'].map(id=>({id,directionId:'conversation-direction',analysisTaskId:'history-analysis',status:'completed' as const,resultAssetId:'asset-'+id,resultFileUrl:'https://cdn.example.com/'+id+'.webp',promptSnapshot:'Frozen prompt '+id,negativePromptSnapshot:'frozen negative',params:{model:'flux-2-dev',aspectRatio:'3:4',quality:'standard'},modelName:'replicate:original-binding',recipe:fixture.recipe,recipeSource:'snapshot' as const,variables:[],variablesSource:'snapshot' as const,sourceImageUrl:'https://cdn.example.com/reference.webp',sourceAssetId:'reference-asset',sourceTemplateId:null,sourceTemplateName:null,savedTemplate:null,analysisTemplateVariables:[],errorMessage:null,createdAt:'2026-09-01T00:00:00Z',updatedAt:'2026-09-01T00:00:00Z',promptControlSnapshot:null}));
+ const detailStates=[];for(const detail of details)detailStates.push(await mockIterationDetailStateful(page,detail));
+ await mockGenerationList(page,details.map(detail=>({id:detail.id,resultFileUrl:detail.resultFileUrl,createdAt:detail.createdAt})));
+ const feed=await mockDirectionFeedStateful(page,{completed:details.map(detail=>({...detail,promptSummary:detail.id})),active:null,latestFailure:null});
+ return {state,mutations,details,detailStates,feed};
+}
+export async function mockPreferredRejection(page:Page,iterationId:string){
+ await page.route('**/api/workspace/directions/*',async route=>{if(route.request().method()==='PATCH'&&route.request().postDataJSON()?.preferredIterationId===iterationId){await route.fulfill({status:400,json:{code:'ITERATION_DIRECTION_MISMATCH',error:'This result belongs to another direction'}});return;}await route.fallback();});
+}

@@ -128,7 +128,7 @@ describe("useGeneration", () => {
   });
 
   // 401 响应时调用 signIn 并停止轮询
-  it("401 响应时调用 signIn 引导重新Log in", async () => {
+  it("401 pauses polling without automatic login or action replay", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
       return new Response(
         JSON.stringify({
@@ -148,9 +148,7 @@ describe("useGeneration", () => {
       expect(result.current.error).not.toBeNull();
     });
 
-    expect(mockSignIn).toHaveBeenCalledWith("google", {
-      callbackUrl: expect.any(String),
-    });
+    expect(mockSignIn).not.toHaveBeenCalled();
     expect(result.current.error?.message).toBe("Your session expired. Please log in again.");
   });
 });

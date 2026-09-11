@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
+import { useFocusTrap } from "@/hooks/use-focus-trap";
 import type {
   PromptDetailLevel,
   PromptEditorMode,
@@ -17,10 +18,13 @@ import type {
  */
 
 interface PendingSelection {
-  axis: "intent" | "detail";
+  axis: "intent" | "detail" | "editor";
+  preview?:{before:string;after:string;scope?:string};
+  next?:{intent?:PromptIntent;detailLevel?:PromptDetailLevel;editorMode?:PromptEditorMode};
 }
 
 export interface PromptIntentControlsProps {
+  previewChange?:(next:{intent?:PromptIntent;detailLevel?:PromptDetailLevel;editorMode?:PromptEditorMode})=>{before:string;after:string;scope?:string};
   intent: PromptIntent;
   detailLevel: PromptDetailLevel;
   editorMode: PromptEditorMode;
@@ -101,29 +105,23 @@ export function PromptIntentControls({
   disabled = false,
   locked = false,
   structuredAvailable = true,
+  previewChange,
   onIntentChange,
   onDetailChange,
   onEditorModeChange,
 }: PromptIntentControlsProps) {
   const [pending, setPending] = useState<PendingSelection | null>(null);
   const triggerElementRef = useRef<HTMLElement | null>(null);
-  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const {containerRef:dialogRef}=useFocusTrap({active:!!pending,onEscape:()=>handleCancel()});
   // pending 的应用动作与值一同保存，避免闭包读到旧 props。
   const pendingApplyRef = useRef<(() => void) | null>(null);
 
-  useEffect(() => {
-    if (pending) {
-      dialogRef.current?.querySelector<HTMLButtonElement>(
-        "[data-testid='prompt-switch-confirm-cancel']",
-      )?.focus();
-    }
-  }, [pending]);
-
   const requestAxisChange = (
-    axis: "intent" | "detail",
+    axis: "intent" | "detail" | "editor",
     trigger: HTMLElement,
     apply: () => void,
     isNoop: boolean,
+    next:{intent?:PromptIntent;detailLevel?:PromptDetailLevel;editorMode?:PromptEditorMode},
   ) => {
     if (isNoop) return;
     if (!customPromptDirty) {
@@ -133,11 +131,11 @@ export function PromptIntentControls({
     // 手动改写保护（架构 §3.2）：先保存 pending selection，确认才替换。
     triggerElementRef.current = trigger;
     pendingApplyRef.current = apply;
-    setPending({ axis });
+    setPending({ axis,preview:previewChange?.(next),next });
   };
 
   const handleIntentClick = (next: PromptIntent, trigger: HTMLElement) => {
-    requestAxisChange("intent", trigger, () => onIntentChange(next), next === intent);
+    requestAxisChange("intent", trigger, () => onIntentChange(next), next === intent,{intent:next});
   };
 
   const handleDetailClick = (next: PromptDetailLevel, trigger: HTMLElement) => {
@@ -146,10 +144,14 @@ export function PromptIntentControls({
       trigger,
       () => onDetailChange(next),
       next === detailLevel,
+      {detailLevel:next},
     );
   };
 
+  const currentPreview=pending?.next?previewChange?.(pending.next):undefined;
+  const previewChanged=!!pending?.preview&&JSON.stringify(currentPreview)!==JSON.stringify(pending.preview);
   const handleAccept = () => {
+    if(previewChanged)return;
     const apply = pendingApplyRef.current;
     setPending(null);
     pendingApplyRef.current = null;
@@ -220,7 +222,7 @@ export function PromptIntentControls({
               title={
                 optionDisabled ? "Structured view needs a complete V2 analysis" : undefined
               }
-              onClick={() => onEditorModeChange(option.value)}
+              onClick={event => option.value==='variables'&&customPromptDirty?requestAxisChange('editor',event.currentTarget,()=>onEditorModeChange(option.value),false,{editorMode:option.value}):onEditorModeChange(option.value)}
               className={`h-6 rounded-lg px-2 text-[0.6875rem] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)] ${
                 editorMode === option.value
                   ? "bg-[var(--accent-primary-soft)] text-[var(--accent-primary)] ring-1 ring-[var(--border-interactive)]"
@@ -251,6 +253,7 @@ export function PromptIntentControls({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[color-mix(in_oklch,var(--surface-page)_72%,transparent)] p-4">
           <div
             ref={dialogRef}
+            tabIndex={-1}
             data-testid="prompt-switch-confirm-dialog"
             role="dialog"
             aria-modal="true"
@@ -267,6 +270,8 @@ export function PromptIntentControls({
               it with the newly compiled prompt; cancelling keeps your text
               unchanged.
             </p>
+            {pending.preview&&<div className="mt-3 grid max-h-64 gap-3 overflow-y-auto text-xs"><div><p>Before</p><pre className="whitespace-pre-wrap break-words">{pending.preview.before}</pre></div><div><p>After</p><pre className="whitespace-pre-wrap break-words">{pending.preview.after}</pre></div></div>}
+            {previewChanged&&<p role="alert">The draft changed. Cancel and review the replacement again.</p>}
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
@@ -279,6 +284,7 @@ export function PromptIntentControls({
               <button
                 type="button"
                 data-testid="prompt-switch-confirm-accept"
+                disabled={previewChanged}
                 onClick={handleAccept}
                 className="btn-primary h-8 rounded-lg px-3 text-xs font-semibold"
               >

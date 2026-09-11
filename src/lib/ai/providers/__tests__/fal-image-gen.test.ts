@@ -333,6 +333,7 @@ describe("FalImageGenProvider", () => {
 
     expect(createFalClient).toHaveBeenCalledWith({
       credentials: "test-fal-key",
+      fetch: expect.any(Function),
     });
   });
 });

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { findIterationDetail } from "@/lib/repositories/generation-task-repository";
+import { getRetrySummary } from '@/lib/generation/submission';
+import { reconcileGeneration } from '@/lib/generation/reconciliation';
+export const maxDuration=240;
 import { auth } from "@/auth";
 
 /** 结构化日志 [架构 8.5 可观测性] */
@@ -32,7 +35,8 @@ export async function GET(
     }
 
     // plan-01（架构 §6.2）: 全状态详情，快照优先、活引用回退、缺失标记、已保存关联
-    const detail = await findIterationDetail(id, userId);
+    let detail = await findIterationDetail(id, userId);
+    if(detail?.dispatchState){await reconcileGeneration(userId,id);detail=await findIterationDetail(id,userId);}
 
     if (!detail) {
       return NextResponse.json(
@@ -54,12 +58,17 @@ export async function GET(
     // 旧任务为 null（消费端以 promptSnapshot 全文降级，不虚构历史控制值）
     return NextResponse.json({
       id: detail.id,
+      directionId: detail.directionId ?? null,
+      draftRevision: detail.draftRevision ?? null,
+      submissionState: detail.dispatchState ?? null,
+      retrySummary: detail.dispatchState==='terminal'&&detail.status==='failed'?await getRetrySummary(userId,id):null,
       analysisTaskId: detail.analysisTaskId,
       status: detail.status,
       promptSnapshot: detail.promptSnapshot,
       negativePromptSnapshot: detail.negativePromptSnapshot,
       params: detail.params,
       modelName: detail.modelName,
+      provider:detail.provider??null,
       resultAssetId: detail.resultAssetId,
       resultFileUrl: detail.resultFileUrl,
       errorMessage: detail.errorMessage,

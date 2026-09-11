@@ -50,6 +50,13 @@
       "when": 1788202387215,
       "tag": "0006_pale_darkhawk",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788801873904,
+      "tag": "0007_workspace_agent",
+      "breakpoints": true
     }
   ]
 }

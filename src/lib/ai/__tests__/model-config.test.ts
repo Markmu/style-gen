@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
+  loadModelConfig,
   resolveImageGenModel,
   resolveVisionModel,
   resolveStructurerModel,
@@ -8,18 +9,6 @@ import {
   DEFAULT_IMAGE_GEN_MODEL_ID,
   isKnownImageGenModel,
 } from "../model-config";
-
-/** 以替换 models.json 的方式重放模块级配置校验 */
-async function importModelConfigWith(rawJson: unknown) {
-  vi.resetModules();
-  vi.doMock("../models.json", () => ({ default: rawJson }));
-  try {
-    return await import("../model-config");
-  } finally {
-    vi.doUnmock("../models.json");
-    vi.resetModules();
-  }
-}
 
 function validConfig(): Record<string, unknown> {
   return {
@@ -74,7 +63,6 @@ describe("model-config 解析", () => {
   const ORIGINAL_ENV = process.env;
 
   beforeEach(() => {
-    vi.resetAllMocks();
     process.env = { ...ORIGINAL_ENV };
     delete process.env.IMAGE_GEN_PROVIDER;
     delete process.env.VISION_PROVIDER;
@@ -210,7 +198,7 @@ describe("models.json 加载期校验", () => {
   it("imageGen 模型 id 重复时拒绝加载", async () => {
     const config = validConfig();
     (config.imageGen as { models: Array<{ id: string }> }).models[1].id = "model-a";
-    await expect(importModelConfigWith(config)).rejects.toThrow(
+    expect(() => loadModelConfig(config)).toThrow(
       'duplicate model id "model-a" in "imageGen"'
     );
   });
@@ -221,7 +209,7 @@ describe("models.json 加载期校验", () => {
       models: Array<{ providers: Array<Record<string, unknown>> }>;
     }).models;
     delete models[0].providers[0].isDefault;
-    await expect(importModelConfigWith(config)).rejects.toThrow(
+    expect(() => loadModelConfig(config)).toThrow(
       'model "model-a" must declare exactly one default provider (found 0)'
     );
   });
@@ -232,7 +220,7 @@ describe("models.json 加载期校验", () => {
       models: Array<{ providers: Array<Record<string, unknown>> }>;
     }).models;
     models[1].providers[0].provider = "openai";
-    await expect(importModelConfigWith(config)).rejects.toThrow(
+    expect(() => loadModelConfig(config)).toThrow(
       'model "model-b" has unknown provider "openai"'
     );
   });
@@ -240,7 +228,7 @@ describe("models.json 加载期校验", () => {
   it("defaultModel 未收录在 models 列表时拒绝加载", async () => {
     const config = validConfig();
     (config.imageGen as { defaultModel: string }).defaultModel = "missing-model";
-    await expect(importModelConfigWith(config)).rejects.toThrow(
+    expect(() => loadModelConfig(config)).toThrow(
       '"imageGen.defaultModel" (missing-model) is not listed in "imageGen.models"'
     );
   });
@@ -248,7 +236,7 @@ describe("models.json 加载期校验", () => {
   it("模型 providers 为空数组时拒绝加载", async () => {
     const config = validConfig();
     (config.imageGen as { models: Array<{ providers: unknown[] }> }).models[1].providers = [];
-    await expect(importModelConfigWith(config)).rejects.toThrow(
+    expect(() => loadModelConfig(config)).toThrow(
       'model "model-b" must declare at least one provider'
     );
   });

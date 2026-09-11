@@ -1,3 +1,5 @@
+import { mockPreferredRejection } from './helpers/mock-api';
+import { generateCurrentDraft } from './helpers/workspace-actions';
 import { expect, test, type Page } from '@playwright/test'
 import { resolve } from 'path'
 import {
@@ -68,7 +70,7 @@ function referenceCard(page: Page) {
 }
 
 function renderDock(page: Page) {
-  return page.getByTestId('output-card')
+  return page.getByTestId('generation-bar')
 }
 
 /** 上传测试参考图（100×100，参考比 1:1），走可见 drop-zone 的 file input */
@@ -164,7 +166,7 @@ test.describe('plan-02：快速创作节奏与工作区状态（AC-01 / AC-07）
     expect(generation.requests).toHaveLength(0)
   })
 
-  test('TC-2.3 快速路径分析 success 后恰好一次自动 POST，请求与确认快照一致', async ({ page }) => {
+  test('TC-2.3 当前页面完整分析消费一次服务端quick授权', async ({ page }) => {
     const analysisTaskId = 'quick-path-analysis-task'
     const generationTaskId = 'quick-path-generation-task'
     const generation = await mockGenerationCreateCapture(page, generationTaskId)
@@ -187,32 +189,12 @@ test.describe('plan-02：快速创作节奏与工作区状态（AC-01 / AC-07）
     })
 
     await chooseQuickRecreatePace(page)
-    const confirmedModel = await page
-      .getByTestId('quick-confirm-generation-settings')
-      .getAttribute('data-model')
     await confirmQuickRecreate(page)
 
-    await uploadReference(page)
-
-    await expect
-      .poll(() => generation.requests.length, { timeout: 15000 })
-      .toBe(1)
-
-    const body = generation.requests[0].body as {
-      analysisTaskId: unknown
-      promptControlSnapshot: Record<string, unknown>
-      params: Record<string, unknown>
-      promptText: unknown
-    }
-    expect(body.analysisTaskId).toBe(analysisTaskId)
-    expect(body.promptControlSnapshot).toMatchObject({
-      trigger: 'quick_recreate',
-      intent: 'reconstruction',
-      detailLevel: 'standard',
-    })
-    expect(body.params).toMatchObject({ aspectRatio: '1:1', quality: 'standard' })
-    expect(body.params.model).toBe(confirmedModel)
-    expect(String(body.promptText ?? '').trim().length).toBeGreaterThan(0)
+    await expectDirectionEvidenceComplete(page)
+    await expect.poll(()=>generation.requests.length).toBe(1)
+    await expect.poll(() => generation.requests.length, { timeout: 15000 }).toBe(1)
+    expect(generation.requests[0].body).toMatchObject({directionId:expect.any(String),requestKey:expect.any(String),baseRevision:expect.any(Number),authorizationId:expect.any(String),mode:'quick'})
 
     // 生成到达终态后提交数仍为 1（轮询重复 success / effect 重放不重放）；
     // plan-07 新契约：终态内联进入方向结果区，阻断式弹层不出现（成功不弹层）
@@ -223,7 +205,7 @@ test.describe('plan-02：快速创作节奏与工作区状态（AC-01 / AC-07）
     expect(generation.requests).toHaveLength(1)
   })
 
-  test('TC-2.4 armed 期间生成设置只读并说明退出方式', async ({ page }) => {
+  test('TC-2.4 armed期间设置可编辑，修改清授权', async ({ page }) => {
     const analysisTaskId = 'armed-lock-analysis-task'
     const generation = await mockGenerationCreateCapture(page)
     await mockUploadPresign(page)
@@ -235,22 +217,23 @@ test.describe('plan-02：快速创作节奏与工作区状态（AC-01 / AC-07）
 
     await chooseQuickRecreatePace(page)
     await confirmQuickRecreate(page)
-    await uploadReference(page)
 
     await expect(page.getByTestId('quick-authorization-status')).toHaveAttribute(
       'data-authorization',
       'armed',
     )
-    await expect(page.getByTestId('quick-authorization-locked-note')).toBeVisible()
+    await expect(page.getByTestId('generation-bar')).toContainText('Editing or leaving clears')
     await expect(page.getByTestId('exit-quick-recreate')).toBeVisible()
 
-    await expect(renderDock(page).getByLabel('Aspect Ratio')).toBeDisabled()
-    await expect(renderDock(page).getByLabel('Quality')).toBeDisabled()
-    await expect(renderDock(page).getByLabel('Model')).toBeDisabled()
+    await expect(renderDock(page).getByLabel('Aspect ratio')).toBeEnabled()
+    await expect(renderDock(page).getByLabel('Quality')).toBeEnabled()
+    await expect(renderDock(page).getByLabel('Model')).toBeEnabled()
+    await renderDock(page).getByLabel('Aspect ratio').selectOption('3:4')
+    await expect(page.getByTestId('quick-authorization-status')).toHaveAttribute('data-authorization','none')
     expect(generation.requests).toHaveLength(0)
   })
 
-  test('TC-2.5 自动提交后刷新不重放', async ({ page }) => {
+  test('TC-2.5 quick提交后刷新不重放授权或生成请求', async ({ page }) => {
     const analysisTaskId = 'reload-analysis-task'
     const generationTaskId = 'reload-generation-task'
     const generation = await mockGenerationCreateCapture(page, generationTaskId)
@@ -273,8 +256,8 @@ test.describe('plan-02：快速创作节奏与工作区状态（AC-01 / AC-07）
 
     await chooseQuickRecreatePace(page)
     await confirmQuickRecreate(page)
-    await uploadReference(page)
 
+    await expectDirectionEvidenceComplete(page)
     await expect
       .poll(() => generation.requests.length, { timeout: 15000 })
       .toBe(1)
@@ -304,7 +287,6 @@ test.describe('plan-02：快速创作节奏与工作区状态（AC-01 / AC-07）
 
     await chooseQuickRecreatePace(page)
     await confirmQuickRecreate(page)
-    await uploadReference(page)
 
     await expect(referenceCard(page).getByText('Analysis failed')).toBeVisible({
       timeout: 15000,
@@ -348,10 +330,9 @@ test.describe('plan-02：快速创作节奏与工作区状态（AC-01 / AC-07）
 
     await chooseQuickRecreatePace(page)
     await confirmQuickRecreate(page)
-    await uploadReference(page)
 
     await exitQuickRecreate(page)
-    await expect(renderDock(page).getByLabel('Aspect Ratio')).toBeEnabled()
+    await expect(renderDock(page).getByLabel('Aspect ratio')).toBeEnabled()
     await expect(renderDock(page).getByLabel('Quality')).toBeEnabled()
     await expect(renderDock(page).getByLabel('Model')).toBeEnabled()
     await expect(referenceCard(page).getByTestId('reference-image-stage')).toBeVisible()
@@ -377,13 +358,11 @@ test.describe('plan-02：快速创作节奏与工作区状态（AC-01 / AC-07）
 
     await chooseQuickRecreatePace(page)
     await confirmQuickRecreate(page)
-    await uploadReference(page)
 
     // 与 TC-2.1 完全相同的证据断言集合：快速路径不削弱证据完整度
     await expectDirectionEvidenceComplete(page)
-    await expect
-      .poll(() => generation.requests.length, { timeout: 15000 })
-      .toBe(1)
+    await expect.poll(()=>generation.requests.length).toBe(1)
+    expect(generation.requests[0].body).toMatchObject({mode:'quick',authorizationId:expect.any(String)})
   })
 
   test('TC-2.10 阻塞清除后条件恢复（重试分析成功）不延迟自动提交', async ({ page }) => {
@@ -400,7 +379,6 @@ test.describe('plan-02：快速创作节奏与工作区状态（AC-01 / AC-07）
 
     await chooseQuickRecreatePace(page)
     await confirmQuickRecreate(page)
-    await uploadReference(page)
 
     await expect(referenceCard(page).getByText('Analysis failed')).toBeVisible({
       timeout: 15000,
@@ -462,7 +440,9 @@ async function completeDeepAnalysis(
     ...loadFixture(fixture),
     id: analysisTaskId,
   })
+  const completed=page.waitForResponse(response=>new URL(response.url()).pathname===`/api/analysis/${analysisTaskId}`&&response.request().method()==='GET');
   await uploadReference(page)
+  await completed;
   await page
     .locator('[data-testid="ai-status-header"][data-phase="analysis_ready"]')
     .first()
@@ -474,6 +454,7 @@ async function completeDeepAnalysis(
  * 再导航回 /workspace 让挂载逻辑消费（沿用 style-memory-reuse.spec.ts 的 seed 模式）。
  */
 async function seedWorkspaceV5State(page: Page, state: Record<string, unknown>) {
+  if(state.pendingIterationRestore){const payload=state.pendingIterationRestore as Record<string,unknown>;await mockGenerationPolling(page,String(payload.iterationId),{...payload,id:payload.iterationId,status:'completed',sourceAssetId:payload.sourceAssetId,sourceImageUrl:payload.sourceImageUrl,promptControlSnapshot:null});}
   try {
     await page.goto('/workspace/iterations?status=all', {
       waitUntil: 'commit',
@@ -491,6 +472,7 @@ async function seedWorkspaceV5State(page: Page, state: Record<string, unknown>) 
     [WORKSPACE_STORAGE_KEY, JSON.stringify({ version: 5, ...state })] as [string, string],
   )
   await gotoWorkspace(page)
+  if(state.pendingIterationRestore)await expect(page).toHaveURL(/directionId=/);
 }
 
 test.describe('plan-04：Prompt 控制与保留改变摘要（AC-02 / AC-03 / AC-05）', () => {
@@ -754,12 +736,12 @@ test.describe('plan-04：Prompt 控制与保留改变摘要（AC-02 / AC-03 / AC
     // 100×100 参考图（1×1 mock CDN 图）→ 最近画幅 1:1，来源 reference 且标注推荐
     await expect(sourceBadge).toHaveAttribute('data-source', 'reference')
     await expect(sourceBadge).toHaveAttribute('data-recommended', 'true')
-    await expect(dock.getByLabel('Aspect Ratio')).toHaveValue('1:1')
+    await expect(dock.getByLabel('Aspect ratio')).toHaveValue('1:1')
 
     // 用户改选 3:4：来源切换 user
-    await dock.getByLabel('Aspect Ratio').selectOption('3:4')
+    await dock.getByLabel('Aspect ratio').selectOption('3:4')
     await expect(sourceBadge).toHaveAttribute('data-source', 'user')
-    await expect(dock.getByLabel('Aspect Ratio')).toHaveValue('3:4')
+    await expect(dock.getByLabel('Aspect ratio')).toHaveValue('3:4')
 
     // 图片重载（reload）不覆盖用户选择（架构 §6.3.4）
     await page.reload()
@@ -770,13 +752,13 @@ test.describe('plan-04：Prompt 控制与保留改变摘要（AC-02 / AC-03 / AC
       'data-source',
       'user',
     )
-    await expect(renderDock(page).getByLabel('Aspect Ratio')).toHaveValue('3:4')
+    await expect(renderDock(page).getByLabel('Aspect ratio')).toHaveValue('3:4')
 
     // Prompt 编辑（切换 detail）同样不覆盖
     const controls = promptControls(page)
     await expect(controls).toBeVisible({ timeout: 10000 })
     await controls.getByTestId('detail-option-concise').click()
-    await expect(renderDock(page).getByLabel('Aspect Ratio')).toHaveValue('3:4')
+    await expect(renderDock(page).getByLabel('Aspect ratio')).toHaveValue('3:4')
     await expect(renderDock(page).getByTestId('aspect-ratio-source')).toHaveAttribute(
       'data-source',
       'user',
@@ -813,10 +795,10 @@ test.describe('plan-04：Prompt 控制与保留改变摘要（AC-02 / AC-03 / AC
       'data-source',
       'restore',
     )
-    await expect(dock.getByLabel('Aspect Ratio')).toHaveValue('16:9')
+    await expect(dock.getByLabel('Aspect ratio')).toHaveValue('16:9')
   })
 
-  test('TC-4.11 未知画幅请求前拒绝：清洗回 1:1、fallback 不标推荐、POST 仅白名单', async ({ page }) => {
+  test('TC-4.11 历史未知画幅原值保留，显式修复后 POST 仅白名单', async ({ page }) => {
     const generationTaskId = 'unknown-ratio-generation-task'
     const generation = await mockGenerationCreateCapture(page, generationTaskId)
     await mockGenerationPolling(page, generationTaskId, {
@@ -841,31 +823,25 @@ test.describe('plan-04：Prompt 控制与保留改变摘要（AC-02 / AC-03 / AC
       },
     })
 
-    // 未知画幅不得进入 UI：清洗回 1:1；fallback 来源且不冒充推荐
+    // 保留历史实际画幅；生成前需要用户明确修复，不静默猜测。
     const dock = renderDock(page)
-    await expect(dock.getByLabel('Aspect Ratio')).toHaveValue('1:1')
-    const sourceBadge = dock.getByTestId('aspect-ratio-source')
-    await expect(sourceBadge).toBeVisible({ timeout: 10000 })
-    await expect(sourceBadge).toHaveAttribute('data-source', 'fallback')
-    await expect(sourceBadge).toHaveAttribute('data-recommended', 'false')
+    await expect(dock.getByLabel('Aspect ratio')).toHaveValue('21:9')
+    const generateButton = dock.getByRole('button', { name: /^Generate 1 image$/ })
+    await expect(generateButton).toBeDisabled()
+    expect(generation.requests).toHaveLength(0)
+    await dock.getByLabel('Aspect ratio').selectOption('1:1')
+    await dock.getByLabel('Model').selectOption('flux-2-dev')
+    await dock.getByLabel('Quality').selectOption('standard')
+    // 参数修复属于草稿编辑：按批准流程先保存并重新查看摘要，再生成
+    await generateCurrentDraft(page)
+    await expect.poll(()=>generation.requests.length).toBe(1)
+    const body=generation.requests[0].body as {directionId:string}
+    const current=await page.evaluate(async id=>await(await fetch(`/api/workspace/directions/${id}`)).json(),body.directionId)
+    expect(current.direction.draft.params.aspectRatio).toBe('1:1')
 
-    // 请求前拒绝：readiness 拒绝（零 POST）或请求体只携带白名单画幅
-    const generateButton = dock.getByRole('button', { name: /^Generate$/ })
-    if (await generateButton.isDisabled()) {
-      expect(generation.requests).toHaveLength(0)
-    } else {
-      await generateButton.click()
-      await expect
-        .poll(() => generation.requests.length, { timeout: 15000 })
-        .toBe(1)
-      const body = generation.requests[0].body as {
-        params?: { aspectRatio?: string }
-      }
-      expect(SUPPORTED_RATIOS).toContain(body.params?.aspectRatio)
-    }
   })
 
-  test('TC-4.12 armed 期间 intent/detail 只读并说明确认快照', async ({ page }) => {
+  test('TC-4.12 armed期间编辑生成设置撤销授权，分析完成不消费', async ({ page }) => {
     const analysisTaskId = 'armed-prompt-controls-analysis-task'
     const generation = await mockGenerationCreateCapture(page)
     await mockUploadPresign(page)
@@ -877,20 +853,15 @@ test.describe('plan-04：Prompt 控制与保留改变摘要（AC-02 / AC-03 / AC
 
     await chooseQuickRecreatePace(page)
     await confirmQuickRecreate(page)
-    await uploadReference(page)
 
     await expect(page.getByTestId('quick-authorization-status')).toHaveAttribute(
       'data-authorization',
       'armed',
     )
-    const controls = promptControls(page)
-    await expect(controls).toBeVisible({ timeout: 10000 })
-    await expect(page.getByTestId('prompt-controls-locked-note')).toBeVisible()
-    await expect(controls.getByTestId('intent-option-reconstruction')).toBeDisabled()
-    await expect(controls.getByTestId('intent-option-same-style')).toBeDisabled()
-    await expect(controls.getByTestId('detail-option-concise')).toBeDisabled()
-    await expect(controls.getByTestId('detail-option-standard')).toBeDisabled()
-    await expect(controls.getByTestId('detail-option-professional')).toBeDisabled()
+    await renderDock(page).getByLabel('Aspect ratio').selectOption('16:9')
+    await expect(page.getByTestId('quick-authorization-status')).toHaveAttribute('data-authorization','none')
+    await mockAnalysisPolling(page,analysisTaskId,{...loadFixture('analysis-v2-completed.json'),id:analysisTaskId})
+    await expect.poll(async()=>page.evaluate(async id=>(await(await fetch('/api/analysis/'+id)).json()).status,analysisTaskId)).toBe('completed')
     expect(generation.requests).toHaveLength(0)
   })
 })
@@ -978,6 +949,7 @@ function completedIterationDetail(
 ): MockIterationDetail {
   return {
     id,
+    resultAssetId: `asset-${id}`,
     analysisTaskId,
     status: 'completed',
     promptSnapshot:
@@ -1107,11 +1079,12 @@ test.describe('plan-05：本次结果区与内联比较（AC-04 / AC-05 / AC-06 
     // 方向 query 契约：view=direction + 当前 analysisTaskId + pageSize=5
     await expect.poll(() => queries.length).toBeGreaterThan(0)
     expect(queries[0].view).toBe('direction')
-    expect(queries[0].analysisTaskId).toBe('rail-states-analysis-task')
+    expect(queries[0].analysisTaskId).toBeNull()
+    expect(queries[0].directionId).toBe(new URL(page.url()).searchParams.get('directionId'))
     expect(queries[0].pageSize).toBe(5)
   })
 
-  test('TC-5.2 手动生成 queue→processing→success 全程内联：新成功自动成为当前选择且不自动成为本次首选', async ({ page }) => {
+  test('TC-5.2 手动生成 queue→processing→success 全程内联：新成功不抢当前选择，未读提示可查看且不自动成为本次首选', async ({ page }) => {
     const priorCompleted = directionItem('dir-c-old', {
       createdAt: '2026-09-01T00:01:00.000Z',
     })
@@ -1147,13 +1120,11 @@ test.describe('plan-05：本次结果区与内联比较（AC-04 / AC-05 / AC-06 
     })
 
     // 手动生成：queue/processing 直接进入本次结果区（AC-04 全状态内联）
-    await renderDock(page).getByRole('button', { name: /^Generate$/ }).click()
+    await generateCurrentDraft(page)
     await expect
       .poll(() => generation.requests.length, { timeout: 15000 })
       .toBe(1)
-    expect(
-      (generation.requests[0].body as { analysisTaskId?: unknown }).analysisTaskId,
-    ).toBe('inline-lifecycle-analysis-task')
+    expect(generation.requests[0].body).toMatchObject({directionId:expect.any(String),requestKey:expect.any(String),baseRevision:expect.any(Number),mode:'current'})
 
     const activeFace = rail.getByTestId('direction-active-face')
     await expect(activeFace).toBeVisible({ timeout: 15000 })
@@ -1165,14 +1136,23 @@ test.describe('plan-05：本次结果区与内联比较（AC-04 / AC-05 / AC-06 
     await expect(newItemFace).toBeVisible({ timeout: 15000 })
     await expect(rail.getByTestId('direction-completed-item')).toHaveCount(2)
 
-    // 新成功自动成为瞬时当前选择（架构 §6.4.7）
-    await expect(newItemFace).toHaveAttribute('data-selected', 'true')
-    await expect(rail).toHaveAttribute('data-selected-id', generationTaskId)
+    // 新成功只提示未读，维持原选择与焦点（plan-09 AC-13）
+    const priorFace = completedRailItem(page, 'dir-c-old')
+    await expect(priorFace).toHaveAttribute('data-selected', 'true')
+    await expect(newItemFace).toHaveAttribute('data-selected', 'false')
+    await expect(rail).toHaveAttribute('data-selected-id', 'dir-c-old')
+    const viewLatest = rail.getByRole('button', { name: 'View latest result' })
+    await expect(viewLatest).toBeVisible()
 
     // selected/preferred 分离：新成功绝不自动成为本次首选（AC-06）
     await expect(newItemFace).toHaveAttribute('data-preferred', 'false')
     await expect(rail).toHaveAttribute('data-preferred-id', '')
     expect(generation.requests).toHaveLength(1)
+
+    // 显式查看最新结果才切换选择（AC-13：查看是用户动作）
+    await viewLatest.click()
+    await expect(newItemFace).toHaveAttribute('data-selected', 'true')
+    await expect(rail).toHaveAttribute('data-selected-id', generationTaskId)
   })
 
   test('TC-5.3 六个成功结果只显示最新五个，更旧结果仍可打开完整 Iteration', async ({ page }) => {
@@ -1239,12 +1219,12 @@ test.describe('plan-05：本次结果区与内联比较（AC-04 / AC-05 / AC-06 
       latestFailure: failure,
     })
     await rail.getByTestId('direction-failure-retry').click()
+    expect(generation.requests).toHaveLength(0)
+    await generateCurrentDraft(page)
     await expect
       .poll(() => generation.requests.length, { timeout: 15000 })
       .toBe(1)
-    expect(
-      (generation.requests[0].body as { analysisTaskId?: unknown }).analysisTaskId,
-    ).toBe('failure-retry-analysis-task')
+    expect(generation.requests[0].body).toMatchObject({directionId:expect.any(String),requestKey:expect.any(String),baseRevision:expect.any(Number),mode:'current'})
 
     // 重试创建新的 GenerationTask（active face 是新 id），原任务保持 failed 终态不复活
     const activeFace = rail.getByTestId('direction-active-face')
@@ -1717,6 +1697,7 @@ test.describe('plan-06：首选 Memory 与结果新参考（AC-04 / AC-06 / AC-0
 
   test('TC-6.1 设置与更换首选：preferred 写入经 Iteration detail 验证，更换后指向新结果', async ({ page }) => {
     const analysisTaskId = 'preferred-validate-analysis-task'
+    const preferences:Record<string,unknown>[]=[];page.on('request',request=>{if(request.method()==='PATCH'&&request.postDataJSON()?.preferredIterationId!==undefined)preferences.push(request.postDataJSON());})
     const c1 = directionItem('dir-pref-v1', { createdAt: '2026-09-01T00:01:00.000Z' })
     const c2 = directionItem('dir-pref-v2', { createdAt: '2026-09-01T00:02:00.000Z' })
     await mockDirectionFeedStateful(page, {
@@ -1724,10 +1705,10 @@ test.describe('plan-06：首选 Memory 与结果新参考（AC-04 / AC-06 / AC-0
       active: null,
       latestFailure: null,
     })
-    const detailV1 = await mockIterationDetailSequence(page, 'dir-pref-v1', [
+    await mockIterationDetailSequence(page, 'dir-pref-v1', [
       completedIterationDetail('dir-pref-v1', analysisTaskId),
     ])
-    const detailV2 = await mockIterationDetailSequence(page, 'dir-pref-v2', [
+    await mockIterationDetailSequence(page, 'dir-pref-v2', [
       completedIterationDetail('dir-pref-v2', analysisTaskId),
     ])
 
@@ -1739,14 +1720,14 @@ test.describe('plan-06：首选 Memory 与结果新参考（AC-04 / AC-06 / AC-0
     // 设置首选 c1：preferred 写入伴随该结果的 Iteration detail 验证（架构 §6.7.1）
     await completedRailItem(page, 'dir-pref-v1').getByTestId('direction-item-preferred').click()
     await expect(rail).toHaveAttribute('data-preferred-id', 'dir-pref-v1')
-    await expect.poll(() => detailV1.callCount, { timeout: 10000 }).toBeGreaterThan(0)
+    expect(preferences[0]).toMatchObject({preferredIterationId:'dir-pref-v1'});expect(preferences[0]).not.toHaveProperty('changes')
 
     // 更换首选到 c2：preferred 指向新结果并同样经验证，c1 不再是首选
     await completedRailItem(page, 'dir-pref-v2').getByTestId('direction-item-preferred').click()
     await expect(rail).toHaveAttribute('data-preferred-id', 'dir-pref-v2')
     await expect(completedRailItem(page, 'dir-pref-v1')).toHaveAttribute('data-preferred', 'false')
     await expect(completedRailItem(page, 'dir-pref-v2')).toHaveAttribute('data-preferred', 'true')
-    await expect.poll(() => detailV2.callCount, { timeout: 10000 }).toBeGreaterThan(0)
+    expect(preferences[1]).toMatchObject({preferredIterationId:'dir-pref-v2'});expect(preferences).toHaveLength(2)
   })
 
   test('TC-6.2 首选滚出五条成功窗口仍有效：「首选已在 Iteration Memory」提示并可打开详情', async ({ page }) => {
@@ -1800,6 +1781,7 @@ test.describe('plan-06：首选 Memory 与结果新参考（AC-04 / AC-06 / AC-0
       completedIterationDetail('dir-pref-bad', 'other-direction-analysis-task'),
     ])
 
+    await mockPreferredRejection(page,'dir-pref-bad')
     await completeDeepAnalysis(page, analysisTaskId)
 
     const rail = directionRail(page)
@@ -1808,11 +1790,8 @@ test.describe('plan-06：首选 Memory 与结果新参考（AC-04 / AC-06 / AC-0
     // 用户尝试设置首选：detail 验证发现不同方向 → 清除 ID 并说明无效原因（AC-06）
     await completedRailItem(page, 'dir-pref-bad').getByTestId('direction-item-preferred').click()
     await expect(rail).toHaveAttribute('data-preferred-id', '')
-    const invalid = rail.getByTestId('direction-preferred-invalid')
-    await expect(invalid).toBeVisible({ timeout: 10000 })
-    await expect(invalid).toHaveAttribute('data-iteration-id', 'dir-pref-bad')
-    // 无效首选不呈现「窗口外仍有效」提示（区分两种出口）
-    await expect(rail.getByTestId('direction-preferred-external')).toHaveCount(0)
+    await expect(page.getByRole('alert').filter({hasText:'another direction'})).toBeVisible()
+
   })
 
   test('TC-6.4 无来源 Memory：从首选结果打开保存向导并预选代表结果；取消零写入', async ({ page }) => {
@@ -1862,7 +1841,6 @@ test.describe('plan-06：首选 Memory 与结果新参考（AC-04 / AC-06 / AC-0
 
   test('TC-6.5 有来源 Memory：Memory 动作打开代表结果确认并预选 preferred 结果', async ({ page }) => {
     const analysisTaskId = 'memory-update-analysis-task'
-    await seedSourceMemoryDirection(page)
     const collection = await mockStyleMemoryDetailCollection(
       page,
       [sourceMemoryDetail('tpl-src-1')],
@@ -1877,6 +1855,7 @@ test.describe('plan-06：首选 Memory 与结果新参考（AC-04 / AC-06 / AC-0
       completedIterationDetail('dir-rep-1', analysisTaskId),
     ])
 
+    await seedSourceMemoryDirection(page)
     await completeDeepAnalysis(page, analysisTaskId)
 
     const rail = directionRail(page)
@@ -1908,7 +1887,6 @@ test.describe('plan-06：首选 Memory 与结果新参考（AC-04 / AC-06 / AC-0
   test('TC-6.6 Memory 更新成功后四类回读即时可见，无需整页刷新', async ({ page }) => {
     const analysisTaskId = 'memory-refresh-analysis-task'
     const feedQueries: DirectionFeedRequestQuery[] = []
-    await seedSourceMemoryDirection(page)
     const collection = await mockStyleMemoryDetailCollection(
       page,
       [sourceMemoryDetail('tpl-src-1')],
@@ -1923,6 +1901,7 @@ test.describe('plan-06：首选 Memory 与结果新参考（AC-04 / AC-06 / AC-0
       completedIterationDetail('dir-rep-1', analysisTaskId),
     ])
 
+    await seedSourceMemoryDirection(page)
     await completeDeepAnalysis(page, analysisTaskId)
 
     const rail = directionRail(page)
@@ -1970,7 +1949,6 @@ test.describe('plan-06：首选 Memory 与结果新参考（AC-04 / AC-06 / AC-0
 
   test('TC-6.7 写入成功但部分回读失败：「已保存，刷新失败」只重试读取，不重复 POST', async ({ page }) => {
     const analysisTaskId = 'memory-refresh-fail-analysis-task'
-    await seedSourceMemoryDirection(page)
     const collection = await mockStyleMemoryDetailCollection(
       page,
       [sourceMemoryDetail('tpl-src-1')],
@@ -1985,6 +1963,7 @@ test.describe('plan-06：首选 Memory 与结果新参考（AC-04 / AC-06 / AC-0
       completedIterationDetail('dir-rep-1', analysisTaskId),
     ])
 
+    await seedSourceMemoryDirection(page)
     await completeDeepAnalysis(page, analysisTaskId)
 
     const rail = directionRail(page)
@@ -2023,7 +2002,6 @@ test.describe('plan-06：首选 Memory 与结果新参考（AC-04 / AC-06 / AC-0
 
   test('TC-6.8 设置/更换首选不改变验证状态：零 Memory 写请求', async ({ page }) => {
     const analysisTaskId = 'preferred-no-write-analysis-task'
-    await seedSourceMemoryDirection(page)
     const collection = await mockStyleMemoryDetailCollection(
       page,
       [sourceMemoryDetail('tpl-src-1')],
@@ -2048,6 +2026,7 @@ test.describe('plan-06：首选 Memory 与结果新参考（AC-04 / AC-06 / AC-0
       completedIterationDetail('dir-verify-2', analysisTaskId),
     ])
 
+    await seedSourceMemoryDirection(page)
     await completeDeepAnalysis(page, analysisTaskId)
 
     const rail = directionRail(page)
@@ -2173,6 +2152,22 @@ test.describe('plan-06：首选 Memory 与结果新参考（AC-04 / AC-06 / AC-0
   })
 })
 
+test('plan-05 lost new-reference response keeps the old direction and retries the same intent',async({page})=>{
+  await mockAuthSession(page);await mockGenerationList(page);await mockCdnImages(page);await gotoWorkspace(page);
+  const analysisTaskId='newref-lost-analysis',nextId='newref-recovered-analysis';
+  await mockDirectionFeedStateful(page,{completed:[directionItem('lost-result')],active:null,latestFailure:null});
+  await mockIterationDetailSequence(page,'lost-result',[completedIterationDetail('lost-result',analysisTaskId)]);
+  await completeDeepAnalysis(page,analysisTaskId);
+  const oldUrl=page.url();const before=await page.getByTestId('compiled-prompt-text').textContent();
+  const capture=await mockAnalysisCreateCapture(page,nextId);await mockAnalysisPolling(page,nextId,{...PROCESSING_ANALYSIS,id:nextId});
+  let firstBody:unknown;let lost=true;
+  await page.route('**/api/analysis',async route=>{if(lost){lost=false;firstBody=route.request().postDataJSON();await route.abort('failed');return;}await route.fallback();});
+  await completedRailItem(page,'lost-result').getByTestId('direction-item-new-reference').click();
+  const dialog=newReferenceDialog(page);await dialog.getByTestId('new-reference-confirm-accept').click();
+  await expect(dialog).toBeVisible();await expect(dialog.getByText(/Network error/)).toBeVisible();expect(page.url()).toBe(oldUrl);await expect(page.getByTestId('compiled-prompt-text')).toHaveText(before??'');
+  await dialog.getByTestId('new-reference-confirm-accept').click();await expect(dialog).toBeHidden();expect(capture.requests[0].body).toEqual(firstBody);expect(page.url()).not.toBe(oldUrl);
+});
+
 // ─── plan-07：Workspace 闭环集成与回归（AC-01～AC-07 / US-01～US-11 收口） ──────────────
 
 /** plan-07 共享：手动生成「进行中」详情（终态推进交给方向 feed，与 TC-5.2 同模式） */
@@ -2230,7 +2225,7 @@ test.describe('plan-07：Workspace 闭环集成与回归（AC-01～07 全旅程�
       active: activeItem(gen1, { createdAt: '2026-09-01T00:10:00.000Z' }),
       latestFailure: null,
     })
-    await renderDock(page).getByRole('button', { name: /^Generate$/ }).click()
+    await generateCurrentDraft(page)
     await expect.poll(() => generation.requests.length, { timeout: 15000 }).toBe(1)
     await expect(page.getByTestId('direction-active-face')).toBeVisible({ timeout: 15000 })
     await expect(page.getByTestId('generation-dialog')).toBeHidden()
@@ -2261,7 +2256,7 @@ test.describe('plan-07：Workspace 闭环集成与回归（AC-01～07 全旅程�
       active: activeItem(gen2, { createdAt: '2026-09-01T00:12:00.000Z' }),
       latestFailure: null,
     })
-    await renderDock(page).getByRole('button', { name: /^Generate$/ }).click()
+    await generateCurrentDraft(page)
     await expect.poll(() => generation.requests.length, { timeout: 15000 }).toBe(2)
     await expect(page.getByTestId('generation-dialog')).toBeHidden()
     feed.set({
@@ -2334,7 +2329,7 @@ test.describe('plan-07：Workspace 闭环集成与回归（AC-01～07 全旅程�
       active: activeItem(genId, { createdAt: '2026-09-01T00:06:00.000Z' }),
       latestFailure: null,
     })
-    await renderDock(page).getByRole('button', { name: /^Generate$/ }).click()
+    await generateCurrentDraft(page)
     await expect.poll(() => generation.requests.length, { timeout: 15000 }).toBe(1)
     await expect(page.getByTestId('direction-active-face')).toBeVisible({ timeout: 15000 })
     await expect(page.getByTestId('generation-dialog')).toBeHidden()
@@ -2406,7 +2401,7 @@ test.describe('plan-07：Workspace 闭环集成与回归（AC-01～07 全旅程�
       active: activeItem(failedId, { createdAt: '2026-09-01T00:04:30.000Z' }),
       latestFailure: null,
     })
-    await renderDock(page).getByRole('button', { name: /^Generate$/ }).click()
+    await generateCurrentDraft(page)
     await expect.poll(() => generation.requests.length, { timeout: 15000 }).toBe(1)
     await expect(page.getByTestId('generation-dialog')).toBeHidden()
     feed.set({ completed: [], active: null, latestFailure: failure })
@@ -2426,10 +2421,10 @@ test.describe('plan-07：Workspace 闭环集成与回归（AC-01～07 全旅程�
       latestFailure: failure,
     })
     await page.getByTestId('direction-failure-retry').click()
+    expect(generation.requests).toHaveLength(1)
+    await generateCurrentDraft(page)
     await expect.poll(() => generation.requests.length, { timeout: 15000 }).toBe(2)
-    expect(
-      (generation.requests[1].body as { analysisTaskId?: unknown }).analysisTaskId,
-    ).toBe(analysisTaskId)
+    expect(generation.requests[1].body).toMatchObject({directionId:expect.any(String),requestKey:expect.any(String),baseRevision:expect.any(Number),mode:'current'})
     feed.set({
       completed: [directionItem(retryId, { createdAt: '2026-09-01T00:07:00.000Z' })],
       active: null,
@@ -2503,7 +2498,7 @@ test.describe('plan-07：Workspace 闭环集成与回归（AC-01～07 全旅程�
       active: activeItem(gen2, { createdAt: '2026-09-01T00:08:00.000Z' }),
       latestFailure: null,
     })
-    await renderDock(page).getByRole('button', { name: /^Generate$/ }).click()
+    await generateCurrentDraft(page)
     await expect.poll(() => generation.requests.length, { timeout: 15000 }).toBe(1)
     await fulltext.focus()
     await page.keyboard.type(' — still typing')
@@ -2558,6 +2553,20 @@ test.describe('plan-07：Workspace 闭环集成与回归（AC-01～07 全旅程�
     )
     await panel.getByTestId('adjustment-action-disable').click()
     await panel.getByTestId('comparison-adjustment-apply').click()
+    const preview=page.getByRole('dialog',{name:'Review full prompt replacement'})
+    await expect(preview).toContainText(manualText)
+    await expect(fulltext).toHaveValue(manualText)
+    await expect(page.getByRole('button',{name:'Cancel replacement'})).toBeFocused()
+    await page.keyboard.press('Shift+Tab')
+    await expect(page.getByRole('button',{name:'Confirm replacement'})).toBeFocused()
+    await page.keyboard.press('Tab')
+    await expect(page.getByRole('button',{name:'Cancel replacement'})).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(panel.getByTestId('comparison-adjustment-apply')).toBeFocused()
+    await expect(fulltext).toHaveValue(manualText)
+    await expect(keepChangeSummary(page).locator('[data-testid="keep-change-item"][data-kind="keep"]')).toHaveCount(5)
+    await panel.getByTestId('comparison-adjustment-apply').click()
+    await page.getByRole('button',{name:'Confirm replacement'}).click()
     await expect(panel).toBeHidden()
 
     // L1 明确说明：未找到可删除的表达，不静默、不声称已删除（§6.2 实现原则）
@@ -2610,7 +2619,7 @@ test.describe('plan-07：Workspace 闭环集成与回归（AC-01～07 全旅程�
     await expect(page.getByTestId('workspace-three-column-layout')).toBeVisible()
     await expect(compiled).toBeVisible()
     await expect(
-      renderDock(page).getByRole('button', { name: /^Generate$/ }),
+      renderDock(page).getByRole('button', { name: /^Generate 1 image$/ }),
     ).toBeEnabled()
     expect(generation.requests).toHaveLength(0)
 
@@ -2645,7 +2654,6 @@ test.describe('plan-07：Workspace 闭环集成与回归（AC-01～07 全旅程�
 
     await chooseQuickRecreatePace(page)
     await confirmQuickRecreate(page)
-    await uploadReference(page)
 
     // L4：分析失败 → armed 复位 none、清除原因说明、参考上下文保留，无阻断弹层
     await expect(referenceCard(page).getByText('Analysis failed')).toBeVisible({
@@ -2674,7 +2682,7 @@ test.describe('plan-07：Workspace 闭环集成与回归（AC-01～07 全旅程�
       active: activeItem(genId, { createdAt: '2026-09-01T00:09:00.000Z' }),
       latestFailure: null,
     })
-    await renderDock(page).getByRole('button', { name: /^Generate$/ }).click()
+    await generateCurrentDraft(page)
     await expect.poll(() => generation.requests.length, { timeout: 15000 }).toBe(1)
     await expect(page.getByTestId('generation-dialog')).toBeHidden()
     feed.set({
@@ -2711,12 +2719,12 @@ test.describe('plan-07：Workspace 闭环集成与回归（AC-01～07 全旅程�
     await completeDeepAnalysis(page, analysisTaskId)
 
     // 提交失败（DB/服务不可用，§8.2 L5）：内联错误位 + 主动重试，不弹层
-    await renderDock(page).getByRole('button', { name: /^Generate$/ }).click()
+    await generateCurrentDraft(page)
     await expect.poll(() => generation.requests.length, { timeout: 15000 }).toBe(1)
-    const submitError = page.getByTestId('generation-submit-error')
+    const submitError = renderDock(page).getByRole('alert')
     await expect(submitError).toBeVisible({ timeout: 15000 })
     await expect(submitError).toContainText(/Service temporarily unavailable/)
-    await expect(page.getByTestId('generation-submit-retry')).toBeVisible()
+    await expect(renderDock(page).getByRole('button',{name:'Check original submission'})).toBeVisible()
     await expect(page.getByTestId('generation-dialog')).toBeHidden()
 
     // 不声称任务已创建：无 active face（任务事实由服务端 SSOT 派生）
@@ -2724,7 +2732,7 @@ test.describe('plan-07：Workspace 闭环集成与回归（AC-01～07 全旅程�
 
     // 草稿与参数保留（sessionStorage 草稿不清除，编辑能力不受影响）
     await expect(page.getByTestId('compiled-prompt-text')).toBeVisible()
-    await expect(renderDock(page).getByLabel('Aspect Ratio')).toBeEnabled()
+    await expect(renderDock(page).getByLabel('Aspect ratio')).toBeEnabled()
 
     // 主动重试创建新任务并成功（L5 下一步：稍后重试而非重来）
     feed.set({
@@ -2732,9 +2740,13 @@ test.describe('plan-07：Workspace 闭环集成与回归（AC-01～07 全旅程�
       active: activeItem(retryGenId, { createdAt: '2026-09-01T00:11:00.000Z' }),
       latestFailure: null,
     })
-    await page.getByTestId('generation-submit-retry').click()
+    await page.route('**/api/generation?requestKey=*',route=>route.fulfill({json:{task:null}}))
+    await renderDock(page).getByRole('button',{name:'Check original submission'}).click()
+    expect(generation.requests).toHaveLength(1)
+    await renderDock(page).getByRole('button',{name:'Confirm original submission'}).click()
     await expect.poll(() => generation.requests.length, { timeout: 15000 }).toBe(2)
-    await expect(page.getByTestId('generation-submit-error')).toBeHidden({ timeout: 15000 })
+    expect(generation.requests[1].body).toEqual(generation.requests[0].body)
+    await expect(renderDock(page).getByRole('alert')).toBeHidden({ timeout: 15000 })
     feed.set({
       completed: [directionItem(retryGenId, { createdAt: '2026-09-01T00:11:00.000Z' })],
       active: null,

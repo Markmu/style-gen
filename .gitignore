@@ -9,7 +9,9 @@ __pycache__/
 
 # next.js
 /.next/
+/.next-workspace-test-*
 /out/
+/output/
 
 # production
 /build

@@ -29,6 +29,9 @@ const sourceTemplates = alias(templates, "source_templates");
 function rowToGenerationTask(row: GenerationTaskRow): GenerationTask {
   return {
     id: row.id,
+    directionId: row.directionId ?? null,
+    dispatchState: row.dispatchState ?? null,
+    draftRevision: row.draftRevision ?? null,
     analysisTaskId: row.analysisTaskId,
     status: row.status as GenerationTaskStatus,
     promptSnapshot: row.promptSnapshot,
@@ -174,6 +177,9 @@ export interface GenerationHistoryItem {
 
 /** 历史恢复详情（含关联 Recipe） */
 export interface GenerationTaskDetail {
+  directionId:string|null;
+  dispatchState: import("@/lib/workspace/contracts").GenerationDispatchState|null;
+  draftRevision:number|null;
   id: string;
   analysisTaskId: string;
   status: "completed";
@@ -265,6 +271,9 @@ export async function findByIdWithRecipe(
   const rows = await db
     .select({
       id: generationTasks.id,
+      directionId: generationTasks.directionId,
+      dispatchState: generationTasks.dispatchState,
+      draftRevision: generationTasks.draftRevision,
       analysisTaskId: generationTasks.analysisTaskId,
       status: generationTasks.status,
       promptSnapshot: generationTasks.promptSnapshot,
@@ -297,6 +306,9 @@ export async function findByIdWithRecipe(
 
   return {
     id: row.id,
+    directionId: row.directionId ?? null,
+    dispatchState: row.dispatchState ?? null,
+    draftRevision: row.draftRevision ?? null,
     analysisTaskId: row.analysisTaskId,
     status: row.status as "completed",
     promptSnapshot: row.promptSnapshot,
@@ -320,6 +332,7 @@ export async function findByIdWithRecipe(
 /** 仓库层迭代列表条目（DTO 同形，createdAt 为 Date，路由负责 ISO 序列化） */
 export interface IterationListItemRow {
   id: string;
+  directionId?: string | null;
   status: IterationDisplayStatus;
   promptSummary: string;
   resultFileUrl: string | null;
@@ -329,6 +342,9 @@ export interface IterationListItemRow {
 
 /** 仓库层迭代详情（DTO 同形，createdAt/updatedAt 为 Date） */
 export interface IterationDetailRow {
+  directionId: string|null;
+  dispatchState: import("@/lib/workspace/contracts").GenerationDispatchState|null;
+  draftRevision:number|null;
   id: string;
   analysisTaskId: string;
   status: IterationDisplayStatus;
@@ -336,6 +352,7 @@ export interface IterationDetailRow {
   negativePromptSnapshot: string;
   params: GenerationParams;
   modelName: string;
+  provider?: string | null;
   resultAssetId: string | null;
   resultFileUrl: string | null;
   errorMessage: string | null;
@@ -370,18 +387,23 @@ function toDisplayStatus(status: string): IterationDisplayStatus {
  */
 export async function listIterations(params: {
   userId: string;
+  directionId?: string;
   q?: string;
   status?: IterationStatusFilter;
   cursor?: string | null;
   pageSize?: number;
 }): Promise<{ items: IterationListItemRow[]; nextCursor: string | null }> {
-  const { userId, q, cursor } = params;
+  const { userId, q } = params;
+  const scope=params.directionId?Buffer.from(JSON.stringify([userId,params.directionId,params.status??"completed",q?.trim()??""])).toString("base64url"):null;
+  let cursor=params.cursor;
+  if(scope&&cursor){if(!cursor.startsWith(scope+"~"))return {items:[],nextCursor:null};cursor=cursor.slice(scope.length+1);}
   const status = params.status ?? "completed";
   // clamp pageSize 到 [1, 50]（架构 §8.3）
   const size = Math.max(1, Math.min(50, Math.trunc(params.pageSize ?? 20)));
 
   const conditions = [eq(generationTasks.userId, userId)];
 
+  if(params.directionId)conditions.push(eq(generationTasks.directionId,params.directionId));
   if (status === "processing") {
     conditions.push(
       inArray(generationTasks.status, ["pending", "processing"])
@@ -427,6 +449,7 @@ export async function listIterations(params: {
   const rows = await db
     .select({
       id: generationTasks.id,
+      directionId: generationTasks.directionId,
       status: generationTasks.status,
       promptSnapshot: generationTasks.promptSnapshot,
       params: generationTasks.params,
@@ -442,6 +465,7 @@ export async function listIterations(params: {
 
   const items: IterationListItemRow[] = rows.slice(0, size).map((row) => ({
     id: row.id,
+    directionId: row.directionId,
     status: toDisplayStatus(row.status),
     promptSummary: row.promptSnapshot.slice(0, 120),
     resultFileUrl:
@@ -452,7 +476,7 @@ export async function listIterations(params: {
 
   const nextCursor =
     rows.length > size
-      ? `${rows[size - 1].createdAt.toISOString()}::${rows[size - 1].id}`
+      ? `${scope?scope+"~":""}${rows[size - 1].createdAt.toISOString()}::${rows[size - 1].id}`
       : null;
 
   return { items, nextCursor };
@@ -481,12 +505,16 @@ export async function findIterationDetail(
   const rows = await db
     .select({
       id: generationTasks.id,
+      directionId: generationTasks.directionId,
+      dispatchState: generationTasks.dispatchState,
+      draftRevision: generationTasks.draftRevision,
       analysisTaskId: generationTasks.analysisTaskId,
       status: generationTasks.status,
       promptSnapshot: generationTasks.promptSnapshot,
       negativePromptSnapshot: generationTasks.negativePromptSnapshot,
       params: generationTasks.params,
       modelName: generationTasks.modelName,
+      provider:generationTasks.provider,
       resultAssetId: generationTasks.resultAssetId,
       resultFileUrl: assets.fileUrl,
       errorMessage: generationTasks.errorMessage,
@@ -544,12 +572,16 @@ export async function findIterationDetail(
 
   return {
     id: row.id,
+    directionId: row.directionId ?? null,
+    dispatchState: row.dispatchState ?? null,
+    draftRevision: row.draftRevision ?? null,
     analysisTaskId: row.analysisTaskId,
     status: toDisplayStatus(row.status),
     promptSnapshot: row.promptSnapshot,
     negativePromptSnapshot: row.negativePromptSnapshot,
     params: row.params,
     modelName: row.modelName,
+    provider:row.provider??null,
     resultAssetId: row.resultAssetId ?? null,
     resultFileUrl:
       row.status === "completed" ? row.resultFileUrl ?? null : null,
@@ -649,7 +681,8 @@ function toDirectionItem(row: {
 export async function getDirectionIterationFeed(
   userId: string,
   analysisTaskId: string,
-  pageSize: number = 5
+  pageSize: number = 5,
+  scope: "analysis" | "direction" = "analysis"
 ): Promise<DirectionIterationFeedRow> {
   // completed 限额 1-5（路由已白名单校验，此处防御性收紧）
   const size = Math.max(1, Math.min(5, Math.trunc(pageSize)));
@@ -677,7 +710,7 @@ export async function getDirectionIterationFeed(
       .where(
         and(
           eq(generationTasks.userId, userId),
-          eq(generationTasks.analysisTaskId, analysisTaskId),
+          eq(scope === "direction" ? generationTasks.directionId : generationTasks.analysisTaskId, analysisTaskId),
           eq(generationTasks.status, "completed")
         )
       )
@@ -690,7 +723,7 @@ export async function getDirectionIterationFeed(
       .where(
         and(
           eq(generationTasks.userId, userId),
-          eq(generationTasks.analysisTaskId, analysisTaskId),
+          eq(scope === "direction" ? generationTasks.directionId : generationTasks.analysisTaskId, analysisTaskId),
           inArray(generationTasks.status, ["pending", "processing"])
         )
       )
@@ -703,7 +736,7 @@ export async function getDirectionIterationFeed(
       .where(
         and(
           eq(generationTasks.userId, userId),
-          eq(generationTasks.analysisTaskId, analysisTaskId),
+          eq(scope === "direction" ? generationTasks.directionId : generationTasks.analysisTaskId, analysisTaskId),
           eq(generationTasks.status, "failed")
         )
       )

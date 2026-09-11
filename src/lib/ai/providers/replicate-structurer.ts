@@ -1,3 +1,4 @@
+import { singleAttemptPostFetch } from './single-attempt-fetch';
 import Replicate from "replicate";
 import { STRUCTURER_SYSTEM_PROMPT } from "../prompts";
 import { log } from "../log";
@@ -83,7 +84,8 @@ export class ReplicateStructurerProvider implements StructurerProvider {
 
     try {
       // Replicate SDK 要求 owner/name 模板类型；models.json 绑定均为该格式
-      const output = await this.client.run(this.model as `${string}/${string}`, {
+      const client = new Replicate({auth: process.env.REPLICATE_API_TOKEN, fetch: singleAttemptPostFetch()});
+      const output = await client.run(this.model as `${string}/${string}`, {
         input: {
           prompt: `Here is the visual analysis to structure:\n\n${params.rawAnalysis}`,
           system_instruction: STRUCTURER_SYSTEM_PROMPT,

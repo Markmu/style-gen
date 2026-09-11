@@ -3,6 +3,7 @@ import {
   varchar,
   text,
   integer,
+  numeric,
   timestamp,
   jsonb,
   index,
@@ -19,6 +20,9 @@ import type {
   TemplateVariable,
   TemplateVerificationStatus,
 } from "@/types/models";
+
+import type { WorkspaceDraft, WorkspaceEvent, GenerationDispatchState } from '@/lib/workspace/contracts';
+import type { QuickGenerationAuthorizationSnapshot } from '@/types/models';
 
 /** users 表 */
 export const users = pgTable(
@@ -44,6 +48,7 @@ export const assets = pgTable(
   "assets",
   {
     id: varchar("id", { length: 26 }).primaryKey(),
+    sourceGenerationTaskId: varchar("source_generation_task_id", { length: 26 }).references((): AnyPgColumn => generationTasks.id),
     type: varchar("type", { length: 20 }).notNull(),
     fileUrl: text("file_url").notNull(),
     thumbnailUrl: text("thumbnail_url"),
@@ -56,6 +61,7 @@ export const assets = pgTable(
       .defaultNow(),
   },
   (table) => [
+    uniqueIndex("assets_source_generation_unique").on(table.sourceGenerationTaskId),
     check(
       "assets_type_check",
       sql`${table.type} IN ('reference', 'generated')`
@@ -71,6 +77,11 @@ export const assets = pgTable(
 export const analysisTasks = pgTable(
   "analysis_tasks",
   {
+    directionId: varchar("direction_id", { length: 26 }).references((): AnyPgColumn => workspaceDirections.id),
+    requestKey: varchar("request_key", { length: 200 }),
+    reservedCostUsd: numeric("reserved_cost_usd", { precision: 12, scale: 6 }),
+    deadlineAt: timestamp("deadline_at", { withTimezone: true }),
+    lastReconciledAt: timestamp("last_reconciled_at", { withTimezone: true }),
     id: varchar("id", { length: 26 }).primaryKey(),
     sourceAssetId: varchar("source_asset_id", { length: 26 })
       .notNull()
@@ -102,6 +113,7 @@ export const analysisTasks = pgTable(
       .defaultNow(),
   },
   (table) => [
+    uniqueIndex("analysis_tasks_request_unique").on(table.userId, table.requestKey).where(sql`${table.requestKey} IS NOT NULL`),
     check(
       "analysis_tasks_status_check",
       sql`${table.status} IN ('pending', 'processing', 'completed', 'failed')`
@@ -129,6 +141,22 @@ export const analysisTasks = pgTable(
 export const generationTasks = pgTable(
   "generation_tasks",
   {
+    directionId: varchar("direction_id", { length: 26 }).references((): AnyPgColumn => workspaceDirections.id),
+    requestKey: varchar("request_key", { length: 200 }),
+    reservedCostUsd: numeric("reserved_cost_usd", { precision: 12, scale: 6 }),
+    deadlineAt: timestamp("deadline_at", { withTimezone: true }),
+    lastReconciledAt: timestamp("last_reconciled_at", { withTimezone: true }),
+    requestHash: varchar("request_hash", { length: 64 }),
+    draftRevision: integer("draft_revision"),
+    dispatchState: varchar("dispatch_state", { length: 20 }).$type<GenerationDispatchState>(),
+    attemptedAt: timestamp("attempted_at", { withTimezone: true }),
+    retryOf: varchar("retry_of", { length: 26 }).references((): AnyPgColumn => generationTasks.id),
+    outputUrl: text("output_url"),
+    outputObjectKey: text("output_object_key"),
+    outputMimeType: varchar("output_mime_type", { length: 50 }),
+    outputWidth: integer("output_width"),
+    outputHeight: integer("output_height"),
+    reservedResultAssetId: varchar("reserved_result_asset_id", { length: 26 }),
     id: varchar("id", { length: 26 }).primaryKey(),
     analysisTaskId: varchar("analysis_task_id", { length: 26 })
       .notNull()
@@ -169,6 +197,9 @@ export const generationTasks = pgTable(
       .defaultNow(),
   },
   (table) => [
+    uniqueIndex("generation_tasks_request_unique").on(table.userId, table.requestKey).where(sql`${table.requestKey} IS NOT NULL`),
+    uniqueIndex("generation_direction_active_unique").on(table.directionId).where(sql`${table.directionId} IS NOT NULL AND (${table.status} IN ('pending', 'processing') OR ${table.dispatchState} = 'unknown')`),
+    check("generation_dispatch_state_check", sql`${table.dispatchState} IS NULL OR ${table.dispatchState} IN ('prepared', 'submitting', 'submitted', 'unknown', 'outputStored', 'terminal')`),
     check(
       "generation_tasks_status_check",
       sql`${table.status} IN ('pending', 'processing', 'completed', 'failed')`
@@ -243,3 +274,67 @@ export const templates = pgTable(
     ),
   ]
 );
+
+/** Persisted direction; viewing a result never updates this draft. */
+export const workspaceDirections = pgTable("workspace_directions", {
+  id: varchar("id", { length: 26 }).primaryKey(),
+  userId: varchar("user_id", { length: 26 }).notNull().references(() => users.id),
+  title: text("title").notNull(),
+  creationRequestKey: varchar("creation_request_key", { length: 200 }).notNull(),
+  draftRevision: integer("draft_revision").notNull().default(0),
+  analysisTaskId: varchar("analysis_task_id", { length: 26 }).references((): AnyPgColumn => analysisTasks.id),
+  sourceAssetId: varchar("source_asset_id", { length: 26 }).references(() => assets.id),
+  sourceTemplateId: varchar("source_template_id", { length: 26 }).references((): AnyPgColumn => templates.id, { onDelete: 'set null' }),
+  sourceIterationId: varchar("source_iteration_id", { length: 26 }).references((): AnyPgColumn => generationTasks.id),
+  preferredIterationId: varchar("preferred_iteration_id", { length: 26 }).references((): AnyPgColumn => generationTasks.id),
+  draft: jsonb("draft").$type<WorkspaceDraft>().notNull(),
+  quickAuthorizationId: varchar("quick_authorization_id", { length: 200 }),
+  quickState: varchar("quick_state", { length: 20 }).$type<'none' | 'armed' | 'consumed'>().notNull().default('none'),
+  quickSettingsHash: varchar("quick_settings_hash", { length: 64 }),
+  quickSnapshot: jsonb("quick_snapshot").$type<QuickGenerationAuthorizationSnapshot>(),
+  quickActivationId: varchar("quick_activation_id", { length: 200 }),
+  authorizationEpoch: integer("authorization_epoch").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, table => [
+  uniqueIndex("workspace_direction_creation_unique").on(table.userId, table.creationRequestKey),
+  index("workspace_direction_user_updated").on(table.userId, table.updatedAt),
+  check("workspace_direction_revision_check", sql`${table.draftRevision} >= 0 AND ${table.authorizationEpoch} >= 0`),
+  check("workspace_quick_state_check", sql`${table.quickState} IN ('none','armed','consumed')`),
+]);
+
+export const workspaceEvents = pgTable("workspace_events", {
+  id: varchar("id", { length: 26 }).primaryKey(),
+  directionId: varchar("direction_id", { length: 26 }).notNull().references(() => workspaceDirections.id),
+  userId: varchar("user_id", { length: 26 }).notNull().references(() => users.id),
+  sequence: integer("sequence").notNull(),
+  requestKey: varchar("request_key", { length: 200 }).notNull(),
+  requestHash: varchar("request_hash", { length: 64 }).notNull(),
+  kind: varchar("kind", { length: 20 }).$type<WorkspaceEvent['kind']>().notNull(),
+  state: varchar("state", { length: 20 }).$type<WorkspaceEvent['state']>().notNull().default('completed'),
+  baseRevision: integer("base_revision"),
+  resultingRevision: integer("resulting_revision"),
+  inputText: text("input_text"), replyText: text("reply_text"),
+  responseKind: varchar("response_kind", { length: 20 }).$type<WorkspaceEvent['responseKind']>(),
+  references: jsonb("references").$type<WorkspaceEvent['references']>().notNull().default([]),
+  changes: jsonb("changes").$type<WorkspaceEvent['changes']>().notNull().default([]),
+  inverseChanges: jsonb("inverse_changes").$type<WorkspaceEvent['inverseChanges']>().notNull().default([]),
+  choices: jsonb("choices").$type<string[]>().notNull().default([]),
+  proposalState: varchar("proposal_state", { length: 20 }).$type<WorkspaceEvent['proposalState']>().notNull().default('none'),
+  generationTaskId: varchar("generation_task_id", { length: 26 }).references(() => generationTasks.id),
+  memoryId: varchar("memory_id", { length: 26 }).references(() => templates.id, { onDelete: 'set null' }),
+  relatedEventId: varchar("related_event_id", { length: 26 }).references((): AnyPgColumn => workspaceEvents.id),
+  deadlineAt: timestamp("deadline_at", { withTimezone: true }),
+  reservedCostUsd: numeric("reserved_cost_usd", { precision: 12, scale: 6 }).notNull().default('0'),
+  errorCode: text("error_code"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, table => [
+  uniqueIndex("workspace_event_request_unique").on(table.userId, table.requestKey),
+  uniqueIndex("workspace_event_sequence_unique").on(table.directionId, table.sequence),
+  check("workspace_event_sequence_check", sql`${table.sequence} > 0`),
+  check("workspace_event_kind_check", sql`${table.kind} IN ('turn','restored','draft_change','generation','memory','authorization')`),
+  check("workspace_event_state_check", sql`${table.state} IN ('processing','completed','failed')`),
+  check("workspace_event_response_check", sql`${table.responseKind} IS NULL OR ${table.responseKind} IN ('answer','clarify','proposal','render_request','unsupported')`),
+  check("workspace_event_proposal_check", sql`${table.proposalState} IN ('none','pending','applied','discarded','stale')`),
+]);

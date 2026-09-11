@@ -11,7 +11,7 @@ import {
   replaceVariables,
 } from "@/lib/template-parser";
 import { getStructurerProvider } from "./providers";
-import { resolveStructurerModel } from "./model-config";
+import { resolveStructurerModel, type ResolvedModelBinding } from "./model-config";
 import type { StructurerContext } from "./providers/types";
 import { log } from "./log";
 import {
@@ -36,10 +36,6 @@ const VALID_TEMPLATE_SOURCE_FIELDS = new Set<AnalysisTemplateSourceField>([
   "mood",
 ]);
 
-function sanitizePreview(text: string, maxLength = 160): string {
-  return text.replace(/\s+/g, " ").trim().slice(0, maxLength);
-}
-
 type JsonParseStrategy = "trimmed" | "markdown_fence" | "object_slice";
 
 interface JsonParseCandidate {
@@ -49,7 +45,7 @@ interface JsonParseCandidate {
 
 /** LLM Structuring整理阶段失败 */
 export class StructurerError extends Error {
-  constructor(message: string) {
+  constructor(message: string, public confirmedResponse = false) {
     super(message);
     this.name = "StructurerError";
   }
@@ -73,10 +69,11 @@ export type { StructurerContext } from "./providers/types";
  */
 export async function structureAnalysis(
   rawAnalysis: string,
-  context: StructurerContext = {}
+  context: StructurerContext = {},
+  binding?: ResolvedModelBinding<"gemini"|"replicate">
 ): Promise<StructuredResult> {
   // 模型与 Provider 以 models.json 解析结果为准，避免在此重复推导 env 链
-  const resolution = resolveStructurerModel();
+  const resolution = binding ?? resolveStructurerModel();
 
   const meta = {
     taskId: context.taskId ?? "unknown",
@@ -107,9 +104,6 @@ export async function structureAnalysis(
       ...meta,
       stage: "runtime",
       errorName: error instanceof Error ? error.name : "UnknownError",
-      error:
-        error instanceof Error ? error.message : "Unknown structurer error",
-      cause: getErrorCauseMessage(error),
     });
 
     if (error instanceof StructurerError) {
@@ -137,8 +131,6 @@ function parseStructuredResponseText(
         log("structurer_json_normalized", {
           ...meta,
           strategy: candidate.strategy,
-          responsePreview: sanitizePreview(text),
-          normalizedPreview: sanitizePreview(candidate.text),
         });
       }
       return validateStructuredResult(parsed, rawAnalysis);
@@ -152,9 +144,8 @@ function parseStructuredResponseText(
   log("structurer_json_parse_failed", {
     ...meta,
     error: message,
-    responsePreview: sanitizePreview(text),
   });
-  throw new StructurerError(`Failed to parse structurer JSON: ${message}`);
+  throw new StructurerError(`Failed to parse structurer JSON: ${message}`, true);
 }
 
 function getJsonParseCandidates(text: string): JsonParseCandidate[] {
@@ -188,31 +179,6 @@ function getJsonParseCandidates(text: string): JsonParseCandidate[] {
   }
 
   return candidates;
-}
-
-function getErrorCauseMessage(error: unknown): string | null {
-  if (!(error instanceof Error)) {
-    return null;
-  }
-
-  const cause = (error as Error & { cause?: unknown }).cause;
-  if (!cause) {
-    return null;
-  }
-
-  if (cause instanceof Error) {
-    return `${cause.name}: ${cause.message}`;
-  }
-
-  if (typeof cause === "object") {
-    try {
-      return JSON.stringify(cause);
-    } catch {
-      return String(cause);
-    }
-  }
-
-  return String(cause);
 }
 
 function normalizeReason(reason: unknown, fallback: string): string {

@@ -6,6 +6,7 @@ import { ImageIcon, Pencil, Plus, Trash2 } from "lucide-react";
 import { AppIcon } from "@/components/ui/app-icon";
 import { ModalDialog } from "@/components/ui/modal-dialog";
 import { deriveStyleMemoryPrefill } from "@/lib/style-memory-prefill";
+import type { MemorySaveFormSnapshot } from "@/lib/workspace/draft-store";
 import type { StoredVisualRecipe, TemplateVariable } from "@/types/models";
 
 /**
@@ -38,6 +39,21 @@ const MAX_RULE_LENGTH = 200;
 export interface SavedStyleMemory {
   id: string;
   name: string;
+}
+
+/**
+ * plan-10（架构 §6.5 / AC-18/AC-21）：保存向导与方向的幂等保存协作。
+ * - keyFor(fingerprint)：同指纹未确认意图复用原 requestKey；
+ * - onOutcome：未知/失败时把表单快照本机持久（不称已同步）；
+ * - onCommitted：服务端确认后记录 committedMemoryId，再由宿主刷新回读。
+ */
+export interface StyleMemorySaveCoordinator {
+  directionId: string | null;
+  /** 未确认意图的表单快照（unknown/failed 时存在）；打开向导时恢复 */
+  restoreForm: MemorySaveFormSnapshot | null;
+  keyFor(fingerprint: string): string;
+  onOutcome(state: "unknown" | "failed", form: MemorySaveFormSnapshot): void;
+  onCommitted(memoryId: string): void;
 }
 
 export interface StyleMemorySaveWizardProps {
@@ -76,6 +92,10 @@ export interface StyleMemorySaveWizardProps {
   defaultRepresentative?: boolean;
   /** 保存成功：携带 201 响应的 { id, name }（向导负责跳转新详情） */
   onSaved?: (template: SavedStyleMemory) => void;
+  /** plan-10：方向幂等保存协作；缺省时保持既有无键行为 */
+  saveCoordinator?: StyleMemorySaveCoordinator | null;
+  /** plan-10：保存成功后跳转新 Memory 详情；工作区草稿流程留在当前方向 */
+  navigateOnSave?: boolean;
   onClose: () => void;
 }
 
@@ -314,6 +334,8 @@ export function StyleMemorySaveWizard({
   sourceImageUrl,
   defaultRepresentative = false,
   onSaved,
+  saveCoordinator = null,
+  navigateOnSave = true,
   onClose,
 }: StyleMemorySaveWizardProps) {
   const router = useRouter();
@@ -350,6 +372,9 @@ export function StyleMemorySaveWizard({
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saveUnknown, setSaveUnknown] = useState(false);
+  const coordinatorRef = useRef(saveCoordinator);
+  coordinatorRef.current = saveCoordinator;
 
   const displayedStepNumber = isIterationFlow ? step : step - 1;
 
@@ -375,6 +400,24 @@ export function StyleMemorySaveWizard({
     setAdvancedOpen(false);
     setIsSaving(false);
     setError(null);
+    setSaveUnknown(false);
+    // plan-10：未确认意图的表单快照恢复（取消/刷新后表单不丢）
+    const restore = coordinatorRef.current?.restoreForm ?? null;
+    if (restore) {
+      setName(restore.name);
+      setDescription(restore.description);
+      setContent(restore.content);
+      setRules(restore.retainedRules.map((item) => item.text));
+      setRulesKept(restore.retainedRules.map((item) => item.kept));
+      setConstraints(restore.constraints.map((item) => item.text));
+      setConstraintsKept(restore.constraints.map((item) => item.kept));
+      if (restore.variables.length > 0) {
+        setVariables(
+          restore.variables.map((item) => ({ ...item }) as TemplateVariable),
+        );
+      }
+      setIsRepresentative(restore.isRepresentative);
+    }
     // 重置语义依赖打开动作与来源身份，预填/初始值按当次渲染取值
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, sourceKey, firstStep, defaultRepresentative]);
@@ -415,6 +458,8 @@ export function StyleMemorySaveWizard({
 
     setIsSaving(true);
     setError(null);
+    setSaveUnknown(false);
+    const coordinator = coordinatorRef.current;
 
     const body: Record<string, unknown> = {
       name: trimmedName,
@@ -440,6 +485,28 @@ export function StyleMemorySaveWizard({
       if (sourceAssetId && sourceImageUrl) body.sourceImageUrl = sourceImageUrl;
     }
 
+    // plan-10（AC-18）：请求体指纹（不含键）决定 requestKey 复用；换内容才换键
+    let requestKey: string | null = null;
+    if (coordinator?.directionId) {
+      requestKey = coordinator.keyFor(JSON.stringify(body));
+      body.requestKey = requestKey;
+      body.directionId = coordinator.directionId;
+    }
+    const formSnapshot: MemorySaveFormSnapshot = {
+      name,
+      description,
+      content,
+      retainedRules: rules.map((text, index) => ({ text, kept: rulesKept[index] ?? true })),
+      constraints: constraints.map((text, index) => ({ text, kept: constraintsKept[index] ?? true })),
+      variables: variables.map((variable) => ({ ...variable })),
+      isRepresentative,
+    };
+    const finishCommitted = (memoryId: string, memoryName?: string) => {
+      coordinator?.onCommitted(memoryId);
+      onSaved?.({ id: memoryId, name: memoryName || trimmedName });
+      if (navigateOnSave) router.push(`/workspace/templates/${memoryId}`);
+    };
+
     try {
       const res = await fetch("/api/templates", {
         method: "POST",
@@ -447,11 +514,9 @@ export function StyleMemorySaveWizard({
         body: JSON.stringify(body),
       });
 
-      if (res.status === 201) {
+      if (res.status === 201 || res.status === 200) {
         const template = (await res.json()) as SavedStyleMemory;
-        onSaved?.({ id: template.id, name: template.name || trimmedName });
-        // 成功进入新 Memory 详情（plan-05 详情路由；详情初始焦点置于首要内容）
-        router.push(`/workspace/templates/${template.id}`);
+        finishCommitted(template.id, template.name);
         return;
       }
 
@@ -462,8 +527,29 @@ export function StyleMemorySaveWizard({
       } else {
         setError(data.error ?? "Saving is temporarily unavailable. Please try again later.");
       }
+      coordinator?.onOutcome("failed", formSnapshot);
     } catch {
-      setError("Network error. Saving is temporarily unavailable. Check your connection and try again.");
+      // plan-10：响应丢失为未知结果——先按同键查命令回执（只读），不盲目重建
+      if (requestKey && coordinator?.directionId) {
+        try {
+          const check = await fetch(
+            `/api/workspace/directions/${coordinator.directionId}/events?requestKey=${encodeURIComponent(`memory:${requestKey}`)}`,
+          );
+          const receipt = check.ok
+            ? ((await check.json()) as { event?: { memoryId?: string } | null })
+            : { event: null };
+          if (receipt?.event?.memoryId) {
+            finishCommitted(receipt.event.memoryId);
+            return;
+          }
+        } catch {
+          // 回执查询本身失败：按未知处理，保留表单与原键
+        }
+        setSaveUnknown(true);
+        coordinator.onOutcome("unknown", formSnapshot);
+      } else {
+        setError("Network error. Saving is temporarily unavailable. Check your connection and try again.");
+      }
     } finally {
       setIsSaving(false);
     }
@@ -717,6 +803,19 @@ export function StyleMemorySaveWizard({
                     {error}
                   </p>
                 )}
+                {/* plan-10（AC-18）：响应未知——已查同键回执且不存在；原键重试不会重复 */}
+                {saveUnknown && (
+                  <div
+                    data-testid="save-unknown-status"
+                    role="status"
+                    className="rounded-lg border border-[var(--border-interactive)] bg-[var(--surface-low)]/60 px-3.5 py-2.5 text-xs leading-5 text-[var(--text-secondary)]"
+                  >
+                    Saving did not complete. We checked your last request on
+                    the server — it did not finish. Your form is kept here, not
+                    synced. Retry uses the same request and will not create a
+                    duplicate.
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -858,6 +957,8 @@ export interface SaveStyleMemoryDialogProps {
   defaultRepresentative?: boolean;
   /** 保存成功：携带 201 响应的 { id, name }，由宿主局部联动（向导负责跳转新详情） */
   onSaved: (template: SavedStyleMemory) => void;
+  /** plan-10：方向幂等保存协作（requestKey 回执与表单恢复） */
+  saveCoordinator?: StyleMemorySaveCoordinator | null;
   onClose: () => void;
 }
 
@@ -874,6 +975,7 @@ export function SaveStyleMemoryDialog({
   sourceGenerationTaskId,
   defaultRepresentative = false,
   onSaved,
+  saveCoordinator = null,
   onClose,
 }: SaveStyleMemoryDialogProps) {
   return (
@@ -891,6 +993,7 @@ export function SaveStyleMemoryDialog({
       sourceGenerationTaskId={sourceGenerationTaskId}
       defaultRepresentative={defaultRepresentative}
       onSaved={onSaved}
+      saveCoordinator={saveCoordinator}
       onClose={onClose}
     />
   );

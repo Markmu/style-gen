@@ -209,7 +209,7 @@ describe("IterationDetailPanel — completed variant", () => {
     expect(actions).toBeVisible();
     // plan-04 默认主动作：completed → 继续此方向（架构 §6.3 步骤 1）
     expect(
-      within(actions).getByRole("button", { name: /continue this direction/i }),
+      within(actions).getByRole("button", { name: /continue from this result/i }),
     ).toBeInTheDocument();
   });
 
@@ -221,33 +221,28 @@ describe("IterationDetailPanel — completed variant", () => {
 
     await user.click(
       within(screen.getByTestId("iteration-detail-actions")).getByRole("button", {
-        name: /continue this direction/i,
+        name: /continue from this result/i,
       }),
     );
 
     // 三豁免之“current 为空”：不弹替换确认，写入通道后导航回工作台
     expect(screen.queryByTestId("replace-confirm-dialog")).not.toBeInTheDocument();
-    expect(routerPushMock).toHaveBeenCalledWith("/workspace");
+    expect(routerPushMock).toHaveBeenCalledWith("/workspace?previewIterationId=iter-001");
     const persisted = JSON.parse(
       sessionStorage.getItem(WORKSPACE_STORAGE_KEY) ?? "{}",
     );
-    expect(persisted.promptText).toBe("Precise neon cityscape at dusk with amber glass towers");
-    expect(persisted.negativePromptText).toBe("watermark, distorted glass");
-    expect(persisted.currentIterationId).toBe("iter-001");
-    expect(persisted.previousResultUrl).toBe(
-      "https://cdn.example.com/generated/iter-001/result.webp",
-    );
+    expect(persisted).toEqual({});
   });
 
   it("renders slotted primary and secondary actions inside the reserved footer", () => {
     renderPanel(undefined, {
-      primaryActions: <button type="button">Continue this direction</button>,
+      primaryActions: <button type="button">Continue from this result</button>,
       secondaryActions: <button type="button">Save as Style Memory</button>,
     });
 
     const actions = screen.getByTestId("iteration-detail-actions");
     expect(
-      within(actions).getByRole("button", { name: /continue this direction/i }),
+      within(actions).getByRole("button", { name: /continue from this result/i }),
     ).toBeInTheDocument();
     expect(
       within(actions).getByRole("button", { name: /save as style memory/i }),

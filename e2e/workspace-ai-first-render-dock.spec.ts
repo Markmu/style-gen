@@ -1,3 +1,4 @@
+import { generateCurrentDraft } from './helpers/workspace-actions';
 import { expect, test, type Page } from '@playwright/test'
 import { resolve } from 'path'
 import {
@@ -70,7 +71,7 @@ async function mockCdnImages(page: Page) {
 }
 
 async function uploadReference(page: Page) {
-  const referenceColumn = appShell(page).getByRole('region', { name: 'Reference Canvas column' })
+  const referenceColumn = appShell(page).getByTestId('reference-card')
   const input = referenceColumn.locator('input[type="file"]')
   await waitForReactInput(input)
   await input.setInputFiles(TEST_IMAGE_PATH)
@@ -98,13 +99,12 @@ function appShell(page: Page) {
 
 function renderDock(page: Page) {
   return appShell(page)
-    .getByRole('region', { name: 'Prompt and Render column' })
-    .getByTestId('output-card')
+    .getByTestId('generation-bar')
 }
 
 function promptCard(page: Page) {
   return appShell(page)
-    .getByRole('region', { name: 'Prompt and Render column' })
+    
     .getByTestId('prompt-card')
 }
 
@@ -150,7 +150,7 @@ test.describe('plan-04 Render Dock readiness and generation recovery', () => {
     await expect(dock.getByLabel(/Aspect Ratio/i)).toBeVisible()
     await expect(dock.getByLabel(/Quality/i)).toBeVisible()
     await expect(dock.getByLabel(/Model/i)).toBeVisible()
-    await expect(dock.getByRole('button', { name: /^Generate$/i })).toBeDisabled()
+    await expect(dock.getByRole('button', { name: /^Generate 1 image$/i })).toBeDisabled()
   })
 
   test('TC-4.2 unresolved variables block generation with a variables-specific reason', async ({ page }) => {
@@ -163,18 +163,19 @@ test.describe('plan-04 Render Dock readiness and generation recovery', () => {
     })
 
     await openWithCompletedAnalysis(page, 'render-dock-unresolved-variables', templateAnalysisResponse)
+    await page.getByRole('tablist', { name: 'Workspace inspector' }).getByRole('tab', { name: 'Prompt', exact: true }).click()
     await page.getByLabel('Prompt mode').selectOption('variables')
     await page.getByLabel('Variable subject').fill('{{subject}}')
 
     const dock = renderDock(page)
     await expect(dock.locator('[data-testid^="render-readiness-item-"]')).toHaveCount(0)
-    const generateButton = dock.getByRole('button', { name: /^Generate$/i })
+    const generateButton = dock.getByRole('button', { name: /^Generate 1 image$/i })
     await expect(generateButton).toBeDisabled()
     await expect(generateButton).toHaveAttribute('title', /resolve|variable|变量/i)
     expect(generationPostCount).toBe(0)
   })
 
-  test('TC-4.3 ready Render Dock posts the existing generation API contract', async ({ page }) => {
+  test('TC-4.3 ready Render Dock saves settings then posts a versioned direction intent', async ({ page }) => {
     const generationTaskId = 'render-dock-ready-generation'
     let requestBody: Record<string, unknown> | null = null
     await mockGenerationCreateWithCapture(page, generationTaskId, (body) => {
@@ -194,19 +195,19 @@ test.describe('plan-04 Render Dock readiness and generation recovery', () => {
     await expect(dock.getByLabel(/Quality/i)).toBeVisible()
     await expect(dock.getByLabel(/Model/i)).toHaveValue('flux-2-dev')
     await expect(dock.locator('[data-testid^="render-readiness-item-"]')).toHaveCount(0)
-    await expect(dock.getByRole('button', { name: /^Generate$/i })).toBeEnabled()
+    await expect(dock.getByRole('button', { name: /^Generate 1 image$/i })).toBeEnabled()
     await dock.getByLabel(/Model/i).selectOption('nano-banana-2-lite')
-    await dock.getByRole('button', { name: /^Generate$/i }).click()
+    await generateCurrentDraft(page)
 
-    await expect.poll(() => requestBody?.analysisTaskId ?? null).toBe('render-dock-ready-analysis')
+    await expect.poll(() => requestBody?.directionId ?? null).not.toBeNull()
     const capturedBody = requestBody as unknown as Record<string, unknown>
-    expect(capturedBody.promptText).toContain('sunset')
-    expect(capturedBody.negativePromptText).toBe('blurry, low quality, distorted, watermark, text')
-    expect(capturedBody.params).toMatchObject({
-      aspectRatio: '1:1',
-      quality: 'standard',
-      model: 'nano-banana-2-lite',
-    })
+    expect(capturedBody).toMatchObject({directionId:expect.any(String),requestKey:expect.any(String),baseRevision:expect.any(Number),summaryToken:expect.any(String),mode:'current'})
+    const current=await page.evaluate(async id=>await(await fetch(`/api/workspace/directions/${id}`)).json(),String(capturedBody.directionId))
+    expect(current.direction.analysisTaskId).toBe('render-dock-ready-analysis')
+    expect(current.direction.draft.customPrompt).toContain('sunset')
+    expect(current.direction.draft.negativePromptText).toBe('blurry, low quality, distorted, watermark, text')
+    expect(current.direction.draft.params).toMatchObject({aspectRatio:'1:1',quality:'standard',model:'nano-banana-2-lite'})
+
   })
 
   test('TC-4.4 submission failure keeps retry, editing and saving available', async ({ page }) => {
@@ -228,22 +229,23 @@ test.describe('plan-04 Render Dock readiness and generation recovery', () => {
     })
 
     await openWithCompletedAnalysis(page, 'render-dock-service-unavailable-analysis')
-    await renderDock(page).getByRole('button', { name: /^Generate$/i }).click()
+    await generateCurrentDraft(page)
 
     // plan-07（§8.2 L5）：提交失败内联呈现，不打开阻断式弹层——服务错误可见、
     // 不声称任务已创建；恢复入口为内联「重试提交」（创建新任务，TC-7.8 契约）
-    const submitError = page.getByTestId('generation-submit-error')
+    const submitError = page.getByTestId('generation-bar').getByRole('alert')
     await expect(submitError).toBeVisible({ timeout: 15000 })
-    await expect(submitError).toContainText(/Generation service temporarily unavailable/i)
-    await expect(page.getByTestId('generation-submit-retry')).toBeVisible()
+    await expect(submitError).toContainText(/Submission status is unknown/i)
+    await expect(page.getByRole('button',{name:'Check original submission',exact:true})).toBeVisible()
     await expect(page.getByTestId('generation-dialog')).toHaveCount(0)
 
     const dock = renderDock(page)
     await expect(dock.getByTestId('render-disabled-reason')).toHaveCount(0)
-    await expect(dock.getByRole('button', { name: /^Generate$/i })).toBeEnabled()
+    await expect(dock.getByRole('button', { name: /^Generate 1 image$/i })).toBeDisabled()
     await expect(dock.locator('[data-testid^="render-readiness-item-"]')).toHaveCount(0)
     await expect(promptCard(page).getByLabel('Full Generation Prompt')).toBeEditable()
     await expect(dock.getByRole('button', { name: /save as style memory/i })).toHaveCount(0)
+    await page.getByRole('tablist', { name: 'Workspace inspector' }).getByRole('tab', { name: 'Prompt', exact: true }).click()
     await expect(
       promptCard(page).getByRole('button', { name: /save as style memory/i }),
     ).toBeEnabled()
@@ -272,19 +274,19 @@ test.describe('plan-04 Render Dock readiness and generation recovery', () => {
 
     await openWithCompletedAnalysis(page, 'render-dock-processing-analysis')
 
-    await renderDock(page).getByRole('button', { name: /^Generate$/i }).click()
+    await generateCurrentDraft(page)
     await expect(appShell(page).getByTestId('ai-status-header')).toHaveAttribute('data-phase', 'generating', {
       timeout: 15000,
     })
 
     const dock = renderDock(page)
-    await expect(dock.getByRole('button', { name: /rendering|generate/i })).toBeDisabled()
+    await expect(dock.getByRole('button', { name: 'Generating 1 image',exact:true })).toBeDisabled()
     await expect(dock.getByLabel(/Aspect Ratio/i)).toBeVisible()
-    await expect(dock.getByLabel(/Aspect Ratio/i)).toBeDisabled()
+    await expect(dock.getByLabel(/Aspect Ratio/i)).toBeEnabled()
     await expect(dock.getByLabel(/Quality/i)).toBeVisible()
-    await expect(dock.getByLabel(/Quality/i)).toBeDisabled()
+    await expect(dock.getByLabel(/Quality/i)).toBeEnabled()
     await expect(dock.getByLabel(/Model/i)).toBeVisible()
-    await expect(dock.getByLabel(/Model/i)).toBeDisabled()
+    await expect(dock.getByLabel(/Model/i)).toBeEnabled()
     expect(generationPostCount).toBe(1)
   })
 
@@ -316,7 +318,7 @@ test.describe('plan-04 Render Dock readiness and generation recovery', () => {
     await openWithCompletedAnalysis(page, 'render-dock-failed-analysis')
     const originalPrompt = await promptCard(page).getByLabel('Full Generation Prompt').inputValue()
 
-    await renderDock(page).getByRole('button', { name: /^Generate$/i }).click()
+    await generateCurrentDraft(page)
 
     // 失败内联进入本次结果区：截断原因 + 主动重试入口，不打开弹层（plan-07）
     feed.set({

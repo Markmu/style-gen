@@ -1,29 +1,29 @@
 @import "tailwindcss";
 
-/* Precision Glass design tokens */
+/* Precision Frame design tokens, matched to the Workspace Agent prototype. */
 :root {
   /* Neutral surfaces. Keep the legacy names so existing components continue to render. */
-  --surface-base: oklch(97.6% 0.009 245);
-  --surface-low: oklch(95.2% 0.012 245);
+  --surface-base: oklch(97.4% 0.004 260);
+  --surface-low: oklch(94.7% 0.006 260);
   --surface-mid: oklch(98.8% 0.006 245 / 0.92);
   --surface-bright: oklch(99.4% 0.004 245 / 0.96);
   --surface-hover: oklch(93.8% 0.026 260 / 0.64);
 
-  --surface-page: oklch(97.8% 0.01 245);
-  --surface-panel: oklch(99.1% 0.006 245 / 0.94);
-  --surface-floating: oklch(99.4% 0.004 245 / 0.92);
+  --surface-page: oklch(97.4% 0.004 260);
+  --surface-panel: oklch(99% 0.003 260);
+  --surface-floating: oklch(99% 0.003 260);
   --surface-control: oklch(96.8% 0.01 245 / 0.92);
   --surface-media: oklch(94.8% 0.014 245);
 
   /* Text hierarchy */
-  --text-primary: oklch(23% 0.04 263);
-  --text-secondary: oklch(42% 0.035 263);
-  --text-muted: oklch(52% 0.026 263);
+  --text-primary: oklch(25% 0.015 260);
+  --text-secondary: oklch(48% 0.02 260);
+  --text-muted: oklch(48% 0.02 260);
 
   /* Functional intent */
-  --accent-primary: oklch(54% 0.22 263);
+  --accent-primary: oklch(51% 0.21 264);
   --accent-primary-dim: oklch(46% 0.19 263);
-  --accent-primary-soft: oklch(93% 0.045 263 / 0.72);
+  --accent-primary-soft: oklch(94% 0.025 264);
 
   --accent-secondary: var(--accent-primary);
   --accent-secondary-soft: var(--accent-primary-soft);
@@ -33,7 +33,7 @@
 
   /* Ghost borders and hairlines */
   --border: oklch(78% 0.022 250 / 0.54);
-  --border-static: oklch(78% 0.022 250 / 0.34);
+  --border-static: oklch(88% 0.009 260);
   --border-interactive: oklch(62% 0.16 263 / 0.34);
 
   /* Semantic colors */
@@ -120,24 +120,24 @@
 }
 
 .workspace-chromatic {
-  --surface-page: oklch(97.8% 0.01 245);
-  --surface-base: oklch(97.6% 0.009 245);
-  --surface-low: oklch(95.2% 0.012 245);
+  --surface-page: oklch(97.4% 0.004 260);
+  --surface-base: oklch(97.4% 0.004 260);
+  --surface-low: oklch(94.7% 0.006 260);
   --surface-mid: oklch(98.8% 0.006 245 / 0.92);
   --surface-bright: oklch(99.4% 0.004 245 / 0.96);
   --surface-hover: oklch(93.8% 0.026 260 / 0.64);
-  --surface-panel: oklch(99.1% 0.006 245 / 0.94);
-  --surface-floating: oklch(99.4% 0.004 245 / 0.92);
+  --surface-panel: oklch(99% 0.003 260);
+  --surface-floating: oklch(99% 0.003 260);
   --surface-control: oklch(96.8% 0.01 245 / 0.92);
   --surface-media: oklch(94.8% 0.014 245);
 
-  --text-primary: oklch(23% 0.04 263);
-  --text-secondary: oklch(42% 0.035 263);
-  --text-muted: oklch(52% 0.026 263);
+  --text-primary: oklch(25% 0.015 260);
+  --text-secondary: oklch(48% 0.02 260);
+  --text-muted: oklch(48% 0.02 260);
 
-  --accent-primary: oklch(54% 0.22 263);
+  --accent-primary: oklch(51% 0.21 264);
   --accent-primary-dim: oklch(46% 0.19 263);
-  --accent-primary-soft: oklch(93% 0.045 263 / 0.72);
+  --accent-primary-soft: oklch(94% 0.025 264);
   --accent-secondary: var(--accent-primary);
   --accent-secondary-soft: var(--accent-primary-soft);
   --accent-secondary-ink: var(--accent-primary-dim);
@@ -153,7 +153,7 @@
   --accent: var(--accent-primary);
 
   --border: oklch(78% 0.022 250 / 0.54);
-  --border-static: oklch(78% 0.022 250 / 0.34);
+  --border-static: oklch(88% 0.009 260);
   --border-interactive: oklch(62% 0.16 263 / 0.34);
 
   --color-error: oklch(47% 0.17 25);
@@ -1534,4 +1534,95 @@ body {
 
 .prompt-highlight-provenance-marker {
   display: none;
+}
+
+/* Opaque studio surfaces are shared by the workbench and the surrounding pages. */
+:root[data-theme="dark"],
+:root[data-theme="dark"] .workspace-chromatic {
+  --surface-page: oklch(20% 0.008 260);
+  --surface-base: var(--surface-page);
+  --surface-panel: oklch(24% 0.008 260);
+  --surface-floating: var(--surface-panel);
+  --surface-low: oklch(28% 0.009 260);
+  --surface-media: var(--surface-low);
+  --text-primary: oklch(94% 0.006 260);
+  --text-secondary: oklch(72% 0.014 260);
+  --text-muted: var(--text-secondary);
+  --border-static: oklch(35% 0.014 260);
+  --accent-primary: oklch(73% 0.14 264);
+  --accent-primary-soft: oklch(31% 0.035 264);
+  --text-on-primary: oklch(19% 0.04 264);
+}
+.surface-panel,
+.workspace-sidebar.surface-panel,
+:root[data-theme="dark"] .workspace-chromatic .workspace-sidebar {
+  background: var(--surface-panel);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.workspace-sidebar.surface-panel { border-right: 1px solid var(--border-static); }
+.workspace-sidebar-nav-item.is-active {
+  background: var(--accent-primary-soft);
+  border-color: var(--border-interactive);
+  box-shadow: none;
+}
+.btn-primary, .btn-secondary { box-shadow: none; }
+.workspace-agent-grid { font-size: 0.8125rem; line-height: 1.55; }
+.workspace-agent-grid [data-testid="reference-card"] {
+  height: auto;
+  padding: 0;
+  background: transparent;
+  border-radius: 12px;
+  box-shadow: none;
+}
+.workspace-agent-grid [data-testid="reference-card"] > div:first-child {
+  margin-bottom: 10px;
+}
+.workspace-agent-grid [data-testid="reference-image-stage"] {
+  flex: none;
+  height: clamp(300px, 39.5dvh, 420px);
+  background: var(--surface-low);
+  box-shadow: none;
+}
+.workspace-agent-grid [data-testid="result-viewer"] {
+  margin: 0 0 14px;
+  padding: 12px;
+  box-shadow: none;
+}
+.workspace-agent-grid [data-testid="result-viewer"] > img {
+  max-height: none;
+  height: clamp(300px, 39.5dvh, 420px);
+}
+.workspace-agent-grid [data-testid="workspace-inspector"] .surface-panel {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+@media (min-width: 1440px) {
+  .workspace-agent-grid [data-testid="generation-bar"] > div:first-child {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, .8fr) minmax(0, 1fr) auto;
+    gap: 7px;
+  }
+  .workspace-agent-grid [data-testid="generation-bar"] > div:first-child > button {
+    grid-column: auto;
+  }
+}
+
+.workspace-agent-grid [data-testid="reference-card"],
+.workspace-agent-grid [data-testid="workspace-inspector"] .surface-panel {
+  border: 0;
+}
+.workspace-agent-grid [data-testid="direction-result-rail"] {
+  margin: 0 0 14px;
+  background: transparent;
+  box-shadow: none;
+}
+.workspace-agent-grid [data-testid="content-analysis"],
+.workspace-agent-grid [data-testid="workspace-inspector"] section:has(> button[data-testid^="evidence-facet-"]) {
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  border-bottom: 1px solid var(--border-static);
 }

@@ -33,10 +33,11 @@ interface GenerationHistoryResponse {
 }
 
 async function fetchGenerationHistory(
-  pageParam: string | null
+  pageParam: string | null, directionId?:string|null
 ): Promise<GenerationHistoryResponse> {
   const params = new URLSearchParams();
   params.set("pageSize", "20");
+  if(directionId)params.set("directionId",directionId);
   if (pageParam) {
     params.set("cursor", pageParam);
   }
@@ -61,13 +62,13 @@ async function fetchGenerationHistory(
   return res.json() as Promise<GenerationHistoryResponse>;
 }
 
-export function useHistoryList(enabled = true) {
+export function useHistoryList(enabled = true, directionId?:string|null) {
   const queryClient = useQueryClient();
 
   const query = useInfiniteQuery<GenerationHistoryResponse, Error>({
-    queryKey: ["generation-history"],
+    queryKey: ["generation-history", directionId??null],
     queryFn: ({ pageParam }: { pageParam: unknown }) =>
-      fetchGenerationHistory(pageParam as string | null),
+      fetchGenerationHistory(pageParam as string | null,directionId),
     initialPageParam: undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     refetchOnWindowFocus: false,

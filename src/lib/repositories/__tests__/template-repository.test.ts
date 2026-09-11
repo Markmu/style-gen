@@ -68,6 +68,34 @@ vi.mock("@/lib/db/schema", async (importOriginal) => {
   return await importOriginal();
 });
 
+// plan-10：回执事务边界（workspace-repository）按模块隔离 mock；
+// 事务语义由 integration 测试在真实 DB 上验证。
+const { mockAppendEvent, mockFindEventByRequestKey, mockWithWorkspaceTransaction } = vi.hoisted(() => {
+  class WorkspaceConflict extends Error {
+    constructor(public code: 'revision_conflict' | 'request_key_conflict') { super(code); }
+  }
+  class WorkspaceNotFound extends Error { constructor() { super('workspace_not_found'); } }
+  return {
+    mockAppendEvent: vi.fn(),
+    mockFindEventByRequestKey: vi.fn(),
+    mockWithWorkspaceTransaction: vi.fn(),
+    WorkspaceConflict,
+    WorkspaceNotFound,
+  };
+});
+
+vi.mock("@/lib/repositories/workspace-repository", () => ({
+  appendEvent: mockAppendEvent,
+  findEventByRequestKey: mockFindEventByRequestKey,
+  withWorkspaceTransaction: mockWithWorkspaceTransaction,
+  WorkspaceConflict: class WorkspaceConflict extends Error {
+    constructor(public code: 'revision_conflict' | 'request_key_conflict') { super(code); }
+  },
+  WorkspaceNotFound: class WorkspaceNotFound extends Error {
+    constructor() { super('workspace_not_found'); }
+  },
+}));
+
 vi.mock("@/lib/template-parser", () => ({
   extractVariables: vi.fn((content: string) =>
     content.includes("{{")
@@ -94,6 +122,9 @@ import {
   findStyleMemoryDetail,
   setRepresentativeResult,
   listRepresentativeCandidates,
+  createTemplateWithReceipt,
+  lookupMemoryReceipt,
+  type TemplateMemoryReceipt,
 } from "@/lib/repositories/template-repository";
 
 const NOW = new Date("2025-01-01T00:00:00Z");
@@ -199,6 +230,109 @@ describe("template-repository", () => {
     mockOrderBy.mockImplementation(() => queryChain);
     mockLimit.mockImplementation(() => queryChain);
     mockAs.mockImplementation(() => SUBQUERY_STUB);
+  });
+
+  describe("plan-10 memory receipts", () => {
+    const receipt: TemplateMemoryReceipt = {
+      directionId: "DIR_001",
+      requestKey: "key-001",
+      requestHash: "a".repeat(64),
+    };
+    const txStub = {
+      insert: mockInsert,
+      select: mockSelect,
+      update: mockUpdate,
+    };
+
+    beforeEach(() => {
+      mockAppendEvent.mockReset().mockResolvedValue({ id: "EVT_001" });
+      mockFindEventByRequestKey.mockReset().mockResolvedValue(null);
+      mockWithWorkspaceTransaction.mockReset().mockImplementation(
+        async (_userId: string, _directionId: string, action: (tx: unknown) => Promise<unknown>) =>
+          action(txStub)
+      );
+    });
+
+    it("带键创建：模板写入与 memory 回执同事务（kind=memory、memoryId、原键命名空间）", async () => {
+      mockReturning.mockResolvedValueOnce([makeTemplateRow()]);
+
+      const result = await createTemplateWithReceipt(
+        "USER_001",
+        { name: "Amber", content: "prompt" },
+        receipt
+      );
+
+      expect(result.reused).toBe(false);
+      expect(result.record.id).toBe("TPL_001");
+      expect(mockAppendEvent).toHaveBeenCalledTimes(1);
+      const event = mockAppendEvent.mock.calls[0][3];
+      expect(event).toMatchObject({
+        requestKey: "memory:key-001",
+        requestHash: receipt.requestHash,
+        kind: "memory",
+        memoryId: "TPL_001",
+      });
+    });
+
+    it("重复同键同 hash：事务内先回执，直接复用原记录不再插入", async () => {
+      mockFindEventByRequestKey.mockResolvedValue({
+        directionId: "DIR_001",
+        requestHash: receipt.requestHash,
+        memoryId: "TPL_001",
+      });
+      mockRows.mockResolvedValueOnce([makeTemplateRow()]);
+
+      const result = await createTemplateWithReceipt(
+        "USER_001",
+        { name: "Amber", content: "prompt" },
+        receipt
+      );
+
+      expect(result.reused).toBe(true);
+      expect(result.record.id).toBe("TPL_001");
+      expect(mockValues).not.toHaveBeenCalled();
+      expect(mockAppendEvent).not.toHaveBeenCalled();
+    });
+
+    it("同键异 hash 或跨方向：抛出 request_key_conflict（409 语义）", async () => {
+      mockFindEventByRequestKey.mockResolvedValue({
+        directionId: "DIR_OTHER",
+        requestHash: receipt.requestHash,
+        memoryId: "TPL_001",
+      });
+      await expect(
+        createTemplateWithReceipt("USER_001", { name: "Amber", content: "p" }, receipt)
+      ).rejects.toThrow("request_key_conflict");
+
+      mockFindEventByRequestKey.mockResolvedValue({
+        directionId: "DIR_001",
+        requestHash: "b".repeat(64),
+        memoryId: "TPL_001",
+      });
+      await expect(
+        createTemplateWithReceipt("USER_001", { name: "Amber", content: "p" }, receipt)
+      ).rejects.toThrow("request_key_conflict");
+    });
+
+    it("回执快查：无回执 none；回执在但目标已删 gone（路由 404 保留表单）", async () => {
+      mockFindEventByRequestKey.mockResolvedValue(null);
+      await expect(lookupMemoryReceipt("USER_001", receipt)).resolves.toEqual({ status: "none" });
+
+      mockFindEventByRequestKey.mockResolvedValue({
+        directionId: "DIR_001",
+        requestHash: receipt.requestHash,
+        memoryId: null,
+      });
+      await expect(lookupMemoryReceipt("USER_001", receipt)).resolves.toEqual({ status: "gone" });
+
+      mockFindEventByRequestKey.mockResolvedValue({
+        directionId: "DIR_001",
+        requestHash: receipt.requestHash,
+        memoryId: "TPL_DELETED",
+      });
+      mockRows.mockResolvedValueOnce([]);
+      await expect(lookupMemoryReceipt("USER_001", receipt)).resolves.toEqual({ status: "gone" });
+    });
   });
 
   describe("createTemplate", () => {

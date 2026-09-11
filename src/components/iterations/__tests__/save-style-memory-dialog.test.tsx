@@ -468,6 +468,132 @@ describe("StyleMemorySaveWizard — 失败保留与无损重试（AC-11）", () 
   });
 });
 
+describe("StyleMemorySaveWizard — plan-10 方向幂等保存协作（AC-18/AC-21）", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    routerPushMock.mockClear();
+  });
+
+  function renderWorkspaceWizard(
+    coordinator: {
+      keyFor: (fingerprint: string) => string;
+      onOutcome?: (state: "unknown" | "failed", form: unknown) => void;
+      onCommitted?: (memoryId: string) => void;
+      restoreForm?: unknown;
+    },
+    onSaved: ReturnType<typeof vi.fn> = vi.fn(),
+  ) {
+    render(
+      <StyleMemorySaveWizard
+        open
+        flow="workspace-draft"
+        initialContent="A quiet studio with amber light"
+        initialVariables={[]}
+        recipe={null}
+        recipeSource="missing"
+        saveCoordinator={{
+          directionId: "dir-001",
+          restoreForm: (coordinator.restoreForm ?? null) as never,
+          keyFor: coordinator.keyFor,
+          onOutcome: coordinator.onOutcome ?? vi.fn(),
+          onCommitted: coordinator.onCommitted ?? vi.fn(),
+        }}
+        navigateOnSave={false}
+        onSaved={onSaved}
+        onClose={vi.fn()}
+      />,
+    );
+  }
+
+  it("携带方向 requestKey 提交；committed 先记录再回调宿主", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(201, { id: "mem-1", name: "Saved" }));
+    vi.stubGlobal("fetch", fetchMock);
+    const onCommitted = vi.fn();
+    const onSaved = vi.fn();
+    const user = userEvent.setup();
+    renderWorkspaceWizard({ keyFor: () => "key-stable-1", onCommitted }, onSaved);
+
+    const nameField = screen.getByLabelText(/^Name$/);
+    await user.clear(nameField);
+    await user.type(nameField, "Amber memory");
+    await user.click(screen.getByRole("button", { name: /^Save/ }));
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith({ id: "mem-1", name: "Saved" }));
+    expect(onCommitted).toHaveBeenCalledWith("mem-1");
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1].body)) as Record<string, unknown>;
+    expect(body.requestKey).toBe("key-stable-1");
+    expect(body.directionId).toBe("dir-001");
+    expect(routerPushMock).not.toHaveBeenCalled();
+  });
+
+  it("响应未知：同键查回执命中则以回执 ID 完成，不再重发 POST", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce(jsonResponse(200, { event: { id: "evt-9", memoryId: "mem-9" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const onCommitted = vi.fn();
+    const onSaved = vi.fn();
+    const user = userEvent.setup();
+    renderWorkspaceWizard({ keyFor: () => "key-unknown-1", onCommitted }, onSaved);
+
+    const nameField = screen.getByLabelText(/^Name$/);
+    await user.clear(nameField);
+    await user.type(nameField, "Amber memory");
+    await user.click(screen.getByRole("button", { name: /^Save/ }));
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ id: "mem-9" })));
+    expect(onCommitted).toHaveBeenCalledWith("mem-9");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[1][0])).toContain("/api/workspace/directions/dir-001/events?requestKey=memory%3Akey-unknown-1");
+  });
+
+  it("回执不存在：呈现未知状态保留表单，重试复用原键", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce(jsonResponse(200, { event: null }))
+      .mockResolvedValueOnce(jsonResponse(201, { id: "mem-2", name: "Saved" }));
+    vi.stubGlobal("fetch", fetchMock);
+    const onOutcome = vi.fn();
+    const user = userEvent.setup();
+    renderWorkspaceWizard({ keyFor: () => "key-retry-1", onOutcome });
+
+    const nameField = screen.getByLabelText(/^Name$/);
+    await user.clear(nameField);
+    await user.type(nameField, "Amber memory");
+    await user.click(screen.getByRole("button", { name: /^Save/ }));
+
+    const unknown = screen.getByTestId("save-unknown-status");
+    await waitFor(() => expect(unknown).toHaveTextContent(/did not complete/i));
+    expect(screen.getByLabelText(/^Name$/)).toHaveValue("Amber memory");
+    expect(onOutcome).toHaveBeenCalledWith("unknown", expect.objectContaining({ name: "Amber memory" }));
+
+    await user.click(screen.getByRole("button", { name: /^Save/ }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    const retryBody = JSON.parse(String(fetchMock.mock.calls[2][1].body)) as Record<string, unknown>;
+    expect(retryBody.requestKey).toBe("key-retry-1");
+  });
+
+  it("打开时恢复未确认意图的表单快照（AC-21）", async () => {
+    renderWorkspaceWizard({
+      keyFor: () => "key-restore-1",
+      restoreForm: {
+        name: "Restored memory",
+        description: "kept description",
+        content: "restored full prompt",
+        retainedRules: [{ text: "warm palette", kept: false }],
+        constraints: [{ text: "no text", kept: true }],
+        variables: [{ name: "subject", defaultValue: "ceramic cup" }],
+        isRepresentative: false,
+      },
+    });
+
+    expect(screen.getByLabelText(/^Name$/)).toHaveValue("Restored memory");
+    expect(screen.getByLabelText(/Description/)).toHaveValue("kept description");
+  });
+});
+
 describe("StyleMemorySaveWizard — 重置与关闭", () => {
   afterEach(() => {
     vi.unstubAllGlobals();

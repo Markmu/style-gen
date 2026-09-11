@@ -30,7 +30,7 @@ describe("ComparisonView", () => {
     const { container } = render(
       <ComparisonView {...defaultProps} aspectRatio="1:1" />,
     );
-    const gridEl = container.querySelector(".grid-cols-2");
+    const gridEl = container.querySelector(".sm\\:grid-cols-2");
     expect(gridEl).toBeInTheDocument();
   });
 
@@ -38,7 +38,7 @@ describe("ComparisonView", () => {
     const { container } = render(
       <ComparisonView {...defaultProps} aspectRatio="9:16" />,
     );
-    expect(container.querySelector(".grid-cols-2")).toBeNull();
+    expect(container.querySelector(".sm\\:grid-cols-2")).toBeNull();
     expect(container.querySelector(".grid-cols-1")).toBeInTheDocument();
   });
 

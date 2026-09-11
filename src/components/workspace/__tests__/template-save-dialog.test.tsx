@@ -77,6 +77,7 @@ describe("TemplateSaveDialog — plan-06 草稿保存向导（流程 B）", () =
     );
     vi.spyOn(global, "fetch").mockImplementation(fetchMock as unknown as typeof fetch);
     const user = userEvent.setup();
+    const onSave = vi.fn();
 
     render(
       <TemplateSaveDialog
@@ -86,7 +87,7 @@ describe("TemplateSaveDialog — plan-06 草稿保存向导（流程 B）", () =
         sourceAnalysisTaskId="analysis-1"
         sourceAssetId="asset-1"
         sourceImageUrl="https://cdn.example.com/reference.png"
-        onSave={vi.fn()}
+        onSave={onSave}
         onClose={vi.fn()}
       />,
     );
@@ -95,9 +96,9 @@ describe("TemplateSaveDialog — plan-06 草稿保存向导（流程 B）", () =
     await user.type(screen.getByLabelText(/^Name$/), "Saved");
     await user.click(screen.getByRole("button", { name: /^Save/ }));
 
-    await waitFor(() =>
-      expect(routerPushMock).toHaveBeenCalledWith("/workspace/templates/template-1"),
-    );
+    // plan-10（AC-18）：工作区草稿保存留在当前方向，由宿主刷新回读，不跳转
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith({ id: "template-1", name: "Saved" }));
+    expect(routerPushMock).not.toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const body = JSON.parse(
       String(fetchMock.mock.calls[0][1].body),

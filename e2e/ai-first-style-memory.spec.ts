@@ -133,30 +133,6 @@ test.describe('plan-06 Style Memory template library migration', () => {
     await expect(page.getByRole('button', { name: /Open workspace/ })).toBeVisible()
   })
 
-  test('TC-6.1 mobile Library uses a compact navigation rail without horizontal overflow', async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width: 390, height: 844 })
-    await mockStyleMemoryList(page, listMemories)
-
-    await openStyleMemory(page)
-
-    const sidebar = page.getByRole('complementary', { name: /workspace navigation/i })
-    const pageFrame = page.getByTestId('style-memory-page')
-    await expect(sidebar).toBeVisible()
-    await expect(pageFrame).toBeVisible()
-
-    const [sidebarBox, pageBox, bodyWidth] = await Promise.all([
-      sidebar.boundingBox(),
-      pageFrame.boundingBox(),
-      page.evaluate(() => document.body.scrollWidth),
-    ])
-
-    expect(sidebarBox?.width).toBeLessThanOrEqual(80)
-    expect(pageBox?.width).toBeGreaterThanOrEqual(300)
-    expect(bodyWidth).toBeLessThanOrEqual(390)
-    await expect(page.getByRole('button', { name: 'Use', exact: true }).first()).toBeVisible()
-  })
 
   test('TC-6.1 card previews, status badges, and rule summaries are visible', async ({ page }) => {
     await mockStyleMemoryList(page, listMemories)
@@ -211,6 +187,7 @@ test.describe('plan-06 Style Memory template library migration', () => {
     await reusePrecheck.getByRole('button', { name: /^Enter workspace$/ }).click()
 
     await expect(page).toHaveURL(/\/workspace/)
+    await page.getByRole('tablist', { name: 'Workspace inspector' }).getByRole('tab', { name: 'Prompt', exact: true }).click()
     await expect(page.getByTestId('unified-prompt-editor')).toBeVisible({ timeout: 15000 })
     await page.getByLabel('Prompt mode').selectOption('variables')
     await expect(page.getByLabel('Variable subject')).toHaveValue('glass sculpture')

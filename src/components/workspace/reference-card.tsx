@@ -10,6 +10,7 @@ import type {
 import { UploadZone } from "@/components/workspace/upload-zone";
 
 interface ReferenceCardProps {
+  selectedEvidence?:{id:string;summary:string}|null;
   state: WorkspaceState;
   referenceImageUrl: string | null;
   isUploading: boolean;
@@ -22,6 +23,7 @@ interface ReferenceCardProps {
 }
 
 export function ReferenceCard({
+  selectedEvidence,
   state,
   referenceImageUrl,
   isUploading,
@@ -39,7 +41,7 @@ export function ReferenceCard({
   return (
     <article
       data-testid="reference-card"
-      className="surface-panel flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl p-4"
+      className="surface-panel flex h-auto md:h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl p-4"
     >
       <div className="mb-4 flex shrink-0 items-center justify-between gap-3">
         <div className="min-w-0">
@@ -73,19 +75,20 @@ export function ReferenceCard({
         </div>
       </div>
 
+      {selectedEvidence&&<p data-testid="reference-evidence-selection" data-evidence-id={selectedEvidence.id} className="mb-2 text-xs text-[var(--text-secondary)]">Selected evidence: {selectedEvidence.summary}. Image location unavailable.</p>}
       <div className="flex min-h-0 flex-1 flex-col">
         {hasReference ? (
           <div className="flex min-h-0 flex-1 flex-col">
             <div
               data-testid="reference-image-stage"
-              className="media-lens relative min-h-0 flex-1 overflow-hidden rounded-xl bg-[var(--surface-low)] ring-1 ring-inset ring-[var(--border-static)]"
+              className="media-lens relative aspect-square flex-none md:aspect-auto md:min-h-0 md:flex-1 overflow-hidden rounded-xl bg-[var(--surface-low)] ring-1 ring-inset ring-[var(--border-static)]"
             >
               <Image
                 src={referenceImageUrl}
                 alt="Reference"
                 fill
                 sizes="(min-width: 1280px) 33vw, (min-width: 768px) 42vw, 100vw"
-                className="object-cover object-center"
+                className="object-contain object-center"
                 onLoad={(event) => {
                   const { naturalWidth, naturalHeight } = event.currentTarget;
                   if (naturalWidth > 0 && naturalHeight > 0) {

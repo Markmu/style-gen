@@ -16,6 +16,7 @@ type AnalysisTaskRow = typeof analysisTasks.$inferSelect;
 function rowToAnalysisTask(row: AnalysisTaskRow): AnalysisTask {
   return {
     id: row.id,
+    directionId: row.directionId, requestKey: row.requestKey, deadlineAt: row.deadlineAt, lastReconciledAt: row.lastReconciledAt,
     sourceAssetId: row.sourceAssetId,
     status: row.status as AnalysisTaskStatus,
     recipe: row.recipe ?? null,

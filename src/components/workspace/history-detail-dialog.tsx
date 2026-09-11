@@ -2,10 +2,14 @@
 
 import Image from "next/image";
 import { useFocusTrap } from "@/hooks/use-focus-trap";
-import type { GenerationParams, StoredVisualRecipe, TemplateVariable } from "@/types/models";
+import type { GenerationParams, StoredVisualRecipe, TemplateVariable, PromptControlSnapshot } from "@/types/models";
 
 export interface HistoryDetail {
   id: string;
+  modelName?:string;
+  provider?:string|null;
+  directionId?: string | null;
+  promptControlSnapshot?: PromptControlSnapshot | null;
   resultFileUrl: string;
   recipe: StoredVisualRecipe | null;
   promptSnapshot: string;
@@ -21,24 +25,24 @@ interface HistoryDetailDialogProps {
   open: boolean;
   detail: HistoryDetail | null;
   onRestore: (id: string) => void;
-  onContinueEditing?: (detail: HistoryDetail) => void;
   onClose: () => void;
   restoreError?: string | null;
+  onReturnDirection?: (id: string) => void;
 }
 
 export function HistoryDetailDialog({
   open,
   detail,
   onRestore,
-  onContinueEditing,
   onClose,
   restoreError,
+  onReturnDirection,
 }: HistoryDetailDialogProps) {
   const { containerRef } = useFocusTrap({ active: open && !!detail, onEscape: onClose });
   if (!open || !detail) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(25,28,30,0.24)] p-6 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--surface-page)]/80 p-6 backdrop-blur-sm">
       <div
         ref={containerRef}
         tabIndex={-1}
@@ -46,7 +50,7 @@ export function HistoryDetailDialog({
         role="dialog"
         aria-modal="true"
         aria-label="History Detail"
-        className="glass-panel grid max-h-[86vh] w-full max-w-5xl gap-5 overflow-y-auto rounded-xl p-6 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.82fr)]"
+        className="bg-[var(--surface-floating)] ring-1 ring-[var(--border-static)] grid max-h-[86vh] w-full max-w-5xl gap-5 overflow-y-auto rounded-xl p-6 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.82fr)]"
       >
         <div className="min-w-0">
           <p className="label-tech text-[var(--text-muted)]">History Result</p>
@@ -102,13 +106,13 @@ export function HistoryDetailDialog({
                 <div>
                   <dt className="text-xs text-[var(--text-muted)]">Aspect ratio</dt>
                   <dd className="mt-1 font-medium text-[var(--text-primary)]">
-                    {detail.params.aspectRatio}
+                    {detail.params?.aspectRatio || "Missing - choose before generating"}
                   </dd>
                 </div>
                 <div>
                   <dt className="text-xs text-[var(--text-muted)]">Quality</dt>
                   <dd className="mt-1 font-medium text-[var(--text-primary)]">
-                    {detail.params.quality}
+                    {detail.params?.quality || "Missing - choose before generating"}
                   </dd>
                 </div>
 
@@ -122,7 +126,11 @@ export function HistoryDetailDialog({
             )}
           </div>
 
+          <p className="mt-3 text-xs text-[var(--text-secondary)]">{detail.directionId ? `Direction: ${detail.directionId}` : "Legacy result. Continuing creates a restored summary; no past conversation is invented."}</p>
+          <p className="mt-1 text-xs">Model: {detail.params?.model || "Missing - choose before generating"}</p>
+          <p className="mt-1 break-all text-xs">Original binding: {detail.provider??"Provider not recorded"} / {detail.modelName??"Model binding not recorded"}</p>
           <div className="mt-5 flex flex-wrap justify-end gap-2">
+            {detail.directionId && onReturnDirection && <button type="button" className="btn-secondary rounded-lg px-4 py-2 text-sm" onClick={()=>onReturnDirection(detail.directionId!)}>Return to this direction</button>}
             <button
               type="button"
               onClick={onClose}
@@ -132,17 +140,10 @@ export function HistoryDetailDialog({
             </button>
             <button
               type="button"
-              onClick={() => onContinueEditing?.(detail)}
-              className="btn-secondary rounded-lg px-4 py-2 text-sm"
-            >
-              Generate variation
-            </button>
-            <button
-              type="button"
               onClick={() => onRestore(detail.id)}
               className="btn-primary rounded-lg px-4 py-2 text-sm"
             >
-              Restore to workspace
+              Continue from this result
             </button>
           </div>
         </div>

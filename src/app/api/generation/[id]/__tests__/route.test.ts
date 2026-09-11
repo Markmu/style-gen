@@ -106,6 +106,7 @@ describe("GET /api/generation/[id]", () => {
     expect(res.status).toBe(200);
     expect(mockFindIterationDetail).toHaveBeenCalledWith("gen-1", "user-1");
     expect(json).toEqual({
+      directionId:null,submissionState:null,draftRevision:null,retrySummary:null,
       id: "gen-1",
       analysisTaskId: "analysis-1",
       status: "completed",
@@ -113,6 +114,7 @@ describe("GET /api/generation/[id]", () => {
       negativePromptSnapshot: "ugly",
       params: { aspectRatio: "16:9", quality: "high" },
       modelName: "flux.2",
+      provider: null,
       resultAssetId: "asset-gen-1",
       resultFileUrl: "https://r2.example.com/generated/gen-1/result.webp",
       errorMessage: null,

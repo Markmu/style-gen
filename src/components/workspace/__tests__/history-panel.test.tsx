@@ -48,7 +48,7 @@ describe("HistoryPanel", () => {
   it("renders as an inline history strip instead of a right drawer", () => {
     const { container } = render(<HistoryPanel />);
 
-    expect(mockUseHistoryList).toHaveBeenCalledWith(true);
+    expect(mockUseHistoryList).toHaveBeenCalledWith(true, undefined);
     expect(screen.getByRole("heading", { name: "History" })).toBeInTheDocument();
     expect(screen.getByTestId("generation-history-strip")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Expand history" })).not.toBeInTheDocument();
@@ -86,7 +86,7 @@ describe("HistoryPanel", () => {
 
     expect(screen.queryByText(/Just now|m ago|h ago|d ago/)).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Restore generation" }));
+    await user.click(screen.getByRole("button", { name: "View generation" }));
 
     expect(onRestore).toHaveBeenCalledWith("history-1");
   });

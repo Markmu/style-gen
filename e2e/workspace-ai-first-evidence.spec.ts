@@ -46,7 +46,7 @@ async function mockCdnImages(page: Page) {
 }
 
 async function uploadReference(page: Page) {
-  const input = appShell(page).locator('input[type="file"]').first()
+  const input = appShell(page).getByTestId('reference-card').locator('input[type="file"]').first()
   await waitForReactInput(input)
   await input.setInputFiles(TEST_IMAGE_PATH)
 }

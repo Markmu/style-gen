@@ -8,6 +8,7 @@ export default function WorkspaceLayout({
 }: {
   children: React.ReactNode;
 }) {
+
   return (
     <IterationMemoryViewProvider>
       <div className="flex h-full min-h-0 overflow-hidden bg-[var(--surface-page)]">

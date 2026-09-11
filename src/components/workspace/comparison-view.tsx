@@ -66,7 +66,7 @@ export function ComparisonView({
       <h3 className="mb-3 text-sm font-semibold text-[var(--text-secondary)]">
         Reference vs Generated Result
       </h3>
-      <div className={layoutMode === "side-by-side" ? "grid grid-cols-2 gap-3" : "grid grid-cols-1 gap-3"}>
+      <div className={layoutMode === "side-by-side" ? "grid grid-cols-1 gap-3 sm:grid-cols-2" : "grid grid-cols-1 gap-3"}>
         {/* Reference image */}
         <div className="space-y-1">
           <p className="text-xs font-medium text-[var(--text-secondary)]">Reference</p>

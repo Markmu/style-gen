@@ -1,10 +1,9 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { signIn } from "next-auth/react";
 import type { GenerationTask } from "@/types/models";
 
-const POLL_INTERVAL_MS = 3000;
+const POLL_INTERVAL_MS = 2000;
 
 /** GET /api/generation/:id 的响应类型 */
 export interface GenerationTaskWithResult extends GenerationTask {
@@ -26,7 +25,7 @@ async function fetchGenerationTask(
   const res = await fetch(`/api/generation/${taskId}`);
   if (res.status === 401) {
     // 会话过期：引导重新Log in，保留当前页面（架构 4.3 session_expired）
-    signIn("google", { callbackUrl: window.location.pathname });
+    window.dispatchEvent(new Event("workspace-session-expired"));
     throw new UnauthorizedError();
   }
   if (!res.ok) {
@@ -51,6 +50,8 @@ export function useGeneration(taskId: string | null): {
     queryKey: ["generation", taskId],
     queryFn: () => fetchGenerationTask(taskId!),
     enabled: !!taskId,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: "always",
     retry: (_failureCount, err) => {
       // 401 不Retry，直接引导Log in
       if (err instanceof UnauthorizedError) return false;
@@ -65,7 +66,7 @@ export function useGeneration(taskId: string | null): {
       if (query.state.error instanceof UnauthorizedError) {
         return false;
       }
-      return POLL_INTERVAL_MS;
+      return Math.min(5000, POLL_INTERVAL_MS + query.state.dataUpdateCount * 500);
     },
   });
 

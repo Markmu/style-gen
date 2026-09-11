@@ -2,6 +2,15 @@ import { eq, and, or, desc, lt, sql, getTableColumns } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/lib/db";
 import { templates, generationTasks, assets } from "@/lib/db/schema";
+import {
+  appendEvent,
+  findEventByRequestKey,
+  withWorkspaceTransaction,
+  WorkspaceConflict,
+  WorkspaceNotFound,
+  type EventRow,
+  type WorkspaceTransaction,
+} from "./workspace-repository";
 import { generateId } from "@/lib/ulid";
 import { mergeTemplateVariables } from "@/lib/template-parser";
 import { ruleSetsChanged } from "@/lib/style-memory-rules";
@@ -16,6 +25,109 @@ import type {
 } from "@/types/models";
 
 type TemplateRow = typeof templates.$inferSelect;
+
+// ─── plan-10（架构 §6.5 / ADR-7）：Memory 写点 requestKey 事务回执 ────────────
+
+/** 带方向上下文的幂等保存请求（重复键先回执，异 hash 409） */
+export interface TemplateMemoryReceipt {
+  directionId: string;
+  requestKey: string;
+  requestHash: string;
+}
+
+/** 回执快查结果：复用原记录 / 回执存在但目标已删（404）/ 无回执 */
+export type MemoryReceiptLookup =
+  | { status: "none" }
+  | { status: "reused"; record: StyleMemoryRecord }
+  | { status: "gone" };
+
+/** 派生系统事件键命名空间（架构 §7.3：generation:{key} / result:{taskId} 同规则） */
+export function memoryReceiptEventKey(requestKey: string): string {
+  return `memory:${requestKey}`;
+}
+
+type TemplateReader = typeof db | WorkspaceTransaction;
+
+async function loadTemplateRow(
+  reader: TemplateReader,
+  id: string,
+  userId: string
+): Promise<TemplateRow | null> {
+  const rows = await reader
+    .select()
+    .from(templates)
+    .where(and(eq(templates.id, id), eq(templates.userId, userId)));
+  return rows.length === 0 ? null : rows[0];
+}
+
+/** 已存在回执的分类校验：方向/摘要不符 409；目标模板被删 → gone（路由 404） */
+async function classifyReceiptEvent(
+  userId: string,
+  event: Pick<EventRow, "directionId" | "requestHash" | "memoryId">,
+  receipt: TemplateMemoryReceipt,
+  reader: TemplateReader
+): Promise<MemoryReceiptLookup> {
+  if (
+    event.directionId !== receipt.directionId ||
+    event.requestHash !== receipt.requestHash
+  ) {
+    throw new WorkspaceConflict("request_key_conflict");
+  }
+  if (!event.memoryId) return { status: "gone" };
+  const row = await loadTemplateRow(reader, event.memoryId, userId);
+  if (!row) return { status: "gone" };
+  return { status: "reused", record: rowToStyleMemory(row) };
+}
+
+/** 路由快速路径：验证写前置校验前先查回执（重复键先返回已接受事实） */
+export async function lookupMemoryReceipt(
+  userId: string,
+  receipt: TemplateMemoryReceipt
+): Promise<MemoryReceiptLookup> {
+  const event = await findEventByRequestKey(
+    userId,
+    memoryReceiptEventKey(receipt.requestKey)
+  );
+  if (!event) return { status: "none" };
+  return classifyReceiptEvent(userId, event, receipt, db);
+}
+
+/**
+ * 模板写入 + workspace memory 回执同一事务（架构 §6.5）。
+ * 事务内在方向锁下重查回执：并发同键串行后直接复用，不重复插入。
+ */
+async function withMemoryReceipt<T extends StyleMemoryRecord>(
+  userId: string,
+  receipt: TemplateMemoryReceipt,
+  context: { generationTaskId?: string | null; actionInput: string },
+  write: (tx: WorkspaceTransaction) => Promise<T>
+): Promise<{ record: T; reused: boolean }> {
+  return withWorkspaceTransaction(userId, receipt.directionId, async (tx) => {
+    const existing = await findEventByRequestKey(
+      userId,
+      memoryReceiptEventKey(receipt.requestKey),
+      tx
+    );
+    if (existing) {
+      const classified = await classifyReceiptEvent(userId, existing, receipt, tx);
+      if (classified.status === "reused") {
+        return { record: classified.record as T, reused: true };
+      }
+      // 回执存在但目标已被删除：保留服务端事实，按 404 引导（不重建）
+      throw new WorkspaceNotFound();
+    }
+    const record = await write(tx);
+    await appendEvent(tx, userId, receipt.directionId, {
+      requestKey: memoryReceiptEventKey(receipt.requestKey),
+      requestHash: receipt.requestHash,
+      kind: "memory",
+      memoryId: record.id,
+      generationTaskId: context.generationTaskId ?? null,
+      inputText: context.actionInput,
+    });
+    return { record, reused: false };
+  });
+}
 
 /** 验证状态白名单（架构 §7.6：与 CHECK 约束同口径） */
 const VERIFICATION_STATUSES: ReadonlySet<string> = new Set([
@@ -65,6 +177,7 @@ export async function createTemplate(
     name: string;
     content: string;
     variables?: TemplateVariable[];
+    sourceGenerationTaskId?: string | null;
     sourceAssetId?: string | null;
     sourceImageUrl?: string | null;
     description?: string | null;
@@ -75,12 +188,20 @@ export async function createTemplate(
     representativeGenerationTaskId?: string | null;
   }
 ): Promise<StyleMemoryRecord> {
+  return insertTemplate(db, userId, data);
+}
+
+async function insertTemplate(
+  reader: TemplateReader,
+  userId: string,
+  data: Parameters<typeof createTemplate>[1]
+): Promise<StyleMemoryRecord> {
   const id = generateId();
   const variables = mergeTemplateVariables(data.content, data.variables);
   const representativeGenerationTaskId =
     data.representativeGenerationTaskId ?? null;
 
-  const [row] = await db
+  const [row] = await reader
     .insert(templates)
     .values({
       id,
@@ -97,6 +218,7 @@ export async function createTemplate(
         representativeGenerationTaskId !== null
           ? "user_verified"
           : "pending_verification",
+      sourceGenerationTaskId: data.sourceGenerationTaskId ?? null,
       sourceAssetId: data.sourceAssetId ?? null,
       sourceImageUrl: data.sourceImageUrl ?? null,
       userId,
@@ -104,6 +226,23 @@ export async function createTemplate(
     .returning();
 
   return rowToStyleMemory(row);
+}
+
+/** plan-10：带事务回执的创建；来源迭代关联与模板行、回执同事务写入 */
+export async function createTemplateWithReceipt(
+  userId: string,
+  data: Parameters<typeof createTemplate>[1],
+  receipt: TemplateMemoryReceipt
+): Promise<{ record: StyleMemoryRecord; reused: boolean }> {
+  return withMemoryReceipt(
+    userId,
+    receipt,
+    {
+      generationTaskId: data.sourceGenerationTaskId ?? null,
+      actionInput: JSON.stringify({ action: "create" }),
+    },
+    (tx) => insertTemplate(tx, userId, data)
+  );
 }
 
 /** 查询某用户下是否已存在同名模板 */
@@ -374,7 +513,20 @@ export async function setRepresentativeResult(
   userId: string,
   generationTaskId: string
 ): Promise<StyleMemoryRecord> {
-  const rows = await db
+  const rows = await performSetRepresentative(db, templateId, userId, generationTaskId);
+  if (rows.length === 0) {
+    throw new Error(`Template not found or not owned by user: ${templateId}`);
+  }
+  return rowToStyleMemory(rows[0]);
+}
+
+async function performSetRepresentative(
+  reader: TemplateReader,
+  templateId: string,
+  userId: string,
+  generationTaskId: string
+) {
+  return reader
     .update(templates)
     .set({
       representativeGenerationTaskId: generationTaskId,
@@ -383,12 +535,30 @@ export async function setRepresentativeResult(
     })
     .where(and(eq(templates.id, templateId), eq(templates.userId, userId)))
     .returning();
-
-  if (rows.length === 0) {
-    throw new Error(`Template not found or not owned by user: ${templateId}`);
-  }
-  return rowToStyleMemory(rows[0]);
 }
+
+/** plan-10：带事务回执的代表结果确认（用户确认代表图 → user_verified） */
+export async function setRepresentativeResultWithReceipt(
+  templateId: string,
+  userId: string,
+  generationTaskId: string,
+  receipt: TemplateMemoryReceipt
+): Promise<{ record: StyleMemoryRecord; reused: boolean }> {
+  return withMemoryReceipt(
+    userId,
+    receipt,
+    {
+      generationTaskId,
+      actionInput: JSON.stringify({ action: "representative", targetId: templateId }),
+    },
+    async (tx) => {
+      const rows = await performSetRepresentative(tx, templateId, userId, generationTaskId);
+      if (rows.length === 0) throw new WorkspaceNotFound();
+      return rowToStyleMemory(rows[0]);
+    }
+  );
+}
+
 
 /**
  * 代表结果候选列表（架构 §6.4 相关集）：本 Memory 派生的迭代或来源迭代自身，
@@ -501,7 +671,23 @@ export async function updateTemplate(
 ): Promise<StyleMemoryRecord> {
   const existing = await findById(id, userId);
   if (!existing) throw new Error(`Template not found: ${id}`);
+  return performUpdateTemplate(db, existing, data);
+}
 
+async function performUpdateTemplate(
+  reader: TemplateReader,
+  existing: TemplateRow,
+  data: {
+    name?: string;
+    content?: string;
+    variables?: TemplateVariable[];
+    sourceAssetId?: string | null;
+    sourceImageUrl?: string | null;
+    description?: string | null;
+    retainedRules?: string[];
+    negativeConstraints?: string[];
+  }
+): Promise<StyleMemoryRecord> {
   const updates: Record<string, unknown> = { updatedAt: sql`NOW()` };
   if (data.name !== undefined) updates.name = data.name;
   if (data.content !== undefined) {
@@ -531,13 +717,32 @@ export async function updateTemplate(
     updates.verificationStatus = "pending_verification";
   }
 
-  const rows = await db
+  const rows = await reader
     .update(templates)
     .set(updates)
-    .where(and(eq(templates.id, id), eq(templates.userId, userId)))
+    .where(and(eq(templates.id, existing.id), eq(templates.userId, existing.userId)))
     .returning();
 
   return rowToStyleMemory(rows[0]);
+}
+
+/** plan-10：带事务回执的编辑保存（规则实质变化仍回退 pending_verification） */
+export async function updateTemplateWithReceipt(
+  id: string,
+  userId: string,
+  data: Parameters<typeof updateTemplate>[2],
+  receipt: TemplateMemoryReceipt
+): Promise<{ record: StyleMemoryRecord; reused: boolean }> {
+  return withMemoryReceipt(
+    userId,
+    receipt,
+    { actionInput: JSON.stringify({ action: "update", targetId: id }) },
+    async (tx) => {
+      const row = await loadTemplateRow(tx, id, userId);
+      if (!row) throw new WorkspaceNotFound();
+      return performUpdateTemplate(tx, row, data);
+    }
+  );
 }
 
 /**
@@ -553,18 +758,37 @@ export async function duplicateTemplate(
 ): Promise<StyleMemoryRecord> {
   const existing = await findById(id, userId);
   if (!existing) throw new Error(`Template not found: ${id}`);
+  return performDuplicateTemplate(db, userId, existing);
+}
 
+async function findRowByName(
+  reader: TemplateReader,
+  userId: string,
+  name: string
+): Promise<TemplateRow | null> {
+  const rows = await reader
+    .select()
+    .from(templates)
+    .where(and(eq(templates.userId, userId), eq(templates.name, name)));
+  return rows.length === 0 ? null : rows[0];
+}
+
+async function performDuplicateTemplate(
+  reader: TemplateReader,
+  userId: string,
+  existing: TemplateRow
+): Promise<StyleMemoryRecord> {
   const newId = generateId();
   let newName = `${existing.name} (copy)`;
 
   // 处理重复 copy 名称
   let suffix = 2;
-  while (await findByName(userId, newName)) {
+  while (await findRowByName(reader, userId, newName)) {
     newName = `${existing.name} (copy ${suffix})`;
     suffix++;
   }
 
-  const [row] = await db
+  const [row] = await reader
     .insert(templates)
     .values({
       id: newId,
@@ -586,6 +810,24 @@ export async function duplicateTemplate(
     .returning();
 
   return rowToStyleMemory(row);
+}
+
+/** plan-10：带事务回执的新建副本（副本固定 pending_verification） */
+export async function duplicateTemplateWithReceipt(
+  id: string,
+  userId: string,
+  receipt: TemplateMemoryReceipt
+): Promise<{ record: StyleMemoryRecord; reused: boolean }> {
+  return withMemoryReceipt(
+    userId,
+    receipt,
+    { actionInput: JSON.stringify({ action: "duplicate", targetId: id }) },
+    async (tx) => {
+      const row = await loadTemplateRow(tx, id, userId);
+      if (!row) throw new WorkspaceNotFound();
+      return performDuplicateTemplate(tx, userId, row);
+    }
+  );
 }
 
 // 兼容导出：既有调用方以 PromptTemplate 口径消费记录（StyleMemoryRecord 为其超集）

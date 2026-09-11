@@ -7,6 +7,7 @@ import {
   type DragEvent,
   type ChangeEvent,
 } from "react";
+import { validateAttachments } from "@/lib/workspace/draft-store";
 import { ImageUp } from "lucide-react";
 import { AppIcon } from "@/components/ui/app-icon";
 
@@ -71,8 +72,9 @@ export function UploadZone({
 
   const handleChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) handleFile(file);
+      const files=Array.from(e.target.files??[]);
+      const error=validateAttachments(files);if(error){setError(error);return;}
+      handleFile(files[0]);
     },
     [handleFile],
   );
@@ -91,8 +93,9 @@ export function UploadZone({
     (e: DragEvent<HTMLDivElement>) => {
       e.preventDefault();
       setIsDragOver(false);
-      const file = e.dataTransfer.files[0];
-      if (file) handleFile(file);
+      const files=Array.from(e.dataTransfer.files);
+      const error=validateAttachments(files);if(error){setError(error);return;}
+      handleFile(files[0]);
     },
     [handleFile],
   );

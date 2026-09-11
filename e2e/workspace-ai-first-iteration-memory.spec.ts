@@ -1,3 +1,4 @@
+import { generateCurrentDraft } from './helpers/workspace-actions';
 import { expect, test, type Page } from '@playwright/test'
 import {
   loadFixture,
@@ -52,24 +53,22 @@ function historyStrip(page: Page) {
 
 function promptCard(page: Page) {
   return appShell(page)
-    .getByRole('region', { name: 'Prompt and Render column' })
+    
     .getByTestId('prompt-card')
 }
 
 function renderDock(page: Page) {
-  return appShell(page)
-    .getByRole('region', { name: 'Prompt and Render column' })
-    .getByTestId('output-card')
+  return appShell(page).getByTestId('generation-bar')
 }
 
 function styleIntelligence(page: Page) {
   return appShell(page)
-    .getByRole('region', { name: 'Style Intelligence column' })
+    
     .getByTestId('recipe-card')
 }
 
 function referenceCanvas(page: Page) {
-  return appShell(page).getByRole('region', { name: 'Reference Canvas column' })
+  return appShell(page)
 }
 
 async function mockCdnImages(page: Page) {
@@ -99,8 +98,8 @@ async function openWorkspace(page: Page) {
 }
 
 async function uploadReference(page: Page) {
-  const input = appShell(page)
-    .getByRole('region', { name: 'Reference Canvas column' })
+  const input = appShell(page).getByTestId('reference-card')
+    
     .locator('input[type="file"]')
   await waitForReactInput(input)
   await input.setInputFiles(TEST_IMAGE_PATH)
@@ -155,8 +154,10 @@ async function restoreHistoryToWorkspace(page: Page) {
   await openHistoryDetail(page)
   await page
     .getByTestId('history-detail-dialog')
-    .getByRole('button', { name: /restore to workspace/i })
+    .getByRole('button', { name: /continue from this result/i })
     .click()
+  await expect(page.getByRole('dialog',{name:'Preview direction change'})).toBeVisible()
+  await page.getByRole('dialog',{name:'Preview direction change'}).getByRole('button',{name:'Confirm',exact:true}).click()
   await expect(page.getByTestId('history-detail-dialog')).toHaveCount(0)
   await expect(promptCard(page)).toContainText(restoredPrompt, { timeout: 15000 })
 }
@@ -182,7 +183,7 @@ test.describe('plan-05 Iteration Memory and Save Style Memory entry', () => {
     })
 
     await openWithCompletedAnalysis(page, 'iteration-memory-analysis-task')
-    await renderDock(page).getByRole('button', { name: /^Generate$/i }).click()
+    await generateCurrentDraft(page)
     // plan-07（实现规格 §4）：成功不再打开阻断式 GenerationDialog——完成事实
     // 经历史列表/方向 feed 内联刷新，本用例以 Recent iterations 缩略图为完成锚点
     await expect(page.getByTestId('generation-dialog')).toHaveCount(0)
@@ -219,10 +220,8 @@ test.describe('plan-05 Iteration Memory and Save Style Memory entry', () => {
     await expect(dialog).toContainText(restoredNegativePrompt)
     await expect(dialog).toContainText('16:9')
     await expect(dialog).toContainText(/HD/i)
-    await expect(dialog.getByRole('button', { name: /restore to workspace/i })).toBeVisible()
-    await expect(
-      dialog.getByRole('button', { name: /generate variation|continue editing/i }),
-    ).toBeVisible()
+    await expect(dialog.getByRole('button', { name: /continue from this result/i })).toBeVisible()
+    await expect(dialog).toContainText(/Legacy result|Direction:/)
     await expect(dialog.getByRole('button', { name: /save as style memory/i })).toHaveCount(0)
   })
 
@@ -249,9 +248,11 @@ test.describe('plan-05 Iteration Memory and Save Style Memory entry', () => {
     await expect(styleIntelligence(page).getByTestId('evidence-facet-lighting')).toBeVisible()
     await expect(renderDock(page).getByLabel(/Aspect Ratio/i)).toHaveValue('16:9')
     await expect(renderDock(page).getByLabel(/Quality/i)).toHaveValue('hd')
-    await expect(renderDock(page).getByRole('button', { name: /^Generate$/i })).toBeEnabled()
+    await expect(renderDock(page).getByRole('button', { name: /^Generate 1 image$/i })).toBeDisabled()
+    await renderDock(page).getByLabel('Model',{exact:true}).selectOption('flux-2-dev')
+    await renderDock(page).getByLabel(/Quality/i).selectOption('standard')
 
-    await renderDock(page).getByRole('button', { name: /^Generate$/i }).click()
+    await generateCurrentDraft(page)
     await expect(appShell(page).getByTestId('ai-status-header')).toHaveAttribute(
       'data-phase',
       'generating',
@@ -271,7 +272,7 @@ test.describe('plan-05 Iteration Memory and Save Style Memory entry', () => {
     ).toHaveCount(0)
     await page
       .getByTestId('history-detail-dialog')
-      .getByRole('button', { name: /restore to workspace/i })
+      .getByRole('button', { name: /continue from this result/i })
       .click()
     await expect(page.getByTestId('history-detail-dialog')).toHaveCount(0)
     await expect(renderDock(page).getByRole('button', { name: /save as style memory/i })).toHaveCount(0)

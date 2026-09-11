@@ -1,4 +1,4 @@
-import { findAnalysisTaskByIdInternal, updateAnalysisTask } from '@/lib/repositories/analysis-task-repository';
+import { findAnalysisTaskByIdInternal } from '@/lib/repositories/analysis-task-repository';
 import { findGenerationTaskByIdInternal, updateGenerationTask } from '@/lib/repositories/generation-task-repository';
 import { logError } from './log';
 
@@ -52,11 +52,6 @@ export function startTimeoutTimer(
       if (taskType === 'analysis') {
         const task = await findAnalysisTaskByIdInternal(taskId);
         if (task && task.status === 'processing') {
-          await updateAnalysisTask(taskId, {
-            status: 'failed',
-            errorMessage: timeoutMessage,
-            errorStage: task.errorStage || 'vision',
-          });
           logError(timeoutEvent, {
             taskId,
             taskType: 'analysis',
@@ -67,7 +62,7 @@ export function startTimeoutTimer(
         }
       } else {
         const task = await findGenerationTaskByIdInternal(taskId);
-        if (task && task.status === 'processing') {
+        if (task && task.status === 'processing' && !task.dispatchState) {
           await updateGenerationTask(taskId, {
             status: 'failed',
             errorMessage: timeoutMessage,

@@ -456,3 +456,10 @@ describe("ResultComparisonPanel", () => {
     expect(screen.queryByTestId("comparison-invariant-option")).toBeNull();
   });
 });
+
+it('uses two explicit result IDs and prepares a typed deviation without applying a draft change',async()=>{
+ const apply=vi.fn(),reference=vi.fn(),change=vi.fn();
+ render(<ResultComparisonPanel iterationId="result-b" detail={buildDetail({id:'result-b'})} secondId="result-a" secondDetail={buildDetail({id:'result-a',resultFileUrl:'https://cdn.example.com/a.png'})} comparisonOptions={[{id:'result-a',promptSummary:'A'},{id:'result-b',promptSummary:'B'}]} onSecondChange={change} onReferenceDeviation={reference} detailStatus="ready" recipe={buildRecipe()} compiledPrompt={null} onRetryDetail={vi.fn()} onOpenIteration={vi.fn()} onApplyAdjustment={apply} onCancel={vi.fn()} onSelectOtherDimension={vi.fn()}/>);
+ expect(screen.getByTestId('result-comparison-panel')).toHaveAttribute('data-first-id','result-a');expect(screen.getByTestId('result-comparison-panel')).toHaveAttribute('data-second-id','result-b');expect(screen.getByTestId('comparison-reference-image')).toHaveAttribute('src','https://cdn.example.com/a.png');
+ await userEvent.click(screen.getByRole('button',{name:'Color',exact:true}));await userEvent.click(screen.getByRole('button',{name:'Discuss this difference'}));expect(reference).toHaveBeenCalledWith('color',['color_1']);expect(apply).not.toHaveBeenCalled();
+});

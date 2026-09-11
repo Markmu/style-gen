@@ -6,6 +6,8 @@
 
 Visoryn is a quiet professional instrument for the Reference -> Evidence -> Render workflow. The interface frames source imagery, model evidence, user edits, and render readiness without competing with them.
 
+Visoryn is a desktop-only product. Mobile compatibility is explicitly out of scope; do not add mobile-specific layouts, gestures, or workarounds.
+
 The design should feel precise, calm, transparent, and editorially clear. Familiar product controls are a feature. Distinctive character comes from typography, image composition, restrained asymmetry, and excellent state design, not decorative effects.
 
 ## 2. Physical Scene And Theme
@@ -71,9 +73,9 @@ Spacing rules:
 Layout rules:
 
 - Landing uses an asymmetric split hero with one message and a real visual.
-- Workspace preserves the three responsibilities: Reference Canvas, Style Intelligence, and Prompt + Render.
+- Workspace uses Conversation and Canvas columns. Canvas owns reference, result and comparison views, with Evidence, Draft and Prompt inspector tabs. Recent history stays within the Canvas scroll region.
 - Style Memory prioritizes previews, then name, variables, tags, reuse intent, and action.
-- Below 768px, marketing layouts become one column. Workspace uses three columns at xl (1280px) and above, and vertically stacked panels below xl. No persistent region may impose horizontal page overflow. Desktop Prompt + Render keeps its heading and Render Dock visible while editor content scrolls.
+- Visoryn is a desktop-only product. Mobile phones and narrow-screen compatibility are out of scope; responsive mobile adaptations, pane switching, safe-area and soft-keyboard workarounds must not be reintroduced. Both Workspace columns are always visible. No persistent region may impose horizontal page overflow at supported desktop widths. Send belongs inside the input surface; Generate belongs below it beside Model, Aspect ratio and Quality. Long status content scrolls without making controls unreachable.
 - Full-height application shells use `100dvh`, never `100vh` or `h-screen`.
 
 ## 7. Components And States
@@ -174,3 +176,23 @@ Approved refinement: compact evidence status without inferred confidence or unve
 Keep existing generation, provenance, restoration and verification contracts. Draft saves never imply user verification. Iteration saves retain representative confirmation. Advanced controls remain available progressively. Temporary undo must never overwrite newer edits.
 
 Use real nonempty evidence dimensions for coverage, not estimated scores. Use `View latest result` for history details and `Compare with reference` for comparison. Prompt detail labels are Concise, Balanced and Detailed. Draft naming is prefilled from a custom workspace title, a style tag, or Untitled style; advanced save fields remain editable.
+
+## 12. Workspace Agent conversation (2026-09-10)
+
+### 需求变更
+
+Approved plan-11 replaces the previous three-column workbench with Conversation / Canvas and the mobile pane tabs. Evidence, Draft and Prompt remain available through the Canvas inspector. Generation authorization, proposal review, recovery and Memory verification rules remain unchanged.
+
+Use one Composer instance across pane changes. Desktop Enter sends, Shift+Enter inserts a newline; mobile Enter inserts a newline. IME candidate confirmation never sends. Keep focus on the selected object when new results arrive, announce availability politely, and restore focus to the originating control when a dialog closes. Pane and inspector tabs use arrow keys, Home and End with selection following focus.
+
+Review desktop and mobile Canvas as well as Conversation in both themes. Check 320px width, enlarged long text, reduced viewport height, failure actions, visible focus and no horizontal overflow before accepting screenshot baselines. Browser viewport resizing verifies available-height behavior; it does not by itself prove a physical device keyboard implementation.
+
+## Workspace Agent prototype alignment
+
+The approved visual reference is `docs/16-Workspace-Agent对话式创作/design/workspace-agent.html`. The workbench uses a 42:58 Conversation/Canvas split, an opaque conversation surface, 22px canvas insets, 13px message bubbles and 10px view controls. The canvas scrolls as a continuous reference/result and inspector region so images are never cropped by an independently fixed inspector. Persistent navigation remains available for Style Memory and Iterations.
+
+Shared page colors follow the prototype: light page/panel/low surfaces use OKLCH 97.4/99/94.7 with low chroma at hue 260; dark equivalents use 20/24/28. Primary blue uses lightness 51 in light mode and 73 in dark mode. Persistent panels and navigation use flat fills without blur or cast shadows.
+
+### 需求变更
+
+Align the Workspace and shared page styling with the supplied interaction prototype. Existing generation authorization, submission summaries, history, saving and recovery behavior remain unchanged. Desktop layouts remain the supported target.

@@ -1,3 +1,4 @@
+import { singleAttemptPostFetch } from './single-attempt-fetch';
 import { createFalClient } from "@fal-ai/client";
 import {
   SUPPORTED_ASPECT_RATIOS,
@@ -70,13 +71,16 @@ export class FalImageGenProvider implements ImageGenProvider {
       throw new ImageGenError("FAL_KEY is not configured");
     }
 
+    const controller=new AbortController();
     const client = createFalClient({
       credentials: apiKey,
+      fetch: singleAttemptPostFetch((input,init)=>fetch(input,{...init,signal:controller.signal})),
     });
 
     // 画幅校验先于任何 Provider 调用：未知值在此抛出可识别错误，不静默回退（plan-01 §4）
     const imageSize = toFalImageSize(params.aspectRatio);
 
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
       const result = await Promise.race([
         client.subscribe(this.model, {
@@ -86,10 +90,11 @@ export class FalImageGenProvider implements ImageGenProvider {
             num_images: 1,
           },
           logs: false,
+          abortSignal:controller.signal,
         }),
         new Promise<never>((_, reject) =>
-          setTimeout(
-            () => reject(new ImageGenError("Image generation timed out after 120s")),
+          timeout=setTimeout(
+            () => { controller.abort();reject(new ImageGenError("Image generation timed out after 120s")); },
             TIMEOUT_MS
           )
         ),
@@ -114,6 +119,6 @@ export class FalImageGenProvider implements ImageGenProvider {
       const message =
         error instanceof Error ? error.message : "Unknown image generation error";
       throw new ImageGenError(`Image generation failed: ${message}`);
-    }
+    } finally { clearTimeout(timeout); }
   }
 }

@@ -1,3 +1,4 @@
+export const maxDuration=240;
 import { NextRequest, NextResponse } from 'next/server';
 import { handleReplicateWebhook } from '@/lib/ai/webhook-handler';
 

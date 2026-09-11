@@ -61,10 +61,10 @@ export async function POST(
   }
 
   const assetId = generateId();
-  const ext = body.fileName.split(".").pop()?.replace(/[^a-zA-Z0-9]/g, "") || "bin";
-  const key = `references/${assetId}/original.${ext}`;
+  const ext = body.mimeType === "image/jpeg" ? "jpg" : body.mimeType === "image/webp" ? "webp" : "png";
+  const key = `references/${session.user.id}/${assetId}/original.${ext}`;
 
-  log("upload_presign_request_received", { assetId, userId: session.user.id, fileName: body.fileName, mimeType: body.mimeType });
+  log("upload_presign_request_received", { assetId, userId: session.user.id, mimeType: body.mimeType });
 
   try {
     const presignedUrl = await generatePresignedUploadUrl(key, body.mimeType);

@@ -1,4 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
+import { writeFileSync } from 'node:fs'
+
+// Each auth mode has its own Next compiler cache and generated type tree.
+for(const suffix of ['a3000','a3001'])writeFileSync(`.next-workspace-test-${suffix}.tsconfig.json`,JSON.stringify({extends:'./tsconfig.json',include:['next-env.d.ts','src/**/*.ts','src/**/*.tsx',`.next-workspace-test-${suffix}/types/**/*.ts`],exclude:['node_modules']},null,2));
 
 export default defineConfig({
   testDir: './e2e',
@@ -32,13 +36,13 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'pnpm dev --port 3000',
+      command: 'WORKSPACE_TEST_DIST_DIR=.next-workspace-test-a3000 pnpm dev --port 3000',
       url: 'http://localhost:3000',
       reuseExistingServer: !process.env.CI,
       timeout: 120000,
     },
     {
-      command: 'AUTH_REQUIRED=false pnpm dev --port 3001',
+      command: 'WORKSPACE_TEST_DIST_DIR=.next-workspace-test-a3001 AUTH_REQUIRED=false pnpm dev --port 3001',
       url: 'http://localhost:3001',
       reuseExistingServer: !process.env.CI,
       timeout: 120000,

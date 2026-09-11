@@ -3,10 +3,14 @@
 import { useState, useCallback } from "react";
 import type { StoredVisualRecipe, GenerationParams, TemplateVariable } from "@/types/models";
 import { normalizeVariableName } from "@/lib/template-parser";
-import { isVisualRecipeV2Success, toLegacyVisualRecipe } from "@/lib/visual-recipe";
+import type { PromptControlSnapshot } from "@/types/models";
 
 /** 历史恢复成功后返回的完整数据 */
 export interface RestoredData {
+  modelName?:string;
+  provider?:string|null;
+  directionId?: string | null;
+  promptControlSnapshot?: PromptControlSnapshot | null;
   resultFileUrl: string;
   recipe: StoredVisualRecipe | null;
   promptSnapshot: string;
@@ -20,6 +24,7 @@ export interface RestoredData {
 
 /** GET /api/generation/:id 扩展响应（含 recipe） */
 interface GenerationTaskDetailResponse {
+  provider?:string|null;
   id: string;
   analysisTaskId: string;
   status: string;
@@ -28,6 +33,8 @@ interface GenerationTaskDetailResponse {
   params: GenerationParams;
   modelName: string;
   resultAssetId: string;
+  directionId?: string | null;
+  promptControlSnapshot?: PromptControlSnapshot | null;
   resultFileUrl: string;
   recipe?: StoredVisualRecipe | null;
   sourceAssetId?: string | null;
@@ -59,39 +66,6 @@ function normalizeVariables(value: unknown): TemplateVariable[] {
     }));
 }
 
-function deriveVariablesFromRecipe(recipe: StoredVisualRecipe | null | undefined): TemplateVariable[] {
-  if (!recipe) return [];
-  if (isVisualRecipeV2Success(recipe)) return recipe.contentVariables;
-  const legacy = toLegacyVisualRecipe(recipe);
-  if (!legacy) return [];
-
-  const candidates: TemplateVariable[] = [
-    {
-      name: "subject",
-      label: "Subject",
-      defaultValue: legacy.subject,
-      sourceField: "subject",
-    },
-    {
-      name: "style_direction",
-      label: "Style direction",
-      defaultValue:
-        legacy.styleTags?.slice(0, 3).join(", ") ||
-        legacy.visualKeywords?.slice(0, 3).join(", ") ||
-        legacy.mood,
-      sourceField: "visual_style",
-    },
-    {
-      name: "lighting_color",
-      label: "Lighting and color",
-      defaultValue: [legacy.lighting, legacy.color].filter(Boolean).join("; "),
-      sourceField: "lighting_color",
-    },
-  ];
-
-  return candidates.filter((variable) => variable.defaultValue.trim()).slice(0, 3);
-}
-
 async function fetchGenerationDetail(
   id: string
 ): Promise<GenerationTaskDetailResponse> {
@@ -117,6 +91,9 @@ export function useHistoryRestore() {
       const detail = await fetchGenerationDetail(id);
 
       const restoredData: RestoredData = {
+        directionId: detail.directionId ?? null,
+        modelName:detail.modelName,provider:detail.provider??null,
+        promptControlSnapshot: detail.promptControlSnapshot ?? null,
         resultFileUrl: detail.resultFileUrl,
         recipe: detail.recipe ?? null,
         promptSnapshot: detail.promptSnapshot,
@@ -125,12 +102,7 @@ export function useHistoryRestore() {
         analysisTaskId: detail.analysisTaskId,
         sourceAssetId: detail.sourceAssetId ?? null,
         sourceImageUrl: detail.sourceImageUrl ?? null,
-        variables:
-          normalizeVariables(detail.variables).length > 0
-            ? normalizeVariables(detail.variables)
-            : normalizeVariables(detail.analysisTemplateVariables).length > 0
-              ? normalizeVariables(detail.analysisTemplateVariables)
-              : deriveVariablesFromRecipe(detail.recipe),
+        variables: normalizeVariables(detail.variables),
       };
 
       return restoredData;

@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { buildWebhookUrl } from '../webhook-utils';
+import { findAnalysisTaskByIdInternal, updateAnalysisTask } from '@/lib/repositories/analysis-task-repository';
+vi.mock('@/lib/repositories/analysis-task-repository');
+import { buildWebhookUrl, startTimeoutTimer } from '../webhook-utils';
 
 describe('buildWebhookUrl', () => {
   const originalEnv = process.env;
@@ -55,4 +57,11 @@ describe('buildWebhookUrl', () => {
       'http://localhost:3000/api/webhooks/replicate?taskType=generation&taskId=task-5'
     );
   });
+});
+
+describe('legacy analysis deadline is only a reconciliation hint',()=>{
+ it('never writes failure when the callback wins or is still pending',async()=>{
+  vi.useFakeTimers();
+  try{vi.mocked(findAnalysisTaskByIdInternal).mockResolvedValue({id:'analysis',status:'processing',provider:'replicate'} as Awaited<ReturnType<typeof findAnalysisTaskByIdInternal>>);startTimeoutTimer('analysis','analysis',120000);await vi.advanceTimersByTimeAsync(120000);expect(updateAnalysisTask).not.toHaveBeenCalled();vi.mocked(findAnalysisTaskByIdInternal).mockResolvedValue({id:'analysis',status:'completed'} as Awaited<ReturnType<typeof findAnalysisTaskByIdInternal>>);startTimeoutTimer('analysis','analysis',120000);await vi.advanceTimersByTimeAsync(120000);expect(updateAnalysisTask).not.toHaveBeenCalled();}finally{vi.useRealTimers();}
+ });
 });

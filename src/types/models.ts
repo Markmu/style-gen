@@ -234,7 +234,7 @@ export interface QuickGenerationAuthorizationSnapshot {
 
 /** 编译后 Prompt 的可追溯来源片段；字符范围对应 CompiledPrompt.text */
 export interface CompiledPromptSegment {
-  sourceKind: "content" | "invariant" | "observation" | "modifier" | "adjustment";
+  sourceKind: "content" | "invariant" | "observation" | "modifier" | "adjustment" | "user";
   sourceId: string;
   dimension?: StyleDimension;
   startIndex: number;
@@ -292,6 +292,10 @@ export type AnalysisTemplateSourceField =
 
 /** 分析任务 */
 export interface AnalysisTask {
+  directionId?: string | null;
+  requestKey?: string | null;
+  deadlineAt?: Date | null;
+  lastReconciledAt?: Date | null;
   id: string;
   sourceAssetId: string;
   status: AnalysisTaskStatus;
@@ -326,6 +330,9 @@ export type GenerationTaskStatus = "pending" | "processing" | "completed" | "fai
 
 /** Generation Task */
 export interface GenerationTask {
+  directionId?:string|null;
+  dispatchState?:import("@/lib/workspace/contracts").GenerationDispatchState|null;
+  draftRevision?:number|null;
   id: string;
   analysisTaskId: string;
   status: GenerationTaskStatus;
@@ -374,12 +381,16 @@ export interface IterationListItem {
 /** 迭代详情（GET /api/generation/[id] DTO，架构 §7.2；为既有轮询消费字段的超集） */
 export interface IterationDetail {
   id: string;
+  directionId?: string | null;
+  draftRevision?: number | null;
+  resultAssetId?: string | null;
   analysisTaskId: string;
   status: IterationDisplayStatus;
   promptSnapshot: string;
   negativePromptSnapshot: string;
   params: GenerationParams;
   modelName: string;
+  provider?: string | null;
   resultFileUrl: string | null;
   errorMessage: string | null;
   recipe: StoredVisualRecipe | null;

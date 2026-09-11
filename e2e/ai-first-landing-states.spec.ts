@@ -61,7 +61,6 @@ function statePresenter(page: Page, status: string) {
 function workspaceReferenceCard(page: Page) {
   return page
     .getByRole('main')
-    .getByTestId('workspace-reference-column')
     .getByTestId('reference-card')
 }
 
@@ -153,7 +152,7 @@ test.describe('plan-07 Landing / Auth / global states closure', () => {
     await expect(referenceCard.first().getByAltText('Reference')).toBeVisible()
     await expect(referenceCard.first().getByLabel('Reference analysis loading')).toHaveCount(0)
 
-    expect(apiRequests.map((request) => request.kind)).toEqual([
+    await expect.poll(() => apiRequests.map((request) => request.kind)).toEqual([
       '/api/upload/presign',
       '/api/analysis',
     ])

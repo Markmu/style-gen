@@ -1,3 +1,5 @@
+import { acceptAnalysisPrediction } from '@/lib/analysis/submission';
+import { acceptPrediction } from '@/lib/generation/reconciliation';
 import { validateWebhook } from 'replicate';
 import { findAnalysisTaskByIdInternal, updateAnalysisTask } from '@/lib/repositories/analysis-task-repository';
 import { findGenerationTaskByIdInternal, updateGenerationTask } from '@/lib/repositories/generation-task-repository';
@@ -10,6 +12,8 @@ import { log, logError } from './log';
 /** Replicate Webhook Payload */
 interface ReplicatePrediction {
   id: string;
+  model: string;
+  webhook?: string;
   status: 'succeeded' | 'failed' | 'canceled';
   output: unknown;
   error: string | null;
@@ -33,7 +37,6 @@ function summarizeOutput(output: unknown): Record<string, unknown> {
     return {
       outputType: 'string',
       outputLength: output.length,
-      outputPreview: output.replace(/\s+/g, ' ').trim().slice(0, 120),
     };
   }
 
@@ -43,10 +46,7 @@ function summarizeOutput(output: unknown): Record<string, unknown> {
       outputType: 'array',
       outputLength: output.length,
       firstItemType: typeof first,
-      firstItemPreview:
-        typeof first === 'string'
-          ? first.replace(/\s+/g, ' ').trim().slice(0, 120)
-          : null,
+
     };
   }
 
@@ -200,6 +200,11 @@ async function handleAnalysisWebhook(
     };
   }
 
+  if (task.userId && task.directionId) {
+    await acceptAnalysisPrediction(task.userId, task.id, prediction);
+    return { response: { ok: true }, status: 200 };
+  }
+
   // 2. 幂等性检查
   if (task.status === 'completed' || task.status === 'failed') {
     return {
@@ -235,7 +240,6 @@ async function handleAnalysisWebhook(
       taskId,
       predictionId: prediction.id,
       rawAnalysisLength: rawAnalysis.length,
-      rawAnalysisPreview: rawAnalysis.replace(/\s+/g, ' ').trim().slice(0, 120),
     });
 
     try {
@@ -325,6 +329,13 @@ async function handleGenerationWebhook(
       response: { ok: false, message: 'Task not found' },
       status: 404,
     };
+  }
+
+  // New dispatch records use durable reconciliation (plan-04). Never route through legacy failure writes.
+  if(task.dispatchState){
+    if(!task.userId)return {response:{ok:false,message:'Task owner unavailable'},status:409};
+    try { await acceptPrediction(task.userId,task.id,prediction);return {response:{ok:true},status:200}; }
+    catch(error){return {response:{ok:false,message:'Recovery pending'},status:error&&typeof error==='object'&&'status' in error?Number(error.status):503};}
   }
 
   // 2. 幂等性检查

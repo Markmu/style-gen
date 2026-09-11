@@ -58,6 +58,8 @@ export interface DirectionResultRailProps {
   errorMessage?: string | null;
   /** 瞬时当前所选 completed id（无则空串/null） */
   selectedIterationId: string | null;
+  unreadResultId?: string | null;
+  onViewLatest?: () => void;
   /** 会话首选 id（只由用户操作写入；滚出五条窗口仍保留） */
   preferredIterationId: string | null;
   /** 无效首选清理提示（存在时不呈现窗口外提示，AC-06 两种出口互斥） */
@@ -126,6 +128,8 @@ export function DirectionResultRail({
   isError,
   errorMessage,
   selectedIterationId,
+  unreadResultId,
+  onViewLatest,
   preferredIterationId,
   preferredInvalidNotice,
   memoryStatus,
@@ -170,6 +174,8 @@ export function DirectionResultRail({
              Latest  {completed.length}   completed results. Full history in Iteration Memory </span>
         )}
       </div>
+
+      {unreadResultId && <button type="button" onClick={onViewLatest} className="btn-secondary mt-1 rounded-lg px-2 py-1 text-xs">View latest result</button>}
 
       {isError && (
         <div
@@ -261,7 +267,7 @@ export function DirectionResultRail({
                     onClick={() => onCompare(item.id)}
                   />
                   <RailActionButton
-                    label="Generate from current draft"
+                    label="Review generation bar"
                     testId="direction-item-regenerate"
                     icon={RefreshCw}
                     disabled={assetMissing}
@@ -337,7 +343,7 @@ export function DirectionResultRail({
                 className="btn-secondary flex h-6 w-full items-center justify-center gap-1 rounded-lg px-1.5 text-[0.625rem] font-medium"
               >
                 <AppIcon icon={RefreshCw} size={12} strokeWidth={1.75} />
-                 Retry generation </button>
+                 Review generation options </button>
             </div>
           )}
         </div>

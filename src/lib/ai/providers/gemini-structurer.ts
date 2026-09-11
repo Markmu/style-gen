@@ -18,7 +18,7 @@ export class GeminiStructurerProvider implements StructurerProvider {
     if (!apiKey) {
       throw new Error("GEMINI_API_KEY is not configured");
     }
-    this.client = new GoogleGenAI({ apiKey });
+    this.client = new GoogleGenAI({ apiKey, httpOptions: { retryOptions: { attempts: 1 } } });
     this.model = modelId ?? DEFAULT_MODEL;
   }
 

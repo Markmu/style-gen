@@ -1,6 +1,9 @@
 "use client";
 
-import { StyleMemorySaveWizard } from "@/components/iterations/save-style-memory-dialog";
+import {
+  StyleMemorySaveWizard,
+  type StyleMemorySaveCoordinator,
+} from "@/components/iterations/save-style-memory-dialog";
 import type { StoredVisualRecipe, TemplateVariable } from "@/types/models";
 import { mergeTemplateVariables } from "@/lib/template-parser";
 
@@ -31,6 +34,8 @@ interface TemplateSaveDialogProps {
   sourceAssetId?: string | null;
   sourceImageUrl?: string | null;
   onSave: (template: { id: string; name: string }) => void;
+  /** plan-10：方向幂等保存协作（requestKey 回执与表单恢复） */
+  saveCoordinator?: StyleMemorySaveCoordinator | null;
   onClose: () => void;
 }
 
@@ -45,6 +50,7 @@ export function TemplateSaveDialog({
   sourceAssetId,
   sourceImageUrl,
   onSave,
+  saveCoordinator = null,
   onClose,
 }: TemplateSaveDialogProps) {
   // 既有口径：content 中出现的 {{var}} 并入变量预填，避免提交体丢变量
@@ -66,6 +72,8 @@ export function TemplateSaveDialog({
       sourceAssetId={sourceAssetId}
       sourceAnalysisTaskId={sourceAnalysisTaskId}
       onSaved={onSave}
+      saveCoordinator={saveCoordinator}
+      navigateOnSave={false}
       onClose={onClose}
     />
   );

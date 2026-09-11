@@ -96,7 +96,7 @@ describe("UploadZone", () => {
 
     expect(onFileSelected).not.toHaveBeenCalled();
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "Only JPG, PNG, and WebP images are supported",
+      "Choose a JPG, PNG, or WebP image. Your message is preserved.",
     );
   });
 
@@ -116,7 +116,7 @@ describe("UploadZone", () => {
 
     expect(onFileSelected).not.toHaveBeenCalled();
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "File size must be 10MB or less",
+      "Choose an image smaller than 10 MB. Your message is preserved.",
     );
   });
 

@@ -31,7 +31,7 @@ describe("ReferenceCard", () => {
     expect(screen.getByText("composition")).toBeInTheDocument();
   });
 
-  it("lets the reference image cover the available canvas", async () => {
+  it("keeps the complete reference in a stable mobile stage and flexible desktop canvas", async () => {
     const onAspectRatioChange = vi.fn();
 
     render(
@@ -44,15 +44,15 @@ describe("ReferenceCard", () => {
     );
 
     expect(screen.getByTestId("reference-image-stage")).toHaveClass(
-      "min-h-0",
-      "flex-1",
+      "aspect-square",
+      "md:flex-1",
       "overflow-hidden",
     );
     expect(screen.getByAltText("Reference")).toHaveClass(
-      "object-cover",
+      "object-contain",
       "object-center",
     );
-    expect(screen.getByAltText("Reference")).not.toHaveClass("object-contain");
+    expect(screen.getByAltText("Reference")).not.toHaveClass("object-cover");
     Object.defineProperty(screen.getByAltText("Reference"), "naturalWidth", {
       configurable: true,
       value: 1600,

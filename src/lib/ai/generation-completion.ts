@@ -24,6 +24,7 @@ async function downloadImageBuffer(imageUrl: string): Promise<Buffer> {
  * isAborted 返回 true 时提前停止，返回 false；正常完成返回 true
  */
 export async function completeGenerationTask(params: {
+  durable?: boolean;
   taskId: string;
   userId: string;
   /** 远程图片 URL（fal/Replicate 路径）与 imageBase64（Gemini 内联路径）二选一 */
@@ -35,6 +36,7 @@ export async function completeGenerationTask(params: {
   height: number;
   isAborted?: () => boolean;
 }): Promise<boolean> {
+  if(params.durable){const task=await (await import('@/lib/generation/reconciliation')).recoverOutput(params.userId,params.taskId);return task.status==='completed';}
   let mimeType: string;
   let imageBuffer: Buffer;
   if (params.imageBase64) {

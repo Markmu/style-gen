@@ -47,13 +47,12 @@ describe("HistoryDetailDialog", () => {
     expect(screen.getByText("hd")).toBeInTheDocument();
     expect(screen.queryByText("analysis-1")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save as Style Memory" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Generate variation" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continue from this result" })).toBeInTheDocument();
   });
 
   it("restores, continues editing, and closes through callbacks", async () => {
     const user = userEvent.setup();
     const onRestore = vi.fn();
-    const onContinueEditing = vi.fn();
     const onClose = vi.fn();
 
     render(
@@ -61,16 +60,13 @@ describe("HistoryDetailDialog", () => {
         open
         detail={detail}
         onRestore={onRestore}
-        onContinueEditing={onContinueEditing}
         onClose={onClose}
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Generate variation" }));
-    await user.click(screen.getByRole("button", { name: "Restore to workspace" }));
+    await user.click(screen.getByRole("button", { name: "Continue from this result" }));
     await user.click(screen.getByRole("button", { name: "Close history detail" }));
 
-    expect(onContinueEditing).toHaveBeenCalledWith(detail);
     expect(onRestore).toHaveBeenCalledWith("history-1");
     expect(onClose).toHaveBeenCalledTimes(1);
   });

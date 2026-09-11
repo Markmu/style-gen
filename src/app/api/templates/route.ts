@@ -4,7 +4,16 @@ import {
   createTemplate,
   findByName,
   findAllByUserId,
+  createTemplateWithReceipt,
+  lookupMemoryReceipt,
+  type TemplateMemoryReceipt,
 } from "@/lib/repositories/template-repository";
+import {
+  findDirection,
+  hashWorkspaceRequest,
+  WorkspaceConflict,
+  WorkspaceNotFound,
+} from "@/lib/repositories/workspace-repository";
 import { findAnalysisTaskById } from "@/lib/repositories/analysis-task-repository";
 import {
   findGenerationTaskById,
@@ -74,6 +83,10 @@ interface CreateTemplateRequest {
   enhancementHints?: string[];
   /** plan-02：代表结果迭代，须等于 sourceGenerationTaskId（架构 §6.3） */
   representativeGenerationTaskId?: string;
+  /** plan-10（架构 §6.5）：可选幂等键；须与 directionId 同现 */
+  requestKey?: string;
+  /** plan-10：workspace memory 回执归属方向（frontend_computed） */
+  directionId?: string;
 }
 
 const VALID_SOURCE_FIELDS = new Set([
@@ -135,6 +148,26 @@ function validateSourceGenerationTaskId(
   const trimmed = value.trim();
   if (!trimmed) return undefined;
   if (trimmed.length > 26) return null;
+  return trimmed;
+}
+
+/** plan-10：可选 requestKey（与 workspace 命令键同规格，≤180，安全字符集） */
+function validateRequestKeyValue(value: unknown): string | undefined | null {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.length > 180 || !/^[A-Za-z0-9:_-]+$/.test(trimmed)) return null;
+  return trimmed;
+}
+
+/** plan-10：方向 ID（26 位 ULID，frontend_computed） */
+function validateDirectionIdValue(value: unknown): string | undefined | null {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (!/^[0-9A-HJKMNP-TV-Z]{26}$/.test(trimmed)) return null;
   return trimmed;
 }
 
@@ -217,6 +250,12 @@ function validateCreateBody(body: unknown): CreateTemplateRequest | null {
     obj.representativeGenerationTaskId
   );
   if (representativeGenerationTaskId === null) return null;
+  // plan-10：requestKey 与 directionId 同现或同缺
+  const requestKey = validateRequestKeyValue(obj.requestKey);
+  if (requestKey === null) return null;
+  const directionId = validateDirectionIdValue(obj.directionId);
+  if (directionId === null) return null;
+  if ((requestKey === undefined) !== (directionId === undefined)) return null;
   // 保存时代表结果只能是来源迭代自身（相关集单元素形态，架构 §6.3）
   if (
     representativeGenerationTaskId !== undefined &&
@@ -241,7 +280,49 @@ function validateCreateBody(body: unknown): CreateTemplateRequest | null {
     ...(representativeGenerationTaskId !== undefined
       ? { representativeGenerationTaskId }
       : {}),
+    ...(requestKey !== undefined ? { requestKey } : {}),
+    ...(directionId !== undefined ? { directionId } : {}),
   };
+}
+
+/** plan-10（架构 §7.3）：创建意图 hash 白名单（键排序，原始文本） */
+const CREATE_RECEIPT_HASH_FIELDS = [
+  "requestKey",
+  "directionId",
+  "name",
+  "content",
+  "variables",
+  "sourceAnalysisTaskId",
+  "sourceAssetId",
+  "sourceImageUrl",
+  "sourceGenerationTaskId",
+  "description",
+  "retainedRules",
+  "negativeConstraints",
+  "styleTokens",
+  "enhancementHints",
+  "representativeGenerationTaskId",
+] as const;
+
+/** plan-10：回执冲突/目标缺失的统一错误响应 */
+function receiptErrorResponse(error: unknown): Response | null {
+  if (error instanceof WorkspaceConflict && error.code === "request_key_conflict") {
+    return NextResponse.json(
+      {
+        error: "This request key was already used with different content",
+        code: "REQUEST_KEY_CONFLICT",
+        retryable: false,
+      },
+      { status: 409 }
+    );
+  }
+  if (error instanceof WorkspaceNotFound) {
+    return NextResponse.json(
+      { error: "Saved target is no longer available", code: "TEMPLATE_NOT_FOUND", retryable: false },
+      { status: 404 }
+    );
+  }
+  return null;
 }
 
 // ─── POST /api/templates — 创建模板（Style Memory 保存流程提交体，架构 §6.3） ───
@@ -268,6 +349,50 @@ export async function POST(request: NextRequest) {
         { error: "Invalid request parameters", code: "INVALID_REQUEST", retryable: false },
         { status: 400 }
       );
+    }
+
+    // plan-10（架构 §6.5）：带键调用先查回执——重复键直接返回已接受事实，
+    // 再执行同名/来源等前置校验；无键调用保持既有兼容路径
+    let receipt: TemplateMemoryReceipt | null = null;
+    if (validated.requestKey && validated.directionId) {
+      const { requestKey, directionId } = validated;
+      receipt = {
+        directionId,
+        requestKey,
+        requestHash: hashWorkspaceRequest(
+          { ...validated },
+          CREATE_RECEIPT_HASH_FIELDS
+        ),
+      };
+      const direction = await findDirection(userId, directionId);
+      if (!direction) {
+        log("template_receipt_direction_missing", { directionId, userId });
+        return NextResponse.json(
+          { error: "Direction not found", code: "DIRECTION_NOT_FOUND", retryable: false },
+          { status: 404 }
+        );
+      }
+      try {
+        const lookup = await lookupMemoryReceipt(userId, receipt);
+        if (lookup.status === "reused") {
+          log("duplicate_request_reused", {
+            directionId,
+            templateId: lookup.record.id,
+            requestKeyHash: receipt.requestHash.slice(0, 12),
+          });
+          return NextResponse.json({ ...lookup.record, reused: true }, { status: 200 });
+        }
+        if (lookup.status === "gone") {
+          return NextResponse.json(
+            { error: "Saved target is no longer available", code: "TEMPLATE_NOT_FOUND", retryable: false },
+            { status: 404 }
+          );
+        }
+      } catch (error) {
+        const mapped = receiptErrorResponse(error);
+        if (mapped) return mapped;
+        throw error;
+      }
     }
 
     // 4. 同名检测
@@ -343,6 +468,68 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. 创建模板（plan-01：verificationStatus 由 repository 派生——带代表结果 → user_verified）
+    if (receipt) {
+      // plan-10：模板写入（含来源迭代关联）与 memory 回执同一事务
+      try {
+        const result = await createTemplateWithReceipt(
+          userId,
+          {
+            name: validated.name,
+            content: validated.content,
+            ...(validated.variables !== undefined ? { variables: validated.variables } : {}),
+            ...(validated.sourceGenerationTaskId !== undefined
+              ? { sourceGenerationTaskId: validated.sourceGenerationTaskId }
+              : {}),
+            ...(sourceAssetId !== undefined ? { sourceAssetId } : {}),
+            ...(sourceImageUrl !== undefined ? { sourceImageUrl } : {}),
+            ...(validated.description !== undefined ? { description: validated.description } : {}),
+            ...(validated.retainedRules !== undefined ? { retainedRules: validated.retainedRules } : {}),
+            ...(validated.negativeConstraints !== undefined
+              ? { negativeConstraints: validated.negativeConstraints }
+              : {}),
+            ...(validated.styleTokens !== undefined ? { styleTokens: validated.styleTokens } : {}),
+            ...(validated.enhancementHints !== undefined
+              ? { enhancementHints: validated.enhancementHints }
+              : {}),
+            ...(validated.representativeGenerationTaskId !== undefined
+              ? { representativeGenerationTaskId: validated.representativeGenerationTaskId }
+              : {}),
+          },
+          receipt
+        );
+        if (result.reused) {
+          log("duplicate_request_reused", {
+            directionId: receipt.directionId,
+            templateId: result.record.id,
+            requestKeyHash: receipt.requestHash.slice(0, 12),
+          });
+          return NextResponse.json({ ...result.record, reused: true }, { status: 200 });
+        }
+        log("template_created", {
+          templateId: result.record.id,
+          name: result.record.name,
+          variableCount: result.record.variables.length,
+          defaultValueCount: result.record.variables.filter((variable) => variable.defaultValue).length,
+          verificationStatus: result.record.verificationStatus,
+          retainedRuleCount: validated.retainedRules?.length ?? 0,
+          negativeConstraintCount: validated.negativeConstraints?.length ?? 0,
+          representativePresent: Boolean(validated.representativeGenerationTaskId),
+          sourceAnalysisTaskIdPresent: Boolean(validated.sourceAnalysisTaskId),
+          sourceAssetIdPresent: Boolean(sourceAssetId),
+          sourceImageUrlPresent: Boolean(result.record.sourceImageUrl),
+          sourceGenerationTaskIdPresent: Boolean(validated.sourceGenerationTaskId),
+          directionId: receipt.directionId,
+          requestKeyHash: receipt.requestHash.slice(0, 12),
+          duration: Date.now() - startTime,
+        });
+        return NextResponse.json({ ...result.record, reused: false }, { status: 201 });
+      } catch (error) {
+        const mapped = receiptErrorResponse(error);
+        if (mapped) return mapped;
+        throw error;
+      }
+    }
+
     const template = await createTemplate(userId, {
       name: validated.name,
       content: validated.content,

@@ -554,7 +554,7 @@ export function IterationDetailPanel({
   );
 
   const continueDirectionLabel =
-    model.status === "failed" ? "Fix and continue" : "Continue this direction";
+    model.status === "failed" ? "Fix and continue" : "Continue from this result";
 
   return (
     <div
@@ -563,6 +563,7 @@ export function IterationDetailPanel({
       data-iteration-id={model.id}
       className="flex h-full min-h-0 flex-col overflow-hidden bg-[var(--surface-page)]"
     >
+      {detail.directionId&&<button type="button" className="btn-secondary shrink-0 px-3 py-2 text-xs" onClick={()=>router.push(`/workspace?previewDirectionId=${encodeURIComponent(detail.directionId!)}`)}>Return to this direction</button>}
       <header className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-[var(--border-static)] bg-[var(--surface-panel)] px-3 py-3 sm:flex-nowrap sm:px-4">
         <button
           type="button"

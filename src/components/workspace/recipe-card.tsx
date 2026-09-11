@@ -36,12 +36,15 @@ import {
 } from "@/lib/analysis-result-view-model";
 
 interface RecipeCardProps {
+  analysisTaskId?:string|null;
+  onAskEvidence?:(id:string)=>void;
   state: WorkspaceState;
   recipe: StoredVisualRecipe | null;
   facets?: EvidenceFacet[];
   provenanceSpans?: PromptProvenanceSpan[];
   selectedFacetId?: EvidenceFacetId | null;
   onFacetSelect?: (facetId: EvidenceFacetId) => void;
+  adjustedInvariantIds?:string[];
   enabledInvariantIds?: string[];
   onInvariantToggle?: (invariantId: string) => void;
   /**
@@ -396,6 +399,7 @@ function EvidenceFacetGroup({
 
 interface StyleRulesProps {
   viewModel: AnalysisResultViewModel;
+  adjustedInvariantIds?:string[];
   enabledInvariantIds?: string[];
   onInvariantToggle?: (invariantId: string) => void;
   locatedInvariantId?: string | null;
@@ -403,6 +407,7 @@ interface StyleRulesProps {
 
 function StyleRules({
   viewModel,
+  adjustedInvariantIds=[],
   enabledInvariantIds,
   onInvariantToggle,
   locatedInvariantId = null,
@@ -478,6 +483,7 @@ function StyleRules({
                 <span className="block font-medium text-[var(--text-primary)]">
                   {invariant.value}
                 </span>
+                {(adjustedInvariantIds.includes(invariant.id)||!enabledInvariants.has(invariant.id))&&<span className="block text-[var(--accent-primary)]">User modified. Original evidence is unchanged.</span>}
                 <span className="mt-1 block text-[0.7rem] text-[var(--text-muted)]">
                   {invariant.kind} / {Math.round(invariant.confidence * 100)}% /{" "}
                   {invariant.dimension}
@@ -508,6 +514,7 @@ function TagList({ tags }: { tags: string[] }) {
 }
 
 export function RecipeCard({
+  analysisTaskId,onAskEvidence,adjustedInvariantIds,
   state,
   recipe,
   facets,
@@ -587,6 +594,8 @@ export function RecipeCard({
           ) : recipe && viewModel ? (
             <div className="space-y-3">
               <ContentAnalysis viewModel={viewModel} />
+              {selectedFacetId&&evidenceFacets.some(f=>f.id===selectedFacetId)&&<section aria-label="Selected evidence source" className="rounded-xl border border-[var(--border-static)] p-3 text-xs text-[var(--text-secondary)]"><p>Source: {analysisTaskId?`Analysis ${analysisTaskId}`:'Reference analysis'}</p><p>No image coordinates are available. This evidence cannot be located on the image.</p>{onAskEvidence&&!evidenceFacets.find(f=>f.id===selectedFacetId)?.legacy&&<button className="btn-secondary mt-2 px-3 py-1" onClick={()=>onAskEvidence(selectedFacetId)}>Ask about this</button>}</section>}
+
 
               {facetGroups.length > 0 && (
                 <section data-testid="style-dna" className="space-y-2">
@@ -618,6 +627,7 @@ export function RecipeCard({
               )}
 
               <StyleRules
+                adjustedInvariantIds={adjustedInvariantIds}
                 viewModel={viewModel}
                 enabledInvariantIds={enabledInvariantIds}
                 onInvariantToggle={onInvariantToggle}

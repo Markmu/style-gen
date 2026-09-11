@@ -1,3 +1,4 @@
+import { generateCurrentDraft } from './helpers/workspace-actions';
 import { expect, test, type Page } from '@playwright/test'
 import {
   loadFixture,
@@ -33,7 +34,7 @@ import { gotoWorkspace } from './helpers/workspace-actions'
  *
  * plan-04 需提供的选择器契约（red → green 对齐用）：
  * - completed 详情动作：[data-testid="iteration-detail-actions"] 内按钮
- *   “Continue this direction”（/continue (this |the )?direction/i）
+ *   “Continue this direction”（/continue from this result/i）
  * - failed 详情动作：同一动作区按钮 “Fix and continue”
  *   （/fix (and|&) continue|correct (and|&) continue/i，同一恢复链路）
  * - 替换确认对话框：[data-testid="replace-confirm-dialog"]（role=dialog），
@@ -219,7 +220,7 @@ function detailPanel(page: Page) {
 function continueDirectionButton(page: Page) {
   return page
     .getByTestId('iteration-detail-actions')
-    .getByRole('button', { name: /continue (this |the )?direction/i })
+    .getByRole('button', { name: /continue from this result/i })
 }
 
 /** failed 详情主动作（同一恢复链路） */
@@ -231,7 +232,7 @@ function fixAndContinueButton(page: Page) {
 
 /** 替换确认对话框（plan-04 契约） */
 function replaceConfirmDialog(page: Page) {
-  return page.getByTestId('replace-confirm-dialog')
+  return page.getByRole('dialog',{name:'Preview direction change'})
 }
 
 function dialogCancelButton(page: Page) {
@@ -242,7 +243,7 @@ function dialogCancelButton(page: Page) {
 
 function dialogConfirmButton(page: Page) {
   return replaceConfirmDialog(page).getByRole('button', {
-    name: /continue|switch|replace/i,
+    name: 'Confirm',exact:true,
   })
 }
 
@@ -257,9 +258,7 @@ function promptCard(page: Page) {
 }
 
 function renderDock(page: Page) {
-  return appShell(page)
-    .getByRole('region', { name: 'Prompt and Render column' })
-    .getByTestId('output-card')
+  return appShell(page).getByTestId('generation-bar')
 }
 
 function referenceColumn(page: Page) {
@@ -276,7 +275,7 @@ function generationPromptEditor(page: Page) {
 }
 
 function generateButton(page: Page) {
-  return renderDock(page).getByRole('button', { name: /^Generate$/i })
+  return renderDock(page).getByRole('button', { name: /^Generate 1 image$/i })
 }
 
 async function openDetail(page: Page, summary: string) {
@@ -291,7 +290,7 @@ async function expectWorkspaceRestoredSnapshot(page: Page, detail: MockIteration
   await expect(page.getByLabel('Variable negative_prompt')).toHaveValue(
     detail.negativePromptSnapshot,
   )
-  await expect(renderDock(page).getByLabel('Aspect Ratio')).toHaveValue(detail.params.aspectRatio)
+  await expect(renderDock(page).getByLabel('Aspect ratio')).toHaveValue(detail.params.aspectRatio)
   await expect(renderDock(page).getByLabel('Quality')).toHaveValue(detail.params.quality)
   await expect(referenceColumn(page).getByRole('img', { name: 'Reference' })).toHaveAttribute(
     'src',
@@ -315,7 +314,7 @@ test.describe('plan-04 continue-this-direction restore and workspace guard', () 
     await mockCdnImages(page)
   })
 
-  test('TC-4.1 direct restore from an empty workspace skips the confirm dialog and restores the full snapshot', async ({ page }) => {
+  test('TC-4.1 continue from an empty workspace previews and confirms the full snapshot', async ({ page }) => {
     const capture = await mockGenerationCreateCapture(page, 'tc41-no-auto-generation')
     const detail = iterationDetail({
       id: 'iter-restore-source',
@@ -333,10 +332,11 @@ test.describe('plan-04 continue-this-direction restore and workspace guard', () 
 
     await expect(continueDirectionButton(page)).toBeVisible()
     await continueDirectionButton(page).click()
+    await dialogConfirmButton(page).click()
 
     // 空工作台 → 三豁免之“current 为空”：不弹替换确认，直接回工作台
     await expect(replaceConfirmDialog(page)).toHaveCount(0)
-    await expect(page).toHaveURL(/\/workspace$/, { timeout: 15000 })
+    await expect(page).toHaveURL(/\/workspace\?directionId=/, { timeout: 15000 })
     await expectWorkspaceRestoredSnapshot(page, detail)
 
     // 恢复动作本身不触发任何生成请求
@@ -371,11 +371,11 @@ test.describe('plan-04 continue-this-direction restore and workspace guard', () 
     await expect(dialogConfirmButton(page)).toBeVisible()
 
     // 未确认：停留详情页，未发起任何生成请求
-    await expect(page).toHaveURL(/\/workspace\/iterations/)
+    await expect(page).toHaveURL(/\/workspace\?/)
     expect(capture.requests, 'no generation request before confirming').toHaveLength(0)
   })
 
-  test('TC-4.3 cancelling the replace confirm keeps the detail open and the workspace untouched', async ({ page }) => {
+  test('TC-4.3 cancelling the source preview keeps the current workspace untouched', async ({ page }) => {
     const capture = await mockGenerationCreateCapture(page, 'tc43-none')
     const detail = iterationDetail({
       id: 'iter-restore-source',
@@ -397,9 +397,8 @@ test.describe('plan-04 continue-this-direction restore and workspace guard', () 
 
     // 详情侧零变更：对话框关闭，仍停留详情且展示同一 Iteration
     await expect(replaceConfirmDialog(page)).toHaveCount(0)
-    await expect(page).toHaveURL(/\/workspace\/iterations/)
-    await expect(detailPanel(page)).toBeVisible()
-    await expect(detailPanel(page)).toHaveAttribute('data-iteration-id', 'iter-restore-source')
+    await expect(page).toHaveURL(/\/workspace\?/)
+    await expect(promptCard(page)).toContainText(CURRENT_PROMPT)
 
     // 工作台侧零变更：既有持久化通道仍是当前未完成内容
     expect(await readWorkspacePromptText(page)).toBe(CURRENT_PROMPT)
@@ -440,7 +439,7 @@ test.describe('plan-04 continue-this-direction restore and workspace guard', () 
 
     // 确认后应用恢复载荷并导航回工作台：快照切换为目标 Iteration
     await expect(replaceConfirmDialog(page)).toHaveCount(0)
-    await expect(page).toHaveURL(/\/workspace$/, { timeout: 15000 })
+    await expect(page).toHaveURL(/\/workspace\?directionId=/, { timeout: 15000 })
     await expectWorkspaceRestoredSnapshot(page, detail)
     await expect(promptCard(page)).not.toContainText(CURRENT_PROMPT)
 
@@ -469,9 +468,10 @@ test.describe('plan-04 continue-this-direction restore and workspace guard', () 
     // failed 详情主动作为“修正并继续”，与 completed 共用同一条恢复链路
     await expect(fixAndContinueButton(page)).toBeVisible()
     await fixAndContinueButton(page).click()
+    await dialogConfirmButton(page).click()
 
     await expect(replaceConfirmDialog(page)).toHaveCount(0)
-    await expect(page).toHaveURL(/\/workspace$/, { timeout: 15000 })
+    await expect(page).toHaveURL(/\/workspace\?directionId=/, { timeout: 15000 })
     await expect(promptCard(page)).toContainText(prompt, { timeout: 15000 })
     await expect(referenceColumn(page).getByRole('img', { name: 'Reference' })).toHaveAttribute(
       'src',
@@ -501,7 +501,8 @@ test.describe('plan-04 continue-this-direction restore and workspace guard', () 
     await openIterations(page)
     await openDetail(page, 'Watercolor petals study')
     await continueDirectionButton(page).click()
-    await expect(page).toHaveURL(/\/workspace$/, { timeout: 15000 })
+    await dialogConfirmButton(page).click()
+    await expect(page).toHaveURL(/\/workspace\?directionId=/, { timeout: 15000 })
 
     // 用户主动修改前：零生成请求
     expect(capture.requests, 'restore must not issue any generation request').toHaveLength(0)
@@ -510,17 +511,22 @@ test.describe('plan-04 continue-this-direction restore and workspace guard', () 
     await expect(generationPromptEditor(page)).toBeVisible({ timeout: 15000 })
     await generationPromptEditor(page).fill(modifiedPrompt)
 
-    await expect(generateButton(page)).toBeEnabled()
-    await generateButton(page).click()
+    await expect(generateButton(page)).toBeDisabled()
+    await renderDock(page).getByLabel('Model',{exact:true}).selectOption('flux-2-dev')
+    await renderDock(page).getByLabel('Quality').selectOption('standard')
+    await generateCurrentDraft(page)
 
     // 主动生成走既有 POST /api/generation，形成新 Iteration（原记录不动）
     await expect.poll(() => capture.requests.length, { timeout: 15000 }).toBe(1)
-    const body = capture.requests[0].body
+    const envelope=capture.requests[0].body
+    expect(envelope).toMatchObject({directionId:expect.any(String),requestKey:expect.any(String),baseRevision:expect.any(Number),mode:'current'})
+    const current=await page.evaluate(async id=>await(await fetch(`/api/workspace/directions/${id}`)).json(),String(envelope.directionId))
+    const body={promptText:current.direction.draft.customPrompt,negativePromptText:current.direction.draft.negativePromptText,analysisTaskId:current.direction.analysisTaskId,sourceTemplateId:current.direction.sourceTemplateId,params:current.direction.draft.params}
     expect(body.promptText).toBe(modifiedPrompt)
     expect(body.negativePromptText).toBe(detail.negativePromptSnapshot)
     expect(body.analysisTaskId).toBe(detail.analysisTaskId)
     // 恢复的存量迭代无 model 字段，重新生成回退 models.json 默认模型
-    expect(body.params).toEqual({ aspectRatio: '16:9', quality: 'hd', model: 'flux-2-dev' })
+    expect(body.params).toEqual({ aspectRatio: '16:9', quality: 'standard', model: 'flux-2-dev' })
   })
 
   test('TC-4.7 generating after restoring a Style Memory sourced iteration carries sourceTemplateId (AC-02)', async ({ page }) => {
@@ -546,20 +552,26 @@ test.describe('plan-04 continue-this-direction restore and workspace guard', () 
     await openIterations(page)
     await openDetail(page, 'Amber product hero')
     await continueDirectionButton(page).click()
-    await expect(page).toHaveURL(/\/workspace$/, { timeout: 15000 })
+    await dialogConfirmButton(page).click()
+    await expect(page).toHaveURL(/\/workspace\?directionId=/, { timeout: 15000 })
 
-    await expect(generateButton(page)).toBeEnabled()
-    await generateButton(page).click()
+    await expect(generateButton(page)).toBeDisabled()
+    await renderDock(page).getByLabel('Model',{exact:true}).selectOption('flux-2-dev')
+    await renderDock(page).getByLabel('Quality').selectOption('standard')
+    await generateCurrentDraft(page)
 
     // 恢复携带 sourceTemplateId 的迭代后再次生成：请求体还原并携带该标记，
     // 保障记录可按来源 Style Memory 名称检索（AC-02 / PRD 业务规则 4）
     await expect.poll(() => capture.requests.length, { timeout: 15000 }).toBe(1)
-    const body = capture.requests[0].body
+    const envelope=capture.requests[0].body
+    expect(envelope).toMatchObject({directionId:expect.any(String),requestKey:expect.any(String),baseRevision:expect.any(Number),mode:'current'})
+    const current=await page.evaluate(async id=>await(await fetch(`/api/workspace/directions/${id}`)).json(),String(envelope.directionId))
+    const body={promptText:current.direction.draft.customPrompt,negativePromptText:current.direction.draft.negativePromptText,analysisTaskId:current.direction.analysisTaskId,sourceTemplateId:current.direction.sourceTemplateId,params:current.direction.draft.params}
     expect(body.sourceTemplateId).toBe('tpl-style-memory')
     expect(body.promptText).toBe(prompt)
   })
 
-  test('TC-4.8 restoring the iteration that is already current goes direct without the confirm dialog', async ({ page }) => {
+  test('TC-4.8 continuing the already current iteration still previews before creating a new draft', async ({ page }) => {
     const detail = iterationDetail({
       id: 'iter-restore-source',
       status: 'completed',
@@ -574,17 +586,19 @@ test.describe('plan-04 continue-this-direction restore and workspace guard', () 
     await openIterations(page)
     await openDetail(page, 'Neon cityscape at dusk')
     await continueDirectionButton(page).click()
-    await expect(page).toHaveURL(/\/workspace$/, { timeout: 15000 })
+    await dialogConfirmButton(page).click()
+    await expect(page).toHaveURL(/\/workspace\?directionId=/, { timeout: 15000 })
     await expect(promptCard(page)).toContainText(TARGET_PROMPT, { timeout: 15000 })
 
     // 回到 Iteration Memory 再次恢复同一目标：currentIterationId === target.id
     await openIterations(page)
     await openDetail(page, 'Neon cityscape at dusk')
     await continueDirectionButton(page).click()
+    await dialogConfirmButton(page).click()
 
     // 三豁免之“已是同一 Iteration”：direct，不弹确认，幂等回工作台
     await expect(replaceConfirmDialog(page)).toHaveCount(0)
-    await expect(page).toHaveURL(/\/workspace$/, { timeout: 15000 })
+    await expect(page).toHaveURL(/\/workspace\?directionId=/, { timeout: 15000 })
     await expect(promptCard(page)).toContainText(TARGET_PROMPT, { timeout: 15000 })
   })
 })

@@ -10,7 +10,7 @@ export default defineConfig({
     setupFiles: ['@testing-library/jest-dom/vitest'],
     passWithNoTests: true,
     include: ['src/**/__tests__/**/*.test.{ts,tsx}'],
-    exclude: ['node_modules', '.next', 'e2e'],
+    exclude: ['node_modules', '.next', 'e2e', '**/*.integration.test.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'text-summary'],

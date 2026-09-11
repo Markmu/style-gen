@@ -116,7 +116,7 @@ test.describe('plan-01 AI-first design system baseline', () => {
     expect(light.text).not.toBe(dark.text)
     expect(light.accent).not.toBe(dark.accent)
     expect(dark.colorScheme).toContain('dark')
-    await expect(page.getByTestId('workspace-three-column-layout')).toBeVisible()
+    await expect(page.getByTestId('workspace-agent-layout')).toBeVisible()
   })
 
   test('TC-1.4 persists an explicit theme and can return to the system theme', async ({ page }) => {
@@ -149,9 +149,9 @@ test.describe('plan-01 AI-first design system baseline', () => {
   test('TC-1.5 keeps the Workspace type scale compact without changing Landing', async ({ page }) => {
     await openWorkspace(page)
 
-    await expect(page.getByRole('heading', { name: /^Workspace$/i })).toHaveCSS(
+    await expect(page.getByRole('heading', { name: 'Your creative direction', exact: true })).toHaveCSS(
       'font-size',
-      '16px',
+      '15px',
     )
     await expect(page.getByTestId('ai-copilot-ribbon').getByText('Analyze', { exact: true })).toHaveCSS(
       'font-size',

@@ -202,23 +202,19 @@ function parseStageConfig<P extends string>(
   return { defaultModel: stageObj.defaultModel, models };
 }
 
-const rawConfig = rawModelsConfig as unknown as Record<string, unknown>;
-
-const imageGenStage = parseStageConfig(
-  "imageGen",
-  rawConfig.imageGen,
-  IMAGE_GEN_ALLOWED_PROVIDERS
-);
-const visionStage = parseStageConfig(
-  "vision",
-  rawConfig.vision,
-  VISION_ALLOWED_PROVIDERS
-);
-const structurerStage = parseStageConfig(
-  "structurer",
-  rawConfig.structurer,
-  VISION_ALLOWED_PROVIDERS
-);
+/** The module initializer and validation tests consume the same deterministic boundary. */
+export function loadModelConfig(raw: unknown) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new InvalidModelConfigError("models.json must be an object");
+  }
+  const config = raw as Record<string, unknown>;
+  return {
+    imageGenStage: parseStageConfig("imageGen", config.imageGen, IMAGE_GEN_ALLOWED_PROVIDERS),
+    visionStage: parseStageConfig("vision", config.vision, VISION_ALLOWED_PROVIDERS),
+    structurerStage: parseStageConfig("structurer", config.structurer, VISION_ALLOWED_PROVIDERS),
+  };
+}
+const { imageGenStage, visionStage, structurerStage } = loadModelConfig(rawModelsConfig);
 
 function resolveStage<P extends string>(
   stage: ModelStage,
@@ -337,4 +333,16 @@ export const DEFAULT_IMAGE_GEN_MODEL_ID: string = imageGenStage.defaultModel;
 /** 恢复链路/本地存储的模型 id 白名单校验 */
 export function isKnownImageGenModel(modelId: string): boolean {
   return imageGenStage.models.some((model) => model.id === modelId);
+}
+
+/** Restore a frozen provider binding if the catalog still supports it; environment preference is irrelevant. */
+export function resolveStoredImageGenBinding(modelId:string,provider:string,providerModelId:string):ResolvedModelBinding<ImageGenProviderName>|null {
+ const model=imageGenStage.models.find(m=>m.id===modelId);
+ const binding=model?.providers.find(p=>p.provider===provider&&p.modelId===providerModelId);
+ return model&&binding?{modelId:model.id,label:model.label,provider:binding.provider,providerModelId:binding.modelId}:null;
+}
+
+/** Current adapters have no independent quality or negative-prompt mapping. */
+export function imageGenerationCapabilities(binding: ResolvedModelBinding) {
+  return { binding, qualities: ['standard'] as const, negativePromptApplied: false as const };
 }

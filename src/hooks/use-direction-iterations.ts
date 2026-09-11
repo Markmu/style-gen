@@ -67,10 +67,11 @@ function parseDirectionFeed(payload: unknown): DirectionIterationFeed {
 async function fetchDirectionFeed(
   analysisTaskId: string,
   signal: AbortSignal,
+  owner: "analysisTaskId" | "directionId",
 ): Promise<DirectionIterationFeed> {
   const params = new URLSearchParams({
     view: "direction",
-    analysisTaskId,
+    [owner]: analysisTaskId,
     pageSize: String(DIRECTION_FEED_PAGE_SIZE),
   });
   const res = await fetch(`/api/generation?${params.toString()}`, { signal });
@@ -100,10 +101,10 @@ export function directionIterationsQueryKey(
     : ["direction-iterations"];
 }
 
-export function useDirectionIterations(analysisTaskId: string | null) {
+export function useDirectionIterations(analysisTaskId: string | null, owner: "analysisTaskId" | "directionId" = "analysisTaskId") {
   const query = useQuery({
-    queryKey: directionIterationsQueryKey(analysisTaskId),
-    queryFn: ({ signal }) => fetchDirectionFeed(analysisTaskId!, signal),
+    queryKey: [...directionIterationsQueryKey(analysisTaskId), owner],
+    queryFn: ({ signal }) => fetchDirectionFeed(analysisTaskId!, signal, owner),
     enabled: !!analysisTaskId,
     retry: false,
     refetchOnWindowFocus: false,
