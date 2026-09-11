@@ -89,6 +89,7 @@ export class ReplicateStructurerProvider implements StructurerProvider {
         input: {
           prompt: `Here is the visual analysis to structure:\n\n${params.rawAnalysis}`,
           system_instruction: STRUCTURER_SYSTEM_PROMPT,
+          ...(params.context?.images ? {images:params.context.images.map(image=>image.imageUrl)} : {}),
           temperature: 0,
           thinking_budget: 0,
         },

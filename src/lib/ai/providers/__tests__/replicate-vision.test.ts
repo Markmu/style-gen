@@ -85,3 +85,10 @@ describe('ReplicateVisionProvider', () => {
     expect(result.externalId).toBe('pred_456');
   });
 });
+
+it('sends all reference images in one vision prediction with joint analysis instructions',async()=>{
+ process.env.REPLICATE_API_TOKEN='test-token';mockCreate.mockResolvedValue({id:'multi'});
+ const images=[1,2,3].map(n=>({imageUrl:`https://example.test/${n}.png`,mimeType:'image/png'}));
+ await new ReplicateVisionProvider().analyze({...images[0],images,webhookUrl:'https://example.test/webhook'});
+ expect(mockCreate).toHaveBeenLastCalledWith(expect.objectContaining({input:expect.objectContaining({images:['https://example.test/1.png','https://example.test/2.png','https://example.test/3.png'],prompt:expect.stringContaining('Analyze every image together')})}));
+});

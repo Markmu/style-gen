@@ -1430,7 +1430,7 @@ interface AgentOptions { userId: string | null; directionId?: string | null; sou
 import type { Dispatch, SetStateAction } from 'react';
 import type { GenerationSummary } from '@/components/workspace/generation-bar';
 import type { WorkspaceDirection, WorkspaceEvent, DraftPatch, ContextReference } from '@/lib/workspace/contracts';
-import { createIndexedDraftStorage, createDraftWriter, validateAttachments, type LocalWorkspaceDraft, type MemorySaveFormSnapshot, type MemorySaveIntent } from '@/lib/workspace/draft-store';
+import { createIndexedDraftStorage, createDraftWriter, validateAttachments, draftAttachments, withAttachments, type LocalWorkspaceDraft, type MemorySaveFormSnapshot, type MemorySaveIntent } from '@/lib/workspace/draft-store';
 import { describeInvariantAdjustment } from '@/lib/prompt-adjustments';
 import { composePromptDocument, compileWorkspacePrompt } from '@/lib/prompt-composer';
 
@@ -1718,12 +1718,15 @@ function useAgentPersistence(options:AgentOptions|undefined, ctx:WorkspaceContex
     window.history.replaceState(null,'',`/workspace?directionId=${result.direction.id}`);
     return result.direction.id as string;
   },[api,flushLocal,readDirection,updateLocal]);
-  const attach=useCallback(async(files:readonly File[])=>{
+  const attach=useCallback(async(files:readonly File[], append = false)=>{
     const version=epoch.current;
-    const error=validateAttachments(files);if(error){setNotice(error);return false;}
+    const current = append ? draftAttachments(localRef.current) : [];
+    const error=validateAttachments([...current.map(item=>item.file), ...files], 3);if(error){setNotice(error);return false;}
     await initialization.current;assertEpoch(version);
     await invalidateQuick();assertEpoch(version);
-    updateLocal(value=>({...value,attachment:files[0],attachmentName:files[0].name,uploaded:undefined}));
+    const references = [...(append ? draftAttachments(localRef.current) : []), ...files.map(file=>({file,name:file.name}))];
+    if (references.length > 3) { setNotice("Attach up to 3 reference images."); return false; }
+    updateLocal(value=>withAttachments({...value,requestKeys:{...value.requestKeys,analysis:newKey()}},references));
     try{await flushLocal();setNotice(null);return true;}catch{return false;}
   },[flushLocal,updateLocal]);
   const prepareAnalysis=useCallback(async()=>{
@@ -1744,7 +1747,7 @@ function useAgentPersistence(options:AgentOptions|undefined, ctx:WorkspaceContex
     if(captured.requestKey!==request.requestKey||captured.sourceAssetId!==request.assetId){void invalidateQuick();return;}
     captured.taskId=taskId;
     // Sent attachment and text have completed their analysis intent; preserve subsequent input.
-    updateLocal(value=>({...value,attachment:value.attachment===captured.attachment?null:value.attachment,attachmentName:value.attachment===captured.attachment?null:value.attachmentName,text:value.text===captured.text?'':value.text}));
+    updateLocal(value=>withAttachments({...value,text:value.text===captured.text?'':value.text},draftAttachments(value).filter(item=>item.file!==captured.attachment)));
   },[invalidateQuick,updateLocal]);
   useEffect(()=>{
     const captured=quickFlight.current,current=response;
@@ -2003,11 +2006,14 @@ function useAgentPersistence(options:AgentOptions|undefined, ctx:WorkspaceContex
     localDraft:local,saveState,writesPaused:paused,agentNotice:notice,events,hasEarlier:pageRef.current.hasMore,sourcePreview:preview,
     rememberView,setMessage:(text:string)=>updateLocal(value=>({...value,text})),attach,flushLocal,saveDraft,ensureDirection,prepareAnalysis,
     captureIdentity:()=>epoch.current,isCurrentIdentity:(version:number)=>epoch.current===version,
-    captureAnalysisAttachment:()=>localRef.current.attachment,
-    acceptAnalysisAttachment:(attachment:Blob|null)=>updateLocal(value=>({...value,attachment:value.attachment===attachment?null:value.attachment,attachmentName:value.attachment===attachment?null:value.attachmentName})),
+    captureAnalysisAttachment:()=>draftAttachments(localRef.current),
+    acceptAnalysisAttachment:(sent:ReturnType<typeof draftAttachments>)=>updateLocal(value=>withAttachments(value,draftAttachments(value).filter(item=>!sent.some(reference=>reference.file===item.file)))),
+    getAttachments:()=>draftAttachments(localRef.current),
+    removeAttachment:(file:Blob)=>{void invalidateQuick();updateLocal(value=>withAttachments({...value,requestKeys:{...value.requestKeys,analysis:newKey()}},draftAttachments(value).filter(item=>item.file!==file)));},
+    rememberAttachmentUpload:(file:Blob,uploaded:NonNullable<LocalWorkspaceDraft['uploaded']>)=>updateLocal(value=>withAttachments(value,draftAttachments(value).map(item=>item.file===file?{...item,uploaded}:item))),
     getUploaded:()=>localRef.current.uploaded,
     getGenerationParams:()=>contextRef.current.generationParams,
-    rememberUpload:(uploaded:NonNullable<LocalWorkspaceDraft['uploaded']>)=>updateLocal(value=>({...value,uploaded})),
+    rememberUpload:(uploaded:NonNullable<LocalWorkspaceDraft['uploaded']>)=>updateLocal(value=>({...withAttachments(value,draftAttachments(value).map((item,index)=>index===0?{...item,uploaded}:item)),uploaded})),
     retryAnalysis:()=>updateLocal(value=>({...value,analysisRetryOf:contextRef.current.analysisTaskId??undefined,requestKeys:{...value.requestKeys,analysis:newKey()}})),
     savePreferred,previewSource,activateSource,confirmSource:()=>preview?activateSource(preview):Promise.resolve(),cancelSource:()=>setPreview(null),loadEarlier:()=>loadEvents(true),
     refreshDirection:()=>responseRef.current?readDirection(responseRef.current.direction.id,false):Promise.resolve(undefined),

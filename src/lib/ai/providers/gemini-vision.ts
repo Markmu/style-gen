@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { VISION_SYSTEM_PROMPT } from "../prompts";
+import { VISION_SYSTEM_PROMPT, MULTI_REFERENCE_INSTRUCTIONS } from "../prompts";
 import type { VisionProvider } from "./types";
 
 const DEFAULT_MODEL = "gemini-2.5-flash";
@@ -25,6 +25,7 @@ export class GeminiVisionProvider implements VisionProvider {
   async analyze(params: {
     imageUrl: string;
     mimeType: string;
+    images?: { imageUrl: string; mimeType: string }[];
     webhookUrl?: string;
   }): Promise<{ mode: "sync"; result: string }> {
     const apiKey = process.env.GEMINI_API_KEY;
@@ -42,15 +43,10 @@ export class GeminiVisionProvider implements VisionProvider {
             {
               role: "user",
               parts: [
-                { text: VISION_SYSTEM_PROMPT },
+                { text: VISION_SYSTEM_PROMPT + ((params.images?.length ?? 1)>1 ? MULTI_REFERENCE_INSTRUCTIONS : "") },
+                ...(params.images ?? [params]).map(image=>({fileData:{fileUri:image.imageUrl,mimeType:image.mimeType}})),
                 {
-                  fileData: {
-                    fileUri: params.imageUrl,
-                    mimeType: params.mimeType,
-                  },
-                },
-                {
-                  text: "Please analyze this reference image in detail following the instructions above.",
+                  text: "Analyze all supplied reference images together following the instructions above.",
                 },
               ],
             },

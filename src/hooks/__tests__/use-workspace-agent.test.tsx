@@ -358,3 +358,24 @@ for(const phase of ['persist','create'] as const)it(`source continuation preserv
  expect(hook.result.current.directionId).toBe('continued');expect(keys.every(value=>value===key)).toBe(true);
  expect(state.records.get('onedirection')?.text).toBe('New input while continuing');
 });
+
+it('appends three references, preserves their uploads across restore and removes individually',async()=>{
+ const hook=renderHook(()=>useWorkspaceAgent({userId:'one'}));
+ await waitFor(()=>expect(hook.result.current.saveState).toBe('local'));
+ const files=['one','two','three'].map(name=>new File(['pixels'],`${name}.png`,{type:'image/png'}));
+ await act(()=>hook.result.current.attach(files.slice(0,2),true));
+ await act(()=>hook.result.current.attach(files.slice(2),true));
+ expect(hook.result.current.getAttachments().map(item=>item.name)).toEqual(['one.png','two.png','three.png']);
+ await act(()=>hook.result.current.attach([new File(['x'],'four.png',{type:'image/png'})],true));
+ expect(hook.result.current.getAttachments()).toHaveLength(3);
+ expect(hook.result.current.agentNotice).toContain('3');
+ act(()=>hook.result.current.rememberAttachmentUpload(files[1],{assetId:'two',fileUrl:'https://example.test/two.png',width:20,height:20,mimeType:'image/png'}));
+ act(()=>hook.result.current.removeAttachment(files[0]));
+ expect(hook.result.current.localDraft.attachmentName).toBe('two.png');
+ expect(hook.result.current.getUploaded()?.assetId).toBe('two');
+ await act(()=>hook.result.current.flushLocal());
+ hook.unmount();
+ const restored=renderHook(()=>useWorkspaceAgent({userId:'one'}));
+ await waitFor(()=>expect(restored.result.current.getAttachments()).toHaveLength(2));
+ expect(restored.result.current.getAttachments()[0].uploaded?.assetId).toBe('two');
+});

@@ -43,16 +43,7 @@ export class GeminiStructurerProvider implements StructurerProvider {
             {
               role: "user",
               parts: [
-                ...(params.context?.imageUrl
-                  ? [
-                      {
-                        fileData: {
-                          fileUri: params.context.imageUrl,
-                          mimeType: params.context.mimeType ?? "image/jpeg",
-                        },
-                      },
-                    ]
-                  : []),
+                ...(params.context?.images ?? (params.context?.imageUrl ? [{imageUrl:params.context.imageUrl,mimeType:params.context.mimeType ?? "image/jpeg"}] : [])).map(image=>({fileData:{fileUri:image.imageUrl,mimeType:image.mimeType}})),
                 {
                   text: `Here is the visual analysis to structure:\n\n${params.rawAnalysis}`,
                 },

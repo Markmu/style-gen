@@ -1,6 +1,13 @@
 import type { DraftPatch, ContextReference } from './contracts';
 
+export interface ReferenceAttachment {
+  file: Blob;
+  name: string;
+  uploaded?: NonNullable<LocalWorkspaceDraft["uploaded"]>;
+}
+
 export interface LocalWorkspaceDraft {
+  referenceAttachments?: ReferenceAttachment[];
   viewState?: {selectedId:string|null;compareId:string|null;secondId:string|null;mode:"reference"|"result"|"compare"};
   preferenceIntent?: {directionId:string;requestKey:string;baseRevision:number;preferredIterationId:string|null};
   userId: string;
@@ -116,9 +123,19 @@ export function createDraftWriter(storage: DraftStorage, onError: (error: unknow
     cancel() { if (timer) clearTimeout(timer); timer = null; pending = null; },
   };
 }
-export function validateAttachments(files: readonly File[]): string | null {
-  if (files.length !== 1) return 'Attach one reference image at a time. Your message is preserved.';
-  if (!['image/jpeg', 'image/png', 'image/webp'].includes(files[0].type)) return 'Choose a JPG, PNG, or WebP image. Your message is preserved.';
-  if (files[0].size > 10 * 1024 * 1024) return 'Choose an image smaller than 10 MB. Your message is preserved.';
+export function draftAttachments(draft: LocalWorkspaceDraft): ReferenceAttachment[] {
+  return draft.referenceAttachments ?? (draft.attachment ? [{file: draft.attachment, name: draft.attachmentName ?? 'reference.png', uploaded: draft.uploaded}] : []);
+}
+
+export function withAttachments(draft: LocalWorkspaceDraft, references: ReferenceAttachment[]): LocalWorkspaceDraft {
+  return {...draft, referenceAttachments: references, attachment: references[0]?.file ?? null, attachmentName: references[0]?.name ?? null, uploaded: references[0]?.uploaded};
+}
+
+export function validateAttachments(files: readonly Blob[], limit = 1): string | null {
+  if (!files.length || files.length > limit) return limit === 1
+    ? 'Attach one reference image at a time. Your message is preserved.'
+    : 'Attach up to 3 reference images. Remove an image before adding more. Your message is preserved.';
+  if (files.some(file => !['image/jpeg', 'image/png', 'image/webp'].includes(file.type))) return 'Choose a JPG, PNG, or WebP image. Your message is preserved.';
+  if (files.some(file => file.size > 10 * 1024 * 1024)) return 'Choose an image smaller than 10 MB. Your message is preserved.';
   return null;
 }

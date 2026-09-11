@@ -1,3 +1,5 @@
+export interface VisionImage { imageUrl: string; mimeType: string }
+
 /** 视觉分析 Provider 接口 */
 export interface VisionProvider {
   readonly name: 'replicate' | 'gemini';
@@ -5,6 +7,7 @@ export interface VisionProvider {
   analyze(params: {
     imageUrl: string;
     mimeType: string;
+    images?: VisionImage[];
     webhookUrl?: string;
   }): Promise<
     | { mode: 'sync'; result: string }
@@ -13,6 +16,7 @@ export interface VisionProvider {
 }
 
 export interface StructurerContext {
+  images?: VisionImage[];
   taskId?: string;
   source?: 'analysis_route' | 'analysis_webhook';
   /** 原始图片 URL，传给 LLM 以便交叉验证视觉分析 */

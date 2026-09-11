@@ -23,3 +23,11 @@ describe('local draft writer',()=>{
   const png=new File(['x'],'image.png',{type:'image/png'});expect(validateAttachments([png])).toBeNull();expect(validateAttachments([png,png])).toContain('one');expect(validateAttachments([new File(['x'],'x.svg',{type:'image/svg+xml'})])).toContain('JPG');expect(validateAttachments([new File([new Uint8Array(10485761)],'big.png',{type:'image/png'})])).toContain('10 MB');
  });
 });
+
+it('accepts up to three images and validates every file',()=>{
+ const png=new File(['x'],'one.png',{type:'image/png'});
+ expect(validateAttachments([png,png,png],3)).toBeNull();
+ expect(validateAttachments([png,png,png,png],3)).toContain('3');
+ expect(validateAttachments([png,new File(['x'],'bad.svg',{type:'image/svg+xml'})],3)).toContain('JPG');
+ expect(validateAttachments([png,new File([new Uint8Array(10485761)],'big.png',{type:'image/png'})],3)).toContain('10 MB');
+});

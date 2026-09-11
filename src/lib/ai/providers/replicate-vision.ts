@@ -1,7 +1,7 @@
 import { singleAttemptPostFetch } from './single-attempt-fetch';
 import Replicate from 'replicate';
 import type { VisionProvider } from './types';
-import { VISION_SYSTEM_PROMPT } from '../prompts';
+import { VISION_SYSTEM_PROMPT, MULTI_REFERENCE_INSTRUCTIONS } from '../prompts';
 
 const DEFAULT_MODEL = 'google/gemini-2.5-flash' as const;
 
@@ -22,6 +22,7 @@ export class ReplicateVisionProvider implements VisionProvider {
   async analyze(params: {
     imageUrl: string;
     mimeType: string;
+    images?: { imageUrl: string; mimeType: string }[];
     webhookUrl?: string;
   }): Promise<{ mode: 'async'; externalId: string }> {
     if (!params.webhookUrl) {
@@ -33,8 +34,8 @@ export class ReplicateVisionProvider implements VisionProvider {
       model: this.model,
       input: {
         top_p: 0.95,
-        images: [params.imageUrl],
-        prompt: VISION_SYSTEM_PROMPT,
+        images: (params.images ?? [params]).map(image=>image.imageUrl),
+        prompt: VISION_SYSTEM_PROMPT + ((params.images?.length ?? 1)>1 ? MULTI_REFERENCE_INSTRUCTIONS : ''),
         videos: [],
         temperature: 1,
         dynamic_thinking: false,

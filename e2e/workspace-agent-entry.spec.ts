@@ -49,7 +49,7 @@ test('AC-21 local storage failure retains input and offers copy/export without u
 });
 
 for(const viewport of [{width:1440,height:900}])test(`AC-15 entry focus and visual ${viewport.width}`,async({page},info)=>{
- await page.setViewportSize(viewport);await mockAuthSession(page);await page.goto('/workspace');const goal=page.getByRole('textbox',{name:'Message your creative goal'});await goal.fill('Keep the light; change the subject.');await goal.focus();await expect(goal).toBeFocused();await expect(page.getByText('Local draft',{exact:true})).toBeVisible();await expect(page.getByTestId('agent-composer')).toHaveScreenshot(`composer-${viewport.width}.png`,{animations:'disabled'});await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await expect(page.getByRole('button',{name:'Send',exact:true})).toBeInViewport();await page.screenshot({path:info.outputPath(`entry-${viewport.width}.png`),animations:'disabled'});
+ await page.setViewportSize(viewport);await mockAuthSession(page);await page.goto('/workspace');const goal=page.getByRole('textbox',{name:'Message your creative goal'});await goal.fill('Keep the light; change the subject.');await goal.focus();await expect(goal).toBeFocused();await expect(goal).toHaveCSS('outline-style','none');await expect(page.getByTestId('agent-composer')).toHaveCSS('box-shadow','none');await expect(page.getByText('Local draft',{exact:true})).toBeVisible();await expect(page.getByTestId('agent-composer')).toHaveScreenshot(`composer-${viewport.width}.png`,{animations:'disabled'});await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await expect(page.getByRole('button',{name:'Send',exact:true})).toBeInViewport();await page.screenshot({path:info.outputPath(`entry-${viewport.width}.png`),animations:'disabled'});
 });
 
 test('AC-15 restores an active task and loads older messages against a stable sequence without writes',async({page})=>{
@@ -70,4 +70,77 @@ test('AC-21 an expired session keeps the local goal editable and reconnect never
  await mockAuthSession(page);let signedIn=false,writes=0;
  await page.route('**/api/workspace/directions/**',async route=>{if(route.request().method()!=='GET')writes++;if(!signedIn){await route.fulfill({status:401,json:{error:'Session expired'}});return;}if(route.request().url().includes('/events')){await route.fulfill({json:{items:[],throughSequence:0,hasMore:false}});return;}await route.fulfill({json:{direction:{id:'session-direction',userId:'mock-user-id',draftRevision:0,analysisTaskId:null,sourceAssetId:null,sourceTemplateId:null,sourceIterationId:null,preferredIterationId:null,draft:{control:null,customPrompt:null,negativePromptText:'',params:{model:'flux-2-dev',quality:'standard',aspectRatio:'1:1'},constraints:[],aspectRatioSource:'fallback'}},source:{reference:null,recipe:null,variables:[],analysisStatus:null},activeTask:null,summaryToken:null}})});
  await page.goto('/workspace?directionId=session-direction');const goal=page.getByRole('textbox',{name:'Message your creative goal'});await goal.fill('Still editable after expiry');await expect(page.getByRole('button',{name:'Send',exact:true})).toBeDisabled();signedIn=true;await page.getByRole('button',{name:'Reconnect',exact:true}).click();await expect(goal).toHaveValue('Still editable after expiry');expect(writes).toBe(0);await expect(page).toHaveURL(/\/workspace/);
+});
+
+import {readFileSync} from 'node:fs';
+const referenceFile=(name:string)=>({name,mimeType:'image/png',buffer:readFileSync(picture)});
+
+for (const width of [1440,1280]) test(`three references upload, restore and send together at ${width}px`,async({page})=>{
+ await page.setViewportSize({width,height:900});
+ await mockAuthSession(page);await mockCdnImages(page);await mockUploadPresign(page);await mockAnalysisCreate(page);await mockAnalysisPolling(page,'mock-analysis-task-id',loadFixture('analysis-completed.json'));
+ let uploads=0;let analysisBody:Record<string,unknown>|undefined;
+ await page.route('**/api/upload/presign',async route=>{const id=`reference-${++uploads}`;await route.fulfill({json:{assetId:id,fileUrl:`https://cdn.example.com/references/${id}/original.png`,presignedUrl:'https://r2.example.com/presigned-upload-url'}})});
+ page.on('request',request=>{if(request.url().endsWith('/api/analysis')&&request.method()==='POST')analysisBody=request.postDataJSON()});
+ await page.goto('/workspace');
+ const composer=page.getByTestId('agent-composer'),input=page.getByLabel('Attach reference'),goal=page.getByRole('textbox',{name:'Message your creative goal'});
+ await goal.fill('Combine the lighting, palette and texture of all three references');
+ await input.setInputFiles([referenceFile('lighting.png'),referenceFile('palette.png')]);
+ await expect(composer.getByRole('img')).toHaveCount(2);await expect(composer.getByText('2/2 uploaded - Analyze together')).toBeVisible();
+ await input.setInputFiles(referenceFile('texture.png'));
+ await expect(composer.getByRole('img')).toHaveCount(3);await expect(input).toBeDisabled();
+ await expect(composer.getByText('3/3 uploaded - Analyze together')).toBeVisible();
+ await page.reload();
+ await expect(composer.getByRole('img')).toHaveCount(3);await expect(goal).toHaveValue('Combine the lighting, palette and texture of all three references');
+ expect(uploads).toBe(3);
+ await composer.getByRole('button',{name:'Remove reference 2'}).click();
+ await expect(composer.getByRole('img')).toHaveCount(2);await expect(input).toBeEnabled();
+ await input.setInputFiles(referenceFile('color.png'));
+ await expect(composer.getByText('3/3 uploaded - Analyze together')).toBeVisible();
+ await goal.focus();
+ await expect(goal).toHaveCSS('outline-style','none');
+ await expect(composer).toHaveCSS('box-shadow','none');
+ await expect(composer).toHaveScreenshot(`composer-three-references-${width}.png`,{animations:'disabled'});
+ await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await expect(composer.getByRole('button',{name:'Send',exact:true})).toBeInViewport();
+ await goal.press('Enter');
+ await expect.poll(()=>analysisBody?.referenceImages).toEqual([
+  expect.objectContaining({assetId:'reference-1'}),expect.objectContaining({assetId:'reference-3'}),expect.objectContaining({assetId:'reference-4'})
+ ]);
+ expect(uploads).toBe(4);
+ await expect(goal).toHaveValue('Combine the lighting, palette and texture of all three references');
+});
+
+test('partial reference upload failure preserves successful images and retries only the failed upload',async({page})=>{
+ await mockAuthSession(page);await mockCdnImages(page);await mockUploadPresign(page);
+ let presigns=0,puts=0;
+ await page.route('**/api/upload/presign',async route=>{const id=`partial-${++presigns}`;await route.fulfill({json:{assetId:id,fileUrl:`https://cdn.example.com/references/${id}/original.png`,presignedUrl:'https://r2.example.com/presigned-upload-url'}})});
+ await page.route('https://r2.example.com/presigned-upload-url',async route=>{puts++;await route.fulfill({status:puts===2?500:200,body:''})});
+ await page.goto('/workspace');const composer=page.getByTestId('agent-composer');
+ await page.getByLabel('Attach reference').setInputFiles([referenceFile('one.png'),referenceFile('two.png')]);
+ await expect(composer.getByRole('img')).toHaveCount(1);await expect(composer.getByText('Not uploaded')).toBeVisible();
+ await composer.getByRole('button',{name:'Retry upload'}).click();
+ await expect(composer.getByRole('img')).toHaveCount(2);await expect(composer.getByText('2/2 uploaded - Analyze together')).toBeVisible();
+ expect(puts).toBe(3);expect(presigns).toBe(3);
+});
+
+
+test('four references are rejected without uploading or losing the message',async({page})=>{
+ await mockAuthSession(page);let uploads=0;
+ page.on('request',request=>{if(request.url().endsWith('/api/upload/presign'))uploads++;});
+ await page.goto('/workspace');const goal=page.getByRole('textbox',{name:'Message your creative goal'});
+ await goal.fill('Preserve this direction');
+ await page.getByLabel('Attach reference').setInputFiles(['one','two','three','four'].map(name=>referenceFile(`${name}.png`)));
+ await expect(page.locator('p[role=alert]')).toContainText('Attach up to 3');
+ await expect(page.getByTestId('agent-composer').getByRole('img')).toHaveCount(0);
+ await expect(goal).toHaveValue('Preserve this direction');expect(uploads).toBe(0);
+});
+
+test('retry upload does not bypass unavailable local storage',async({page})=>{
+ await mockAuthSession(page);await page.addInitScript(()=>Object.defineProperty(window,'indexedDB',{value:{open(){throw new Error('storage disabled')}}}));
+ let uploads=0;page.on('request',request=>{if(request.url().endsWith('/api/upload/presign'))uploads++;});
+ await page.goto('/workspace');await page.getByLabel('Attach reference').setInputFiles(referenceFile('one.png'));
+ await expect(page.getByText('Not saved',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Retry upload'}).click();
+ await expect(page.locator('p[role=alert]')).toContainText('preserved');
+ expect(uploads).toBe(0);
 });

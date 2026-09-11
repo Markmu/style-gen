@@ -203,7 +203,9 @@ test('AC-21 r2 upload failure keeps the goal editable and never starts analysis'
   const goal = page.getByRole('textbox', { name: 'Message your creative goal' });
   await goal.fill('Keep this goal while upload fails');
   await page.getByLabel('Attach reference', { exact: true }).setInputFiles(picture);
-  await page.getByRole('button', { name: 'Send', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Send', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Retry upload', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Retry upload', exact: true }).click();
   await expect(page.getByRole('alert').filter({ hasText: /upload|reference|R2/i }).first()).toBeVisible({ timeout: 20000 });
   await expect(goal).toHaveValue('Keep this goal while upload fails');
   expect(analysisPosts).toBe(0);

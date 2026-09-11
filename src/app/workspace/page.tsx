@@ -1,4 +1,6 @@
 "use client";
+import { ReferenceAttachments } from '@/components/workspace/reference-attachments';
+import { draftAttachments, type LocalWorkspaceDraft } from '@/lib/workspace/draft-store';
 import { generationBlocker } from '@/lib/render-readiness';
 import { isSupportedAspectRatio } from '@/lib/generation/aspect-ratio';
 import { GenerationBar, type GenerationSummary } from '@/components/workspace/generation-bar';
@@ -788,6 +790,7 @@ function WorkspacePageInner() {
       width: number;
       height: number;
       mimeType: string;
+      referenceImages?: NonNullable<LocalWorkspaceDraft["uploaded"]>[];
     }) => {
       const identity=ws.captureIdentity();
       const submittedAttachment=ws.captureAnalysisAttachment();
@@ -817,20 +820,57 @@ function WorkspacePageInner() {
     [],
   );
 
+  const [uploadingReferences, setUploadingReferences] = useState(false);
+  const referenceUploadInFlight = useRef(false);
+  const uploadPendingReferences = async () => {
+    const identity = ws.captureIdentity();
+    await ws.flushLocal();
+    if (!ws.isCurrentIdentity(identity)) return;
+    for (const reference of ws.getAttachments()) {
+      if (reference.uploaded) continue;
+      const file = new File([reference.file], reference.name, {type: reference.file.type});
+      const [uploaded, dimensions] = await Promise.all([upload(file), getImageDimensions(file)]);
+      if (!ws.isCurrentIdentity(identity)) return;
+      ws.rememberAttachmentUpload(reference.file, {...uploaded, ...dimensions, mimeType:file.type});
+      await ws.flushLocal();
+    }
+  };
+  const attachReferences = async (files: File[]) => {
+    if (referenceUploadInFlight.current) return;
+    referenceUploadInFlight.current = true;
+    setUploadingReferences(true);
+    const identity = ws.captureIdentity();
+    try {
+      if (files.length && !await ws.attach(files, true)) return;
+      if (ws.writesPaused) { ws.setAgentNotice('Sign in and reconnect before uploading. Your references are preserved.'); return; }
+      await uploadPendingReferences();
+      if (ws.isCurrentIdentity(identity)) ws.setAgentNotice(null);
+    } catch (error) {
+      if (ws.isCurrentIdentity(identity)) ws.setAgentNotice(`${error instanceof Error ? error.message : 'Upload failed'}. Your references and message are preserved. Retry upload.`);
+    } finally {
+      referenceUploadInFlight.current = false;
+      setUploadingReferences(false);
+    }
+  };
+
   const handleFileSelected = useCallback(
     async (file: File, retained = false, quick = false) => {
+      if (referenceUploadInFlight.current) return;
       const identity=ws.captureIdentity();
       if (!retained && !await ws.attach([file])) return;
       if (ws.writesPaused) { ws.setAgentNotice("Sign in and reconnect before uploading. Your attachment and message are preserved."); return; }
       try{await ws.ensureDirection();}catch(error){ws.setAgentNotice(error instanceof Error?error.message:"Could not create direction");return;}
       setRestoredSourceContext(null);
       ws.startUpload(file.type);
+      referenceUploadInFlight.current = true;
+      setUploadingReferences(true);
       try {
-      const retainedUpload=retained?ws.getUploaded():null;
-      const [{ assetId, fileUrl }, dimensions] = retainedUpload?[retainedUpload,{width:retainedUpload.width,height:retainedUpload.height}]:await Promise.all([
-        upload(file),
-        getImageDimensions(file),
-      ]);
+      await uploadPendingReferences();
+      const referenceImages = ws.getAttachments().flatMap(reference=>reference.uploaded ? [reference.uploaded] : []);
+      const primary = referenceImages[0];
+      if (!primary || referenceImages.length !== ws.getAttachments().length) throw new Error('Upload every reference before analyzing');
+      const {assetId, fileUrl, width, height} = primary;
+      const dimensions = {width, height};
       if(!ws.isCurrentIdentity(identity))return;
       // plan-02：记录参考图原始尺寸，供快速复刻画幅策略解析（架构 §6.3）
       referenceDimensionsRef.current = dimensions;
@@ -859,6 +899,7 @@ function WorkspacePageInner() {
           width: dimensions.width,
           height: dimensions.height,
           mimeType: file.type,
+          referenceImages,
         });
       } catch (err) {
         if(!ws.isCurrentIdentity(identity))return;
@@ -866,7 +907,10 @@ function WorkspacePageInner() {
         ws.failAnalysis(
           err instanceof Error ? err.message : "Upload failed",
         );
-        ws.setAgentNotice(`${err instanceof Error ? err.message : "Upload failed"}. Your attachment and message are preserved. Send to retry this reference step.`);
+        ws.setAgentNotice(`${err instanceof Error ? err.message : "Upload failed"}. Your attachment and message are preserved. Retry any unfinished uploads, then Send to retry the analysis.`);
+      } finally {
+        referenceUploadInFlight.current = false;
+        setUploadingReferences(false);
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1890,12 +1934,13 @@ function WorkspacePageInner() {
                {ws.writesPaused && <button type="button" onClick={()=>void ws.reconnect().catch(error=>ws.setAgentNotice(error.message))} className="rounded-md px-2 py-1 transition hover:bg-[var(--surface-bright)] hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--accent-primary)]">Reconnect</button>}
               </div>
             </div>
-            <div data-testid="agent-composer" className="rounded-[13px] border border-[var(--border-static)] bg-[var(--surface-panel)] p-3 focus-within:ring-1 focus-within:ring-[var(--accent-primary)]" onPaste={(event) => { const files=Array.from(event.clipboardData.files); if(files.length){event.preventDefault();void ws.attach(files);} }} onDragOver={event=>event.preventDefault()} onDrop={event=>{event.preventDefault();void ws.attach(Array.from(event.dataTransfer.files));}}>
-              <p className="text-xs text-[var(--text-secondary)]">{ws.localDraft.attachmentName?<span title={ws.localDraft.attachmentName} className="inline-block max-w-64 truncate rounded-md bg-[var(--surface-bright)] px-1.5 py-0.5">{ws.localDraft.attachmentName}</span>:'Using reference + current draft'}</p>
-              <textarea disabled={ws.saveState === "loading"} aria-label="Message your creative goal" value={ws.localDraft.text} onChange={event=>ws.setMessage(event.target.value)} placeholder="Describe what to keep or change…" rows={2} onKeyDown={event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.nativeEvent.isComposing&&event.keyCode!==229){event.preventDefault();event.currentTarget.parentElement?.querySelector<HTMLButtonElement>('button')?.click();}}} className="mt-1 min-w-0 w-full resize-none bg-transparent text-sm text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--accent-primary)]" />
+            <div data-testid="agent-composer" className="rounded-[13px] border border-[var(--border-static)] bg-[var(--surface-panel)] p-3" onPaste={(event) => { const files=Array.from(event.clipboardData.files); if(files.length){event.preventDefault();void attachReferences(files);} }} onDragOver={event=>event.preventDefault()} onDrop={event=>{event.preventDefault();void attachReferences(Array.from(event.dataTransfer.files));}}>
+              <ReferenceAttachments references={draftAttachments(ws.localDraft)} busy={uploadingReferences || ws.turnSending} onRemove={ws.removeAttachment} onRetry={()=>void attachReferences([])} />
+              {!ws.localDraft.attachment && <p className="text-xs text-[var(--text-secondary)]">Using reference + current draft</p>}
+              <textarea disabled={ws.saveState === "loading"} aria-label="Message your creative goal" value={ws.localDraft.text} onChange={event=>ws.setMessage(event.target.value)} placeholder="Describe what to keep or change…" rows={ws.localDraft.attachment ? 3 : 2} onKeyDown={event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.nativeEvent.isComposing&&event.keyCode!==229){event.preventDefault();event.currentTarget.parentElement?.querySelector<HTMLButtonElement>('[data-send-message]')?.click();}}} className="mt-1 min-w-0 w-full resize-none bg-transparent text-sm text-[var(--text-primary)] outline-none" />
               <div className="mt-1 flex items-center justify-between">
-               <label className="cursor-pointer rounded-lg px-1 py-1 text-xs text-[var(--text-secondary)] transition hover:text-[var(--text-primary)] focus-within:outline-2 focus-within:outline-[var(--accent-primary)]">+ Reference<input type="file" accept="image/png,image/jpeg,image/webp" aria-label="Attach reference" className="sr-only" onChange={event=>{if(event.target.files)void ws.attach(Array.from(event.target.files));event.target.value='';}}/></label>
-               <button type="button" className="btn-secondary rounded-[10px] px-4 py-1.5 text-sm" disabled={ws.writesPaused || isUploading || ws.turnSending || !!ws.localDraft.turnIntent || ws.events.some(event=>event.kind==='turn'&&event.state==='processing') || (!ws.localDraft.text.trim()&&!ws.localDraft.attachment)} onClick={()=>{if(ws.localDraft.attachment){void handleFileSelected(new File([ws.localDraft.attachment],ws.localDraft.attachmentName??'reference.png',{type:ws.localDraft.attachment.type}),true);}else void ws.sendTurn();}}>Send</button>
+               <label className="cursor-pointer rounded-lg px-1 py-1 text-xs text-[var(--text-secondary)] transition hover:text-[var(--text-primary)] focus-within:outline-2 focus-within:outline-[var(--accent-primary)]">+ Reference {ws.localDraft.attachment && `(${draftAttachments(ws.localDraft).length}/3)`}<input type="file" multiple disabled={uploadingReferences || ws.turnSending || draftAttachments(ws.localDraft).length >= 3} accept="image/png,image/jpeg,image/webp" aria-label="Attach reference" className="sr-only" onChange={event=>{if(event.target.files)void attachReferences(Array.from(event.target.files));event.target.value='';}}/></label>
+               <button type="button" data-send-message className="btn-secondary rounded-[10px] px-4 py-1.5 text-sm" disabled={ws.writesPaused || uploadingReferences || draftAttachments(ws.localDraft).some(reference=>!reference.uploaded) || isUploading || ws.turnSending || !!ws.localDraft.turnIntent || ws.events.some(event=>event.kind==='turn'&&event.state==='processing') || (!ws.localDraft.text.trim()&&!ws.localDraft.attachment)} onClick={()=>{if(ws.localDraft.attachment){void handleFileSelected(new File([ws.localDraft.attachment],ws.localDraft.attachmentName??'reference.png',{type:ws.localDraft.attachment.type}),true);}else void ws.sendTurn();}}>Send</button>
               </div>
             </div>
             {ws.localDraft.commandIntent&&<div className="flex flex-wrap gap-2 text-xs"><button disabled={ws.commandBusy||ws.writesPaused} className="underline" onClick={()=>void ws.recoverCommand(true).catch(()=>{})}>{ws.localDraft.commandReceipt?'Refresh command result':'Check command status'}</button>{!ws.localDraft.commandReceipt&&<button disabled={ws.commandBusy||ws.writesPaused} className="underline" onClick={()=>void ws.recoverCommand(false).catch(()=>{})}>Confirm original command</button>}</div>}

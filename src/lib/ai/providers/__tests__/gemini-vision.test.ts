@@ -43,6 +43,19 @@ describe("GeminiVisionProvider", () => {
     vi.useRealTimers();
   });
 
+  it("sends every reference as a separate image part in one joint analysis", async()=>{
+    mockGenerateContent.mockResolvedValue({text:"shared style"});
+    const images=[1,2,3].map(n=>({imageUrl:`https://example.test/${n}.png`,mimeType:"image/png"}));
+    await new GeminiVisionProvider().analyze({...images[0],images});
+    expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+    expect(mockGenerateContent).toHaveBeenCalledWith(expect.objectContaining({contents:[expect.objectContaining({parts:expect.arrayContaining([
+      {fileData:{fileUri:"https://example.test/1.png",mimeType:"image/png"}},
+      {fileData:{fileUri:"https://example.test/2.png",mimeType:"image/png"}},
+      {fileData:{fileUri:"https://example.test/3.png",mimeType:"image/png"}},
+      {text:expect.stringContaining("Analyze every image together")},
+    ])})]}));
+  });
+
   describe("analyze", () => {
     it("正常返回同步分析文本", async () => {
       mockGenerateContent.mockResolvedValue({

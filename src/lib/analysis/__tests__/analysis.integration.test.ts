@@ -98,3 +98,28 @@ describe('analysis durable service with real PostgreSQL',()=>{
  });
 
 });
+
+it('analyzes three sources in one call and preserves the ordered set for structuring and retry',async()=>{
+ vi.stubEnv('R2_PUBLIC_URL','https://media.example.test');
+ const body=await request(),deps=external();
+ const referenceImages=[source.assetId,ulid(),ulid()].map(assetId=>({assetId,fileUrl:`https://media.example.test/references/${source.user.id}/${assetId}/original.png`,width:20,height:30,mimeType:'image/png'}));
+ const task=await submitAnalysis(source.user.id,{...body,referenceImages},deps);
+ expect(deps.vision).toHaveBeenCalledTimes(1);
+ expect(deps.vision).toHaveBeenCalledWith(expect.anything(),expect.objectContaining({id:source.assetId}),referenceImages.map(image=>expect.objectContaining({id:image.assetId})));
+ deps.structure.mockRejectedValueOnce(new StructurerError('invalid structure',true));
+ await acceptAnalysisPrediction(source.user.id,task.id,{id:task.externalId!,model:task.modelName!,status:'succeeded',output:'joint raw analysis'},deps);
+ const retry=await submitAnalysis(source.user.id,{...body,requestKey:ulid(),retryOf:task.id},deps);
+ expect(retry.status).toBe('completed');expect(deps.vision).toHaveBeenCalledTimes(1);
+ expect(deps.structure).toHaveBeenLastCalledWith('joint raw analysis',expect.objectContaining({images:[{imageUrl:`https://example.test/${source.assetId}`,mimeType:'image/png'},...referenceImages.slice(1).map(image=>({imageUrl:image.fileUrl,mimeType:image.mimeType}))]}),expect.anything());
+});
+it('rejects four images, duplicate images and a foreign secondary reference before dispatch',async()=>{
+ vi.stubEnv('R2_PUBLIC_URL','https://media.example.test');
+ const body=await request(),deps=external();
+ const image={assetId:source.assetId,fileUrl:`https://example.test/${source.assetId}`,width:20,height:30,mimeType:'image/png'};
+ await expect(submitAnalysis(source.user.id,{...body,referenceImages:[image,image,image,image]},deps)).rejects.toThrow('INVALID_INPUT');
+ await expect(submitAnalysis(source.user.id,{...body,referenceImages:[image,image]},deps)).rejects.toThrow('INVALID_INPUT');
+ const foreign=await seedWorkspaceSources(pool);
+ try{await expect(submitAnalysis(source.user.id,{...body,referenceImages:[image,{...image,assetId:foreign.assetId}]},deps)).rejects.toThrow('workspace_not_found');}
+ finally{await cleanupWorkspaceUser(pool,foreign.user.id);}
+ expect(deps.vision).not.toHaveBeenCalled();
+});
