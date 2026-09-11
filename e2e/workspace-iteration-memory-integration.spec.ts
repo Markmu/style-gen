@@ -13,7 +13,7 @@ import {
   type MockIterationListItem,
   type MockStyleMemoryDetail,
 } from './helpers/mock-api'
-import { gotoWorkspace } from './helpers/workspace-actions'
+import { gotoWorkspace, revealInspectorPanel } from './helpers/workspace-actions'
 
 /**
  * plan-06 — 入口接线与全流程集成 E2E（red → green）
@@ -227,14 +227,6 @@ async function openIterations(page: Page, query = '') {
   await expect(page.locator('body')).toBeVisible({ timeout: 15000 })
 }
 
-function historyStrip(page: Page) {
-  return page.getByTestId('history-strip')
-}
-
-function viewAllButton(page: Page) {
-  return historyStrip(page).getByRole('button', { name: /view all/i })
-}
-
 /** 左侧导航（工作台共享布局 workspace/layout.tsx 渲染的 LeftSidebar） */
 function primaryNav(page: Page) {
   return page.locator('nav[aria-label="Workspace primary navigation"]')
@@ -287,27 +279,23 @@ function savedState(page: Page) {
   return page.getByTestId('iteration-saved-state')
 }
 
-function openSavedMemoryButton(page: Page) {
-  return savedState(page).getByRole('button', { name: /open|view/i })
-}
 
 function appShell(page: Page) {
   return page.getByTestId('app-shell')
 }
 
 function promptCard(page: Page) {
-  return appShell(page)
-    .getByRole('region', { name: 'Prompt and Render column' })
-    .getByTestId('prompt-card')
+  return appShell(page).getByTestId('prompt-card')
 }
+
 
 function renderDock(page: Page) {
   return appShell(page)
     .getByTestId('generation-bar')
 }
 
-function referenceColumn(page: Page) {
-  return appShell(page).getByRole('region', { name: 'Reference Canvas column' })
+function referenceCard(page: Page) {
+  return appShell(page).getByTestId('reference-card')
 }
 
 function generationPromptEditor(page: Page) {
@@ -327,19 +315,7 @@ async function seedUnfinishedWorkspace(page: Page) {
   )
 }
 
-/** 近期条默认参数回归断言：pageSize=20、无 status（服务端 completed-only）、无 q */
-async function expectRecentStripDefaultQuery(requests: IterationListRequestQuery[]) {
-  await expect
-    .poll(
-      () =>
-        requests.some(
-          (query) => query.status === null && query.q === null && query.pageSize === 20,
-        ),
-      { timeout: 15000 },
-    )
-    .toBe(true)
-}
-
+/** 完整列表入口：近期条已由方向结果区取代 */
 test.describe('plan-06 entry wiring and full Iteration Memory journey', () => {
   test.use({ viewport: { width: 1366, height: 900 } })
 
@@ -411,16 +387,8 @@ test.describe('plan-06 entry wiring and full Iteration Memory journey', () => {
       savedJourneyMemory(),
     ])
 
-    // ---- 入口：工作台近期迭代条 ----
-    await gotoWorkspace(page)
-    await expect(historyStrip(page)).toBeVisible()
-    // 等近期条条目就绪（loading→ready 重渲染完成后）再点击，避免点击落在被替换的节点上
-    await expect(
-      historyStrip(page).getByRole('button', { name: /open history item/i }),
-    ).toBeVisible({ timeout: 15000 })
-    await viewAllButton(page).click()
-
-    // 近期条“查看全部”→ 完整 Iteration Memory，默认全状态（URL 同步）
+    // ---- 入口：完整 Iteration Memory（近期条已由方向结果区取代）----
+    await openIterations(page, '?status=all')
     await expect(page).toHaveURL(/\/workspace\/iterations\?status=all/, { timeout: 15000 })
     await expect(page.getByRole('heading', { name: /iteration memory/i })).toBeVisible()
     await expect(statusFilter(page).getByRole('radio', { name: /^all/i })).toBeChecked()
@@ -459,11 +427,12 @@ test.describe('plan-06 entry wiring and full Iteration Memory journey', () => {
     await expect(replaceConfirmDialog(page)).toHaveCount(0)
     await expect(page).toHaveURL(/\/workspace\?directionId=/, { timeout: 15000 })
     await expect(appShell(page)).toBeVisible({ timeout: 15000 })
+    await revealInspectorPanel(page, 'prompt')
     await expect(promptCard(page)).toContainText(TARGET_PROMPT, { timeout: 15000 })
     await expect(page.getByLabel('Variable negative_prompt')).toHaveValue(TARGET_NEGATIVE)
     await expect(renderDock(page).getByLabel('Aspect ratio')).toHaveValue('16:9')
     await expect(renderDock(page).getByLabel('Quality')).toHaveValue('hd')
-    await expect(referenceColumn(page).getByRole('img', { name: 'Reference' })).toHaveAttribute(
+    await expect(referenceCard(page).getByRole('img', { name: 'Reference' })).toHaveAttribute(
       'src',
       `https://cdn.example.com/references/${TARGET_ID}/original.png`,
     )
@@ -528,32 +497,20 @@ test.describe('plan-06 entry wiring and full Iteration Memory journey', () => {
     await expect(page.getByRole('heading', { name: TEMPLATE_NAME })).toBeVisible()
   })
 
-  test('TC-6.2 recent-strip View all reaches the full list with default all status while the strip keeps its completed-only default query', async ({ page }) => {
+  test('TC-6.2 the full list opens with default all status across the three states', async ({ page }) => {
     const requests: IterationListRequestQuery[] = []
     await mockIterationList(page, threeStateItems, {
       onRequest: (query) => requests.push(query),
     })
 
-    await gotoWorkspace(page)
-    await expect(historyStrip(page)).toBeVisible()
+    // 完整 Iteration Memory 直达（近期条已由方向结果区取代）
+    await openIterations(page, '?status=all')
 
-    // 近期条既有行为回归：默认参数（pageSize=20、无 status → completed-only、无 q）不变
-    await expectRecentStripDefaultQuery(requests)
-    // 等近期条条目就绪（loading→ready 重渲染完成后）再点击，避免点击落在被替换的节点上
-    await expect(
-      historyStrip(page).getByRole('button', { name: /open history item/i }),
-    ).toBeVisible({ timeout: 15000 })
-
-    // “查看全部”存在且可达完整 Iteration Memory（默认全状态）
-    await expect(viewAllButton(page)).toBeEnabled()
-    await viewAllButton(page).click()
-
-    await expect(page).toHaveURL(/\/workspace\/iterations\?status=all/, { timeout: 15000 })
     await expect(page.getByRole('heading', { name: /iteration memory/i })).toBeVisible()
     await expect(statusFilter(page).getByRole('radio', { name: /^all/i })).toBeChecked()
     await expect(iterationItems(page)).toHaveCount(3)
 
-    // 列表页请求以 status=all 调用（与近期条默认 completed-only 区分）
+    // 列表页请求以 status=all 调用
     await expect
       .poll(() => requests.some((query) => query.status === 'all'), { timeout: 15000 })
       .toBe(true)
@@ -595,8 +552,8 @@ test.describe('plan-06 entry wiring and full Iteration Memory journey', () => {
     )
   })
 
-  test('TC-6.4 View all stays usable from an empty recent strip and reaches the full list', async ({ page }) => {
-    // 近期条无任何完成结果（仅 processing / failed 记录）：入口仍可用
+  test('TC-6.4 the full list stays usable with only unfinished records', async ({ page }) => {
+    // 无任何完成结果（仅 processing / failed 记录）：完整列表仍可用
     await mockIterationList(page, [
       integrationItem({
         id: 'iter-int-processing',
@@ -610,17 +567,8 @@ test.describe('plan-06 entry wiring and full Iteration Memory journey', () => {
       }),
     ])
 
-    await gotoWorkspace(page)
-    await expect(historyStrip(page)).toBeVisible()
-    // 等近期条空态渲染完成（loading→ready 重渲染后）再点击，避免点击落在被替换的节点上
-    await expect(historyStrip(page).getByText(/renders will appear here/i)).toBeVisible({
-      timeout: 15000,
-    })
-    await expect(viewAllButton(page)).toBeEnabled()
+    await openIterations(page, '?status=all')
 
-    await viewAllButton(page).click()
-
-    await expect(page).toHaveURL(/\/workspace\/iterations\?status=all/, { timeout: 15000 })
     await expect(page.getByRole('heading', { name: /iteration memory/i })).toBeVisible()
     await expect(iterationItems(page, 'processing')).toHaveCount(1)
     await expect(iterationItems(page, 'failed')).toHaveCount(1)

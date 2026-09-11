@@ -4,10 +4,10 @@ import { resolve } from 'path'
 import {
   loadFixture, mockAuthSession, mockCdnImages, mockGenerationList,
   mockUploadPresign, mockAnalysisCreate, mockAnalysisPolling,
-  mockGenerationCreateCapture, mockTemplateCreateCapture, mockGenerationCreateSequence,
+mockTemplateCreateCapture, mockGenerationCreateSequence,
   mockDirectionFeedStateful, mockGenerationDetail,
 } from './helpers/mock-api'
-import { gotoWorkspace, chooseQuickRecreatePace } from './helpers/workspace-actions'
+import { gotoWorkspace } from './helpers/workspace-actions'
 import { waitForReactInput } from './helpers/react-ready'
 
 async function prepare(page: Page) {
@@ -42,12 +42,6 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1280, height: 800
       const generate = dock.getByRole('button', { name: 'Generate 1 image', exact: true })
       if (viewport.width >= 1280) await expect(generate).toBeInViewport()
       await capture(page, info, '01-empty')
-      await chooseQuickRecreatePace(page)
-      await expect(page.getByTestId('quick-confirm-dialog')).toBeVisible()
-      if (viewport.width >= 1280) await expect(generate).toBeInViewport()
-      await capture(page, info, '02-quick-confirm')
-      await page.getByTestId('quick-confirm-cancel').click()
-      await expect(page.getByTestId('pace-option-quick-recreate')).toBeFocused()
       await mockAnalysisPolling(page, 'refinement-analysis', { id: 'refinement-analysis', status: 'processing', recipe: null, promptText: null })
       await upload(page)
       await expect(page.getByTestId('ai-status-header')).toHaveAttribute('data-phase', 'analyzing')
@@ -107,30 +101,6 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1280, height: 800
   }
 }
 
-test('quick confirmation cancellation creates no authorization; confirmation uses displayed settings once', async ({ page }) => {
-  await prepare(page)
-  await gotoWorkspace(page)
-  const generation = await mockGenerationCreateCapture(page)
-  const dock = page.getByTestId('generation-bar')
-  await page.getByLabel('Attach reference',{exact:true}).setInputFiles(resolve(__dirname,'fixtures/test-image.png'))
-  await dock.getByLabel('Model',{exact:true}).selectOption('nano-banana-2-lite')
-  await chooseQuickRecreatePace(page)
-  await expect(page.getByTestId('quick-confirm-dialog')).toContainText('nano-banana-2-lite')
-  await expect(dock.getByLabel('Quality',{exact:true}).getByText('HD - unsupported, select Standard')).toHaveJSProperty('disabled',true)
-  await page.getByTestId('quick-confirm-cancel').click()
-  await expect(page.getByTestId('quick-authorization-status')).toHaveAttribute('data-authorization','none')
-  expect(generation.requests).toHaveLength(0)
-  await mockAnalysisPolling(page,'refinement-analysis',{...loadFixture('analysis-v2-completed.json'),id:'refinement-analysis'})
-  await chooseQuickRecreatePace(page)
-  await page.getByTestId('quick-confirm-confirm').click()
-  await expect.poll(()=>generation.requests.length).toBe(1)
-  expect(generation.requests[0].body).toMatchObject({mode:'quick',authorizationId:expect.any(String)})
-  await expect(dock.getByLabel('Model',{exact:true})).toHaveValue('nano-banana-2-lite')
-  await page.reload()
-  await expect(page.getByTestId('generation-bar')).toBeVisible()
-  expect(generation.requests).toHaveLength(1)
-})
-
 test('single-page draft save preserves defaults and edits across a failed submission', async ({ page }) => {
   await prepare(page)
   await mockAnalysisPolling(page, 'refinement-analysis', { ...loadFixture('analysis-v2-completed.json'), id: 'refinement-analysis' })
@@ -162,43 +132,6 @@ test('single-page draft save preserves defaults and edits across a failed submis
   expect(page.url()).not.toContain('/workspace/templates/')
 })
 
-
-test('history read failure keeps the draft and offers a focused keyboard recovery path', async ({ page }) => {
-  await prepare(page)
-  const historyId = 'history-refinement'
-  await mockGenerationList(page, [{ id: historyId, resultFileUrl: 'https://cdn.example.com/history.png', createdAt: '2026-09-06T00:00:00Z' }])
-  await mockAnalysisPolling(page, 'refinement-analysis', loadFixture('analysis-v2-completed.json'))
-  const feed = await mockDirectionFeedStateful(page, { completed: [{ id: historyId, status: 'completed', promptSummary: 'History result', resultFileUrl: 'https://cdn.example.com/history.png', resultAssetId: 'history-asset', params: { aspectRatio: '1:1', quality: 'standard' }, createdAt: '2026-09-06T00:00:00Z', errorMessage: null }], active: null, latestFailure: null })
-  await gotoWorkspace(page)
-  await upload(page)
-  await page.getByRole('tablist', { name: 'Workspace inspector' }).getByRole('tab', { name: 'Prompt', exact: true }).click()
-  await page.getByLabel('Subject', { exact: true }).fill('draft before history read')
-  const before = await page.getByTestId('compiled-prompt-text').textContent()
-  let completeRead!: () => void
-  const pendingRead = new Promise<void>((resolve) => { completeRead = resolve })
-  await page.route(`**/api/generation/${historyId}`, async (route) => {
-    await pendingRead
-    await route.fulfill({ status: 503, json: { error: 'History unavailable' } })
-  })
-  await page.getByRole('button', { name: 'Save draft', exact: true }).click()
-  await expect(page.getByText('Saved', { exact: true })).toBeVisible()
-  const latest = page.getByRole('button', { name: 'Select result History result', exact: true })
-  await latest.click()
-  await expect(page.getByText('Loading result details...', { exact: true })).toHaveAttribute('aria-busy', 'true')
-  completeRead()
-  const retry = page.getByRole('button', { name: 'Retry loading result' })
-  await expect(retry).toBeVisible()
-  await expect(page.getByTestId('compiled-prompt-text')).toHaveText(before ?? '')
-  await mockGenerationDetail(page, historyId, { ...loadFixture('generation-completed.json'), recipe: null })
-  await retry.click()
-  const dialog = page.getByTestId('history-detail-dialog')
-  await expect(dialog.getByRole('button', { name: 'Close history detail' })).toBeFocused()
-  await page.keyboard.press('Escape')
-  await expect(dialog).toBeHidden()
-  await expect(latest).toBeFocused()
-  // The read-retry status is gone after success; the draft is still intact.
-  await expect(page.getByTestId('compiled-prompt-text')).toHaveText(before ?? '')
-})
 
 test('evidence location is repeatable and does not steal focus during subsequent editing', async ({ page }) => {
   await prepare(page)

@@ -145,7 +145,10 @@ test.describe('plan-04 Render Dock readiness and generation recovery', () => {
     await expect(dock).toHaveAttribute('data-readiness-can-generate', 'false')
     await expect(dock.getByTestId('render-readiness-list')).toHaveCount(0)
     await expect(dock.locator('[data-testid^="render-readiness-item-"]')).toHaveCount(0)
-    await expect(dock.getByTestId('render-disabled-reason')).toBeVisible()
+    await expect(dock.getByRole('button', { name: /^Generate 1 image$/i })).toHaveAttribute(
+      'title',
+      /upload a reference|add a reference/i,
+    )
     await expect(dock.getByTestId('render-next-action')).toHaveCount(0)
     await expect(dock.getByLabel(/Aspect Ratio/i)).toBeVisible()
     await expect(dock.getByLabel(/Quality/i)).toBeVisible()

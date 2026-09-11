@@ -11,7 +11,7 @@ import {
   type MockIterationDetail,
   type MockIterationListItem,
 } from './helpers/mock-api'
-import { gotoWorkspace } from './helpers/workspace-actions'
+import { gotoWorkspace, revealInspectorPanel } from './helpers/workspace-actions'
 
 /**
  * plan-04 — “继续此方向 / 修正并继续”恢复与守卫 E2E（red → green）
@@ -252,17 +252,16 @@ function appShell(page: Page) {
 }
 
 function promptCard(page: Page) {
-  return appShell(page)
-    .getByRole('region', { name: 'Prompt and Render column' })
-    .getByTestId('prompt-card')
+  return appShell(page).getByTestId('prompt-card')
 }
+
 
 function renderDock(page: Page) {
   return appShell(page).getByTestId('generation-bar')
 }
 
-function referenceColumn(page: Page) {
-  return appShell(page).getByRole('region', { name: 'Reference Canvas column' })
+function referenceCard(page: Page) {
+  return appShell(page).getByTestId('reference-card')
 }
 
 /** 工作台“上一轮结果”展示位（plan-04 契约：恢复后原结果保留可见） */
@@ -286,13 +285,14 @@ async function openDetail(page: Page, summary: string) {
 /** 恢复落地断言：回工作台且快照逐位恢复（提示/排除项/参数/来源/上一轮结果） */
 async function expectWorkspaceRestoredSnapshot(page: Page, detail: MockIterationDetail) {
   await expect(appShell(page)).toBeVisible({ timeout: 15000 })
+  await revealInspectorPanel(page, 'prompt')
   await expect(promptCard(page)).toContainText(detail.promptSnapshot, { timeout: 15000 })
   await expect(page.getByLabel('Variable negative_prompt')).toHaveValue(
     detail.negativePromptSnapshot,
   )
   await expect(renderDock(page).getByLabel('Aspect ratio')).toHaveValue(detail.params.aspectRatio)
   await expect(renderDock(page).getByLabel('Quality')).toHaveValue(detail.params.quality)
-  await expect(referenceColumn(page).getByRole('img', { name: 'Reference' })).toHaveAttribute(
+  await expect(referenceCard(page).getByRole('img', { name: 'Reference' })).toHaveAttribute(
     'src',
     detail.sourceImageUrl as string,
   )
@@ -398,6 +398,7 @@ test.describe('plan-04 continue-this-direction restore and workspace guard', () 
     // 详情侧零变更：对话框关闭，仍停留详情且展示同一 Iteration
     await expect(replaceConfirmDialog(page)).toHaveCount(0)
     await expect(page).toHaveURL(/\/workspace\?/)
+    await revealInspectorPanel(page, 'prompt')
     await expect(promptCard(page)).toContainText(CURRENT_PROMPT)
 
     // 工作台侧零变更：既有持久化通道仍是当前未完成内容
@@ -412,6 +413,7 @@ test.describe('plan-04 continue-this-direction restore and workspace guard', () 
       negativePromptText: CURRENT_NEGATIVE,
     })
     await gotoWorkspace(page)
+    await revealInspectorPanel(page, 'prompt')
     await expect(promptCard(page)).toContainText(CURRENT_PROMPT, { timeout: 15000 })
 
     expect(capture.requests, 'cancel must not issue any generation request').toHaveLength(0)
@@ -473,7 +475,7 @@ test.describe('plan-04 continue-this-direction restore and workspace guard', () 
     await expect(replaceConfirmDialog(page)).toHaveCount(0)
     await expect(page).toHaveURL(/\/workspace\?directionId=/, { timeout: 15000 })
     await expect(promptCard(page)).toContainText(prompt, { timeout: 15000 })
-    await expect(referenceColumn(page).getByRole('img', { name: 'Reference' })).toHaveAttribute(
+    await expect(referenceCard(page).getByRole('img', { name: 'Reference' })).toHaveAttribute(
       'src',
       detail.sourceImageUrl as string,
     )
@@ -508,6 +510,8 @@ test.describe('plan-04 continue-this-direction restore and workspace guard', () 
     expect(capture.requests, 'restore must not issue any generation request').toHaveLength(0)
 
     const modifiedPrompt = 'Watercolor petals study with brighter window light and dew'
+    await revealInspectorPanel(page, 'prompt')
+    await page.getByTestId('editor-mode-option-text').click()
     await expect(generationPromptEditor(page)).toBeVisible({ timeout: 15000 })
     await generationPromptEditor(page).fill(modifiedPrompt)
 
@@ -588,6 +592,7 @@ test.describe('plan-04 continue-this-direction restore and workspace guard', () 
     await continueDirectionButton(page).click()
     await dialogConfirmButton(page).click()
     await expect(page).toHaveURL(/\/workspace\?directionId=/, { timeout: 15000 })
+    await revealInspectorPanel(page, 'prompt')
     await expect(promptCard(page)).toContainText(TARGET_PROMPT, { timeout: 15000 })
 
     // 回到 Iteration Memory 再次恢复同一目标：currentIterationId === target.id
@@ -599,6 +604,7 @@ test.describe('plan-04 continue-this-direction restore and workspace guard', () 
     // 三豁免之“已是同一 Iteration”：direct，不弹确认，幂等回工作台
     await expect(replaceConfirmDialog(page)).toHaveCount(0)
     await expect(page).toHaveURL(/\/workspace\?directionId=/, { timeout: 15000 })
+    await revealInspectorPanel(page, 'prompt')
     await expect(promptCard(page)).toContainText(TARGET_PROMPT, { timeout: 15000 })
   })
 })

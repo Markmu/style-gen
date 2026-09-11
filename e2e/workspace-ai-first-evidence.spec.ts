@@ -9,6 +9,7 @@ import {
   mockUploadPresign,
 } from './helpers/mock-api'
 import { waitForReactInput } from './helpers/react-ready'
+import { revealInspectorPanel } from './helpers/workspace-actions'
 
 const TEST_IMAGE_PATH = resolve(__dirname, 'fixtures/test-image.png')
 
@@ -56,22 +57,17 @@ function appShell(page: Page) {
 }
 
 function referenceCard(page: Page) {
-  return appShell(page)
-    .getByRole('region', { name: 'Reference Canvas column' })
-    .getByTestId('reference-card')
+  return appShell(page).getByTestId('reference-card')
 }
 
 function styleIntelligence(page: Page) {
-  return appShell(page)
-    .getByRole('region', { name: 'Style Intelligence column' })
-    .getByTestId('recipe-card')
+  return appShell(page).getByTestId('recipe-card')
 }
 
 function promptCard(page: Page) {
-  return appShell(page)
-    .getByRole('region', { name: 'Prompt and Render column' })
-    .getByTestId('prompt-card')
+  return appShell(page).getByTestId('prompt-card')
 }
+
 
 async function mockCompletedAnalysis(page: Page, taskId: string, response = loadFixture('analysis-completed.json')) {
   await mockUploadPresign(page)
@@ -91,9 +87,11 @@ test.describe('plan-03 Workspace Reference / Evidence / Prompt AI-first contract
   test('TC-3.1 empty workspace explains the AI style signals it will read', async ({ page }) => {
     await openWorkspace(page)
 
-    await expect(appShell(page).getByTestId('workspace-three-column-layout')).toBeVisible()
+    await expect(appShell(page).getByTestId('workspace-agent-layout')).toBeVisible()
     await expect(referenceCard(page)).toBeVisible()
+    await revealInspectorPanel(page, 'evidence')
     await expect(styleIntelligence(page)).toBeVisible()
+    await revealInspectorPanel(page, 'prompt')
     await expect(promptCard(page)).toBeVisible()
 
     const reference = referenceCard(page)
@@ -112,7 +110,7 @@ test.describe('plan-03 Workspace Reference / Evidence / Prompt AI-first contract
     await expect(page.getByTestId('ai-status-header')).toHaveAttribute('data-phase', 'analysis_ready', {
       timeout: 15000,
     })
-    await expect(referenceCard(page).getByAltText('Reference')).toHaveCSS('object-fit', 'cover')
+    await expect(referenceCard(page).getByAltText('Reference')).toHaveCSS('object-fit', 'contain')
 
     const facetIds = await styleIntelligence(page)
       .locator('[data-testid^="evidence-facet-"]')
@@ -147,6 +145,7 @@ test.describe('plan-03 Workspace Reference / Evidence / Prompt AI-first contract
 
     await expect(lightingFacet).toHaveAttribute('data-selected', 'true')
     await expect(referenceCard(page).locator('[data-testid^="reference-anchor-"]')).toHaveCount(0)
+    await revealInspectorPanel(page, 'prompt')
     await expect(promptCard(page).getByTestId('prompt-provenance-span-lighting')).toBeVisible()
   })
 
@@ -177,6 +176,7 @@ test.describe('plan-03 Workspace Reference / Evidence / Prompt AI-first contract
     await textureFacet.click()
     await styleIntelligence(page).getByTestId('evidence-observation-texture').click()
 
+    await revealInspectorPanel(page, 'prompt')
     await expect(promptCard(page).getByTestId('text-mode-highlight-editor')).toBeVisible()
     await expect(promptCard(page).getByTestId('prompt-provenance-facet-only-texture')).toHaveCount(0)
   })
@@ -208,6 +208,7 @@ test.describe('plan-03 Workspace Reference / Evidence / Prompt AI-first contract
     await expect(reference).toContainText(/context|preserved|保留/i)
     await expect(reference.getByRole('button', { name: /retry analysis/i })).toBeVisible()
     await expect(reference.getByRole('button', { name: /replace/i })).toBeVisible()
+    await revealInspectorPanel(page, 'prompt')
     await expect(promptCard(page)).toContainText(/prompt context|back to edit|保留/i)
     await expect(page.getByRole('button', { name: /back to edit/i })).toBeVisible()
   })

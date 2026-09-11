@@ -1,5 +1,4 @@
 import type { Page } from '@playwright/test'
-import { expect } from '@playwright/test'
 import { resolve } from 'path'
 import {
   mockUploadPresign,
@@ -10,7 +9,6 @@ import {
   loadFixture,
 } from './mock-api'
 import { mockAuthSession } from './mock-api'
-import { waitForReactElement } from './react-ready'
 
 const TEST_IMAGE_PATH = resolve(__dirname, '../fixtures/test-image.png')
 
@@ -149,51 +147,6 @@ export async function completeFullFlow(
 }
 
 export { TEST_IMAGE_PATH }
-
-// ─── 第 15 期 plan-02：创作节奏选择与快速确认操作 helper ─────────────────────
-
-/** plan-02: 空工作区默认停留在 analyze_edit，选择快速复刻后确认区可打开 */
-export async function chooseQuickRecreatePace(page: Page) {
-  const selector = page.getByTestId('creation-pace-selector')
-  await expect(selector).toBeVisible({ timeout: 10000 })
-  await expect(selector.getByTestId('pace-option-analyze-edit')).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  )
-  // Dev server 下 SSR HTML 先于 hydration 就绪；等待 React 事件挂载，避免点击被丢弃
-  const quickOption = selector.getByTestId('pace-option-quick-recreate')
-  await waitForReactElement(quickOption)
-  await quickOption.click()
-  const dialog = page.getByTestId('quick-confirm-dialog')
-  await expect(dialog).toBeVisible({ timeout: 10000 })
-  return dialog
-}
-
-/** plan-02: 确认快速复刻授权——同一 QuickGenerationAuthorizationSnapshot 原子写入并置 armed */
-export async function confirmQuickRecreate(page: Page) {
-  const dialog = page.getByTestId('quick-confirm-dialog')
-  const file=page.getByLabel('Attach reference',{exact:true});
-  await file.setInputFiles(require.resolve('../fixtures/test-image.png'));
-  await waitForReactElement(dialog.getByTestId('quick-confirm-confirm'))
-  await dialog.getByTestId('quick-confirm-confirm').click()
-  await expect(page.getByTestId('quick-authorization-status')).toHaveAttribute(
-    'data-authorization',
-    /armed|consumed/,
-    { timeout: 10000 },
-  )
-}
-
-/** plan-02: armed 期间退出快速路径——授权复位 none 并恢复可编辑 */
-export async function exitQuickRecreate(page: Page) {
-  const exitButton = page.getByTestId('exit-quick-recreate')
-  await waitForReactElement(exitButton)
-  await exitButton.click()
-  await expect(page.getByTestId('quick-authorization-status')).toHaveAttribute(
-    'data-authorization',
-    'none',
-    { timeout: 10000 },
-  )
-}
 
 /** Generate from the saved current draft; the bar shows settings and the primary action only. */
 export async function generateCurrentDraft(page:Page) {

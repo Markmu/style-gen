@@ -582,7 +582,7 @@ test.describe('plan-08 targeted visual QA and legacy gate', () => {
       await expect(appShell(page).getByTestId('recipe-card').first()).toBeAttached()
       await expect(appShell(page).getByTestId('prompt-card').first()).toBeAttached()
       await expect(appShell(page).getByTestId('generation-bar').first()).toBeVisible()
-      await expect(appShell(page).getByTestId('history-strip').first()).toBeAttached()
+      await expect(appShell(page).getByTestId('workspace-composer-area').first()).toBeAttached()
 
       await openRoute(page, '/workspace/templates')
       await expectPageNonEmpty(page)

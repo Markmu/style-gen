@@ -8,7 +8,6 @@ import {
   mockAnalysisCreateCapture,
   mockAnalysisCreateSequence,
   mockAnalysisPolling,
-  mockAnalysisPollingSequence,
   mockAuthSession,
   mockCdnImages,
   mockDirectionFeedStateful,
@@ -30,12 +29,7 @@ import {
   type MockStyleMemoryDetail,
 } from './helpers/mock-api'
 import { waitForReactInput } from './helpers/react-ready'
-import {
-  chooseQuickRecreatePace,
-  confirmQuickRecreate,
-  exitQuickRecreate,
-  gotoWorkspace,
-} from './helpers/workspace-actions'
+import { gotoWorkspace, revealInspectorPanel } from './helpers/workspace-actions'
 
 const TEST_IMAGE_PATH = resolve(__dirname, 'fixtures/test-image.png')
 
@@ -61,12 +55,8 @@ const FAILED_ANALYSIS = {
   errorStage: 'vision',
 }
 
-function referenceColumn(page: Page) {
-  return page.getByRole('region', { name: 'Reference Canvas column' })
-}
-
 function referenceCard(page: Page) {
-  return referenceColumn(page).getByTestId('reference-card')
+  return page.getByTestId('reference-card')
 }
 
 function renderDock(page: Page) {
@@ -75,24 +65,25 @@ function renderDock(page: Page) {
 
 /** 上传测试参考图（100×100，参考比 1:1），走可见 drop-zone 的 file input */
 async function uploadReference(page: Page) {
-  const input = referenceColumn(page).locator('input[type="file"]')
+  const input = referenceCard(page).locator('input[type="file"]').first()
   await waitForReactInput(input)
   await input.setInputFiles(TEST_IMAGE_PATH)
 }
 
 /**
- * TC-2.1 / TC-2.9 共享：快速路径与深入路径证据完整度一致的同一断言集合
- * （架构 §6.1 实现原则：两路径共享完整分析、Prompt 编译与生成 API）。
+ * 完成分析后的共享证据断言集合（架构 §6.1 实现原则：完整分析、Prompt 编译与生成 API）。
  */
 async function expectDirectionEvidenceComplete(page: Page) {
   await page
     .locator('[data-testid="ai-status-header"][data-phase="analysis_ready"]')
     .first()
     .waitFor({ timeout: 15000 })
+  await revealInspectorPanel(page, 'evidence')
   await expect(page.getByTestId('recipe-card')).toBeVisible()
   await expect(page.getByTestId('content-analysis')).toBeVisible()
   await expect(page.getByTestId('style-invariants')).toBeVisible()
   await expect(page.getByTestId('evidence-facet-visualMedium')).toBeVisible()
+  await revealInspectorPanel(page, 'prompt')
   await expect(
     page
       .locator('[data-testid="unified-prompt-editor"], [data-testid="structured-prompt-editor"]')
@@ -119,283 +110,8 @@ test.describe('plan-02：快速创作节奏与工作区状态（AC-01 / AC-07）
       id: analysisTaskId,
     })
 
-    const selector = page.getByTestId('creation-pace-selector')
-    await expect(selector).toBeVisible({ timeout: 10000 })
-    await expect(selector.getByTestId('pace-option-analyze-edit')).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    )
-
     await uploadReference(page)
     await expectDirectionEvidenceComplete(page)
-    expect(generation.requests).toHaveLength(0)
-  })
-
-  test('TC-2.2 快速确认披露五类信息：intent、detail、画幅策略、生成设置与单张生成', async ({ page }) => {
-    const generation = await mockGenerationCreateCapture(page)
-
-    const dialog = await chooseQuickRecreatePace(page)
-
-    await expect(dialog.getByTestId('quick-confirm-title')).toBeFocused()
-    await expect(dialog.getByTestId('quick-confirm-intent')).toHaveAttribute(
-      'data-value',
-      'reconstruction',
-    )
-    await expect(dialog.getByTestId('quick-confirm-detail-level')).toHaveAttribute(
-      'data-value',
-      'standard',
-    )
-    await expect(
-      dialog.getByTestId('quick-confirm-aspect-ratio-policy'),
-    ).toHaveAttribute('data-value', 'reference_or_fallback')
-
-    // 披露的生成设置必须与当前共享默认值同源（确认 UI 与 Render Dock 消费同一默认）
-    const defaultModel = await renderDock(page).getByLabel('Model').inputValue()
-    await expect(dialog.getByTestId('quick-confirm-generation-settings')).toHaveAttribute(
-      'data-quality',
-      'standard',
-    )
-    await expect(dialog.getByTestId('quick-confirm-generation-settings')).toHaveAttribute(
-      'data-model',
-      defaultModel,
-    )
-    await expect(dialog.getByTestId('quick-confirm-image-count')).toHaveAttribute(
-      'data-value',
-      '1',
-    )
-    expect(generation.requests).toHaveLength(0)
-  })
-
-  test('TC-2.3 当前页面完整分析消费一次服务端quick授权', async ({ page }) => {
-    const analysisTaskId = 'quick-path-analysis-task'
-    const generationTaskId = 'quick-path-generation-task'
-    const generation = await mockGenerationCreateCapture(page, generationTaskId)
-    // plan-07 最小口径对齐（实现规格 §4）：成功终态以方向 feed 内联呈现，
-    // 不再打开阻断式 GenerationDialog——seed feed 提供内联终态的可观察锚点。
-    await mockDirectionFeedStateful(page, {
-      completed: [directionItem(generationTaskId)],
-      active: null,
-      latestFailure: null,
-    })
-    await mockGenerationPolling(page, generationTaskId, {
-      ...loadFixture('generation-completed.json'),
-      id: generationTaskId,
-    })
-    await mockUploadPresign(page)
-    await mockAnalysisCreate(page, analysisTaskId)
-    await mockAnalysisPolling(page, analysisTaskId, {
-      ...loadFixture('analysis-v2-completed.json'),
-      id: analysisTaskId,
-    })
-
-    await chooseQuickRecreatePace(page)
-    await confirmQuickRecreate(page)
-
-    await expectDirectionEvidenceComplete(page)
-    await expect.poll(()=>generation.requests.length).toBe(1)
-    await expect.poll(() => generation.requests.length, { timeout: 15000 }).toBe(1)
-    expect(generation.requests[0].body).toMatchObject({directionId:expect.any(String),requestKey:expect.any(String),baseRevision:expect.any(Number),authorizationId:expect.any(String),mode:'quick'})
-
-    // 生成到达终态后提交数仍为 1（轮询重复 success / effect 重放不重放）；
-    // plan-07 新契约：终态内联进入方向结果区，阻断式弹层不出现（成功不弹层）
-    await expect(completedRailItem(page, generationTaskId)).toBeVisible({
-      timeout: 15000,
-    })
-    await expect(page.getByTestId('generation-dialog')).toBeHidden()
-    expect(generation.requests).toHaveLength(1)
-  })
-
-  test('TC-2.4 armed期间设置可编辑，修改清授权', async ({ page }) => {
-    const analysisTaskId = 'armed-lock-analysis-task'
-    const generation = await mockGenerationCreateCapture(page)
-    await mockUploadPresign(page)
-    await mockAnalysisCreate(page, analysisTaskId)
-    await mockAnalysisPolling(page, analysisTaskId, {
-      ...PROCESSING_ANALYSIS,
-      id: analysisTaskId,
-    })
-
-    await chooseQuickRecreatePace(page)
-    await confirmQuickRecreate(page)
-
-    await expect(page.getByTestId('quick-authorization-status')).toHaveAttribute(
-      'data-authorization',
-      'armed',
-    )
-    await expect(page.getByTestId('generation-bar')).toContainText('Editing or leaving clears')
-    await expect(page.getByTestId('exit-quick-recreate')).toBeVisible()
-
-    await expect(renderDock(page).getByLabel('Aspect ratio')).toBeEnabled()
-    await expect(renderDock(page).getByLabel('Quality')).toBeEnabled()
-    await expect(renderDock(page).getByLabel('Model')).toBeEnabled()
-    await renderDock(page).getByLabel('Aspect ratio').selectOption('3:4')
-    await expect(page.getByTestId('quick-authorization-status')).toHaveAttribute('data-authorization','none')
-    expect(generation.requests).toHaveLength(0)
-  })
-
-  test('TC-2.5 quick提交后刷新不重放授权或生成请求', async ({ page }) => {
-    const analysisTaskId = 'reload-analysis-task'
-    const generationTaskId = 'reload-generation-task'
-    const generation = await mockGenerationCreateCapture(page, generationTaskId)
-    // plan-07 最小口径对齐（实现规格 §4）：重载后终态按数据库事实（方向 feed）内联恢复
-    await mockDirectionFeedStateful(page, {
-      completed: [directionItem(generationTaskId)],
-      active: null,
-      latestFailure: null,
-    })
-    await mockGenerationPolling(page, generationTaskId, {
-      ...loadFixture('generation-completed.json'),
-      id: generationTaskId,
-    })
-    await mockUploadPresign(page)
-    await mockAnalysisCreate(page, analysisTaskId)
-    await mockAnalysisPolling(page, analysisTaskId, {
-      ...loadFixture('analysis-v2-completed.json'),
-      id: analysisTaskId,
-    })
-
-    await chooseQuickRecreatePace(page)
-    await confirmQuickRecreate(page)
-
-    await expectDirectionEvidenceComplete(page)
-    await expect
-      .poll(() => generation.requests.length, { timeout: 15000 })
-      .toBe(1)
-
-    await page.reload()
-    await expect(page.getByTestId('workspace-three-column-layout')).toBeVisible({
-      timeout: 15000,
-    })
-    // 等待生成终态按数据库事实恢复（方向 feed 内联可见），给 mounted effect
-    // 重放充分暴露窗口；plan-07 新契约：重载后成功内联恢复，不弹阻断式弹层
-    await expect(completedRailItem(page, generationTaskId)).toBeVisible({
-      timeout: 15000,
-    })
-    await expect(page.getByTestId('generation-dialog')).toBeHidden()
-    expect(generation.requests).toHaveLength(1)
-  })
-
-  test('TC-2.6 分析失败清除 armed 快照并说明原因，参考上下文保留', async ({ page }) => {
-    const analysisTaskId = 'failed-analysis-task'
-    const generation = await mockGenerationCreateCapture(page)
-    await mockUploadPresign(page)
-    await mockAnalysisCreate(page, analysisTaskId)
-    await mockAnalysisPolling(page, analysisTaskId, {
-      ...FAILED_ANALYSIS,
-      id: analysisTaskId,
-    })
-
-    await chooseQuickRecreatePace(page)
-    await confirmQuickRecreate(page)
-
-    await expect(referenceCard(page).getByText('Analysis failed')).toBeVisible({
-      timeout: 15000,
-    })
-    await expect(referenceCard(page).getByTestId('reference-image-stage')).toBeVisible()
-    await expect(page.getByTestId('quick-authorization-cleared-reason')).toBeVisible()
-    await expect(page.getByTestId('quick-authorization-status')).toHaveAttribute(
-      'data-authorization',
-      'none',
-    )
-    expect(generation.requests).toHaveLength(0)
-  })
-
-  test('TC-2.7 取消确认零写入，焦点回触发器且默认节奏不变', async ({ page }) => {
-    const generation = await mockGenerationCreateCapture(page)
-
-    const dialog = await chooseQuickRecreatePace(page)
-    await dialog.getByTestId('quick-confirm-cancel').click()
-
-    await expect(page.getByTestId('quick-confirm-dialog')).toBeHidden()
-    await expect(page.getByTestId('pace-option-quick-recreate')).toBeFocused()
-    await expect(page.getByTestId('pace-option-analyze-edit')).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    )
-    await expect(page.getByTestId('reference-upload-panel')).toBeVisible()
-    expect(generation.requests).toHaveLength(0)
-  })
-
-  test('TC-2.8 分析期间退出快速路径：清授权、解锁设置、完成后不自动生成', async ({ page }) => {
-    const analysisTaskId = 'exit-quick-analysis-task'
-    const generation = await mockGenerationCreateCapture(page)
-    await mockUploadPresign(page)
-    await mockAnalysisCreate(page, analysisTaskId)
-    await mockAnalysisPollingSequence(page, analysisTaskId, [
-      { ...PROCESSING_ANALYSIS, id: analysisTaskId },
-      { ...PROCESSING_ANALYSIS, id: analysisTaskId },
-      { ...PROCESSING_ANALYSIS, id: analysisTaskId },
-      { ...loadFixture('analysis-v2-completed.json'), id: analysisTaskId },
-    ])
-
-    await chooseQuickRecreatePace(page)
-    await confirmQuickRecreate(page)
-
-    await exitQuickRecreate(page)
-    await expect(renderDock(page).getByLabel('Aspect ratio')).toBeEnabled()
-    await expect(renderDock(page).getByLabel('Quality')).toBeEnabled()
-    await expect(renderDock(page).getByLabel('Model')).toBeEnabled()
-    await expect(referenceCard(page).getByTestId('reference-image-stage')).toBeVisible()
-
-    await expectDirectionEvidenceComplete(page)
-    expect(generation.requests).toHaveLength(0)
-  })
-
-  test('TC-2.9 快速路径与深入路径证据完整度一致（共享证据断言集合）', async ({ page }) => {
-    const analysisTaskId = 'parity-quick-analysis-task'
-    const generationTaskId = 'parity-quick-generation-task'
-    const generation = await mockGenerationCreateCapture(page, generationTaskId)
-    await mockGenerationPolling(page, generationTaskId, {
-      ...loadFixture('generation-completed.json'),
-      id: generationTaskId,
-    })
-    await mockUploadPresign(page)
-    await mockAnalysisCreate(page, analysisTaskId)
-    await mockAnalysisPolling(page, analysisTaskId, {
-      ...loadFixture('analysis-v2-completed.json'),
-      id: analysisTaskId,
-    })
-
-    await chooseQuickRecreatePace(page)
-    await confirmQuickRecreate(page)
-
-    // 与 TC-2.1 完全相同的证据断言集合：快速路径不削弱证据完整度
-    await expectDirectionEvidenceComplete(page)
-    await expect.poll(()=>generation.requests.length).toBe(1)
-    expect(generation.requests[0].body).toMatchObject({mode:'quick',authorizationId:expect.any(String)})
-  })
-
-  test('TC-2.10 阻塞清除后条件恢复（重试分析成功）不延迟自动提交', async ({ page }) => {
-    const failedTaskId = 'blocked-analysis-task'
-    const recoveredTaskId = 'recovered-analysis-task'
-    const generation = await mockGenerationCreateCapture(page)
-    await mockUploadPresign(page)
-    await mockAnalysisCreateSequence(page, [failedTaskId, recoveredTaskId])
-    await mockAnalysisPolling(page, failedTaskId, { ...FAILED_ANALYSIS, id: failedTaskId })
-    await mockAnalysisPolling(page, recoveredTaskId, {
-      ...loadFixture('analysis-v2-completed.json'),
-      id: recoveredTaskId,
-    })
-
-    await chooseQuickRecreatePace(page)
-    await confirmQuickRecreate(page)
-
-    await expect(referenceCard(page).getByText('Analysis failed')).toBeVisible({
-      timeout: 15000,
-    })
-    await expect(page.getByTestId('quick-authorization-status')).toHaveAttribute(
-      'data-authorization',
-      'none',
-    )
-
-    await referenceCard(page).getByRole('button', { name: 'Retry analysis' }).click()
-    await expectDirectionEvidenceComplete(page)
-
-    // 条件恢复后不复活 armed、不延迟自动提交
-    await expect(page.getByTestId('quick-authorization-status')).toHaveAttribute(
-      'data-authorization',
-      'none',
-    )
     expect(generation.requests).toHaveLength(0)
   })
 })
@@ -403,9 +119,6 @@ test.describe('plan-02：快速创作节奏与工作区状态（AC-01 / AC-07）
 // ─── plan-04：Prompt 控制与保留改变摘要（AC-02 / AC-03 / AC-05） ──────────────
 
 const WORKSPACE_STORAGE_KEY = 'style-gen-workspace-state'
-
-/** plan-01 唯一画幅白名单（架构 §6.3）：未知值不得进入 UI 或请求 */
-const SUPPORTED_RATIOS = ['1:1', '4:3', '16:9', '3:4', '9:16']
 
 /** fixture 的 5 条 enabled invariant 值：三档 detail 切换的恒等断言集合（架构 §6.2.2） */
 const V2_INVARIANT_VALUES = [
@@ -447,6 +160,7 @@ async function completeDeepAnalysis(
     .locator('[data-testid="ai-status-header"][data-phase="analysis_ready"]')
     .first()
     .waitFor({ timeout: 15000 })
+  await revealInspectorPanel(page, 'prompt')
 }
 
 /**
@@ -487,6 +201,7 @@ test.describe('plan-04：Prompt 控制与保留改变摘要（AC-02 / AC-03 / AC
     const generation = await mockGenerationCreateCapture(page)
     await completeDeepAnalysis(page, 'prompt-controls-default-analysis-task')
 
+    await revealInspectorPanel(page, 'prompt')
     const controls = promptControls(page)
     await expect(controls).toBeVisible({ timeout: 10000 })
     await expect(controls).toHaveAttribute('data-intent', 'same_style')
@@ -521,6 +236,7 @@ test.describe('plan-04：Prompt 控制与保留改变摘要（AC-02 / AC-03 / AC
   test('TC-4.2 切换 intent 即时重编译：reconstruction 原内容与说明、invariant 恒等', async ({ page }) => {
     await completeDeepAnalysis(page, 'intent-switch-analysis-task')
 
+    await revealInspectorPanel(page, 'prompt')
     const controls = promptControls(page)
     await expect(controls).toBeVisible({ timeout: 10000 })
     const compiled = page.getByTestId('compiled-prompt-text')
@@ -554,6 +270,7 @@ test.describe('plan-04：Prompt 控制与保留改变摘要（AC-02 / AC-03 / AC
   test('TC-4.3 三档 detail 切换：invariant 集合恒等、补充观察按档位变化', async ({ page }) => {
     await completeDeepAnalysis(page, 'detail-switch-analysis-task')
 
+    await revealInspectorPanel(page, 'prompt')
     const controls = promptControls(page)
     await expect(controls).toBeVisible({ timeout: 10000 })
     const compiled = page.getByTestId('compiled-prompt-text')
@@ -588,6 +305,7 @@ test.describe('plan-04：Prompt 控制与保留改变摘要（AC-02 / AC-03 / AC
   test('TC-4.4 变量值在 intent/detail 切换后保持并进入编译结果', async ({ page }) => {
     await completeDeepAnalysis(page, 'variable-keep-analysis-task')
 
+    await revealInspectorPanel(page, 'prompt')
     const controls = promptControls(page)
     await expect(controls).toBeVisible({ timeout: 10000 })
     const subjectInput = promptCard(page).getByLabel('Subject')
@@ -609,6 +327,7 @@ test.describe('plan-04：Prompt 控制与保留改变摘要（AC-02 / AC-03 / AC
   test('TC-4.5 三编辑入口可达、structured 只读、返回后最终 Prompt 来源不变', async ({ page }) => {
     await completeDeepAnalysis(page, 'editor-mode-analysis-task')
 
+    await revealInspectorPanel(page, 'prompt')
     const controls = promptControls(page)
     await expect(controls).toBeVisible({ timeout: 10000 })
     const compiled = page.getByTestId('compiled-prompt-text')
@@ -640,6 +359,7 @@ test.describe('plan-04：Prompt 控制与保留改变摘要（AC-02 / AC-03 / AC
   test('TC-4.6 手动全文后切换：取消逐字保留、确认后替换并清 dirty', async ({ page }) => {
     await completeDeepAnalysis(page, 'custom-dirty-analysis-task')
 
+    await revealInspectorPanel(page, 'prompt')
     const controls = promptControls(page)
     await expect(controls).toBeVisible({ timeout: 10000 })
     await controls.getByTestId('editor-mode-option-text').click()
@@ -731,38 +451,23 @@ test.describe('plan-04：Prompt 控制与保留改变摘要（AC-02 / AC-03 / AC
     await completeDeepAnalysis(page, 'ratio-source-analysis-task')
 
     const dock = renderDock(page)
-    const sourceBadge = dock.getByTestId('aspect-ratio-source')
-    await expect(sourceBadge).toBeVisible({ timeout: 10000 })
-    // 100×100 参考图（1×1 mock CDN 图）→ 最近画幅 1:1，来源 reference 且标注推荐
-    await expect(sourceBadge).toHaveAttribute('data-source', 'reference')
-    await expect(sourceBadge).toHaveAttribute('data-recommended', 'true')
+    // 100×100 参考图（1×1 mock CDN 图）→ 最近画幅 1:1
     await expect(dock.getByLabel('Aspect ratio')).toHaveValue('1:1')
 
-    // 用户改选 3:4：来源切换 user
+    // 用户改选 3:4 后，图片重载（reload）不覆盖用户选择（架构 §6.3.4）
     await dock.getByLabel('Aspect ratio').selectOption('3:4')
-    await expect(sourceBadge).toHaveAttribute('data-source', 'user')
-    await expect(dock.getByLabel('Aspect ratio')).toHaveValue('3:4')
-
-    // 图片重载（reload）不覆盖用户选择（架构 §6.3.4）
     await page.reload()
-    await expect(page.getByTestId('workspace-three-column-layout')).toBeVisible({
+    await expect(page.getByTestId('workspace-agent-layout')).toBeVisible({
       timeout: 15000,
     })
-    await expect(renderDock(page).getByTestId('aspect-ratio-source')).toHaveAttribute(
-      'data-source',
-      'user',
-    )
     await expect(renderDock(page).getByLabel('Aspect ratio')).toHaveValue('3:4')
 
     // Prompt 编辑（切换 detail）同样不覆盖
+    await revealInspectorPanel(page, 'prompt')
     const controls = promptControls(page)
     await expect(controls).toBeVisible({ timeout: 10000 })
     await controls.getByTestId('detail-option-concise').click()
     await expect(renderDock(page).getByLabel('Aspect ratio')).toHaveValue('3:4')
-    await expect(renderDock(page).getByTestId('aspect-ratio-source')).toHaveAttribute(
-      'data-source',
-      'user',
-    )
   })
 
   test('TC-4.10 Iteration 恢复：restore 来源优先于参考推荐，旧快照降级 text 模式', async ({ page }) => {
@@ -783,6 +488,7 @@ test.describe('plan-04：Prompt 控制与保留改变摘要（AC-02 / AC-03 / AC
     })
 
     // 旧任务缺 promptControlSnapshot：降级 same_style/standard/text，全文取 promptSnapshot
+    await revealInspectorPanel(page, 'prompt')
     const controls = promptControls(page)
     await expect(controls).toBeVisible({ timeout: 10000 })
     await expect(controls).toHaveAttribute('data-editor-mode', 'text')
@@ -791,10 +497,6 @@ test.describe('plan-04：Prompt 控制与保留改变摘要（AC-02 / AC-03 / AC
 
     // restore 来源优先；参考图加载不覆盖（架构 §6.3.5）
     const dock = renderDock(page)
-    await expect(dock.getByTestId('aspect-ratio-source')).toHaveAttribute(
-      'data-source',
-      'restore',
-    )
     await expect(dock.getByLabel('Aspect ratio')).toHaveValue('16:9')
   })
 
@@ -839,30 +541,6 @@ test.describe('plan-04：Prompt 控制与保留改变摘要（AC-02 / AC-03 / AC
     const current=await page.evaluate(async id=>await(await fetch(`/api/workspace/directions/${id}`)).json(),body.directionId)
     expect(current.direction.draft.params.aspectRatio).toBe('1:1')
 
-  })
-
-  test('TC-4.12 armed期间编辑生成设置撤销授权，分析完成不消费', async ({ page }) => {
-    const analysisTaskId = 'armed-prompt-controls-analysis-task'
-    const generation = await mockGenerationCreateCapture(page)
-    await mockUploadPresign(page)
-    await mockAnalysisCreate(page, analysisTaskId)
-    await mockAnalysisPolling(page, analysisTaskId, {
-      ...PROCESSING_ANALYSIS,
-      id: analysisTaskId,
-    })
-
-    await chooseQuickRecreatePace(page)
-    await confirmQuickRecreate(page)
-
-    await expect(page.getByTestId('quick-authorization-status')).toHaveAttribute(
-      'data-authorization',
-      'armed',
-    )
-    await renderDock(page).getByLabel('Aspect ratio').selectOption('16:9')
-    await expect(page.getByTestId('quick-authorization-status')).toHaveAttribute('data-authorization','none')
-    await mockAnalysisPolling(page,analysisTaskId,{...loadFixture('analysis-v2-completed.json'),id:analysisTaskId})
-    await expect.poll(async()=>page.evaluate(async id=>(await(await fetch('/api/analysis/'+id)).json()).status,analysisTaskId)).toBe('completed')
-    expect(generation.requests).toHaveLength(0)
   })
 })
 
@@ -2346,9 +2024,14 @@ test.describe('plan-07：Workspace 闭环集成与回归（AC-01～07 全旅程�
     await expect(newItem.locator('img')).toBeVisible()
 
     // 成功后上下文不被阻断：三栏可见，Prompt 仍可继续编辑（切换 detail 即时生效）
-    await expect(page.getByTestId('workspace-three-column-layout')).toBeVisible()
+    await expect(page.getByTestId('workspace-agent-layout')).toBeVisible()
+    await page
+      .getByRole('tablist', { name: 'Canvas view' })
+      .getByRole('tab', { name: 'Reference', exact: true })
+      .click()
     await expect(referenceCard(page).getByTestId('reference-image-stage')).toBeVisible()
     await expect(page.getByTestId('compiled-prompt-text')).toBeVisible()
+    await revealInspectorPanel(page, 'prompt')
     const controls = promptControls(page)
     await controls.getByTestId('detail-option-concise').click()
     await expect(controls).toHaveAttribute('data-detail', 'concise')
@@ -2410,7 +2093,7 @@ test.describe('plan-07：Workspace 闭环集成与回归（AC-01～07 全旅程�
     await expect(failureFace.getByText(/Image provider timed out/)).toBeVisible()
 
     // 失败保留编辑上下文：三栏与草稿仍在（§8.2 L3 保留能力）
-    await expect(page.getByTestId('workspace-three-column-layout')).toBeVisible()
+    await expect(page.getByTestId('workspace-agent-layout')).toBeVisible()
     await expect(referenceCard(page).getByTestId('reference-image-stage')).toBeVisible()
     await expect(page.getByTestId('compiled-prompt-text')).toBeVisible()
 
@@ -2486,6 +2169,7 @@ test.describe('plan-07：Workspace 闭环集成与回归（AC-01～07 全旅程�
     // 用户正在编辑全文时任务完成：结果通知走 polite live region，不移动编辑焦点
     //（编辑模式切换用键盘激活：本用例目标是焦点旅程契约；控件指针可达性
     //  由 TC-7.5 的 click 与 TC-7.9 的视口断言钉住）
+    await revealInspectorPanel(page, 'prompt')
     const controls = promptControls(page)
     await controls.getByTestId('editor-mode-option-text').focus()
     await page.keyboard.press('Space')
@@ -2536,6 +2220,7 @@ test.describe('plan-07：Workspace 闭环集成与回归（AC-01～07 全旅程�
     await completeDeepAnalysis(page, analysisTaskId)
 
     // 手动改写全文：文本不包含 lighting 规则表达（range 无法命中，架构 §8.2 L1）
+    await revealInspectorPanel(page, 'prompt')
     const controls = promptControls(page)
     await controls.getByTestId('editor-mode-option-text').click()
     const fulltext = page.getByTestId('fulltext-prompt-editor')
@@ -2616,7 +2301,7 @@ test.describe('plan-07：Workspace 闭环集成与回归（AC-01～07 全旅程�
     await expect(openIteration).toBeVisible()
 
     // 不遮挡编辑上下文：三栏可见，Prompt 编辑与手动生成继续可用（L2 保留能力）
-    await expect(page.getByTestId('workspace-three-column-layout')).toBeVisible()
+    await expect(page.getByTestId('workspace-agent-layout')).toBeVisible()
     await expect(compiled).toBeVisible()
     await expect(
       renderDock(page).getByRole('button', { name: /^Generate 1 image$/ }),
@@ -2652,28 +2337,18 @@ test.describe('plan-07：Workspace 闭环集成与回归（AC-01～07 全旅程�
       id: recoveredTaskId,
     })
 
-    await chooseQuickRecreatePace(page)
-    await confirmQuickRecreate(page)
+    await uploadReference(page)
 
-    // L4：分析失败 → armed 复位 none、清除原因说明、参考上下文保留，无阻断弹层
+    // L4：分析失败 → 参考上下文保留，无阻断弹层
     await expect(referenceCard(page).getByText('Analysis failed')).toBeVisible({
       timeout: 15000,
     })
     await expect(referenceCard(page).getByTestId('reference-image-stage')).toBeVisible()
-    await expect(page.getByTestId('quick-authorization-cleared-reason')).toBeVisible()
-    await expect(page.getByTestId('quick-authorization-status')).toHaveAttribute(
-      'data-authorization',
-      'none',
-    )
     await expect(page.getByTestId('generation-dialog')).toBeHidden()
 
     // 主动重试恢复 analysis_ready：不复活 armed、零自动生成（条件恢复不延迟触发）
     await referenceCard(page).getByRole('button', { name: 'Retry analysis' }).click()
     await expectDirectionEvidenceComplete(page)
-    await expect(page.getByTestId('quick-authorization-status')).toHaveAttribute(
-      'data-authorization',
-      'none',
-    )
     expect(generation.requests).toHaveLength(0)
 
     // 恢复后手动生成成功：内联呈现、不弹层（plan-07 成功契约）
